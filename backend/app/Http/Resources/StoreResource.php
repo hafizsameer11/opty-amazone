@@ -14,6 +14,17 @@ class StoreResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // Count active products for this store
+        $productsCount = \App\Models\Product::where('store_id', $this->id)
+            ->where('is_active', true)
+            ->count();
+        
+        // Count followers for this store
+        $followersCount = $this->followers()->count();
+        
+        // Calculate average rating from reviews
+        $rating = $this->reviews()->avg('rating');
+        
         return [
             'id' => $this->id,
             'user_id' => $this->user_id,
@@ -34,6 +45,9 @@ class StoreResource extends JsonResource
             'onboarding_level' => $this->onboarding_level,
             'onboarding_percent' => $this->onboarding_percent,
             'meta' => $this->meta,
+            'products_count' => $productsCount,
+            'followers_count' => $followersCount,
+            'rating' => $rating ? round((float) $rating, 2) : null,
             'created_at' => $this->created_at->toISOString(),
             'updated_at' => $this->updated_at->toISOString(),
         ];

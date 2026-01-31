@@ -8,15 +8,19 @@ import Footer from "@/components/layout/Footer";
 import BottomNav from "@/components/layout/BottomNav";
 import { userService, type ProfileResponse } from "../../services/user-service";
 import { orderService, type Order } from "../../services/order-service";
+import { walletService, type WalletTransaction } from "../../services/wallet-service";
 import { useAuth } from "../../contexts/AuthContext";
 import Alert from "@/components/ui/Alert";
 import Button from "@/components/ui/Button";
 import EditProfileForm from "@/components/profile/EditProfileForm";
+import OrderDetailsModal from "@/components/orders/OrderDetailsModal";
+import Badge from "@/components/ui/Badge";
 
 type AccountTab =
   | "overview"
   | "edit-profile"
   | "orders"
+  | "wallet"
   | "saved"
   | "followed-stores"
   | "reviews"
@@ -33,6 +37,12 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<AccountTab>("overview");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -63,6 +73,48 @@ export default function ProfilePage() {
       loadOrders();
     }
   }, [isAuthenticated, activeTab]);
+
+  // Load wallet balance when wallet tab is active
+  useEffect(() => {
+    if (isAuthenticated && activeTab === "wallet") {
+      loadWalletBalance();
+      loadTransactions();
+    }
+  }, [isAuthenticated, activeTab]);
+
+  const loadTransactions = async () => {
+    try {
+      setLoadingTransactions(true);
+      const data = await walletService.getTransactions({ per_page: 10 });
+      setTransactions(data.data || []);
+    } catch (error) {
+      console.error('Failed to load transactions:', error);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
+  const loadWalletBalance = async () => {
+    try {
+      setLoadingBalance(true);
+      const data = await walletService.getBalance();
+      setWalletBalance(data.balance);
+    } catch (error) {
+      console.error('Failed to load wallet balance:', error);
+    } finally {
+      setLoadingBalance(false);
+    }
+  };
+
+  const handleOrderClick = (orderId: number) => {
+    setSelectedOrderId(orderId);
+    setIsOrderModalOpen(true);
+  };
+
+  const handleOrderModalClose = () => {
+    setIsOrderModalOpen(false);
+    setSelectedOrderId(null);
+  };
 
   const loadOrders = async () => {
     try {
@@ -112,6 +164,12 @@ export default function ProfilePage() {
       label: "My Orders",
       description: "Track and manage orders",
       colorClass: "from-[#22c55e] to-[#16a34a]",
+    },
+    {
+      id: "wallet",
+      label: "Wallet",
+      description: "Balance, top-up & withdraw",
+      colorClass: "from-[#3b82f6] to-[#2563eb]",
     },
     {
       id: "saved",
@@ -415,8 +473,8 @@ export default function ProfilePage() {
                       )}
                     </div>
 
-                    <Link
-                      href={`/orders/${order.id}`}
+                    <button
+                      onClick={() => handleOrderClick(order.id)}
                       className="inline-flex items-center gap-1 text-sm font-medium text-[#0066CC] hover:text-[#0052a3] transition-colors"
                     >
                       View Details
@@ -433,9 +491,169 @@ export default function ProfilePage() {
                           d="M9 5l7 7-7 7"
                         />
                       </svg>
-                    </Link>
+                    </button>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeTab === "wallet") {
+      return (
+        <div className="rounded-2xl bg-white shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-5 sm:px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Wallet</h2>
+              <p className="text-sm text-gray-600 mt-0.5">
+                Manage your wallet balance, top-up and withdraw funds.
+              </p>
+            </div>
+          </div>
+          
+          <div className="p-5 sm:p-6">
+            {loadingBalance ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0066CC]"></div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Balance Card */}
+                <div className="bg-gradient-to-r from-[#0066CC] to-[#0052a3] rounded-xl p-6 text-white">
+                  <p className="text-sm text-white/80 mb-2">Available Balance</p>
+                  <p className="text-4xl font-bold mb-4">
+                    €{walletBalance !== null ? Number(walletBalance || 0).toFixed(2) : '0.00'}
+                  </p>
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={() => router.push('/profile/top-up')}
+                      variant="secondary"
+                      size="sm"
+                      className="bg-white text-[#0066CC] hover:bg-gray-100"
+                    >
+                      Top Up
+                    </Button>
+                    <Button
+                      onClick={() => router.push('/profile/withdraw')}
+                      variant="outline"
+                      size="sm"
+                      className="border-white text-white hover:bg-white/10"
+                    >
+                      Withdraw
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => router.push('/profile/top-up')}
+                    className="bg-gradient-to-br from-[#0066CC]/10 to-[#0066CC]/5 border-2 border-[#0066CC]/20 rounded-xl p-5 hover:border-[#0066CC]/40 transition-all text-left group"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-[#0066CC]/10 flex items-center justify-center mb-3 group-hover:bg-[#0066CC]/20 transition-colors">
+                      <svg className="w-6 h-6 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </div>
+                    <p className="font-bold text-gray-900 mb-1">Top Up</p>
+                    <p className="text-xs text-gray-600">Add funds to wallet</p>
+                  </button>
+                  <button
+                    onClick={() => router.push('/profile/withdraw')}
+                    className="bg-gradient-to-br from-[#00CC66]/10 to-[#00CC66]/5 border-2 border-[#00CC66]/20 rounded-xl p-5 hover:border-[#00CC66]/40 transition-all text-left group"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-[#00CC66]/10 flex items-center justify-center mb-3 group-hover:bg-[#00CC66]/20 transition-colors">
+                      <svg className="w-6 h-6 text-[#00CC66]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                    </div>
+                    <p className="font-bold text-gray-900 mb-1">Withdraw</p>
+                    <p className="text-xs text-gray-600">Transfer to bank</p>
+                  </button>
+                </div>
+
+                {/* Transaction History */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Transactions</h3>
+                  {loadingTransactions ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#0066CC]"></div>
+                    </div>
+                  ) : transactions.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
+                      <p className="text-sm text-gray-600">No transactions yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {transactions.map((transaction) => (
+                        <div
+                          key={transaction.id}
+                          className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:border-[#0066CC]/30 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-1">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                transaction.type === 'top_up' 
+                                  ? 'bg-green-100' 
+                                  : transaction.type === 'withdraw'
+                                  ? 'bg-blue-100'
+                                  : 'bg-gray-100'
+                              }`}>
+                                {transaction.type === 'top_up' ? (
+                                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                  </svg>
+                                ) : transaction.type === 'withdraw' ? (
+                                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-semibold text-gray-900 text-sm">
+                                  {transaction.description || transaction.type.replace('_', ' ')}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(transaction.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-bold text-sm ${
+                              transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {transaction.amount > 0 ? '+' : ''}€{Math.abs(transaction.amount).toFixed(2)}
+                            </p>
+                            <Badge
+                              variant={
+                                transaction.status === 'completed' ? 'success' :
+                                transaction.status === 'pending' ? 'warning' : 'error'
+                              }
+                              size="sm"
+                              className="mt-1"
+                            >
+                              {transaction.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <p className="text-sm text-gray-700">
+                    <strong>Note:</strong> Wallet funds can be used for faster checkout. Minimum withdrawal amount is €10.00.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -662,6 +880,15 @@ export default function ProfilePage() {
             <section className="flex-1 min-w-0">{renderContent()}</section>
           </div>
         </div>
+
+        {/* Order Details Modal */}
+        {selectedOrderId && (
+          <OrderDetailsModal
+            isOpen={isOrderModalOpen}
+            onClose={handleOrderModalClose}
+            orderId={selectedOrderId}
+          />
+        )}
       </main>
 
       <Footer />

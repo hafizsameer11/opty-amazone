@@ -142,7 +142,7 @@ export default function ProductDetailsModal({
                     <svg
                       key={i}
                       className={`w-5 h-5 ${
-                        i < Math.floor(product.rating)
+                        i < Math.floor(Number(product.rating || 0))
                           ? 'text-yellow-400 fill-current'
                           : 'text-gray-300'
                       }`}
@@ -153,7 +153,7 @@ export default function ProductDetailsModal({
                   ))}
                 </div>
                 <span className="text-sm text-gray-600">
-                  {product.rating.toFixed(1)} ({product.review_count} reviews)
+                  {Number(product.rating || 0).toFixed(1)} ({product.review_count || 0} reviews)
                 </span>
               </div>
 
@@ -272,7 +272,7 @@ export default function ProductDetailsModal({
           {/* Statistics */}
           <div className="grid grid-cols-3 gap-4 pt-2">
             <div className="text-center p-4 bg-white rounded-lg border border-gray-200">
-              <p className="text-2xl font-bold text-[#0066CC]">{product.rating.toFixed(1)}</p>
+              <p className="text-2xl font-bold text-[#0066CC]">{Number(product.rating || 0).toFixed(1)}</p>
               <p className="text-xs text-gray-600 mt-1">Rating</p>
             </div>
             <div className="text-center p-4 bg-white rounded-lg border border-gray-200">

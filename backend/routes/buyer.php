@@ -8,6 +8,7 @@ use App\Http\Controllers\Buyer\BuyerProductController;
 use App\Http\Controllers\Buyer\BuyerCartController;
 use App\Http\Controllers\Buyer\BuyerCheckoutController;
 use App\Http\Controllers\Buyer\BuyerOrderController;
+use App\Http\Controllers\Buyer\BuyerWalletController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -92,4 +93,13 @@ Route::middleware('auth:sanctum')->prefix('store-orders')->group(function () {
     Route::get('/{id}', [BuyerOrderController::class, 'showStoreOrder']);
     Route::post('/{storeOrderId}/pay', [BuyerOrderController::class, 'payStoreOrder']);
     Route::post('/{storeOrderId}/cancel', [BuyerOrderController::class, 'cancelStoreOrder']);
+});
+
+// Wallet routes
+Route::middleware('auth:sanctum')->prefix('wallet')->group(function () {
+    Route::get('/balance', [BuyerWalletController::class, 'getBalance']);
+    Route::get('/transactions', [BuyerWalletController::class, 'getTransactions']);
+    Route::post('/create-checkout-session', [BuyerWalletController::class, 'createCheckoutSession']);
+    Route::post('/top-up', [BuyerWalletController::class, 'topUp']);
+    Route::post('/withdraw', [BuyerWalletController::class, 'withdraw']);
 });

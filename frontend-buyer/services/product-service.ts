@@ -33,6 +33,7 @@ export interface Product {
 }
 
 export interface ProductListParams {
+  store_id?: number;
   category_id?: number;
   sub_category_id?: number;
   product_type?: string;

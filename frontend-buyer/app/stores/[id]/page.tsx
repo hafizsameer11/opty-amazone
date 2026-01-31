@@ -79,12 +79,16 @@ export default function StorePage() {
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasMoreProducts, setHasMoreProducts] = useState(false);
+  const [totalProducts, setTotalProducts] = useState(0);
 
   useEffect(() => {
     if (params.id) {
       loadStore();
-      loadProducts();
       loadReviews();
+      loadProducts(1, false);
     }
   }, [params.id]);
 
@@ -104,21 +108,39 @@ export default function StorePage() {
     }
   };
 
-  const loadProducts = async () => {
+  const loadProducts = async (page = 1, append = false) => {
     try {
       setLoadingProducts(true);
-      const allProducts = await productService.getAll({ per_page: 100 });
-      // Filter products by store_id on client side
-      const storeProducts = (allProducts.data || []).filter(
-        (p: Product) => p.store?.id === Number(params.id)
-      );
-      setProducts(storeProducts);
+      // Load products for this store using store_id filter on the backend
+      const data = await productService.getAll({ 
+        store_id: Number(params.id),
+        per_page: 24,
+        page: page,
+        sort_by: 'created_at',
+        sort_order: 'desc'
+      });
+      
+      if (append) {
+        setProducts(prev => [...prev, ...(data.data || [])]);
+      } else {
+        setProducts(data.data || []);
+      }
+      
+      setTotalPages(data.last_page || 1);
+      setTotalProducts(data.total || 0);
+      setHasMoreProducts((data.current_page || 1) < (data.last_page || 1));
     } catch (error) {
       console.error('Failed to load products:', error);
     } finally {
       setLoadingProducts(false);
     }
   };
+
+  useEffect(() => {
+    if (params.id) {
+      loadProducts(1, false);
+    }
+  }, [params.id]);
 
   const loadReviews = async () => {
     try {
@@ -275,7 +297,7 @@ export default function StorePage() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">
-                Products ({products.length})
+                Products ({totalProducts > 0 ? totalProducts : products.length})
               </h2>
               <div className="w-64">
                 <Input
@@ -287,18 +309,41 @@ export default function StorePage() {
               </div>
             </div>
 
-            {loadingProducts ? (
+            {loadingProducts && products.length === 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {[...Array(8)].map((_, i) => (
                   <div key={i} className="h-64 bg-gray-200 rounded-xl animate-pulse"></div>
                 ))}
               </div>
             ) : filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {filteredProducts.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+                {/* Load More Button */}
+                {hasMoreProducts && !loadingProducts && (
+                  <div className="mt-6 text-center">
+                    <Button
+                      onClick={() => {
+                        const nextPage = currentPage + 1;
+                        setCurrentPage(nextPage);
+                        loadProducts(nextPage, true);
+                      }}
+                      variant="outline"
+                      size="lg"
+                    >
+                      Load More Products
+                    </Button>
+                  </div>
+                )}
+                {loadingProducts && products.length > 0 && (
+                  <div className="mt-6 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0066CC] mx-auto"></div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
                 <p className="text-gray-600">No products found in this store.</p>

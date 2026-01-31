@@ -50,6 +50,7 @@ const Footer = () => (
 import { orderService, type Order } from '@/services/order-service';
 import { OrderSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
+import OrderDetailsModal from '@/components/orders/OrderDetailsModal';
 import Link from 'next/link';
 
 export default function OrdersPage() {
@@ -58,6 +59,8 @@ export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -98,6 +101,20 @@ export default function OrdersPage() {
   if (!isAuthenticated && !loading) {
     return null;
   }
+
+  const handleOrderClick = (orderId: number, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setSelectedOrderId(orderId);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedOrderId(null);
+  };
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -188,15 +205,24 @@ export default function OrdersPage() {
                   ))}
                 </div>
 
-                <Link
-                  href={`/orders/${order.id}`}
+                <button
+                  onClick={(e) => handleOrderClick(order.id, e)}
                   className="mt-4 inline-block text-[#0066CC] hover:underline text-sm font-medium"
                 >
                   View Order Details →
-                </Link>
+                </button>
               </div>
             ))}
           </div>
+        )}
+
+        {/* Order Details Modal */}
+        {selectedOrderId && (
+          <OrderDetailsModal
+            isOpen={isModalOpen}
+            onClose={handleModalClose}
+            orderId={selectedOrderId}
+          />
         )}
       </main>
       <Footer />

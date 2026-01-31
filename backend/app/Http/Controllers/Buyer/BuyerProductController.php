@@ -18,6 +18,11 @@ class BuyerProductController extends Controller
         $query = Product::with(['store', 'category', 'subCategory'])
             ->where('is_active', true);
 
+        // Filter by store
+        if ($request->has('store_id')) {
+            $query->where('store_id', $request->store_id);
+        }
+
         // Filter by category
         if ($request->has('category_id')) {
             $query->where('category_id', $request->category_id);
