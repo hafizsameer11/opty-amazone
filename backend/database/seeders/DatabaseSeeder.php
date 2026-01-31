@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,18 +14,42 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed geographic data
+        // Seed geographic data first
         $this->call([
             CountrySeeder::class,
             StateSeeder::class,
             CitySeeder::class,
         ]);
 
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Seed categories
+        $this->call([
+            CategorySeeder::class,
         ]);
+
+        // Seed subscription plans
+        $this->call([
+            SubscriptionPlanSeeder::class,
+        ]);
+
+        // Seed users (buyers and sellers)
+        $this->call([
+            UserSeeder::class,
+        ]);
+
+        // Seed stores (requires users)
+        $this->call([
+            StoreSeeder::class,
+        ]);
+
+        // Seed products (requires stores and categories)
+        $this->call([
+            ProductSeeder::class,
+        ]);
+
+        $this->command->info('Database seeded successfully!');
+        $this->command->info('Test credentials:');
+        $this->command->info('  Admin: admin@optyamazone.com / password');
+        $this->command->info('  Buyer: buyer@test.com / password');
+        $this->command->info('  Seller: seller@test.com / password');
     }
 }

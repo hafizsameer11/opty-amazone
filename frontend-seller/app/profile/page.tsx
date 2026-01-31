@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { userService, type ProfileResponse } from "@/services/user-service";
 import { useAuth } from "@/contexts/AuthContext";
+import Header from "@/components/layout/Header";
+import Sidebar from "@/components/layout/Sidebar";
+import BottomNav from "@/components/layout/BottomNav";
 import Alert from "@/components/ui/Alert";
 import Button from "@/components/ui/Button";
 import EditProfileForm from "@/components/profile/EditProfileForm";
@@ -416,23 +419,30 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-0 py-8">
-      <div className="mb-5 sm:mb-7">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
-          Your Account
-        </h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Manage your store, products, orders and account settings.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex">
+        <Sidebar />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Header />
+          <main className="flex-1 overflow-y-auto">
+            <div className="py-6">
+              <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-8">
+                <div className="mb-5 sm:mb-7">
+                  <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
+                    Your Account
+                  </h1>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Manage your store, products, orders and account settings.
+                  </p>
+                </div>
 
-      {error && (
-        <div className="mb-4">
-          <Alert type="error" message={error} />
-        </div>
-      )}
+                {error && (
+                  <div className="mb-4">
+                    <Alert type="error" message={error} />
+                  </div>
+                )}
 
-      <div className="flex flex-col lg:flex-row gap-5">
+                <div className="flex flex-col lg:flex-row gap-5">
         {/* Sidebar */}
         <aside className="lg:w-80 flex-shrink-0">
           <div className="rounded-2xl bg-white shadow-sm border border-gray-200 overflow-hidden mb-4">
@@ -500,9 +510,15 @@ export default function ProfilePage() {
           </nav>
         </aside>
 
-        {/* Main content */}
-        <section className="flex-1 min-w-0">{renderContent()}</section>
+                  {/* Main content */}
+                  <section className="flex-1 min-w-0">{renderContent()}</section>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
       </div>
+      <BottomNav />
     </div>
   );
 }

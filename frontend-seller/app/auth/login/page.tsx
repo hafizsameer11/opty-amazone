@@ -39,11 +39,13 @@ export default function LoginPage() {
       await login(data);
       router.push('/');
     } catch (err: any) {
-      setError(
-        err.response?.data?.message ||
+      // Prioritize field-specific errors over general message
+      const errorMessage = 
         err.response?.data?.errors?.email?.[0] ||
-        'Login failed. Please check your credentials.'
-      );
+        err.response?.data?.errors?.password?.[0] ||
+        err.response?.data?.message ||
+        'Login failed. Please check your credentials.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

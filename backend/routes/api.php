@@ -28,6 +28,22 @@ Route::prefix('stores')->group(function () {
     Route::get('/{id}/reviews', [App\Http\Controllers\Api\PublicStoreController::class, 'getStoreReviews']);
 });
 
+// Public product routes
+Route::prefix('products')->group(function () {
+    Route::get('/', [App\Http\Controllers\Api\PublicProductController::class, 'index']);
+    Route::get('/{id}', [App\Http\Controllers\Api\PublicProductController::class, 'show']);
+});
+
+// Category routes
+Route::prefix('categories')->group(function () {
+    Route::get('/', [App\Http\Controllers\Api\CategoryController::class, 'index']);
+});
+
+// Search routes
+Route::prefix('search')->group(function () {
+    Route::get('/', [App\Http\Controllers\Api\SearchController::class, 'search']);
+});
+
 Route::prefix('buyer')->group(base_path('routes/buyer.php'));
 Route::prefix('seller')->group(base_path('routes/seller.php'));
 Route::prefix('admin')->group(base_path('routes/admin.php'));

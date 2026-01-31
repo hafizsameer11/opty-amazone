@@ -45,11 +45,17 @@ export default function RegisterPage() {
       await registerUser(data);
       router.push('/');
     } catch (err: any) {
-      setError(
+      // Prioritize field-specific errors over general message
+      const errors = err.response?.data?.errors;
+      const errorMessage = 
+        errors?.email?.[0] ||
+        errors?.password?.[0] ||
+        errors?.name?.[0] ||
+        errors?.phone?.[0] ||
+        Object.values(errors || {})[0]?.[0] || // Get first error from any field
         err.response?.data?.message ||
-        err.response?.data?.errors?.email?.[0] ||
-        'Registration failed. Please try again.'
-      );
+        'Registration failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

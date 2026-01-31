@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { StoreService } from '@/services/store-service';
 import type { Store } from '@/types/store';
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import BottomNav from '@/components/layout/BottomNav';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
 
@@ -125,7 +128,7 @@ export default function StorePage() {
                         </div>
                       </div>
                       <Link href="/store/edit">
-                        <Button className="bg-white text-[#0066CC] hover:bg-blue-50 font-semibold shadow-lg">
+                        <Button className="bg-[#0066CC] text-white hover:bg-[#0052a3] font-semibold shadow-lg">
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
@@ -235,6 +238,7 @@ export default function StorePage() {
           </main>
         </div>
       </div>
+      <BottomNav />
     </div>
   );
 }

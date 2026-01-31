@@ -118,7 +118,7 @@ export default function ProductOptions({
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{lens.name}</span>
                     <span className="text-sm text-gray-600">
-                      {lens.price > 0 ? `+$${lens.price.toFixed(2)}` : "Included"}
+                      {lens.price > 0 ? `+€${Number(lens.price || 0).toFixed(2)}` : "Included"}
                     </span>
                   </div>
                 </button>
@@ -148,7 +148,7 @@ export default function ProductOptions({
                   <div className="font-medium">{index.index}</div>
                   <div className="text-xs text-gray-600">{index.description}</div>
                   <div className="text-sm text-gray-700 mt-1">
-                    {index.price > 0 ? `+$${index.price.toFixed(2)}` : "Included"}
+                    {index.price > 0 ? `+€${Number(index.price || 0).toFixed(2)}` : "Included"}
                   </div>
                 </button>
               ))}
@@ -178,7 +178,7 @@ export default function ProductOptions({
                     <span className="font-medium">{treatment.name}</span>
                   </div>
                   <span className="text-sm text-gray-600">
-                    +${treatment.price.toFixed(2)}
+                    +€{Number(treatment.price || 0).toFixed(2)}
                   </span>
                 </label>
               ))}

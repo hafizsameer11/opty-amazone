@@ -193,4 +193,37 @@ export class StoreService {
     const response = await apiClient.delete(`/seller/store/users/${id}`);
     return response.data;
   }
+
+  /**
+   * Get dashboard statistics
+   */
+  static async getDashboard(): Promise<{
+    success: boolean;
+    data: {
+      total_products: number;
+      total_orders: number;
+      pending_orders: number;
+      paid_orders: number;
+      total_followers: number;
+      total_revenue: number;
+      recent_orders: Array<{
+        id: number;
+        order_no: string;
+        customer_name: string;
+        status: string;
+        total: number;
+        created_at: string;
+        items_count: number;
+      }>;
+      statistics: {
+        products: { current: number; last: number; change: number };
+        orders: { current: number; last: number; change: number };
+        followers: { current: number; last: number; change: number };
+        revenue: { current: number; last: number; change: number };
+      };
+    };
+  }> {
+    const response = await apiClient.get('/seller/store/dashboard');
+    return response.data;
+  }
 }

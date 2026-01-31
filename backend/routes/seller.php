@@ -6,6 +6,12 @@ use App\Http\Controllers\Seller\Store\SellerStoreController;
 use App\Http\Controllers\Seller\Store\SellerStoreSettingsController;
 use App\Http\Controllers\Seller\Store\SellerStoreSocialLinksController;
 use App\Http\Controllers\Seller\Store\SellerStoreUsersController;
+use App\Http\Controllers\Seller\SellerOrderController;
+use App\Http\Controllers\Seller\SellerProductController;
+use App\Http\Controllers\Seller\SellerPromotionController;
+use App\Http\Controllers\Seller\SellerAnnouncementController;
+use App\Http\Controllers\Seller\SellerBannerController;
+use App\Http\Controllers\Seller\SellerSubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -47,6 +53,7 @@ Route::middleware('auth:sanctum')->prefix('store')->group(function () {
     Route::put('/theme', [SellerStoreController::class, 'updateTheme']);
     Route::get('/statistics', [SellerStoreController::class, 'getStatistics']);
     Route::get('/overview', [SellerStoreController::class, 'getOverview']);
+    Route::get('/dashboard', [SellerStoreController::class, 'getDashboard']);
     
     Route::prefix('settings')->group(function () {
         Route::get('/', [SellerStoreSettingsController::class, 'getSettings']);
@@ -69,4 +76,68 @@ Route::middleware('auth:sanctum')->prefix('store')->group(function () {
         Route::put('/{id}', [SellerStoreUsersController::class, 'update']);
         Route::delete('/{id}', [SellerStoreUsersController::class, 'destroy']);
     });
+});
+
+// Product routes
+Route::middleware('auth:sanctum')->prefix('products')->group(function () {
+    Route::get('/', [SellerProductController::class, 'index']);
+    Route::get('/categories', [SellerProductController::class, 'getCategories']);
+    Route::post('/', [SellerProductController::class, 'store']);
+    Route::get('/{id}', [SellerProductController::class, 'show']);
+    Route::put('/{id}', [SellerProductController::class, 'update']);
+    Route::delete('/{id}', [SellerProductController::class, 'destroy']);
+    Route::post('/{id}/toggle-status', [SellerProductController::class, 'toggleStatus']);
+});
+
+// Order routes
+Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
+    Route::get('/', [SellerOrderController::class, 'index']);
+    Route::get('/{id}', [SellerOrderController::class, 'show']);
+});
+
+// Store order routes
+Route::middleware('auth:sanctum')->prefix('store-orders')->group(function () {
+    Route::get('/pending', [SellerOrderController::class, 'pending']);
+    Route::post('/{id}/accept', [SellerOrderController::class, 'accept']);
+    Route::post('/{id}/reject', [SellerOrderController::class, 'reject']);
+    Route::post('/{id}/out-for-delivery', [SellerOrderController::class, 'outForDelivery']);
+    Route::post('/{id}/delivered', [SellerOrderController::class, 'delivered']);
+});
+
+// Promotion routes
+Route::middleware('auth:sanctum')->prefix('promotions')->group(function () {
+    Route::get('/', [SellerPromotionController::class, 'index']);
+    Route::post('/', [SellerPromotionController::class, 'store']);
+    Route::put('/{id}', [SellerPromotionController::class, 'update']);
+    Route::delete('/{id}', [SellerPromotionController::class, 'destroy']);
+    Route::post('/{id}/pause', [SellerPromotionController::class, 'pause']);
+    Route::post('/{id}/resume', [SellerPromotionController::class, 'resume']);
+});
+
+// Announcement routes
+Route::middleware('auth:sanctum')->prefix('announcements')->group(function () {
+    Route::get('/', [SellerAnnouncementController::class, 'index']);
+    Route::post('/', [SellerAnnouncementController::class, 'store']);
+    Route::put('/{id}', [SellerAnnouncementController::class, 'update']);
+    Route::delete('/{id}', [SellerAnnouncementController::class, 'destroy']);
+    Route::post('/{id}/toggle', [SellerAnnouncementController::class, 'toggle']);
+});
+
+// Banner routes
+Route::middleware('auth:sanctum')->prefix('banners')->group(function () {
+    Route::get('/', [SellerBannerController::class, 'index']);
+    Route::post('/', [SellerBannerController::class, 'store']);
+    Route::put('/{id}', [SellerBannerController::class, 'update']);
+    Route::delete('/{id}', [SellerBannerController::class, 'destroy']);
+    Route::post('/{id}/toggle', [SellerBannerController::class, 'toggle']);
+    Route::post('/reorder', [SellerBannerController::class, 'reorder']);
+});
+
+// Subscription routes
+Route::middleware('auth:sanctum')->prefix('subscription')->group(function () {
+    Route::get('/plans', [SellerSubscriptionController::class, 'getPlans']);
+    Route::get('/current', [SellerSubscriptionController::class, 'getCurrent']);
+    Route::post('/subscribe', [SellerSubscriptionController::class, 'subscribe']);
+    Route::post('/cancel', [SellerSubscriptionController::class, 'cancel']);
+    Route::get('/features', [SellerSubscriptionController::class, 'getFeatures']);
 });

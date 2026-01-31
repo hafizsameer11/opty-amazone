@@ -2,27 +2,21 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  
-  // Protected routes that require authentication
-  const protectedRoutes = ['/cart', '/checkout', '/account', '/orders'];
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
-  
-  // Check if user has auth token
-  const token = request.cookies.get('auth_token')?.value || 
-               request.headers.get('authorization')?.replace('Bearer ', '');
-  
-  // For protected routes, we'll check authentication on the client side
-  // This middleware just allows the request through
-  // The actual auth check happens in the page component
+  // Allow all routes - guest browsing is enabled
+  // Authentication checks happen on the client side for specific actions
+  // (adding to cart, accessing profile, etc.)
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    '/cart/:path*',
-    '/checkout/:path*',
-    '/account/:path*',
-    '/orders/:path*',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };

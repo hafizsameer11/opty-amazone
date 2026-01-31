@@ -148,16 +148,41 @@ export default function LensTypeModal({
     },
   ];
 
-  // Reset step when modal closes
+  const [isClosing, setIsClosing] = useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  // Handle mount/unmount with animation
   useEffect(() => {
-    if (!isOpen) {
-      setStep("lens-selection");
-      setPrescription(null);
-      setSelectedMaterial(null);
+    if (isOpen) {
+      setShouldRender(true);
+      setIsClosing(false);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+      // Small delay to ensure DOM is ready for animation
+      setTimeout(() => {
+        setIsClosing(false);
+      }, 10);
+    } else {
+      setIsClosing(true);
+      // Wait for animation to complete before unmounting
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+        setIsClosing(false);
+        // Reset step when modal closes
+        setStep("lens-selection");
+        setPrescription(null);
+        setSelectedMaterial(null);
+        // Restore body scroll
+        document.body.style.overflow = 'unset';
+      }, 200); // Match the transition duration
+      return () => {
+        clearTimeout(timer);
+        document.body.style.overflow = 'unset';
+      };
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   const handleLensContinue = () => {
     if (selectedLensType) {
@@ -222,14 +247,14 @@ export default function LensTypeModal({
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-700">{productName}</span>
               <span className="text-sm font-semibold text-gray-900">
-                ${productPrice.toFixed(2)}
+                €{productPrice.toFixed(2)}
               </span>
             </div>
             {selectedLensType && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-700">{selectedLensType.name}</span>
                 <span className="text-sm font-semibold text-gray-900">
-                  {selectedLensType.price > 0 ? `+$${selectedLensType.price.toFixed(2)}` : "Included"}
+                  {selectedLensType.price > 0 ? `+€${Number(selectedLensType.price || 0).toFixed(2)}` : "Included"}
                 </span>
               </div>
             )}
@@ -237,7 +262,7 @@ export default function LensTypeModal({
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-700">{selectedMaterial.name}</span>
                 <span className="text-sm font-semibold text-gray-900">
-                  +${selectedMaterial.price.toFixed(2)}
+                  +€{Number(selectedMaterial.price || 0).toFixed(2)}
                 </span>
               </div>
             )}
@@ -245,7 +270,7 @@ export default function LensTypeModal({
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-700">Lens Index {selectedLensIndex.index}</span>
                 <span className="text-sm font-semibold text-gray-900">
-                  {selectedLensIndex.price > 0 ? `+$${selectedLensIndex.price.toFixed(2)}` : "Included"}
+                  {selectedLensIndex.price > 0 ? `+€${Number(selectedLensIndex.price || 0).toFixed(2)}` : "Included"}
                 </span>
               </div>
             )}
@@ -257,7 +282,7 @@ export default function LensTypeModal({
                     <div key={treatmentId} className="flex items-center justify-between">
                       <span className="text-sm text-gray-700">{treatment.name}</span>
                       <span className="text-sm font-semibold text-gray-900">
-                        +${treatment.price.toFixed(2)}
+                        +€{Number(treatment.price || 0).toFixed(2)}
                       </span>
                     </div>
                   ) : null;
@@ -293,7 +318,7 @@ export default function LensTypeModal({
                   <div className="text-xs text-gray-600 mt-1">{shipping.days}</div>
                 </div>
                 <div className="text-sm font-semibold text-gray-900">
-                  ${shipping.price.toFixed(2)}
+                  €{Number(shipping.price || 0).toFixed(2)}
                 </div>
               </label>
             ))}
@@ -326,17 +351,17 @@ export default function LensTypeModal({
         <div className="border-t border-gray-200 pt-4 space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">Subtotal</span>
-            <span className="font-semibold text-gray-900">${subtotal.toFixed(2)}</span>
+            <span className="font-semibold text-gray-900">€{subtotal.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">
               Shipping ({shippingOptions.find((s) => s.id === selectedShipping)?.name})
             </span>
-            <span className="font-semibold text-gray-900">${shippingPrice.toFixed(2)}</span>
+            <span className="font-semibold text-gray-900">€{shippingPrice.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-gray-200">
             <span className="text-lg font-bold text-gray-900">Estimate Total</span>
-            <span className="text-lg font-bold text-[#0066CC]">${total.toFixed(2)}</span>
+            <span className="text-lg font-bold text-[#0066CC]">€{total.toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -351,7 +376,7 @@ export default function LensTypeModal({
       </div>
       <div className="text-center">
         <p className="text-sm font-semibold text-gray-900">{productName}</p>
-        <p className="text-lg font-bold text-[#0066CC]">${productPrice.toFixed(2)}</p>
+        <p className="text-lg font-bold text-[#0066CC]">€{productPrice.toFixed(2)}</p>
       </div>
     </div>
   );
@@ -539,14 +564,18 @@ export default function LensTypeModal({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 transition-opacity"
+        className={`fixed inset-0 bg-black/50 transition-opacity duration-200 ${
+          isClosing ? 'opacity-0' : 'opacity-100'
+        }`}
         onClick={handleClose}
       />
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
         <div
-          className={`relative bg-white rounded-2xl shadow-xl ${getModalWidth()} w-full max-h-[95vh] flex flex-col`}
+          className={`relative bg-white rounded-2xl shadow-xl ${getModalWidth()} w-full max-h-[95vh] flex flex-col transition-all duration-200 ${
+            isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
+          }`}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">

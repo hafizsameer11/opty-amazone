@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import BottomNav from "@/components/layout/BottomNav";
 import { userService, type ProfileResponse } from "../../services/user-service";
+import { orderService, type Order } from "../../services/order-service";
 import { useAuth } from "../../contexts/AuthContext";
 import Alert from "@/components/ui/Alert";
 import Button from "@/components/ui/Button";
@@ -21,42 +25,73 @@ type AccountTab =
   | "faqs";
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileResponse["user"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<AccountTab>("overview");
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const data = await userService.getProfile();
-        setProfile(data.user);
-      } catch (e: any) {
-        setError(e?.response?.data?.message ?? "Failed to load profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+    // Redirect to login if not authenticated
+    if (!authLoading && !isAuthenticated) {
+      router.push('/auth/login?redirect=/profile');
+      return;
+    }
 
-  if (!user) {
+    if (isAuthenticated) {
+      const load = async () => {
+        try {
+          setLoading(true);
+          const data = await userService.getProfile();
+          setProfile(data.user);
+        } catch (e: any) {
+          setError(e?.response?.data?.message ?? "Failed to load profile");
+        } finally {
+          setLoading(false);
+        }
+      };
+      load();
+    }
+  }, [isAuthenticated, authLoading, router]);
+
+  // Load orders when orders tab is active
+  useEffect(() => {
+    if (isAuthenticated && activeTab === "orders") {
+      loadOrders();
+    }
+  }, [isAuthenticated, activeTab]);
+
+  const loadOrders = async () => {
+    try {
+      setLoadingOrders(true);
+      const data = await orderService.getOrders({ per_page: 10 });
+      setOrders(data.data || []);
+    } catch (error: any) {
+      console.error('Failed to load orders:', error);
+      setError('Failed to load orders. Please try again.');
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  // Show loading state while checking auth
+  if (authLoading) {
     return (
-      <div className="w-full max-w-4xl mx-auto px-3 sm:px-4 lg:px-0 py-8">
-        <div className="rounded-2xl bg-white shadow-sm border border-red-100 p-5 sm:p-6">
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3">
-            My Profile
-          </h1>
-          <Alert
-            type="error"
-            message="You must be logged in to view your profile."
-          />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
     );
+  }
+
+  // Don't render anything if not authenticated (redirect is in progress)
+  if (!isAuthenticated || !user) {
+    return null;
   }
 
   // Sidebar menu configuration
@@ -255,14 +290,27 @@ export default function ProfilePage() {
     }
 
     if (activeTab === "orders") {
+      const getStatusColor = (status: string) => {
+        const colors: Record<string, string> = {
+          pending: 'bg-yellow-100 text-yellow-800',
+          accepted: 'bg-blue-100 text-blue-800',
+          rejected: 'bg-red-100 text-red-800',
+          paid: 'bg-green-100 text-green-800',
+          out_for_delivery: 'bg-purple-100 text-purple-800',
+          delivered: 'bg-gray-100 text-gray-800',
+          cancelled: 'bg-red-100 text-red-800',
+        };
+        return colors[status] || 'bg-gray-100 text-gray-800';
+      };
+
       return (
-        <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-2xl bg-white shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-5 sm:px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
                 My Orders
               </h2>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 mt-0.5">
                 Track your recent orders, returns and reorders.
               </p>
             </div>
@@ -274,10 +322,123 @@ export default function ProfilePage() {
               View all orders
             </Button>
           </div>
-          <p className="text-sm text-gray-600">
-            You don't have any orders yet. Once you place an order, you’ll see
-            it here with tracking and status information.
-          </p>
+          
+          <div className="p-5 sm:p-6">
+            {loadingOrders ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-24 bg-gray-200 rounded-lg"></div>
+                  </div>
+                ))}
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="text-center py-8">
+                <svg
+                  className="w-16 h-16 mx-auto text-gray-400 mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                  />
+                </svg>
+                <p className="text-sm text-gray-600 mb-4">
+                  You don't have any orders yet. Once you place an order, you'll see
+                  it here with tracking and status information.
+                </p>
+                <Button
+                  onClick={() => router.push("/")}
+                  variant="primary"
+                  size="sm"
+                >
+                  Start Shopping
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:border-[#0066CC] transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">
+                          Order #{order.order_no}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {new Date(order.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-[#0066CC]">
+                          €{Number(order.grand_total || 0).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {order.store_orders.length} store{order.store_orders.length > 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 mb-3">
+                      {order.store_orders.slice(0, 2).map((storeOrder) => (
+                        <div
+                          key={storeOrder.id}
+                          className="flex items-center justify-between text-sm bg-gray-50 rounded px-3 py-2"
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{storeOrder.store.name}</p>
+                            <p className="text-xs text-gray-600">
+                              {storeOrder.items.length} item{storeOrder.items.length > 1 ? 's' : ''}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span
+                              className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(
+                                storeOrder.status
+                              )}`}
+                            >
+                              {storeOrder.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      {order.store_orders.length > 2 && (
+                        <p className="text-xs text-gray-500 text-center">
+                          +{order.store_orders.length - 2} more store{order.store_orders.length - 2 > 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+
+                    <Link
+                      href={`/orders/${order.id}`}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-[#0066CC] hover:text-[#0052a3] transition-colors"
+                    >
+                      View Details
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       );
     }
@@ -409,93 +570,102 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-0 py-8">
-      <div className="mb-5 sm:mb-7">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
-          Your Account
-        </h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Manage your orders, personal information, saved items and support.
-        </p>
-      </div>
-
-      {error && (
-        <div className="mb-4">
-          <Alert type="error" message={error} />
-        </div>
-      )}
-
-      <div className="flex flex-col lg:flex-row gap-5">
-        {/* Sidebar */}
-        <aside className="lg:w-80 flex-shrink-0">
-          <div className="rounded-2xl bg-white shadow-sm border border-gray-200 overflow-hidden mb-4">
-            <div className="px-4 py-4 bg-gradient-to-r from-[#0066CC] to-[#0052a3] text-white flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-white/10 flex items-center justify-center text-lg font-semibold">
-                {profile?.name?.charAt(0) ?? "U"}
-              </div>
-              <div>
-                <p className="text-sm font-semibold">
-                  {profile?.name ?? "Buyer account"}
-                </p>
-                <p className="text-xs text-white/80">
-                  {profile?.email ?? "Signed-in buyer"}
-                </p>
-              </div>
-            </div>
-            <div className="px-3 py-3 grid grid-cols-2 gap-2 text-xs text-gray-700 bg-gray-50 border-t border-gray-100">
-              <div className="rounded-xl bg-white border border-gray-200 px-3 py-2">
-                <p className="font-semibold text-[11px] text-gray-500 uppercase tracking-wide">
-                  Orders
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">0</p>
-              </div>
-              <div className="rounded-xl bg-white border border-gray-200 px-3 py-2">
-                <p className="font-semibold text-[11px] text-gray-500 uppercase tracking-wide">
-                  Saved items
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">0</p>
-              </div>
-            </div>
+    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
+      <Header />
+      
+      <main className="flex-1">
+        <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-0 py-8">
+          <div className="mb-5 sm:mb-7">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
+              Your Account
+            </h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Manage your orders, personal information, saved items and support.
+            </p>
           </div>
 
-          <nav className="space-y-2">
-            {menuItems.map((item) => {
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full text-left rounded-2xl border px-4 py-3 text-sm flex flex-col transition-all ${
-                    isActive
-                      ? "border-[#0066CC] bg-gradient-to-r from-[#0066CC]/10 to-[#00CC66]/5 shadow-sm"
-                      : "border-gray-200 bg-white hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="font-semibold text-gray-900">
-                    {item.label}
-                  </span>
-                  {item.description && (
-                    <span className="mt-0.5 text-xs text-gray-500">
-                      {item.description}
-                    </span>
-                  )}
-                  <span
-                    className={`mt-2 h-1.5 w-12 rounded-full bg-gradient-to-r ${
-                      isActive
-                        ? item.colorClass
-                        : "from-gray-200 to-gray-200"
-                    }`}
-                  />
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
+          {error && (
+            <div className="mb-4">
+              <Alert type="error" message={error} />
+            </div>
+          )}
 
-        {/* Main content */}
-        <section className="flex-1 min-w-0">{renderContent()}</section>
-      </div>
+          <div className="flex flex-col lg:flex-row gap-5">
+            {/* Sidebar */}
+            <aside className="lg:w-80 flex-shrink-0">
+              <div className="rounded-2xl bg-white shadow-sm border border-gray-200 overflow-hidden mb-4">
+                <div className="px-4 py-4 bg-gradient-to-r from-[#0066CC] to-[#0052a3] text-white flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-full bg-white/10 flex items-center justify-center text-lg font-semibold">
+                    {profile?.name?.charAt(0) ?? "U"}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">
+                      {profile?.name ?? "Buyer account"}
+                    </p>
+                    <p className="text-xs text-white/80">
+                      {profile?.email ?? "Signed-in buyer"}
+                    </p>
+                  </div>
+                </div>
+                <div className="px-3 py-3 grid grid-cols-2 gap-2 text-xs text-gray-700 bg-gray-50 border-t border-gray-100">
+                  <div className="rounded-xl bg-white border border-gray-200 px-3 py-2">
+                    <p className="font-semibold text-[11px] text-gray-500 uppercase tracking-wide">
+                      Orders
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">0</p>
+                  </div>
+                  <div className="rounded-xl bg-white border border-gray-200 px-3 py-2">
+                    <p className="font-semibold text-[11px] text-gray-500 uppercase tracking-wide">
+                      Saved items
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">0</p>
+                  </div>
+                </div>
+              </div>
+
+              <nav className="space-y-2">
+                {menuItems.map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setActiveTab(item.id)}
+                      className={`w-full text-left rounded-2xl border px-4 py-3 text-sm flex flex-col transition-all ${
+                        isActive
+                          ? "border-[#0066CC] bg-gradient-to-r from-[#0066CC]/10 to-[#00CC66]/5 shadow-sm"
+                          : "border-gray-200 bg-white hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="font-semibold text-gray-900">
+                        {item.label}
+                      </span>
+                      {item.description && (
+                        <span className="mt-0.5 text-xs text-gray-500">
+                          {item.description}
+                        </span>
+                      )}
+                      <span
+                        className={`mt-2 h-1.5 w-12 rounded-full bg-gradient-to-r ${
+                          isActive
+                            ? item.colorClass
+                            : "from-gray-200 to-gray-200"
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+              </nav>
+            </aside>
+
+            {/* Main content */}
+            <section className="flex-1 min-w-0">{renderContent()}</section>
+          </div>
+        </div>
+      </main>
+
+      <Footer />
+      <BottomNav />
     </div>
   );
 }

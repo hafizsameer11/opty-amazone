@@ -4,6 +4,10 @@ use App\Http\Controllers\Buyer\BuyerAuthController;
 use App\Http\Controllers\Buyer\BuyerAddressController;
 use App\Http\Controllers\Buyer\BuyerStoreController;
 use App\Http\Controllers\Buyer\BuyerUserController;
+use App\Http\Controllers\Buyer\BuyerProductController;
+use App\Http\Controllers\Buyer\BuyerCartController;
+use App\Http\Controllers\Buyer\BuyerCheckoutController;
+use App\Http\Controllers\Buyer\BuyerOrderController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -51,4 +55,41 @@ Route::middleware('auth:sanctum')->prefix('stores')->group(function () {
     Route::post('/{id}/unfollow', [BuyerStoreController::class, 'unfollowStore']);
     Route::get('/{id}/reviews', [BuyerStoreController::class, 'getStoreReviews']);
     Route::post('/{id}/reviews', [BuyerStoreController::class, 'createReview']);
+});
+
+// Product routes (public - no authentication required)
+Route::prefix('product')->group(function () {
+    Route::get('/get-all', [BuyerProductController::class, 'getAll']);
+    Route::get('/product-details/{id}', [BuyerProductController::class, 'getDetails']);
+    Route::get('/categories/{categorySlug}/products', [BuyerProductController::class, 'getByCategory']);
+});
+
+// Cart routes
+Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
+    Route::get('/', [BuyerCartController::class, 'index']);
+    Route::post('/items', [BuyerCartController::class, 'addItem']);
+    Route::put('/items/{id}', [BuyerCartController::class, 'updateItem']);
+    Route::delete('/items/{id}', [BuyerCartController::class, 'removeItem']);
+    Route::post('/clear', [BuyerCartController::class, 'clear']);
+});
+
+// Checkout routes
+Route::middleware('auth:sanctum')->prefix('checkout')->group(function () {
+    Route::post('/preview', [BuyerCheckoutController::class, 'preview']);
+    Route::post('/place', [BuyerCheckoutController::class, 'place']);
+});
+
+// Order routes
+Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
+    Route::get('/', [BuyerOrderController::class, 'index']);
+    Route::get('/{id}', [BuyerOrderController::class, 'show']);
+    Route::get('/{orderId}/payment-info', [BuyerOrderController::class, 'paymentInfo']);
+});
+
+// Store order routes
+Route::middleware('auth:sanctum')->prefix('store-orders')->group(function () {
+    Route::get('/', [BuyerOrderController::class, 'storeOrders']);
+    Route::get('/{id}', [BuyerOrderController::class, 'showStoreOrder']);
+    Route::post('/{storeOrderId}/pay', [BuyerOrderController::class, 'payStoreOrder']);
+    Route::post('/{storeOrderId}/cancel', [BuyerOrderController::class, 'cancelStoreOrder']);
 });

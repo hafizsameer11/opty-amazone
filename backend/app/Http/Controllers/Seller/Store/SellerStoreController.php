@@ -205,4 +205,18 @@ class SellerStoreController extends Controller
             return ResponseHelper::serverError('Failed to retrieve store overview');
         }
     }
+
+    /**
+     * Get dashboard statistics.
+     */
+    public function getDashboard(Request $request): JsonResponse
+    {
+        try {
+            $data = $this->storeService->getDashboardStatistics($request->user());
+
+            return ResponseHelper::success($data);
+        } catch (\Exception $e) {
+            return ResponseHelper::serverError('Failed to retrieve dashboard data');
+        }
+    }
 }

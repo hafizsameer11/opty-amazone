@@ -54,6 +54,33 @@ export default function Sidebar() {
       badge: 0,
     },
     {
+      name: 'Promotions',
+      href: '/promotions',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+        </svg>
+      ),
+    },
+    {
+      name: 'Announcements',
+      href: '/announcements',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+        </svg>
+      ),
+    },
+    {
+      name: 'Banners',
+      href: '/banners',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+    },
+    {
       name: 'Analytics',
       href: '/analytics',
       icon: (
@@ -88,8 +115,8 @@ export default function Sidebar() {
           {/* Logo */}
           <div className="flex items-center flex-shrink-0 px-6 mb-8">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-[#0066CC] to-[#00CC66] flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-lg">OM</span>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#0066CC] to-[#00CC66] flex items-center justify-center shadow-md hover:shadow-lg transition-shadow duration-200">
+                <span className="text-white font-bold text-xl">OM</span>
               </div>
               <div>
                 <h1 className="text-lg font-bold text-gray-900">Seller Hub</h1>
@@ -105,11 +132,11 @@ export default function Sidebar() {
                 key={item.name}
                 href={item.href}
                 className={`
-                  group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
+                  group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200
                   ${
                     isActive(item.href)
-                      ? 'bg-gradient-to-r from-[#0066CC] to-[#0052a3] text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-[#0066CC]'
+                      ? 'bg-gradient-to-r from-[#0066CC] to-[#0052A3] text-white shadow-md transform scale-[1.02]'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-[#0066CC] hover:translate-x-1'
                   }
                 `}
               >
@@ -118,7 +145,7 @@ export default function Sidebar() {
                 </span>
                 {item.name}
                 {item.badge !== undefined && item.badge > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  <span className="ml-auto bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
                     {item.badge}
                   </span>
                 )}
@@ -128,18 +155,18 @@ export default function Sidebar() {
 
           {/* User Section */}
           <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
-            <Link href="/profile" className="flex-shrink-0 w-full group block">
+            <Link href="/profile" className="flex-shrink-0 w-full group block rounded-xl hover:bg-gray-50 p-2 transition-all duration-200">
               <div className="flex items-center">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#0066CC] to-[#00CC66] flex items-center justify-center text-white font-semibold">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#0066CC] to-[#00CC66] flex items-center justify-center text-white font-bold shadow-md group-hover:shadow-lg transition-shadow">
                   {user?.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div className="ml-3 flex-1">
-                  <p className="text-sm font-medium text-gray-700 group-hover:text-[#0066CC]">
+                  <p className="text-sm font-semibold text-gray-900 group-hover:text-[#0066CC] transition-colors">
                     {user?.name || 'User'}
                   </p>
                   <p className="text-xs text-gray-500">View Profile</p>
                 </div>
-                <svg className="ml-2 h-5 w-5 text-gray-400 group-hover:text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="ml-2 h-5 w-5 text-gray-400 group-hover:text-[#0066CC] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>

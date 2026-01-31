@@ -1,9 +1,57 @@
 import apiClient from '@/lib/api-client';
 import type { Store, StoreReview, CreateReviewData } from '@/types/store';
 
+export interface PublicStore {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  profile_image?: string;
+  banner_image?: string;
+  rating?: number;
+  followers_count?: number;
+  products_count?: number;
+  is_active: boolean;
+  status: string;
+}
+
+export interface StoreListResponse {
+  stores: PublicStore[];
+  pagination: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+}
+
 export class StoreService {
   /**
-   * Get store details
+   * Get all stores (public endpoint)
+   */
+  static async getAllStores(params?: { search?: string; per_page?: number; page?: number }): Promise<StoreListResponse> {
+    const response = await apiClient.get('/stores', { params });
+    return response.data.data;
+  }
+
+  /**
+   * Get public store details (public endpoint)
+   */
+  static async getPublicStore(id: number): Promise<{ store: PublicStore }> {
+    const response = await apiClient.get(`/stores/${id}`);
+    return response.data.data;
+  }
+
+  /**
+   * Get public store reviews (public endpoint)
+   */
+  static async getPublicStoreReviews(id: number, params?: { per_page?: number; page?: number }): Promise<{ reviews: StoreReview[]; pagination: any }> {
+    const response = await apiClient.get(`/stores/${id}/reviews`, { params });
+    return response.data.data;
+  }
+
+  /**
+   * Get store details (authenticated endpoint)
    */
   static async getStore(id: number): Promise<{ success: boolean; data: { store: Store } }> {
     const response = await apiClient.get(`/buyer/stores/${id}`);

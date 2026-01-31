@@ -9,6 +9,7 @@ import Alert from '@/components/ui/Alert';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
+import BottomNav from '@/components/layout/BottomNav';
 
 export default function StoreSettingsPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -181,6 +182,7 @@ export default function StoreSettingsPage() {
           </main>
         </div>
       </div>
+      <BottomNav />
     </div>
   );
 }

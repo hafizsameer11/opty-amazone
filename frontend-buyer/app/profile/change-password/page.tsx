@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import BottomNav from "@/components/layout/BottomNav";
 import {
   userService,
   type ChangePasswordPayload,
@@ -11,6 +16,7 @@ import {
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
+import { useAuth } from "@/contexts/AuthContext";
 
 const schema = z
   .object({
@@ -26,9 +32,18 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 export default function ChangePasswordPage() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/auth/login?redirect=/profile/change-password');
+      return;
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   const {
     register,
@@ -64,35 +79,119 @@ export default function ChangePasswordPage() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
-    <div className="max-w-xl mx-auto mt-8 space-y-4">
-      <h1 className="text-2xl font-semibold">Change Password</h1>
-      {error && <Alert type="error" message={error} />}
-      {success && <Alert type="success" message={success} />}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <Input
-          label="Current Password"
-          type="password"
-          {...register("current_password")}
-          error={errors.current_password?.message}
-        />
-        <Input
-          label="New Password"
-          type="password"
-          {...register("password")}
-          error={errors.password?.message}
-        />
-        <Input
-          label="Confirm New Password"
-          type="password"
-          {...register("password_confirmation")}
-          error={errors.password_confirmation?.message}
-        />
-        <Button type="submit" disabled={loading}>
-          {loading ? "Updating..." : "Update Password"}
-        </Button>
-      </form>
+    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
+      <Header />
+      
+      <main className="flex-1">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+          {/* Back Button */}
+          <Link
+            href="/profile"
+            className="inline-flex items-center text-[#0066CC] hover:text-[#0052a3] mb-6"
+          >
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            Back to Profile
+          </Link>
+
+          {/* Page Header */}
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Change Password</h1>
+            <p className="text-gray-600">
+              Update your account password to keep your account secure
+            </p>
+          </div>
+
+          {/* Alerts */}
+          {error && (
+            <div className="mb-6">
+              <Alert type="error" message={error} />
+            </div>
+          )}
+          {success && (
+            <div className="mb-6">
+              <Alert type="success" message={success} />
+            </div>
+          )}
+
+          {/* Form */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <Input
+                label="Current Password *"
+                type="password"
+                {...register("current_password")}
+                error={errors.current_password?.message}
+                placeholder="Enter your current password"
+              />
+              <Input
+                label="New Password *"
+                type="password"
+                {...register("password")}
+                error={errors.password?.message}
+                placeholder="Enter your new password (min. 8 characters)"
+              />
+              <Input
+                label="Confirm New Password *"
+                type="password"
+                {...register("password_confirmation")}
+                error={errors.password_confirmation?.message}
+                placeholder="Confirm your new password"
+              />
+
+              <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-gray-200">
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 bg-[#0066CC] hover:bg-[#0052a3] text-white"
+                  size="lg"
+                >
+                  {loading ? "Updating..." : "Update Password"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/profile")}
+                  className="sm:w-auto"
+                  size="lg"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </main>
+
+      <Footer />
+      <BottomNav />
     </div>
   );
 }
-

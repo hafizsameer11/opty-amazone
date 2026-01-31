@@ -150,7 +150,7 @@ export default function TreatmentStep({
                                 {treatment.name}
                                 {treatment.price > 0 && (
                                   <span className="text-sm text-gray-600 ml-2">
-                                    (+${treatment.price.toFixed(2)})
+                                    (+€{Number(treatment.price || 0).toFixed(2)})
                                   </span>
                                 )}
                               </div>
@@ -163,7 +163,7 @@ export default function TreatmentStep({
                           </div>
                           {treatment.price > 0 && (
                             <div className="text-sm font-semibold text-gray-900 ml-4">
-                              ${treatment.price.toFixed(2)}
+                              €{Number(treatment.price || 0).toFixed(2)}
                             </div>
                           )}
                         </label>

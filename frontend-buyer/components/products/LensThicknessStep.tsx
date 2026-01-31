@@ -139,7 +139,7 @@ export default function LensThicknessStep({
                     <div className="font-semibold text-gray-900">{material.name}</div>
                   </div>
                   <div className="text-lg font-bold text-gray-900">
-                    ${material.price.toFixed(2)}
+                    €{Number(material.price || 0).toFixed(2)}
                   </div>
                 </label>
               ))}
@@ -191,7 +191,7 @@ export default function LensThicknessStep({
                 {lensIndexOptions.map((index) => (
                   <option key={index.id} value={index.id}>
                     {index.index} - {index.description}
-                    {index.price > 0 ? ` (+$${index.price.toFixed(2)})` : " (Included)"}
+                    {index.price > 0 ? ` (+€${Number(index.price || 0).toFixed(2)})` : " (Included)"}
                   </option>
                 ))}
               </select>

@@ -16,13 +16,13 @@ export default function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const baseClasses = 'font-semibold rounded-md transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm hover:shadow-md';
+  const baseClasses = 'font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm hover:shadow-md active:scale-[0.98]';
   
   const variantClasses = {
-    primary: 'bg-[#0066CC] text-white hover:bg-[#0052a3] focus:ring-blue-300 active:bg-[#004080]',
-    secondary: 'bg-[#00CC66] text-white hover:bg-[#00b359] focus:ring-green-300 active:bg-[#00994d]',
-    outline: 'border-2 border-[#0066CC] text-[#0066CC] bg-white hover:bg-[#0066CC] hover:text-white focus:ring-blue-300',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-300 active:bg-red-800',
+    primary: 'bg-gradient-to-r from-[#0066CC] to-[#0052A3] text-white hover:from-[#0052A3] hover:to-[#004080] focus:ring-blue-300/50 active:from-[#004080] active:to-[#003366]',
+    secondary: 'bg-gradient-to-r from-[#00CC66] to-[#00B359] text-white hover:from-[#00B359] hover:to-[#00994D] focus:ring-green-300/50 active:from-[#00994D] active:to-[#008040]',
+    outline: 'border-2 border-[#0066CC] text-[#0066CC] bg-white hover:bg-[#0066CC] hover:text-white focus:ring-blue-300/50 hover:shadow-md',
+    danger: 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 focus:ring-red-300/50 active:from-red-800 active:to-red-900',
   };
 
   const sizeClasses = {

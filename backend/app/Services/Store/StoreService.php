@@ -302,4 +302,140 @@ class StoreService
             'statistics',
         ]);
     }
+
+    /**
+     * Get dashboard statistics for the seller.
+     */
+    public function getDashboardStatistics(User $user): array
+    {
+        $store = $this->getStore($user);
+
+        // Get real-time counts
+        $totalProducts = \App\Models\Product::where('store_id', $store->id)->count();
+        $totalOrders = \App\Models\StoreOrder::where('store_id', $store->id)->count();
+        $pendingOrders = \App\Models\StoreOrder::where('store_id', $store->id)
+            ->where('status', 'pending')
+            ->count();
+        $paidOrders = \App\Models\StoreOrder::where('store_id', $store->id)
+            ->where('status', 'paid')
+            ->count();
+        $totalFollowers = $store->followers()->count();
+        
+        // Calculate total revenue from delivered orders
+        $totalRevenue = \App\Models\StoreOrder::where('store_id', $store->id)
+            ->where('status', 'delivered')
+            ->sum('total');
+
+        // Get recent orders (last 5)
+        $recentOrders = \App\Models\StoreOrder::where('store_id', $store->id)
+            ->with(['order.user', 'items'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        // Calculate revenue for current month and last month for comparison
+        $currentMonthRevenue = \App\Models\StoreOrder::where('store_id', $store->id)
+            ->where('status', 'delivered')
+            ->whereMonth('delivered_at', now()->month)
+            ->whereYear('delivered_at', now()->year)
+            ->sum('total');
+
+        $lastMonthRevenue = \App\Models\StoreOrder::where('store_id', $store->id)
+            ->where('status', 'delivered')
+            ->whereMonth('delivered_at', now()->subMonth()->month)
+            ->whereYear('delivered_at', now()->subMonth()->year)
+            ->sum('total');
+
+        // Calculate percentage changes
+        $revenueChange = $lastMonthRevenue > 0 
+            ? round((($currentMonthRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100, 1)
+            : ($currentMonthRevenue > 0 ? 100 : 0);
+
+        // Get current month and last month counts for products
+        $currentMonthProducts = \App\Models\Product::where('store_id', $store->id)
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
+
+        $lastMonthProducts = \App\Models\Product::where('store_id', $store->id)
+            ->whereMonth('created_at', now()->subMonth()->month)
+            ->whereYear('created_at', now()->subMonth()->year)
+            ->count();
+
+        $productsChange = $lastMonthProducts > 0
+            ? round((($currentMonthProducts - $lastMonthProducts) / $lastMonthProducts) * 100, 1)
+            : ($currentMonthProducts > 0 ? 100 : 0);
+
+        // Get current month and last month counts for orders
+        $currentMonthOrders = \App\Models\StoreOrder::where('store_id', $store->id)
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
+
+        $lastMonthOrders = \App\Models\StoreOrder::where('store_id', $store->id)
+            ->whereMonth('created_at', now()->subMonth()->month)
+            ->whereYear('created_at', now()->subMonth()->year)
+            ->count();
+
+        $ordersChange = $lastMonthOrders > 0
+            ? round((($currentMonthOrders - $lastMonthOrders) / $lastMonthOrders) * 100, 1)
+            : ($currentMonthOrders > 0 ? 100 : 0);
+
+        // Get current month and last month counts for followers
+        $currentMonthFollowers = $store->followers()
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
+
+        $lastMonthFollowers = $store->followers()
+            ->whereMonth('created_at', now()->subMonth()->month)
+            ->whereYear('created_at', now()->subMonth()->year)
+            ->count();
+
+        $followersChange = $lastMonthFollowers > 0
+            ? round((($currentMonthFollowers - $lastMonthFollowers) / $lastMonthFollowers) * 100, 1)
+            : ($currentMonthFollowers > 0 ? 100 : 0);
+
+        return [
+            'total_products' => $totalProducts,
+            'total_orders' => $totalOrders,
+            'pending_orders' => $pendingOrders,
+            'paid_orders' => $paidOrders,
+            'total_followers' => $totalFollowers,
+            'total_revenue' => (float) $totalRevenue,
+            'recent_orders' => $recentOrders->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_no' => $order->order->order_no,
+                    'customer_name' => $order->order->user->name,
+                    'status' => $order->status,
+                    'total' => (float) $order->total,
+                    'created_at' => $order->created_at->toISOString(),
+                    'items_count' => $order->items->count(),
+                ];
+            }),
+            'statistics' => [
+                'products' => [
+                    'current' => $currentMonthProducts,
+                    'last' => $lastMonthProducts,
+                    'change' => $productsChange,
+                ],
+                'orders' => [
+                    'current' => $currentMonthOrders,
+                    'last' => $lastMonthOrders,
+                    'change' => $ordersChange,
+                ],
+                'followers' => [
+                    'current' => $currentMonthFollowers,
+                    'last' => $lastMonthFollowers,
+                    'change' => $followersChange,
+                ],
+                'revenue' => [
+                    'current' => (float) $currentMonthRevenue,
+                    'last' => (float) $lastMonthRevenue,
+                    'change' => $revenueChange,
+                ],
+            ],
+        ];
+    }
 }
