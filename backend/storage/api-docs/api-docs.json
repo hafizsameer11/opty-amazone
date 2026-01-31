@@ -1,0 +1,13 @@
+{
+    "openapi": "3.0.0",
+    "components": {
+        "securitySchemes": {
+            "sanctum": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Enter your bearer token in the format: Bearer {token}"
+            }
+        }
+    }
+}
