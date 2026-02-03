@@ -14,8 +14,42 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 
 function ProductCard({ product }: { product: Product }) {
-  const images = product.images || [];
-  const firstImage = images[0] || '/file.svg';
+  const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  
+  // Check if product has variants and is an eye product category or frame/sunglasses type
+  const isEyeProduct = (product.category?.id && [23, 28, 29].includes(product.category.id)) ||
+                       (product.product_type === 'frame' || product.product_type === 'sunglasses');
+  const hasVariants = product.variants && product.variants.length > 0;
+  const showColorSwatches = isEyeProduct && hasVariants;
+  
+  // Get default variant or first variant
+  const defaultVariant = hasVariants 
+    ? product.variants.find(v => v.is_default) || product.variants[0]
+    : null;
+  
+  // Determine which image to show - prioritize selected, then hovered, then default
+  const getDisplayImage = () => {
+    const activeVariantId = selectedVariantId || hoveredVariantId;
+    
+    if (showColorSwatches && activeVariantId) {
+      const variant = product.variants?.find(v => v.id === activeVariantId);
+      if (variant && variant.images && variant.images.length > 0) {
+        return variant.images[0];
+      }
+    }
+    if (defaultVariant && defaultVariant.images && defaultVariant.images.length > 0) {
+      return defaultVariant.images[0];
+    }
+    const images = product.images || [];
+    return images[0] || '/file.svg';
+  };
+
+  const displayImage = getDisplayImage();
+  const activeVariantId = selectedVariantId || hoveredVariantId;
+  const displayPrice = activeVariantId && hasVariants
+    ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
+    : (defaultVariant?.price ?? product.price);
 
   return (
     <Link
@@ -25,11 +59,11 @@ function ProductCard({ product }: { product: Product }) {
       <div className="relative w-full h-40 sm:h-48 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-100">
         <div className="absolute inset-0 flex items-center justify-center">
           <Image
-            src={firstImage}
+            src={displayImage}
             alt={product.name}
             width={180}
             height={180}
-            className="object-contain max-h-[80%] transition-transform duration-300 group-hover:scale-105"
+            className="object-contain max-h-[80%] transition-all duration-300 group-hover:scale-105"
           />
         </div>
       </div>
@@ -53,11 +87,48 @@ function ProductCard({ product }: { product: Product }) {
           </div>
           <span className="text-xs text-gray-500">({product.review_count || 0})</span>
         </div>
+        {showColorSwatches && product.variants && (
+          <div className="mb-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs text-gray-600 font-medium">Colors:</span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {product.variants.map((variant) => {
+                const isSelected = selectedVariantId === variant.id;
+                const isHovered = hoveredVariantId === variant.id;
+                return (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    onMouseEnter={() => setHoveredVariantId(variant.id)}
+                    onMouseLeave={() => setHoveredVariantId(null)}
+                    className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-[#0066CC] ring-2 ring-[#0066CC]/30 scale-125 shadow-md'
+                        : isHovered
+                        ? 'border-[#0066CC] ring-1 ring-[#0066CC]/20 scale-110'
+                        : 'border-gray-300 hover:border-gray-400 hover:scale-110'
+                    }`}
+                    style={{
+                      backgroundColor: variant.color_code || '#ccc',
+                    }}
+                    title={variant.color_name}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedVariantId(variant.id);
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="mt-auto flex items-center justify-between">
           <div className="text-lg font-bold text-[#0066CC]">
-            €{Number(product.price || 0).toFixed(2)}
+            €{Number(displayPrice || 0).toFixed(2)}
           </div>
-          {product.compare_at_price && Number(product.compare_at_price) > Number(product.price || 0) && (
+          {product.compare_at_price && Number(product.compare_at_price) > Number(displayPrice || 0) && (
             <span className="text-xs text-gray-500 line-through">
               €{Number(product.compare_at_price || 0).toFixed(2)}
             </span>

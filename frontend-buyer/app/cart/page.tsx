@@ -135,9 +135,9 @@ export default function CartPage() {
                           className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-[#0066CC]/50 hover:shadow-md transition-all group cursor-pointer"
                           title="Click to view product details"
                         >
-                          {item.product.images && item.product.images[0] ? (
+                          {(item.variant?.images && item.variant.images[0]) || (item.product.images && item.product.images[0]) ? (
                             <Image
-                              src={item.product.images[0]}
+                              src={item.variant?.images?.[0] || item.product.images[0]}
                               alt={item.product.name}
                               fill
                               className="object-cover group-hover:scale-110 transition-transform duration-300"
@@ -165,6 +165,19 @@ export default function CartPage() {
                               </svg>
                             </span>
                           </button>
+                          {item.variant && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-gray-600">Color:</span>
+                              <div
+                                className="w-4 h-4 rounded-full border border-gray-300"
+                                style={{
+                                  backgroundColor: item.variant.color_code || '#ccc',
+                                }}
+                                title={item.variant.color_name}
+                              />
+                              <span className="text-xs text-gray-600">{item.variant.color_name}</span>
+                            </div>
+                          )}
                           <p className="text-sm text-gray-600 mt-1">
                             €{Number(item.price || 0).toFixed(2)} each
                           </p>

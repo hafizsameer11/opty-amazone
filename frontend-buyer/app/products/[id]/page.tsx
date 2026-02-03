@@ -25,6 +25,7 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [showLensModal, setShowLensModal] = useState(false);
@@ -36,6 +37,20 @@ export default function ProductDetailPage() {
       loadProduct();
     }
   }, [params.id]);
+
+  useEffect(() => {
+    // Check URL params for variant
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const variantParam = urlParams.get('variant');
+      if (variantParam && product?.variants) {
+        const variantId = parseInt(variantParam);
+        if (product.variants.some(v => v.id === variantId)) {
+          setSelectedVariantId(variantId);
+        }
+      }
+    }
+  }, [product]);
 
   const loadProduct = async () => {
     try {
@@ -68,8 +83,27 @@ export default function ProductDetailPage() {
     );
   }
 
-  const images = product.images || [];
+  // Check if product has variants and is an eye product category or frame/sunglasses type
+  const isEyeProduct = (product.category?.id && [23, 28, 29].includes(product.category.id)) ||
+                       (product.product_type === 'frame' || product.product_type === 'sunglasses');
+  const hasVariants = product.variants && product.variants.length > 0;
+  const showColorSwatches = isEyeProduct && hasVariants;
+  
+  // Get selected variant or default variant
+  const selectedVariant = selectedVariantId && hasVariants
+    ? product.variants.find(v => v.id === selectedVariantId)
+    : (hasVariants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
+  
+  // Determine which images to show
+  const images = selectedVariant && selectedVariant.images && selectedVariant.images.length > 0
+    ? selectedVariant.images
+    : (product.images || []);
   const firstImage = images[0] || '/file.svg';
+  
+  // Determine which price to show
+  const displayPrice = selectedVariant?.price ?? product.price;
+  const displayStockStatus = selectedVariant?.stock_status ?? product.stock_status;
+  const displayStockQuantity = selectedVariant?.stock_quantity ?? product.stock_quantity;
 
   const handleAddToCart = async () => {
     // Check if user is authenticated before adding to cart
@@ -83,6 +117,7 @@ export default function ProductDetailPage() {
     try {
       await cartService.addItem({
         product_id: product.id,
+        variant_id: selectedVariantId || undefined,
         quantity: quantity,
       });
       await refreshCart(); // Refresh cart count
@@ -97,6 +132,11 @@ export default function ProductDetailPage() {
     } finally {
       setAddingToCart(false);
     }
+  };
+
+  const handleVariantSelect = (variantId: number) => {
+    setSelectedVariantId(variantId);
+    setSelectedImageIndex(0); // Reset to first image when variant changes
   };
 
   return (
@@ -193,19 +233,78 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
+              {/* Color Variants */}
+              {showColorSwatches && product.variants && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-gray-700">Color:</label>
+                    {selectedVariantId && selectedVariant && (
+                      <span className="text-xs text-[#0066CC] font-medium">
+                        Selected: {selectedVariant.color_name}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {product.variants.map((variant) => (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        onClick={() => handleVariantSelect(variant.id)}
+                        disabled={variant.stock_status === 'out_of_stock'}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                          selectedVariantId === variant.id
+                            ? 'border-[#0066CC] ring-2 ring-[#0066CC]/30 bg-[#0066CC]/5 shadow-sm'
+                            : variant.stock_status === 'out_of_stock'
+                            ? 'border-gray-200 opacity-50 cursor-not-allowed'
+                            : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div
+                          className={`w-6 h-6 rounded-full border-2 ${
+                            selectedVariantId === variant.id
+                              ? 'border-[#0066CC] ring-1 ring-[#0066CC]/20'
+                              : 'border-gray-300'
+                          }`}
+                          style={{
+                            backgroundColor: variant.color_code || '#ccc',
+                          }}
+                        />
+                        <span className={`text-sm font-medium ${
+                          selectedVariantId === variant.id
+                            ? 'text-[#0066CC]'
+                            : variant.stock_status === 'out_of_stock'
+                            ? 'text-gray-400'
+                            : 'text-gray-700'
+                        }`}>
+                          {variant.color_name}
+                        </span>
+                        {variant.stock_status === 'out_of_stock' && (
+                          <span className="text-xs text-red-500">(Out of Stock)</span>
+                        )}
+                        {selectedVariantId === variant.id && (
+                          <svg className="w-4 h-4 text-[#0066CC]" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Price */}
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl font-bold text-[#0066CC]">
-                  €{Number(product.price || 0).toFixed(2)}
+                  €{Number(displayPrice || 0).toFixed(2)}
                 </span>
-                {product.compare_at_price && Number(product.compare_at_price) > Number(product.price || 0) && (
+                {product.compare_at_price && Number(product.compare_at_price) > Number(displayPrice || 0) && (
                   <>
                     <span className="text-xl text-gray-400 line-through">
                       €{Number(product.compare_at_price || 0).toFixed(2)}
                     </span>
                     <span className="text-sm font-semibold text-green-600">
                       {Math.round(
-                        ((Number(product.compare_at_price || 0) - Number(product.price || 0)) /
+                        ((Number(product.compare_at_price || 0) - Number(displayPrice || 0)) /
                           Number(product.compare_at_price || 1)) *
                           100
                       )}% OFF
@@ -216,13 +315,13 @@ export default function ProductDetailPage() {
 
               {/* Stock Status */}
               <div className="flex items-center gap-2">
-                {product.stock_status === "in_stock" ? (
+                {displayStockStatus === "in_stock" ? (
                   <>
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                       ✓ In Stock
                     </span>
                     <span className="text-sm text-gray-600">
-                      {product.stock_quantity} available
+                      {displayStockQuantity} available
                     </span>
                   </>
                 ) : (
@@ -259,7 +358,7 @@ export default function ProductDetailPage() {
                     type="button"
                     onClick={() =>
                       setQuantity(
-                        Math.min(product.stock_quantity, quantity + 1)
+                        Math.min(displayStockQuantity, quantity + 1)
                       )
                     }
                     className="w-10 h-10 rounded-lg border-2 border-gray-200 hover:border-gray-300 flex items-center justify-center font-semibold"
@@ -274,7 +373,7 @@ export default function ProductDetailPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-700">Subtotal:</span>
                   <span className="text-lg font-bold text-[#0066CC]">
-                    €{(Number(product.price || 0) * quantity).toFixed(2)}
+                    €{(Number(displayPrice || 0) * quantity).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -283,7 +382,7 @@ export default function ProductDetailPage() {
               <div className="space-y-3">
                 <Button
                   onClick={handleAddToCart}
-                  disabled={product.stock_status !== "in_stock" || addingToCart}
+                  disabled={displayStockStatus !== "in_stock" || addingToCart}
                   className="w-full"
                   size="lg"
                 >
@@ -292,6 +391,8 @@ export default function ProductDetailPage() {
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       Adding to Cart...
                     </span>
+                  ) : displayStockStatus !== "in_stock" ? (
+                    'Out of Stock'
                   ) : (
                     'Add to Cart'
                   )}
@@ -326,8 +427,13 @@ export default function ProductDetailPage() {
                   variant="outline"
                   className="w-full"
                   size="lg"
-                  disabled={product.stock_status !== "in_stock" || addingToCart}
+                  disabled={displayStockStatus !== "in_stock" || addingToCart}
                 >
+                  {displayStockStatus !== "in_stock" ? (
+                    'Out of Stock'
+                  ) : (
+                    'Buy Now'
+                  )}
                   {addingToCart ? (
                     <span className="flex items-center gap-2">
                       <div className="w-4 h-4 border-2 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>

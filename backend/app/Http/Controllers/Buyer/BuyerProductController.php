@@ -15,7 +15,7 @@ class BuyerProductController extends Controller
      */
     public function getAll(Request $request)
     {
-        $query = Product::with(['store', 'category', 'subCategory'])
+        $query = Product::with(['store', 'category', 'subCategory', 'variants'])
             ->where('is_active', true);
 
         // Filter by store
@@ -86,7 +86,7 @@ class BuyerProductController extends Controller
      */
     public function getDetails($id)
     {
-        $product = Product::with(['store', 'category', 'subCategory'])
+        $product = Product::with(['store', 'category', 'subCategory', 'variants'])
             ->where('is_active', true)
             ->findOrFail($id);
 
@@ -105,7 +105,7 @@ class BuyerProductController extends Controller
             ->where('is_active', true)
             ->firstOrFail();
 
-        $query = Product::with(['store', 'category', 'subCategory'])
+        $query = Product::with(['store', 'category', 'subCategory', 'variants'])
             ->where('is_active', true)
             ->where(function ($q) use ($category) {
                 $q->where('category_id', $category->id)
@@ -120,8 +120,22 @@ class BuyerProductController extends Controller
             $query->where('price', '<=', $request->max_price);
         }
 
-        $products = $query->orderBy('created_at', 'desc')
-            ->paginate($request->get('per_page', 12));
+        // Search
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%");
+            });
+        }
+
+        // Sort
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        $query->orderBy($sortBy, $sortOrder);
+
+        $products = $query->paginate($request->get('per_page', 12));
 
         return ResponseHelper::success([
             'category' => $category,

@@ -74,6 +74,30 @@ export interface CreateProductData {
   meta_keywords?: string;
 }
 
+export interface ProductVariant {
+  id: number;
+  product_id: number;
+  color_name: string;
+  color_code?: string;
+  images: string[];
+  price?: number;
+  stock_quantity: number;
+  stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
+  is_default: boolean;
+  sort_order: number;
+}
+
+export interface CreateVariantData {
+  color_name: string;
+  color_code?: string;
+  images?: string[];
+  price?: number;
+  stock_quantity: number;
+  stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
+  is_default?: boolean;
+  sort_order?: number;
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -121,6 +145,31 @@ export const productService = {
 
   async getCategories(): Promise<Category[]> {
     const res = await apiClient.get('/seller/products/categories');
+    return res.data.data;
+  },
+
+  // Variant management
+  async getVariants(productId: number): Promise<ProductVariant[]> {
+    const res = await apiClient.get(`/seller/products/${productId}/variants`);
+    return res.data.data;
+  },
+
+  async createVariant(productId: number, data: CreateVariantData): Promise<ProductVariant> {
+    const res = await apiClient.post(`/seller/products/${productId}/variants`, data);
+    return res.data.data;
+  },
+
+  async updateVariant(variantId: number, data: Partial<CreateVariantData>): Promise<ProductVariant> {
+    const res = await apiClient.put(`/seller/product-variant/${variantId}`, data);
+    return res.data.data;
+  },
+
+  async deleteVariant(variantId: number): Promise<void> {
+    await apiClient.delete(`/seller/product-variant/${variantId}`);
+  },
+
+  async setDefaultVariant(variantId: number): Promise<ProductVariant> {
+    const res = await apiClient.post(`/seller/product-variant/${variantId}/set-default`);
     return res.data.data;
   },
 };

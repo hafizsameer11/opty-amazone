@@ -25,6 +25,7 @@ export default function ProductDetailsModal({
   const [loadingProduct, setLoadingProduct] = useState(true);
   const [error, setError] = useState('');
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen && productId) {
@@ -37,8 +38,14 @@ export default function ProductDetailsModal({
       setLoadingProduct(true);
       setError('');
       setSelectedImageIndex(0);
+      setSelectedVariantId(null);
       const data = await productService.getDetails(productId);
       setProduct(data);
+      // Set default variant if available
+      if (data.variants && data.variants.length > 0) {
+        const defaultVariant = data.variants.find(v => v.is_default) || data.variants[0];
+        setSelectedVariantId(defaultVariant.id);
+      }
     } catch (error) {
       console.error('Failed to load product:', error);
       setError('Failed to load product details');
@@ -52,8 +59,31 @@ export default function ProductDetailsModal({
     router.push(`/products/${productId}`);
   };
 
-  const images = product?.images || [];
+  // Check if product has variants and is an eye product category
+  const isEyeProduct = product?.category?.id && [23, 28, 29].includes(product.category.id);
+  const hasVariants = product?.variants && product.variants.length > 0;
+  const showColorSwatches = isEyeProduct && hasVariants;
+  
+  // Get selected variant or default variant
+  const selectedVariant = selectedVariantId && hasVariants
+    ? product.variants.find(v => v.id === selectedVariantId)
+    : (hasVariants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
+  
+  // Determine which images to show
+  const images = selectedVariant && selectedVariant.images && selectedVariant.images.length > 0
+    ? selectedVariant.images
+    : (product?.images || []);
   const firstImage = images[0] || '/file.svg';
+  
+  // Determine which price to show
+  const displayPrice = selectedVariant?.price ?? product?.price ?? 0;
+  const displayStockStatus = selectedVariant?.stock_status ?? product?.stock_status;
+  const displayStockQuantity = selectedVariant?.stock_quantity ?? product?.stock_quantity;
+
+  const handleVariantSelect = (variantId: number) => {
+    setSelectedVariantId(variantId);
+    setSelectedImageIndex(0); // Reset to first image when variant changes
+  };
 
   return (
     <Modal
@@ -157,19 +187,58 @@ export default function ProductDetailsModal({
                 </span>
               </div>
 
+              {/* Color Variants */}
+              {showColorSwatches && product.variants && (
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">Color:</label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {product.variants.map((variant) => (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        onClick={() => handleVariantSelect(variant.id)}
+                        disabled={variant.stock_status === 'out_of_stock'}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                          selectedVariantId === variant.id
+                            ? 'border-[#0066CC] ring-2 ring-[#0066CC]/30 bg-[#0066CC]/5'
+                            : variant.stock_status === 'out_of_stock'
+                            ? 'border-gray-200 opacity-50 cursor-not-allowed'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        <div
+                          className="w-6 h-6 rounded-full border border-gray-300"
+                          style={{
+                            backgroundColor: variant.color_code || '#ccc',
+                          }}
+                        />
+                        <span className={`text-sm ${
+                          variant.stock_status === 'out_of_stock' ? 'text-gray-400' : 'text-gray-700'
+                        }`}>
+                          {variant.color_name}
+                        </span>
+                        {variant.stock_status === 'out_of_stock' && (
+                          <span className="text-xs text-red-500">(Out of Stock)</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Price */}
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl font-bold text-[#0066CC]">
-                  €{Number(product.price || 0).toFixed(2)}
+                  €{Number(displayPrice || 0).toFixed(2)}
                 </span>
-                {product.compare_at_price && Number(product.compare_at_price) > Number(product.price || 0) && (
+                {product.compare_at_price && Number(product.compare_at_price) > Number(displayPrice || 0) && (
                   <>
                     <span className="text-xl text-gray-400 line-through">
                       €{Number(product.compare_at_price || 0).toFixed(2)}
                     </span>
                     <Badge variant="success" size="sm">
                       {Math.round(
-                        ((Number(product.compare_at_price || 0) - Number(product.price || 0)) /
+                        ((Number(product.compare_at_price || 0) - Number(displayPrice || 0)) /
                           Number(product.compare_at_price || 1)) *
                           100
                       )}% OFF
@@ -180,11 +249,11 @@ export default function ProductDetailsModal({
 
               {/* Stock Status */}
               <div className="flex items-center gap-2">
-                {product.stock_status === 'in_stock' ? (
+                {displayStockStatus === 'in_stock' ? (
                   <>
                     <Badge variant="success" size="sm">In Stock</Badge>
                     <span className="text-sm text-gray-600">
-                      {product.stock_quantity} available
+                      {displayStockQuantity} available
                     </span>
                   </>
                 ) : (
@@ -202,9 +271,16 @@ export default function ProductDetailsModal({
                 <Button onClick={handleViewFullPage} className="flex-1">
                   View Full Page
                 </Button>
-                <Link href={`/products/${product.id}`} className="flex-1">
-                  <Button variant="outline" className="w-full">
-                    Add to Cart
+                <Link 
+                  href={`/products/${product.id}${selectedVariantId ? `?variant=${selectedVariantId}` : ''}`} 
+                  className="flex-1"
+                >
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    disabled={displayStockStatus !== 'in_stock'}
+                  >
+                    {displayStockStatus !== 'in_stock' ? 'Out of Stock' : 'Add to Cart'}
                   </Button>
                 </Link>
               </div>

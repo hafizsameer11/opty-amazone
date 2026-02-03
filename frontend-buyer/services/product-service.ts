@@ -1,5 +1,18 @@
 import apiClient from '@/lib/api-client';
 
+export interface ProductVariant {
+  id: number;
+  product_id: number;
+  color_name: string;
+  color_code?: string;
+  images: string[];
+  price?: number;
+  stock_quantity: number;
+  stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
+  is_default: boolean;
+  sort_order: number;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -20,6 +33,7 @@ export interface Product {
   rating: number;
   review_count: number;
   view_count: number;
+  variants?: ProductVariant[];
   store: {
     id: number;
     name: string;
@@ -56,6 +70,8 @@ export interface Category {
   description?: string;
   image?: string;
   parent_id?: number;
+  children?: Category[];
+  subcategories?: Category[];
 }
 
 export const productService = {

@@ -87,6 +87,17 @@ Route::middleware('auth:sanctum')->prefix('products')->group(function () {
     Route::put('/{id}', [SellerProductController::class, 'update']);
     Route::delete('/{id}', [SellerProductController::class, 'destroy']);
     Route::post('/{id}/toggle-status', [SellerProductController::class, 'toggleStatus']);
+    
+    // Variant routes
+    Route::get('/{id}/variants', [SellerProductController::class, 'getVariants']);
+    Route::post('/{id}/variants', [SellerProductController::class, 'createVariant']);
+});
+
+// Product variant routes
+Route::middleware('auth:sanctum')->prefix('product-variant')->group(function () {
+    Route::put('/{id}', [SellerProductController::class, 'updateVariant']);
+    Route::delete('/{id}', [SellerProductController::class, 'deleteVariant']);
+    Route::post('/{id}/set-default', [SellerProductController::class, 'setDefaultVariant']);
 });
 
 // Order routes

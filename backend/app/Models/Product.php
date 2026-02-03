@@ -80,5 +80,29 @@ class Product extends Model
     {
         return $this->belongsTo(Category::class, 'sub_category_id');
     }
+
+    /**
+     * Get the product variants.
+     */
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Get the default variant.
+     */
+    public function defaultVariant()
+    {
+        return $this->hasOne(ProductVariant::class)->where('is_default', true);
+    }
+
+    /**
+     * Get the first variant or default variant.
+     */
+    public function getFirstVariant()
+    {
+        return $this->variants()->where('is_default', true)->first() ?? $this->variants()->first();
+    }
 }
 

@@ -3,6 +3,7 @@ import apiClient from '@/lib/api-client';
 export interface CartItem {
   id: number;
   product_id: number;
+  variant_id?: number;
   store_id: number;
   quantity: number;
   price: number;
@@ -14,6 +15,12 @@ export interface CartItem {
     name: string;
     images: string[];
     price: number;
+  };
+  variant?: {
+    id: number;
+    color_name: string;
+    color_code?: string;
+    images: string[];
   };
   store: {
     id: number;
@@ -36,6 +43,7 @@ export interface Cart {
 
 export interface AddToCartData {
   product_id: number;
+  variant_id?: number;
   quantity: number;
   product_variant?: any;
   lens_configuration?: any;

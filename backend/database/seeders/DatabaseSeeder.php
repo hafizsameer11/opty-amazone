@@ -46,6 +46,11 @@ class DatabaseSeeder extends Seeder
             ProductSeeder::class,
         ]);
 
+        // Seed product variants (requires products)
+        $this->call([
+            ProductVariantSeeder::class,
+        ]);
+
         $this->command->info('Database seeded successfully!');
         $this->command->info('Test credentials:');
         $this->command->info('  Admin: admin@optyamazone.com / password');

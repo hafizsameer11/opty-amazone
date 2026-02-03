@@ -1,17 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useRouter } from 'next/navigation';
 import { AuthService } from '@/services/auth-service';
+import { productService, type Category } from '@/services/product-service';
 
 export default function Header() {
   const { user, isAuthenticated } = useAuth();
   const { cartCount } = useCart();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [hoveredCategory, setHoveredCategory] = useState<number | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -25,11 +29,44 @@ export default function Header() {
     }
   };
 
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const data = await productService.getCategories(true);
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      if (selectedCategoryId) {
+        const selectedCategory = findCategoryById(categories, selectedCategoryId);
+        if (selectedCategory) {
+          router.push(`/categories/${selectedCategory.slug}?search=${encodeURIComponent(searchQuery.trim())}`);
+        } else {
+          router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        }
+      } else {
+        router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      }
     }
+  };
+
+  const findCategoryById = (cats: Category[], id: number): Category | null => {
+    for (const cat of cats) {
+      if (cat.id === id) return cat;
+      if (cat.children) {
+        const found = findCategoryById(cat.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
   };
 
   return (
@@ -37,25 +74,66 @@ export default function Header() {
       {/* Top Bar */}
       <div className="bg-[#232f3e] border-b border-white/10 py-2 px-2 sm:px-3 lg:px-4">
         <div className="w-full flex items-center justify-between text-xs sm:text-sm">
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 relative">
             <Link href="/" className="hover:text-[#febd69] transition-colors">
               All
             </Link>
-            <Link href="/categories/frames" className="hover:text-[#febd69] transition-colors">
-              Frames
-            </Link>
-            <Link href="/categories/sunglasses" className="hover:text-[#febd69] transition-colors">
-              Sunglasses
-            </Link>
-            <Link href="/categories/contact-lenses" className="hover:text-[#febd69] transition-colors">
-              Contact Lenses
-            </Link>
-            <Link href="/categories/eye-hygiene" className="hover:text-[#febd69] transition-colors">
-              Eye Hygiene
-            </Link>
-            <Link href="/categories/accessories" className="hover:text-[#febd69] transition-colors">
-              Accessories
-            </Link>
+            {categories.map((category) => (
+              <div
+                key={category.id}
+                className="relative group"
+                onMouseEnter={() => setHoveredCategory(category.id)}
+                onMouseLeave={() => setHoveredCategory(null)}
+              >
+                <Link
+                  href={`/categories/${category.slug}`}
+                  className="hover:text-[#febd69] transition-colors flex items-center gap-1"
+                >
+                  {category.name}
+                  {(category.children && category.children.length > 0) && (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
+                </Link>
+                
+                {/* Dropdown Menu */}
+                {(category.children && category.children.length > 0) && hoveredCategory === category.id && (
+                  <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[200px] z-50 py-2">
+                    {category.children.map((subCategory) => (
+                      <div key={subCategory.id} className="relative group/sub">
+                        <Link
+                          href={`/categories/${subCategory.slug}`}
+                          className="block px-4 py-2 text-gray-900 hover:bg-gray-100 transition-colors flex items-center justify-between"
+                        >
+                          <span>{subCategory.name}</span>
+                          {(subCategory.children && subCategory.children.length > 0) && (
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          )}
+                        </Link>
+                        
+                        {/* Sub-Sub Categories */}
+                        {(subCategory.children && subCategory.children.length > 0) && (
+                          <div className="absolute left-full top-0 ml-1 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[180px] z-50 py-2 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all">
+                            {subCategory.children.map((subSubCategory) => (
+                              <Link
+                                key={subSubCategory.id}
+                                href={`/categories/${subSubCategory.slug}`}
+                                className="block px-4 py-2 text-gray-900 hover:bg-gray-100 transition-colors"
+                              >
+                                {subSubCategory.name}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
           <div className="flex items-center gap-3 sm:gap-4">
             {isAuthenticated ? (
@@ -105,14 +183,43 @@ export default function Header() {
           {/* Search Bar */}
           <form onSubmit={handleSearch} className="flex-1 max-w-3xl">
             <div className="flex rounded-md overflow-hidden shadow-sm bg-white">
-              <select className="hidden sm:block bg-gray-100 text-gray-700 px-3 sm:px-4 py-2 border-r border-gray-300 text-xs sm:text-sm focus:outline-none">
-                <option>All Categories</option>
-                <option>Frames</option>
-                <option>Sunglasses</option>
-                <option>Contact Lenses</option>
-                <option>Eye Hygiene</option>
-                <option>Accessories</option>
-              </select>
+              <div className="hidden sm:block relative">
+                <select
+                  value={selectedCategoryId || ''}
+                  onChange={(e) => {
+                    const catId = e.target.value;
+                    setSelectedCategoryId(catId ? parseInt(catId) : null);
+                  }}
+                  className="bg-gray-100 text-gray-700 px-3 sm:px-4 py-2 border-r border-gray-300 text-xs sm:text-sm focus:outline-none appearance-none pr-8 cursor-pointer"
+                >
+                  <option value="">All Categories</option>
+                  {(() => {
+                    const renderOptions = (cat: Category, prefix = ''): JSX.Element[] => {
+                      const options: JSX.Element[] = [
+                        <option key={cat.id} value={cat.id}>
+                          {prefix}{cat.name}
+                        </option>
+                      ];
+                      if (cat.children) {
+                        cat.children.forEach((subCat) => {
+                          options.push(...renderOptions(subCat, `${cat.name} → `));
+                        });
+                      }
+                      return options;
+                    };
+                    const allOptions: JSX.Element[] = [];
+                    categories.forEach((category) => {
+                      allOptions.push(...renderOptions(category));
+                    });
+                    return allOptions;
+                  })()}
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
               <input
                 type="text"
                 value={searchQuery}

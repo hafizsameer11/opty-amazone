@@ -10,6 +10,7 @@ import { productService, type Product, type Category, type CreateProductData } f
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
+import ColorVariationsManager from '@/components/products/ColorVariationsManager';
 
 export default function EditProductPage() {
   const params = useParams();
@@ -456,6 +457,16 @@ export default function EditProductPage() {
                       </label>
                     </div>
                   </div>
+
+                  {/* Color Variations - Only show for saved products */}
+                  {!isNew && product && (
+                    <div className="mt-6">
+                      <ColorVariationsManager 
+                        productId={product.id} 
+                        categoryId={formData.category_id}
+                      />
+                    </div>
+                  )}
 
                   {/* Submit */}
                   <div className="flex gap-4 pt-4">

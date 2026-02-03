@@ -13,169 +13,255 @@ class CategorySeeder extends Seeder
      */
     public function run(): void
     {
-        // Main Categories
-        $frames = Category::firstOrCreate(
-            ['slug' => 'frames'],
+        // Main Categories - Based on original structure shared by user
+        
+        // 1. Eye Glasses (id: 23)
+        $eyeGlasses = Category::updateOrCreate(
+            ['slug' => 'eye-glasses'],
             [
-                'name' => 'Frames',
-                'description' => 'Eyeglass frames for all styles and preferences',
+                'name' => 'eye glasses',
+                'description' => null,
                 'sort_order' => 1,
                 'is_active' => true,
             ]
         );
 
-        $sunglasses = Category::firstOrCreate(
-            ['slug' => 'sunglasses'],
+        // Subcategories for Eye Glasses
+        Category::updateOrCreate(
+            ['slug' => 'men'],
             [
-                'name' => 'Sunglasses',
-                'description' => 'Stylish sunglasses for UV protection',
+                'name' => 'men',
+                'description' => null,
+                'parent_id' => $eyeGlasses->id,
+                'sort_order' => 0,
+                'is_active' => true,
+            ]
+        );
+
+        Category::updateOrCreate(
+            ['slug' => 'women'],
+            [
+                'name' => 'women',
+                'description' => null,
+                'parent_id' => $eyeGlasses->id,
                 'sort_order' => 2,
                 'is_active' => true,
             ]
         );
 
-        $contactLenses = Category::firstOrCreate(
-            ['slug' => 'contact-lenses'],
+        // 2. Sun Glasses (id: 28)
+        $sunGlasses = Category::updateOrCreate(
+            ['slug' => 'sun-glasses'],
             [
-                'name' => 'Contact Lenses',
-                'description' => 'Comfortable contact lenses for clear vision',
+                'name' => 'sun glasses',
+                'description' => null,
+                'sort_order' => 2,
+                'is_active' => true,
+            ]
+        );
+
+        // Subcategories for Sun Glasses
+        Category::updateOrCreate(
+            ['slug' => 'men-glasses'],
+            [
+                'name' => 'men glasses',
+                'description' => null,
+                'parent_id' => $sunGlasses->id,
+                'sort_order' => 0,
+                'is_active' => true,
+            ]
+        );
+
+        Category::updateOrCreate(
+            ['slug' => 'women-glasses'],
+            [
+                'name' => 'women glasses',
+                'description' => null,
+                'parent_id' => $sunGlasses->id,
+                'sort_order' => 2,
+                'is_active' => true,
+            ]
+        );
+
+        // 3. Opty Kids (id: 29)
+        $optyKids = Category::updateOrCreate(
+            ['slug' => 'opty-kids'],
+            [
+                'name' => 'Opty kids',
+                'description' => null,
                 'sort_order' => 3,
                 'is_active' => true,
             ]
         );
 
-        $eyeHygiene = Category::firstOrCreate(
-            ['slug' => 'eye-hygiene'],
+        // Subcategories for Opty Kids
+        Category::updateOrCreate(
+            ['slug' => 'baby-girl'],
             [
-                'name' => 'Eye Hygiene',
-                'description' => 'Eye care products and solutions',
+                'name' => 'baby girl',
+                'description' => null,
+                'parent_id' => $optyKids->id,
+                'sort_order' => 1,
+                'is_active' => true,
+            ]
+        );
+
+        Category::updateOrCreate(
+            ['slug' => 'baby-boy'],
+            [
+                'name' => 'baby boy',
+                'description' => null,
+                'parent_id' => $optyKids->id,
+                'sort_order' => 2,
+                'is_active' => true,
+            ]
+        );
+
+        // 4. Contact Lenses (id: 24)
+        $contactLenses = Category::updateOrCreate(
+            ['slug' => 'contact-lenses'],
+            [
+                'name' => 'contact-lenses',
+                'description' => null,
                 'sort_order' => 4,
                 'is_active' => true,
             ]
         );
 
-        $accessories = Category::firstOrCreate(
-            ['slug' => 'accessories'],
+        // Subcategories for Contact Lenses
+        $daily = Category::updateOrCreate(
+            ['slug' => 'daily'],
             [
-                'name' => 'Accessories',
-                'description' => 'Eyewear accessories and care products',
+                'name' => 'Daily',
+                'description' => null,
+                'parent_id' => $contactLenses->id,
+                'sort_order' => 1,
+                'is_active' => true,
+            ]
+        );
+
+        // Sub-subcategories for Daily
+        Category::updateOrCreate(
+            ['slug' => 'spherical'],
+            [
+                'name' => 'Spherical',
+                'description' => null,
+                'parent_id' => $daily->id,
+                'sort_order' => 1,
+                'is_active' => true,
+            ]
+        );
+
+        Category::updateOrCreate(
+            ['slug' => 'astigmatism'],
+            [
+                'name' => 'Astigmatism',
+                'description' => null,
+                'parent_id' => $daily->id,
+                'sort_order' => 2,
+                'is_active' => true,
+            ]
+        );
+
+        $weakly = Category::updateOrCreate(
+            ['slug' => 'weakly'],
+            [
+                'name' => 'Weakly',
+                'description' => null,
+                'parent_id' => $contactLenses->id,
+                'sort_order' => 2,
+                'is_active' => true,
+            ]
+        );
+
+        // Sub-subcategories for Weakly
+        Category::updateOrCreate(
+            ['slug' => 'spherical-weakly'],
+            [
+                'name' => 'Spherical',
+                'description' => null,
+                'parent_id' => $weakly->id,
+                'sort_order' => 0,
+                'is_active' => true,
+            ]
+        );
+
+        Category::updateOrCreate(
+            ['slug' => 'astigmatism-weakly'],
+            [
+                'name' => 'astigmatism',
+                'description' => null,
+                'parent_id' => $weakly->id,
+                'sort_order' => 2,
+                'is_active' => true,
+            ]
+        );
+
+        $monthly = Category::updateOrCreate(
+            ['slug' => 'monthly'],
+            [
+                'name' => 'Monthly',
+                'description' => null,
+                'parent_id' => $contactLenses->id,
+                'sort_order' => 3,
+                'is_active' => true,
+            ]
+        );
+
+        // Sub-subcategories for Monthly
+        Category::updateOrCreate(
+            ['slug' => 'spherical-monthly'],
+            [
+                'name' => 'Spherical',
+                'description' => null,
+                'parent_id' => $monthly->id,
+                'sort_order' => 0,
+                'is_active' => true,
+            ]
+        );
+
+        Category::updateOrCreate(
+            ['slug' => 'astigmatism-monthly'],
+            [
+                'name' => 'astigmatism',
+                'description' => null,
+                'parent_id' => $monthly->id,
+                'sort_order' => 0,
+                'is_active' => true,
+            ]
+        );
+
+        Category::updateOrCreate(
+            ['slug' => 'coloured-lenses'],
+            [
+                'name' => 'coloured lenses',
+                'description' => null,
+                'parent_id' => $contactLenses->id,
+                'sort_order' => 4,
+                'is_active' => true,
+            ]
+        );
+
+        // 5. Eye Hygiene (id: 30)
+        Category::updateOrCreate(
+            ['slug' => 'eye-hygiene'],
+            [
+                'name' => 'Eye hygiene',
+                'description' => null,
                 'sort_order' => 5,
                 'is_active' => true,
             ]
         );
 
-        // Sub-categories for Frames
-        Category::firstOrCreate(
-            ['slug' => 'round-frames'],
+        // 6. Accessori (id: 36)
+        Category::updateOrCreate(
+            ['slug' => 'accessori'],
             [
-                'name' => 'Round Frames',
-                'description' => 'Classic round eyeglass frames',
-                'parent_id' => $frames->id,
-                'sort_order' => 1,
-                'is_active' => true,
-            ]
-        );
-
-        Category::firstOrCreate(
-            ['slug' => 'square-frames'],
-            [
-                'name' => 'Square Frames',
-                'description' => 'Modern square eyeglass frames',
-                'parent_id' => $frames->id,
-                'sort_order' => 2,
-                'is_active' => true,
-            ]
-        );
-
-        Category::firstOrCreate(
-            ['slug' => 'cat-eye-frames'],
-            [
-                'name' => 'Cat-Eye Frames',
-                'description' => 'Stylish cat-eye eyeglass frames',
-                'parent_id' => $frames->id,
-                'sort_order' => 3,
-                'is_active' => true,
-            ]
-        );
-
-        Category::firstOrCreate(
-            ['slug' => 'aviator-frames'],
-            [
-                'name' => 'Aviator Frames',
-                'description' => 'Classic aviator style frames',
-                'parent_id' => $frames->id,
-                'sort_order' => 4,
-                'is_active' => true,
-            ]
-        );
-
-        // Sub-categories for Sunglasses
-        Category::firstOrCreate(
-            ['slug' => 'aviator-sunglasses'],
-            [
-                'name' => 'Aviator Sunglasses',
-                'description' => 'Classic aviator style sunglasses',
-                'parent_id' => $sunglasses->id,
-                'sort_order' => 1,
-                'is_active' => true,
-            ]
-        );
-
-        Category::firstOrCreate(
-            ['slug' => 'wayfarer-sunglasses'],
-            [
-                'name' => 'Wayfarer Sunglasses',
-                'description' => 'Timeless wayfarer style sunglasses',
-                'parent_id' => $sunglasses->id,
-                'sort_order' => 2,
-                'is_active' => true,
-            ]
-        );
-
-        Category::firstOrCreate(
-            ['slug' => 'sport-sunglasses'],
-            [
-                'name' => 'Sport Sunglasses',
-                'description' => 'Performance sunglasses for sports',
-                'parent_id' => $sunglasses->id,
-                'sort_order' => 3,
-                'is_active' => true,
-            ]
-        );
-
-        // Sub-categories for Contact Lenses
-        Category::firstOrCreate(
-            ['slug' => 'daily-disposable'],
-            [
-                'name' => 'Daily Disposable',
-                'description' => 'Daily disposable contact lenses',
-                'parent_id' => $contactLenses->id,
-                'sort_order' => 1,
-                'is_active' => true,
-            ]
-        );
-
-        Category::firstOrCreate(
-            ['slug' => 'monthly-lenses'],
-            [
-                'name' => 'Monthly Lenses',
-                'description' => 'Monthly replacement contact lenses',
-                'parent_id' => $contactLenses->id,
-                'sort_order' => 2,
-                'is_active' => true,
-            ]
-        );
-
-        Category::firstOrCreate(
-            ['slug' => 'toric-lenses'],
-            [
-                'name' => 'Toric Lenses',
-                'description' => 'Contact lenses for astigmatism',
-                'parent_id' => $contactLenses->id,
-                'sort_order' => 3,
+                'name' => 'Accessori',
+                'description' => null,
+                'sort_order' => 8,
                 'is_active' => true,
             ]
         );
     }
 }
-

@@ -11,9 +11,42 @@ import { StoreService, type PublicStore } from "@/services/store-service";
 import Loader from "@/components/ui/Loader";
 
 function ProductCard({ product }: { product: Product }) {
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const images = product.images || [];
-  const firstImage = images[0] || '/file.svg';
+  const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  
+  // Check if product has variants and is an eye product category or frame/sunglasses type
+  const isEyeProduct = (product.category?.id && [23, 28, 29].includes(product.category.id)) ||
+                       (product.product_type === 'frame' || product.product_type === 'sunglasses');
+  const hasVariants = product.variants && product.variants.length > 0;
+  const showColorSwatches = isEyeProduct && hasVariants;
+  
+  // Get default variant or first variant
+  const defaultVariant = hasVariants 
+    ? product.variants.find(v => v.is_default) || product.variants[0]
+    : null;
+  
+  // Determine which image to show - prioritize selected, then hovered, then default
+  const getDisplayImage = () => {
+    const activeVariantId = selectedVariantId || hoveredVariantId;
+    
+    if (showColorSwatches && activeVariantId) {
+      const variant = product.variants?.find(v => v.id === activeVariantId);
+      if (variant && variant.images && variant.images.length > 0) {
+        return variant.images[0];
+      }
+    }
+    if (defaultVariant && defaultVariant.images && defaultVariant.images.length > 0) {
+      return defaultVariant.images[0];
+    }
+    const images = product.images || [];
+    return images[0] || '/file.svg';
+  };
+
+  const displayImage = getDisplayImage();
+  const activeVariantId = selectedVariantId || hoveredVariantId;
+  const displayPrice = activeVariantId && hasVariants
+    ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
+    : (defaultVariant?.price ?? product.price);
 
   return (
     <Link
@@ -23,11 +56,11 @@ function ProductCard({ product }: { product: Product }) {
       <div className="relative w-full h-32 sm:h-36 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-100">
         <div className="absolute inset-0 flex items-center justify-center">
           <Image
-            src={firstImage}
+            src={displayImage}
             alt={product.name}
             width={180}
             height={130}
-            className="object-contain max-h-[70%] transition-transform duration-300 group-hover:scale-105"
+            className="object-contain max-h-[70%] transition-all duration-300 group-hover:scale-105"
           />
         </div>
       </div>
@@ -53,11 +86,48 @@ function ProductCard({ product }: { product: Product }) {
             ({product.review_count})
           </span>
         </div>
+        {showColorSwatches && product.variants && (
+          <div className="mb-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs text-gray-600 font-medium">Colors:</span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {product.variants.map((variant) => {
+                const isSelected = selectedVariantId === variant.id;
+                const isHovered = hoveredVariantId === variant.id;
+                return (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    onMouseEnter={() => setHoveredVariantId(variant.id)}
+                    onMouseLeave={() => setHoveredVariantId(null)}
+                    className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-[#0066CC] ring-2 ring-[#0066CC]/30 scale-125 shadow-md'
+                        : isHovered
+                        ? 'border-[#0066CC] ring-1 ring-[#0066CC]/20 scale-110'
+                        : 'border-gray-300 hover:border-gray-400 hover:scale-110'
+                    }`}
+                    style={{
+                      backgroundColor: variant.color_code || '#ccc',
+                    }}
+                    title={variant.color_name}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedVariantId(variant.id);
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="mt-auto flex items-center justify-between">
           <div className="text-base md:text-lg font-bold text-[#0066CC]">
-            €{Number(product.price || 0).toFixed(2)}
+            €{Number(displayPrice || 0).toFixed(2)}
           </div>
-          {product.compare_at_price && Number(product.compare_at_price) > Number(product.price || 0) && (
+          {product.compare_at_price && Number(product.compare_at_price) > Number(displayPrice || 0) && (
             <span className="text-xs text-gray-500 line-through">
               €{Number(product.compare_at_price || 0).toFixed(2)}
             </span>
@@ -71,12 +141,14 @@ function ProductCard({ product }: { product: Product }) {
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [stores, setStores] = useState<PublicStore[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingStores, setLoadingStores] = useState(true);
 
   useEffect(() => {
     loadProducts();
     loadStores();
+    loadCategories();
   }, []);
 
   const loadProducts = async () => {
@@ -100,6 +172,15 @@ export default function HomePage() {
       console.error('Failed to load stores:', error);
     } finally {
       setLoadingStores(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const data = await productService.getCategories(true);
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
     }
   };
 
@@ -159,30 +240,54 @@ export default function HomePage() {
           </div>
           <div className="bg-white rounded-b-2xl shadow-sm px-1.5 sm:px-3 py-4 sm:py-5">
             <div className="flex gap-3 md:gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-300">
-            {[
-              { name: "Frames", href: "/categories/frames", icon: "👓", color: "from-sky-500/15 to-sky-500/0" },
-              { name: "Sunglasses", href: "/categories/sunglasses", icon: "🕶️", color: "from-amber-500/15 to-amber-500/0" },
-              { name: "Contact Lenses", href: "/categories/contact-lenses", icon: "🔍", color: "from-emerald-500/15 to-emerald-500/0" },
-              { name: "Eye Hygiene", href: "/categories/eye-hygiene", icon: "💧", color: "from-cyan-500/15 to-cyan-500/0" },
-              { name: "Accessories", href: "/categories/accessories", icon: "🎁", color: "from-violet-500/15 to-violet-500/0" },
-            ].map((category) => (
-              <Link
-                key={category.name}
-                href={category.href}
-                className="relative bg-white rounded-lg shadow-sm p-5 text-center hover:shadow-md transition-all border border-gray-200 overflow-hidden group min-w-[130px] sm:min-w-[150px]"
-              >
-                <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${category.color} opacity-0 group-hover:opacity-100 transition-opacity`} />
-                <div className="relative flex flex-col items-center">
-                  <div className="text-3xl mb-2">{category.icon}</div>
-                  <div className="font-semibold text-gray-900 text-sm md:text-base">
-                    {category.name}
-                  </div>
-                  <span className="mt-1 text-[11px] uppercase tracking-[0.16em] text-gray-500">
-                    Shop now
-                  </span>
-                </div>
-              </Link>
-            ))}
+            {categories.length > 0 ? (
+              categories.map((category) => {
+                // Map category names to icons
+                const getCategoryIcon = (name: string) => {
+                  const nameLower = name.toLowerCase();
+                  if (nameLower.includes('eye') && nameLower.includes('glass')) return '👓';
+                  if (nameLower.includes('sun') || nameLower.includes('sunglass')) return '🕶️';
+                  if (nameLower.includes('contact') || nameLower.includes('lens')) return '🔍';
+                  if (nameLower.includes('hygiene')) return '💧';
+                  if (nameLower.includes('accessor')) return '🎁';
+                  if (nameLower.includes('kid') || nameLower.includes('baby')) return '👶';
+                  return '📦';
+                };
+                
+                const getCategoryColor = (index: number) => {
+                  const colors = [
+                    "from-sky-500/15 to-sky-500/0",
+                    "from-amber-500/15 to-amber-500/0",
+                    "from-emerald-500/15 to-emerald-500/0",
+                    "from-cyan-500/15 to-cyan-500/0",
+                    "from-violet-500/15 to-violet-500/0",
+                    "from-pink-500/15 to-pink-500/0",
+                  ];
+                  return colors[index % colors.length];
+                };
+
+                return (
+                  <Link
+                    key={category.id}
+                    href={`/categories/${category.slug}`}
+                    className="relative bg-white rounded-lg shadow-sm p-5 text-center hover:shadow-md transition-all border border-gray-200 overflow-hidden group min-w-[130px] sm:min-w-[150px]"
+                  >
+                    <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${getCategoryColor(categories.indexOf(category))} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                    <div className="relative flex flex-col items-center">
+                      <div className="text-3xl mb-2">{getCategoryIcon(category.name)}</div>
+                      <div className="font-semibold text-gray-900 text-sm md:text-base">
+                        {category.name}
+                      </div>
+                      <span className="mt-1 text-[11px] uppercase tracking-[0.16em] text-gray-500">
+                        Shop now
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })
+            ) : (
+              <div className="text-center text-gray-500 py-4 w-full">Loading categories...</div>
+            )}
             </div>
           </div>
         </section>

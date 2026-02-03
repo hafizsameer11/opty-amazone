@@ -81,10 +81,15 @@ class OrderService
                 // Create OrderItems
                 foreach ($items as $cartItem) {
                     $product = $cartItem->product;
+                    $variant = $cartItem->variant;
+                    
+                    // Use variant images if available, otherwise product images
+                    $images = $variant && $variant->images ? $variant->images : $product->images;
                     
                     OrderItem::create([
                         'store_order_id' => $storeOrder->id,
                         'product_id' => $product->id,
+                        'variant_id' => $cartItem->variant_id,
                         'quantity' => $cartItem->quantity,
                         'price' => $cartItem->price,
                         'line_total' => $cartItem->price * $cartItem->quantity,
@@ -93,7 +98,7 @@ class OrderService
                         'product_variant' => $cartItem->product_variant,
                         'lens_configuration' => $cartItem->lens_configuration,
                         'prescription_data' => $cartItem->prescription_data,
-                        'product_images' => $product->images,
+                        'product_images' => $images,
                     ]);
                 }
 
