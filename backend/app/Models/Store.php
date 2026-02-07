@@ -113,6 +113,56 @@ class Store extends Model
     }
 
     /**
+     * Get lens types configured for a specific category.
+     */
+    public function categoryLensTypes(int $categoryId): BelongsToMany
+    {
+        return $this->belongsToMany(LensType::class, 'store_category_lens_types', 'store_id', 'lens_type_id')
+            ->wherePivot('category_id', $categoryId)
+            ->withTimestamps();
+    }
+
+    /**
+     * Get lens treatments configured for a specific category.
+     */
+    public function categoryLensTreatments(int $categoryId): BelongsToMany
+    {
+        return $this->belongsToMany(LensTreatment::class, 'store_category_lens_treatments', 'store_id', 'lens_treatment_id')
+            ->wherePivot('category_id', $categoryId)
+            ->withTimestamps();
+    }
+
+    /**
+     * Get lens coatings configured for a specific category.
+     */
+    public function categoryLensCoatings(int $categoryId): BelongsToMany
+    {
+        return $this->belongsToMany(LensCoating::class, 'store_category_lens_coatings', 'store_id', 'lens_coating_id')
+            ->wherePivot('category_id', $categoryId)
+            ->withTimestamps();
+    }
+
+    /**
+     * Get lens thickness materials configured for a specific category.
+     */
+    public function categoryLensThicknessMaterials(int $categoryId): BelongsToMany
+    {
+        return $this->belongsToMany(LensThicknessMaterial::class, 'store_category_lens_thickness_materials', 'store_id', 'lens_thickness_material_id')
+            ->wherePivot('category_id', $categoryId)
+            ->withTimestamps();
+    }
+
+    /**
+     * Get lens thickness options configured for a specific category.
+     */
+    public function categoryLensThicknessOptions(int $categoryId): BelongsToMany
+    {
+        return $this->belongsToMany(LensThicknessOption::class, 'store_category_lens_thickness_options', 'store_id', 'lens_thickness_option_id')
+            ->wherePivot('category_id', $categoryId)
+            ->withTimestamps();
+    }
+
+    /**
      * Get the URL for the store's profile image.
      */
     public function getProfileImageUrlAttribute(): ?string

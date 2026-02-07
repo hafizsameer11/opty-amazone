@@ -118,7 +118,9 @@ export default function ProductOptions({
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{lens.name}</span>
                     <span className="text-sm text-gray-600">
-                      {lens.price > 0 ? `+€${Number(lens.price || 0).toFixed(2)}` : "Included"}
+                      {(lens.price_adjustment || lens.price || 0) > 0 
+                        ? `+€${Number(lens.price_adjustment || lens.price || 0).toFixed(2)}` 
+                        : "Included"}
                     </span>
                   </div>
                 </button>
@@ -127,61 +129,109 @@ export default function ProductOptions({
           </div>
         )}
 
-        {/* Lens Index Selection */}
-        {frameProduct.lens_index_options && frameProduct.lens_index_options.length > 0 && (
+        {/* Lens Index Selection - Use lens_types from API or product */}
+        {frameProduct.lens_types && frameProduct.lens_types.length > 0 && (
           <div>
             <label className="block text-sm font-semibold text-gray-900 mb-2">
               Lens Index (Thickness)
             </label>
             <div className="grid grid-cols-2 gap-2">
-              {frameProduct.lens_index_options.map((index: any) => (
+              {frameProduct.lens_types.map((lensType: any) => (
                 <button
-                  key={index.id}
+                  key={lensType.id}
                   type="button"
-                  onClick={() => onLensIndexChange?.(index)}
+                  onClick={() => onLensIndexChange?.(lensType)}
                   className={`px-4 py-3 rounded-lg border-2 text-left transition-all ${
-                    selectedLensIndex?.id === index.id
+                    selectedLensIndex?.id === lensType.id
                       ? "border-[#0066CC] bg-[#0066CC]/5"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  <div className="font-medium">{index.index}</div>
-                  <div className="text-xs text-gray-600">{index.description}</div>
+                  <div className="font-medium">Index {lensType.index}</div>
+                  <div className="text-xs text-gray-600">{lensType.description || `Thinner lenses`}</div>
                   <div className="text-sm text-gray-700 mt-1">
-                    {index.price > 0 ? `+€${Number(index.price || 0).toFixed(2)}` : "Included"}
+                    {(lensType.price_adjustment || 0) > 0 
+                      ? `+€${Number(lensType.price_adjustment || 0).toFixed(2)}` 
+                      : "Included"}
                   </div>
                 </button>
               ))}
             </div>
           </div>
         )}
+        
+        {/* Fallback: Use lens_index_options from product if lens_types not available */}
+        {(!frameProduct.lens_types || frameProduct.lens_types.length === 0) && 
+         frameProduct.lens_index_options && Array.isArray(frameProduct.lens_index_options) && frameProduct.lens_index_options.length > 0 && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              Lens Index (Thickness)
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {frameProduct.lens_index_options.map((indexOption: any, idx: number) => {
+                // Handle both string and object formats
+                const indexValue = typeof indexOption === 'string' ? indexOption : (indexOption.index || indexOption);
+                const indexId = typeof indexOption === 'object' ? indexOption.id : idx;
+                return (
+                  <button
+                    key={indexId}
+                    type="button"
+                    onClick={() => onLensIndexChange?.(typeof indexOption === 'object' ? indexOption : { id: idx, index: indexValue })}
+                    className={`px-4 py-3 rounded-lg border-2 text-left transition-all ${
+                      selectedLensIndex?.id === indexId || selectedLensIndex?.index === indexValue
+                        ? "border-[#0066CC] bg-[#0066CC]/5"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="font-medium">Index {indexValue}</div>
+                    <div className="text-xs text-gray-600">Thinner lenses</div>
+                    <div className="text-sm text-gray-700 mt-1">
+                      {(typeof indexOption === 'object' && indexOption.price) > 0 
+                        ? `+€${Number(indexOption.price || 0).toFixed(2)}` 
+                        : "Included"}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-        {/* Lens Treatments */}
+        {/* Lens Treatments - Use treatments from API or product */}
         {frameProduct.treatment_options && frameProduct.treatment_options.length > 0 && (
           <div>
             <label className="block text-sm font-semibold text-gray-900 mb-2">
               Lens Treatments (Optional)
             </label>
             <div className="space-y-2">
-              {frameProduct.treatment_options.map((treatment: any) => (
-                <label
-                  key={treatment.id}
-                  className="flex items-center justify-between px-4 py-3 rounded-lg border-2 border-gray-200 hover:border-gray-300 cursor-pointer transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedTreatments.includes(treatment.id)}
-                      onChange={() => onTreatmentToggle?.(treatment.id)}
-                      className="w-4 h-4 text-[#0066CC] border-gray-300 rounded focus:ring-[#0066CC]"
-                    />
-                    <span className="font-medium">{treatment.name}</span>
-                  </div>
-                  <span className="text-sm text-gray-600">
-                    +€{Number(treatment.price || 0).toFixed(2)}
-                  </span>
-                </label>
-              ))}
+              {frameProduct.treatment_options.map((treatment: any) => {
+                // Handle both object and string formats
+                const treatmentId = typeof treatment === 'object' ? treatment.id : treatment;
+                const treatmentName = typeof treatment === 'object' ? treatment.name : treatment;
+                const treatmentPrice = typeof treatment === 'object' ? (treatment.price || 0) : 0;
+                
+                return (
+                  <label
+                    key={treatmentId}
+                    className="flex items-center justify-between px-4 py-3 rounded-lg border-2 border-gray-200 hover:border-gray-300 cursor-pointer transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedTreatments.includes(treatmentId)}
+                        onChange={() => onTreatmentToggle?.(treatmentId)}
+                        className="w-4 h-4 text-[#0066CC] border-gray-300 rounded focus:ring-[#0066CC]"
+                      />
+                      <span className="font-medium">{treatmentName}</span>
+                    </div>
+                    {treatmentPrice > 0 && (
+                      <span className="text-sm text-gray-600">
+                        +€{Number(treatmentPrice).toFixed(2)}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
             </div>
           </div>
         )}

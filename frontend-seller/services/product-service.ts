@@ -72,6 +72,28 @@ export interface CreateProductData {
   meta_title?: string;
   meta_description?: string;
   meta_keywords?: string;
+  // Contact Lens Specific Fields
+  base_curve_options?: string[];
+  diameter_options?: string[];
+  powers_range?: string;
+  replacement_frequency?: string;
+  contact_lens_brand?: string;
+  contact_lens_color?: string;
+  contact_lens_material?: string;
+  contact_lens_type?: string;
+  has_uv_filter?: boolean;
+  can_sleep_with?: boolean;
+  water_content?: string;
+  is_medical_device?: boolean;
+  // Eye Hygiene Specific Fields
+  size_volume?: string;
+  pack_type?: string;
+  expiry_date?: string;
+  // Additional Fields
+  model_3d_url?: string;
+  try_on_image?: string;
+  color_images?: string[];
+  mm_calibers?: any;
 }
 
 export interface ProductVariant {
@@ -172,5 +194,51 @@ export const productService = {
     const res = await apiClient.post(`/seller/product-variant/${variantId}/set-default`);
     return res.data.data;
   },
+
+  // Frame size management
+  async getFrameSizes(productId: number): Promise<FrameSize[]> {
+    const res = await apiClient.get(`/seller/products/${productId}/frame-sizes`);
+    return res.data.data;
+  },
+
+  async createFrameSize(productId: number, data: CreateFrameSizeData): Promise<FrameSize> {
+    const res = await apiClient.post(`/seller/products/${productId}/frame-sizes`, data);
+    return res.data.data;
+  },
+
+  async updateFrameSize(frameSizeId: number, data: Partial<CreateFrameSizeData>): Promise<FrameSize> {
+    const res = await apiClient.put(`/seller/frame-sizes/${frameSizeId}`, data);
+    return res.data.data;
+  },
+
+  async deleteFrameSize(frameSizeId: number): Promise<void> {
+    await apiClient.delete(`/seller/frame-sizes/${frameSizeId}`);
+  },
 };
+
+export interface FrameSize {
+  id: number;
+  product_id: number;
+  lens_width: number;
+  bridge_width: number;
+  temple_length: number;
+  frame_width?: number;
+  frame_height?: number;
+  size_label?: string;
+  stock_quantity: number;
+  stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateFrameSizeData {
+  lens_width: number;
+  bridge_width: number;
+  temple_length: number;
+  frame_width?: number;
+  frame_height?: number;
+  size_label?: string;
+  stock_quantity: number;
+  stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
+}
 

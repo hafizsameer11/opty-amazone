@@ -44,6 +44,16 @@ Route::prefix('search')->group(function () {
     Route::get('/', [App\Http\Controllers\Api\SearchController::class, 'search']);
 });
 
+// Lens data routes (public)
+Route::prefix('lens')->name('lens.')->group(function () {
+    Route::get('/types', [App\Http\Controllers\Api\LensDataController::class, 'getLensTypes'])->name('types');
+    Route::get('/treatments', [App\Http\Controllers\Api\LensDataController::class, 'getLensTreatments'])->name('treatments');
+    Route::get('/coatings', [App\Http\Controllers\Api\LensDataController::class, 'getLensCoatings'])->name('coatings');
+    Route::get('/thickness-materials', [App\Http\Controllers\Api\LensDataController::class, 'getThicknessMaterials'])->name('thickness-materials');
+    Route::get('/thickness-options', [App\Http\Controllers\Api\LensDataController::class, 'getThicknessOptions'])->name('thickness-options');
+    Route::get('/product/{productId}/config', [App\Http\Controllers\Api\LensDataController::class, 'getLensConfigForProduct'])->name('product-config');
+});
+
 Route::prefix('buyer')->group(base_path('routes/buyer.php'));
 Route::prefix('seller')->group(base_path('routes/seller.php'));
 Route::prefix('admin')->group(base_path('routes/admin.php'));

@@ -48,6 +48,26 @@ export interface AddToCartData {
   product_variant?: any;
   lens_configuration?: any;
   prescription_data?: any;
+  // Frame size and prescription
+  frame_size_id?: number;
+  prescription_id?: number;
+  // Lens customization
+  lens_index?: number;
+  lens_type?: string;
+  lens_thickness_material_id?: number;
+  lens_thickness_option_id?: number;
+  treatment_ids?: number[];
+  lens_coatings?: string;
+  progressive_variant_id?: number;
+  // Contact lens fields
+  contact_lens_left_base_curve?: number;
+  contact_lens_left_diameter?: number;
+  contact_lens_left_power?: number;
+  contact_lens_left_qty?: number;
+  contact_lens_right_base_curve?: number;
+  contact_lens_right_diameter?: number;
+  contact_lens_right_power?: number;
+  contact_lens_right_qty?: number;
 }
 
 export const cartService = {

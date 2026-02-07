@@ -81,7 +81,7 @@ export default function Header() {
             {categories.map((category) => (
               <div
                 key={category.id}
-                className="relative group"
+                className="relative"
                 onMouseEnter={() => setHoveredCategory(category.id)}
                 onMouseLeave={() => setHoveredCategory(null)}
               >
@@ -99,37 +99,43 @@ export default function Header() {
                 
                 {/* Dropdown Menu */}
                 {(category.children && category.children.length > 0) && hoveredCategory === category.id && (
-                  <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[200px] z-50 py-2">
-                    {category.children.map((subCategory) => (
-                      <div key={subCategory.id} className="relative group/sub">
-                        <Link
-                          href={`/categories/${subCategory.slug}`}
-                          className="block px-4 py-2 text-gray-900 hover:bg-gray-100 transition-colors flex items-center justify-between"
-                        >
-                          <span>{subCategory.name}</span>
+                  <div 
+                    className="absolute top-full left-0 pt-2 bg-transparent z-50"
+                    onMouseEnter={() => setHoveredCategory(category.id)}
+                    onMouseLeave={() => setHoveredCategory(null)}
+                  >
+                    <div className="bg-white rounded-lg shadow-xl border border-gray-200 min-w-[200px] py-2">
+                      {category.children.map((subCategory) => (
+                        <div key={subCategory.id} className="relative group/sub">
+                          <Link
+                            href={`/categories/${subCategory.slug}`}
+                            className="block px-4 py-2 text-gray-900 hover:bg-gray-100 transition-colors flex items-center justify-between"
+                          >
+                            <span>{subCategory.name}</span>
+                            {(subCategory.children && subCategory.children.length > 0) && (
+                              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            )}
+                          </Link>
+                          
+                          {/* Sub-Sub Categories */}
                           {(subCategory.children && subCategory.children.length > 0) && (
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
+                            <div className="absolute left-full top-0 ml-2 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[180px] z-50 py-2 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200">
+                              {subCategory.children.map((subSubCategory) => (
+                                <Link
+                                  key={subSubCategory.id}
+                                  href={`/categories/${subSubCategory.slug}`}
+                                  className="block px-4 py-2 text-gray-900 hover:bg-gray-100 transition-colors"
+                                >
+                                  {subSubCategory.name}
+                                </Link>
+                              ))}
+                            </div>
                           )}
-                        </Link>
-                        
-                        {/* Sub-Sub Categories */}
-                        {(subCategory.children && subCategory.children.length > 0) && (
-                          <div className="absolute left-full top-0 ml-1 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[180px] z-50 py-2 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all">
-                            {subCategory.children.map((subSubCategory) => (
-                              <Link
-                                key={subSubCategory.id}
-                                href={`/categories/${subSubCategory.slug}`}
-                                className="block px-4 py-2 text-gray-900 hover:bg-gray-100 transition-colors"
-                              >
-                                {subSubCategory.name}
-                              </Link>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

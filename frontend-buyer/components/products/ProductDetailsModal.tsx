@@ -8,6 +8,7 @@ import { productService, type Product } from '@/services/product-service';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import ProductOptions from '@/components/products/ProductOptions';
 
 interface ProductDetailsModalProps {
   isOpen: boolean;
@@ -26,6 +27,11 @@ export default function ProductDetailsModal({
   const [error, setError] = useState('');
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  const [selectedFrameSize, setSelectedFrameSize] = useState<any>(null);
+  const [selectedLensType, setSelectedLensType] = useState<any>(null);
+  const [selectedLensIndex, setSelectedLensIndex] = useState<any>(null);
+  const [selectedTreatments, setSelectedTreatments] = useState<number[]>([]);
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     if (isOpen && productId) {
@@ -266,6 +272,34 @@ export default function ProductDetailsModal({
                 <p className="text-gray-700 leading-relaxed">{product.short_description}</p>
               )}
 
+              {/* Product Options - Category Specific */}
+              <div className="pt-4 border-t border-gray-200">
+                <ProductOptions
+                  product={product}
+                  selectedColor={selectedVariant?.color_name}
+                  onColorChange={(color) => {
+                    const variant = product.variants?.find(v => v.color_name === color);
+                    if (variant) handleVariantSelect(variant.id);
+                  }}
+                  selectedSize={selectedFrameSize}
+                  onSizeChange={setSelectedFrameSize}
+                  selectedLensType={selectedLensType}
+                  onLensTypeChange={setSelectedLensType}
+                  selectedLensIndex={selectedLensIndex}
+                  onLensIndexChange={setSelectedLensIndex}
+                  selectedTreatments={selectedTreatments}
+                  onTreatmentToggle={(treatmentId) => {
+                    setSelectedTreatments(prev =>
+                      prev.includes(treatmentId)
+                        ? prev.filter(id => id !== treatmentId)
+                        : [...prev, treatmentId]
+                    );
+                  }}
+                  quantity={quantity}
+                  onQuantityChange={setQuantity}
+                />
+              </div>
+
               {/* Quick Actions */}
               <div className="flex gap-3 pt-2">
                 <Button onClick={handleViewFullPage} className="flex-1">
@@ -342,6 +376,80 @@ export default function ProductDetailsModal({
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-1">SKU</p>
                 <p className="text-sm font-semibold text-gray-900 font-mono">{product.sku}</p>
               </div>
+              
+              {/* Contact Lens Specific Fields */}
+              {product.product_type === 'contact_lens' && (
+                <>
+                  {(product as any).contact_lens_brand && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Brand</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {(product as any).contact_lens_brand}
+                      </p>
+                    </div>
+                  )}
+                  {(product as any).contact_lens_type && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Lens Type</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {(product as any).contact_lens_type}
+                      </p>
+                    </div>
+                  )}
+                  {(product as any).replacement_frequency && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Replacement</p>
+                      <p className="text-sm font-semibold text-gray-900 capitalize">
+                        {(product as any).replacement_frequency}
+                      </p>
+                    </div>
+                  )}
+                  {(product as any).water_content && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Water Content</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {(product as any).water_content}
+                      </p>
+                    </div>
+                  )}
+                  {(product as any).has_uv_filter && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">UV Protection</p>
+                      <p className="text-sm font-semibold text-green-600">Yes</p>
+                    </div>
+                  )}
+                </>
+              )}
+              
+              {/* Eye Hygiene Specific Fields */}
+              {product.product_type === 'eye_hygiene' && (
+                <>
+                  {(product as any).size_volume && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Size/Volume</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {(product as any).size_volume}
+                      </p>
+                    </div>
+                  )}
+                  {(product as any).pack_type && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Pack Type</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {(product as any).pack_type}
+                      </p>
+                    </div>
+                  )}
+                  {(product as any).expiry_date && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Expiry Date</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {new Date((product as any).expiry_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
 

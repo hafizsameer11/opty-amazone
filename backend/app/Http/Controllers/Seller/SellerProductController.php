@@ -72,7 +72,7 @@ class SellerProductController extends Controller
         }
 
         $product = Product::where('store_id', $store->id)
-            ->with(['category', 'subCategory'])
+            ->with(['category', 'subCategory', 'frameSizes'])
             ->findOrFail($id);
 
         return ResponseHelper::success($product, 'Product retrieved successfully');
@@ -117,6 +117,31 @@ class SellerProductController extends Controller
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:500',
             'meta_keywords' => 'nullable|string|max:255',
+            // Contact Lens Specific Fields
+            'base_curve_options' => 'nullable|array',
+            'base_curve_options.*' => 'string',
+            'diameter_options' => 'nullable|array',
+            'diameter_options.*' => 'string',
+            'powers_range' => 'nullable|string',
+            'replacement_frequency' => 'nullable|string|max:50',
+            'contact_lens_brand' => 'nullable|string|max:100',
+            'contact_lens_color' => 'nullable|string|max:100',
+            'contact_lens_material' => 'nullable|string|max:100',
+            'contact_lens_type' => 'nullable|string|max:50',
+            'has_uv_filter' => 'nullable|boolean',
+            'can_sleep_with' => 'nullable|boolean',
+            'water_content' => 'nullable|string|max:50',
+            'is_medical_device' => 'nullable|boolean',
+            // Eye Hygiene Specific Fields
+            'size_volume' => 'nullable|string|max:50',
+            'pack_type' => 'nullable|string|max:50',
+            'expiry_date' => 'nullable|date',
+            // Additional Fields
+            'model_3d_url' => 'nullable|string|max:500|url',
+            'try_on_image' => 'nullable|string|max:500|url',
+            'color_images' => 'nullable|array',
+            'color_images.*' => 'string|url',
+            'mm_calibers' => 'nullable|array',
         ]);
 
         try {
@@ -180,6 +205,31 @@ class SellerProductController extends Controller
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:500',
             'meta_keywords' => 'nullable|string|max:255',
+            // Contact Lens Specific Fields
+            'base_curve_options' => 'nullable|array',
+            'base_curve_options.*' => 'string',
+            'diameter_options' => 'nullable|array',
+            'diameter_options.*' => 'string',
+            'powers_range' => 'nullable|string',
+            'replacement_frequency' => 'nullable|string|max:50',
+            'contact_lens_brand' => 'nullable|string|max:100',
+            'contact_lens_color' => 'nullable|string|max:100',
+            'contact_lens_material' => 'nullable|string|max:100',
+            'contact_lens_type' => 'nullable|string|max:50',
+            'has_uv_filter' => 'nullable|boolean',
+            'can_sleep_with' => 'nullable|boolean',
+            'water_content' => 'nullable|string|max:50',
+            'is_medical_device' => 'nullable|boolean',
+            // Eye Hygiene Specific Fields
+            'size_volume' => 'nullable|string|max:50',
+            'pack_type' => 'nullable|string|max:50',
+            'expiry_date' => 'nullable|date',
+            // Additional Fields
+            'model_3d_url' => 'nullable|string|max:500|url',
+            'try_on_image' => 'nullable|string|max:500|url',
+            'color_images' => 'nullable|array',
+            'color_images.*' => 'string|url',
+            'mm_calibers' => 'nullable|array',
         ]);
 
         try {

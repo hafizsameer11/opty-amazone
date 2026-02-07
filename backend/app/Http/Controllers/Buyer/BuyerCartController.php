@@ -66,6 +66,26 @@ class BuyerCartController extends Controller
             'product_variant' => 'nullable|array',
             'lens_configuration' => 'nullable|array',
             'prescription_data' => 'nullable|array',
+            // Frame size and prescription
+            'frame_size_id' => 'nullable|exists:frame_sizes,id',
+            'prescription_id' => 'nullable|exists:prescriptions,id',
+            // Lens customization
+            'lens_index' => 'nullable|numeric|min:0|max:10',
+            'lens_type' => 'nullable|string|max:50',
+            'lens_thickness_material_id' => 'nullable|exists:lens_thickness_materials,id',
+            'lens_thickness_option_id' => 'nullable|exists:lens_thickness_options,id',
+            'treatment_ids' => 'nullable|array',
+            'treatment_ids.*' => 'integer|exists:lens_treatments,id',
+            'lens_coatings' => 'nullable|string',
+            // Contact lens fields
+            'contact_lens_left_base_curve' => 'nullable|numeric|min:0|max:20',
+            'contact_lens_left_diameter' => 'nullable|numeric|min:0|max:20',
+            'contact_lens_left_power' => 'nullable|numeric|min:-30|max:30',
+            'contact_lens_left_qty' => 'nullable|integer|min:0',
+            'contact_lens_right_base_curve' => 'nullable|numeric|min:0|max:20',
+            'contact_lens_right_diameter' => 'nullable|numeric|min:0|max:20',
+            'contact_lens_right_power' => 'nullable|numeric|min:-30|max:30',
+            'contact_lens_right_qty' => 'nullable|integer|min:0',
         ]);
 
         $user = Auth::user();
@@ -104,11 +124,18 @@ class BuyerCartController extends Controller
             $cart = Cart::firstOrCreate(['user_id' => $user->id]);
 
             // Check if item already exists with same configuration
-            $existingItem = $cart->items()
+            // Consider variant_id, frame_size_id, prescription_id, and lens customization
+            $existingItemQuery = $cart->items()
                 ->where('product_id', $product->id)
-                ->where('variant_id', $request->variant_id)
-                ->where('lens_configuration', json_encode($request->lens_configuration ?? []))
-                ->first();
+                ->where('variant_id', $request->variant_id ?? null)
+                ->where('frame_size_id', $request->frame_size_id ?? null)
+                ->where('prescription_id', $request->prescription_id ?? null)
+                ->where('lens_index', $request->lens_index ?? null)
+                ->where('lens_type', $request->lens_type ?? null)
+                ->where('lens_thickness_material_id', $request->lens_thickness_material_id ?? null)
+                ->where('lens_thickness_option_id', $request->lens_thickness_option_id ?? null);
+
+            $existingItem = $existingItemQuery->first();
 
             if ($existingItem) {
                 // Update quantity
@@ -120,7 +147,7 @@ class BuyerCartController extends Controller
                 $item = $existingItem;
             } else {
                 // Create new item
-                $item = CartItem::create([
+                $itemData = [
                     'cart_id' => $cart->id,
                     'product_id' => $product->id,
                     'variant_id' => $request->variant_id,
@@ -130,7 +157,27 @@ class BuyerCartController extends Controller
                     'product_variant' => $request->product_variant,
                     'lens_configuration' => $request->lens_configuration,
                     'prescription_data' => $request->prescription_data,
-                ]);
+                    // New specific fields
+                    'frame_size_id' => $request->frame_size_id,
+                    'prescription_id' => $request->prescription_id,
+                    'lens_index' => $request->lens_index,
+                    'lens_type' => $request->lens_type,
+                    'lens_thickness_material_id' => $request->lens_thickness_material_id,
+                    'lens_thickness_option_id' => $request->lens_thickness_option_id,
+                    'treatment_ids' => $request->treatment_ids,
+                    'lens_coatings' => $request->lens_coatings,
+                    // Contact lens fields
+                    'contact_lens_left_base_curve' => $request->contact_lens_left_base_curve,
+                    'contact_lens_left_diameter' => $request->contact_lens_left_diameter,
+                    'contact_lens_left_power' => $request->contact_lens_left_power,
+                    'contact_lens_left_qty' => $request->contact_lens_left_qty,
+                    'contact_lens_right_base_curve' => $request->contact_lens_right_base_curve,
+                    'contact_lens_right_diameter' => $request->contact_lens_right_diameter,
+                    'contact_lens_right_power' => $request->contact_lens_right_power,
+                    'contact_lens_right_qty' => $request->contact_lens_right_qty,
+                ];
+
+                $item = CartItem::create($itemData);
             }
 
             DB::commit();

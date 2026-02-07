@@ -99,121 +99,112 @@ export default function LensThicknessStep({
   return (
     <div className="h-full flex flex-col min-h-0">
       {/* Header */}
-      <div className="flex items-center gap-4 px-6 py-4 border-b border-gray-200 flex-shrink-0">
+      <div className="flex items-center gap-2 mb-4 px-4 py-3 border-b border-gray-200 flex-shrink-0">
         <button
           onClick={onBack}
-          className="text-gray-600 hover:text-gray-900 transition-colors"
+          className="text-gray-500 hover:text-gray-700"
           aria-label="Back"
         >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <h2 className="text-xl font-bold text-gray-900">Lens Thickness</h2>
+        <h3 className="text-xl font-bold text-gray-900">Lens Thickness</h3>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 pr-2">
+        <div className="mb-6">
           {/* Lens Material Selection */}
-          <div>
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Lens Material</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {lensMaterials.map((material) => (
-                <label
-                  key={material.id}
-                  className={`flex items-center gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${
-                    selectedMaterial?.id === material.id
-                      ? "border-[#0066CC] bg-[#0066CC]/5"
-                      : "border-gray-200 hover:border-gray-300 bg-white"
-                  }`}
-                >
+          <div className="space-y-3">
+            {lensMaterials.map((material) => (
+              <label
+                key={material.id}
+                className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  selectedMaterial?.id === material.id
+                    ? "border-blue-600 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300 bg-white"
+                }`}
+              >
+                <div className="flex items-center gap-3">
                   <input
                     type="radio"
                     name="lens-material"
                     checked={selectedMaterial?.id === material.id}
                     onChange={() => onMaterialSelect(material)}
-                    className="w-5 h-5 text-[#0066CC] border-gray-300 focus:ring-[#0066CC]"
+                    className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
                   />
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900">{material.name}</div>
-                  </div>
-                  <div className="text-lg font-bold text-gray-900">
-                    €{Number(material.price || 0).toFixed(2)}
-                  </div>
-                </label>
-              ))}
-            </div>
+                  <span className="font-medium text-gray-900">{material.name}</span>
+                </div>
+                <div className="text-base font-semibold text-gray-900">
+                  ${Number(material.price || 0).toFixed(2)}
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Lens Index (Thickness) Selection */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <h3 className="text-base font-bold text-gray-900">Lens Index (Thickness)</h3>
+            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+              Auto-recommended: {recommendedIndex}
+            </span>
           </div>
 
-          {/* Lens Index (Thickness) Selection */}
+          {/* Recommended Box */}
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
+            <p className="font-bold text-gray-900 text-base mb-1">
+              Recommended lens thickness: {recommendedIndex}
+            </p>
+            <p className="text-sm text-gray-600">
+              Based on your prescription (SPH + CYL)
+            </p>
+          </div>
+
+          {/* Manual Selection Dropdown */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Lens Index (Thickness)</h3>
-              <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
-                Auto-recommended: {recommendedIndex}
-              </span>
-            </div>
-
-            {/* Recommended Box */}
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300 rounded-xl p-5 mb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-gray-900 text-lg">
-                    Recommended lens thickness: {recommendedIndex}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Based on your prescription (SPH + CYL)
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Manual Selection Dropdown */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Please select
-              </label>
-              <select
-                value={selectedLensIndex?.id || ""}
-                onChange={(e) => {
-                  const selected = lensIndexOptions.find(
-                    (opt) => opt.id === parseInt(e.target.value)
-                  );
-                  if (selected) {
-                    onLensIndexSelect(selected);
-                    setShowManualSelect(true);
-                  }
-                }}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] text-gray-900 font-medium"
-              >
-                <option value="">Please select</option>
-                {lensIndexOptions.map((index) => (
-                  <option key={index.id} value={index.id}>
-                    {index.index} - {index.description}
-                    {index.price > 0 ? ` (+€${Number(index.price || 0).toFixed(2)})` : " (Included)"}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-2">
-                You can override the recommendation by selecting a different option above.
-              </p>
-            </div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Please select
+            </label>
+            <select
+              value={selectedLensIndex?.id || ""}
+              onChange={(e) => {
+                const selected = lensIndexOptions.find(
+                  (opt) => opt.id === parseInt(e.target.value)
+                );
+                if (selected) {
+                  onLensIndexSelect(selected);
+                  setShowManualSelect(true);
+                }
+              }}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium appearance-none bg-white"
+            >
+              <option value="">Please select</option>
+              {lensIndexOptions.map((index) => (
+                <option key={index.id} value={index.id}>
+                  {index.index} - {index.description}
+                  {index.price > 0 ? ` (+$${Number(index.price || 0).toFixed(2)})` : " (Included)"}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-2">
+              You can override the recommendation by selecting a different option above.
+            </p>
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 flex-shrink-0">
-        <Button variant="outline" onClick={onBack}>
-          Back
-        </Button>
-        <Button
+      <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 flex-shrink-0">
+        <button
           onClick={handleContinue}
           disabled={!selectedMaterial || !selectedLensIndex}
+          className="w-full bg-blue-950 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Add
-        </Button>
+        </button>
       </div>
     </div>
   );

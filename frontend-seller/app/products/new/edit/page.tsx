@@ -45,6 +45,28 @@ export default function NewProductEditPage() {
     treatment_options: [],
     is_featured: false,
     is_active: true,
+    // Contact Lens fields
+    base_curve_options: [],
+    diameter_options: [],
+    powers_range: '',
+    replacement_frequency: '',
+    contact_lens_brand: '',
+    contact_lens_color: '',
+    contact_lens_material: '',
+    contact_lens_type: '',
+    has_uv_filter: false,
+    can_sleep_with: false,
+    water_content: '',
+    is_medical_device: true,
+    // Eye Hygiene fields
+    size_volume: '',
+    pack_type: '',
+    expiry_date: '',
+    // Additional fields
+    model_3d_url: '',
+    try_on_image: '',
+    color_images: [],
+    mm_calibers: null,
   });
 
   useEffect(() => {
@@ -76,8 +98,9 @@ export default function NewProductEditPage() {
     setSaving(true);
 
     try {
-      await productService.create(formData);
+      const product = await productService.create(formData);
       setSuccess('Product created successfully');
+      // Note: Frame sizes can be added later via the product edit page
       setTimeout(() => {
         router.push('/products');
       }, 1500);
@@ -338,22 +361,231 @@ export default function NewProductEditPage() {
                   {/* Product Options */}
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Options</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                      <Input
-                        label="Frame Shape"
-                        value={formData.frame_shape}
-                        onChange={(e) => setFormData({ ...formData, frame_shape: e.target.value })}
-                      />
-                      <Input
-                        label="Frame Material"
-                        value={formData.frame_material}
-                        onChange={(e) => setFormData({ ...formData, frame_material: e.target.value })}
-                      />
-                      <Input
-                        label="Frame Color"
-                        value={formData.frame_color}
-                        onChange={(e) => setFormData({ ...formData, frame_color: e.target.value })}
-                      />
+                    
+                    {/* Frame/Sunglasses Options */}
+                    {(formData.product_type === 'frame' || formData.product_type === 'sunglasses') && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input
+                            label="Frame Shape"
+                            value={formData.frame_shape || ''}
+                            onChange={(e) => setFormData({ ...formData, frame_shape: e.target.value })}
+                          />
+                          <Input
+                            label="Frame Material"
+                            value={formData.frame_material || ''}
+                            onChange={(e) => setFormData({ ...formData, frame_material: e.target.value })}
+                          />
+                          <Input
+                            label="Frame Color"
+                            value={formData.frame_color || ''}
+                            onChange={(e) => setFormData({ ...formData, frame_color: e.target.value })}
+                          />
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-800 mb-2">
+                              Gender
+                            </label>
+                            <select
+                              value={formData.gender}
+                              onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
+                              className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
+                            >
+                              <option value="unisex">Unisex</option>
+                              <option value="men">Men</option>
+                              <option value="women">Women</option>
+                              <option value="kids">Kids</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-800 mb-2">
+                            Lens Type
+                          </label>
+                          <textarea
+                            value={formData.lens_type || ''}
+                            onChange={(e) => setFormData({ ...formData, lens_type: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
+                            rows={2}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-800 mb-2">
+                            3D Model URL
+                          </label>
+                          <Input
+                            value={formData.model_3d_url || ''}
+                            onChange={(e) => setFormData({ ...formData, model_3d_url: e.target.value })}
+                            placeholder="https://example.com/model.glb"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-800 mb-2">
+                            Try-On Image URL
+                          </label>
+                          <Input
+                            value={formData.try_on_image || ''}
+                            onChange={(e) => setFormData({ ...formData, try_on_image: e.target.value })}
+                            placeholder="https://example.com/try-on.jpg"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Contact Lens Options */}
+                    {formData.product_type === 'contact_lens' && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input
+                            label="Contact Lens Brand"
+                            value={formData.contact_lens_brand || ''}
+                            onChange={(e) => setFormData({ ...formData, contact_lens_brand: e.target.value })}
+                          />
+                          <Input
+                            label="Contact Lens Type"
+                            value={formData.contact_lens_type || ''}
+                            onChange={(e) => setFormData({ ...formData, contact_lens_type: e.target.value })}
+                          />
+                          <Input
+                            label="Contact Lens Color"
+                            value={formData.contact_lens_color || ''}
+                            onChange={(e) => setFormData({ ...formData, contact_lens_color: e.target.value })}
+                          />
+                          <Input
+                            label="Contact Lens Material"
+                            value={formData.contact_lens_material || ''}
+                            onChange={(e) => setFormData({ ...formData, contact_lens_material: e.target.value })}
+                          />
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-800 mb-2">
+                              Replacement Frequency
+                            </label>
+                            <select
+                              value={formData.replacement_frequency || ''}
+                              onChange={(e) => setFormData({ ...formData, replacement_frequency: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
+                            >
+                              <option value="">Select Frequency</option>
+                              <option value="daily">Daily</option>
+                              <option value="weekly">Weekly</option>
+                              <option value="monthly">Monthly</option>
+                              <option value="yearly">Yearly</option>
+                            </select>
+                          </div>
+                          <Input
+                            label="Water Content (%)"
+                            value={formData.water_content || ''}
+                            onChange={(e) => setFormData({ ...formData, water_content: e.target.value })}
+                            placeholder="e.g., 38%, 55%"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-800 mb-2">
+                            Base Curve Options (JSON array or comma-separated)
+                          </label>
+                          <textarea
+                            value={Array.isArray(formData.base_curve_options) ? formData.base_curve_options.join(', ') : (formData.base_curve_options || '')}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const options = value.split(',').map(v => v.trim()).filter(v => v);
+                              setFormData({ ...formData, base_curve_options: options });
+                            }}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
+                            rows={2}
+                            placeholder="8.6, 8.7, 8.8"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-800 mb-2">
+                            Diameter Options (JSON array or comma-separated)
+                          </label>
+                          <textarea
+                            value={Array.isArray(formData.diameter_options) ? formData.diameter_options.join(', ') : (formData.diameter_options || '')}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const options = value.split(',').map(v => v.trim()).filter(v => v);
+                              setFormData({ ...formData, diameter_options: options });
+                            }}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
+                            rows={2}
+                            placeholder="14.0, 14.2, 14.5"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-800 mb-2">
+                            Powers Range (JSON or text)
+                          </label>
+                          <textarea
+                            value={formData.powers_range || ''}
+                            onChange={(e) => setFormData({ ...formData, powers_range: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
+                            rows={3}
+                            placeholder='{"min": -10.0, "max": 10.0, "step": 0.25}'
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={formData.has_uv_filter || false}
+                              onChange={(e) => setFormData({ ...formData, has_uv_filter: e.target.checked })}
+                              className="mr-2"
+                            />
+                            <span>Has UV Filter</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={formData.can_sleep_with || false}
+                              onChange={(e) => setFormData({ ...formData, can_sleep_with: e.target.checked })}
+                              className="mr-2"
+                            />
+                            <span>Can Sleep With (Extended Wear)</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={formData.is_medical_device !== false}
+                              onChange={(e) => setFormData({ ...formData, is_medical_device: e.target.checked })}
+                              className="mr-2"
+                            />
+                            <span>Medical Device (Requires Prescription)</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Eye Hygiene Options */}
+                    {formData.product_type === 'eye_hygiene' && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input
+                            label="Size/Volume"
+                            value={formData.size_volume || ''}
+                            onChange={(e) => setFormData({ ...formData, size_volume: e.target.value })}
+                            placeholder="e.g., 100ml, 200ml, 500ml"
+                          />
+                          <Input
+                            label="Pack Type"
+                            value={formData.pack_type || ''}
+                            onChange={(e) => setFormData({ ...formData, pack_type: e.target.value })}
+                            placeholder="e.g., Single, Multi-pack, Bulk"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-800 mb-2">
+                            Expiry Date
+                          </label>
+                          <Input
+                            type="date"
+                            value={formData.expiry_date || ''}
+                            onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* General Options (for all types) */}
+                    <div className="mt-4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-800 mb-2">
                           Gender
@@ -369,17 +601,6 @@ export default function NewProductEditPage() {
                           <option value="kids">Kids</option>
                         </select>
                       </div>
-                    </div>
-                    <div className="mt-4">
-                      <label className="block text-sm font-semibold text-gray-800 mb-2">
-                        Lens Type
-                      </label>
-                      <textarea
-                        value={formData.lens_type}
-                        onChange={(e) => setFormData({ ...formData, lens_type: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
-                        rows={2}
-                      />
                     </div>
                   </div>
 

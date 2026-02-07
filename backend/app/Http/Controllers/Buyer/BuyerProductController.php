@@ -15,7 +15,14 @@ class BuyerProductController extends Controller
      */
     public function getAll(Request $request)
     {
-        $query = Product::with(['store', 'category', 'subCategory', 'variants'])
+        $withRelations = ['store', 'category', 'subCategory', 'variants'];
+        
+        // Optionally include relationships if requested
+        if ($request->has('include_relations') && $request->include_relations) {
+            $withRelations = array_merge($withRelations, ['frameSizes', 'lensTypes', 'lensCoatings']);
+        }
+        
+        $query = Product::with($withRelations)
             ->where('is_active', true);
 
         // Filter by store
@@ -86,7 +93,15 @@ class BuyerProductController extends Controller
      */
     public function getDetails($id)
     {
-        $product = Product::with(['store', 'category', 'subCategory', 'variants'])
+        $product = Product::with([
+            'store', 
+            'category', 
+            'subCategory', 
+            'variants',
+            'frameSizes',
+            'lensTypes',
+            'lensCoatings'
+        ])
             ->where('is_active', true)
             ->findOrFail($id);
 

@@ -13,6 +13,40 @@ export interface ProductVariant {
   sort_order: number;
 }
 
+export interface FrameSize {
+  id: number;
+  product_id: number;
+  lens_width: number;
+  bridge_width: number;
+  temple_length: number;
+  frame_width?: number;
+  frame_height?: number;
+  size_label?: string;
+  stock_quantity: number;
+  stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
+}
+
+export interface LensType {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  index: number;
+  thickness_factor?: number;
+  price_adjustment: number;
+  is_active: boolean;
+}
+
+export interface LensCoating {
+  id: number;
+  name: string;
+  slug: string;
+  type: string;
+  description?: string;
+  price_adjustment: number;
+  is_active: boolean;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -34,6 +68,26 @@ export interface Product {
   review_count: number;
   view_count: number;
   variants?: ProductVariant[];
+  frame_sizes?: FrameSize[];
+  lens_types?: LensType[];
+  lens_coatings?: LensCoating[];
+  // Contact lens fields
+  base_curve_options?: string[];
+  diameter_options?: string[];
+  powers_range?: string;
+  replacement_frequency?: string;
+  contact_lens_brand?: string;
+  contact_lens_color?: string;
+  contact_lens_material?: string;
+  contact_lens_type?: string;
+  has_uv_filter?: boolean;
+  can_sleep_with?: boolean;
+  water_content?: string;
+  is_medical_device?: boolean;
+  // Eye hygiene fields
+  size_volume?: string;
+  pack_type?: string;
+  expiry_date?: string;
   store: {
     id: number;
     name: string;

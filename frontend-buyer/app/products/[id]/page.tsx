@@ -9,8 +9,10 @@ import Footer from "@/components/layout/Footer";
 import BottomNav from "@/components/layout/BottomNav";
 import Button from "@/components/ui/Button";
 import LensTypeModal from "@/components/products/LensTypeModal";
+import ProductCheckoutModal from "@/components/products/ProductCheckoutModal";
 import { productService, type Product } from "@/services/product-service";
 import { cartService } from "@/services/cart-service";
+import { lensDataService } from "@/services/lens-data-service";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/components/ui/Toast";
@@ -24,11 +26,13 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lensData, setLensData] = useState<any>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [showLensModal, setShowLensModal] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [selectedShipping, setSelectedShipping] = useState("standard");
   const [couponCode, setCouponCode] = useState("");
 
@@ -57,6 +61,20 @@ export default function ProductDetailPage() {
       setLoading(true);
       const data = await productService.getDetails(Number(params.id));
       setProduct(data);
+      
+      // Load lens data if it's a frame or sunglasses product
+      if (data.product_type === 'frame' || data.product_type === 'sunglasses') {
+        try {
+          const [lensTypes, treatments, coatings] = await Promise.all([
+            lensDataService.getLensTypes(),
+            lensDataService.getLensTreatments(),
+            lensDataService.getLensCoatings(),
+          ]);
+          setLensData({ lensTypes, treatments, coatings });
+        } catch (error) {
+          console.error('Failed to load lens data:', error);
+        }
+      }
     } catch (error) {
       console.error('Failed to load product:', error);
     } finally {
@@ -337,7 +355,6 @@ export default function ProductDetailPage() {
               )}
 
 
-
               {/* Quantity */}
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
@@ -380,69 +397,90 @@ export default function ProductDetailPage() {
 
               {/* Action Buttons */}
               <div className="space-y-3">
-                <Button
-                  onClick={handleAddToCart}
-                  disabled={displayStockStatus !== "in_stock" || addingToCart}
-                  className="w-full"
-                  size="lg"
-                >
-                  {addingToCart ? (
-                    <span className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Adding to Cart...
-                    </span>
-                  ) : displayStockStatus !== "in_stock" ? (
-                    'Out of Stock'
-                  ) : (
-                    'Add to Cart'
-                  )}
-                </Button>
-                <Button
-                  onClick={async () => {
-                    // Check if user is authenticated before proceeding to checkout
-                    if (!authLoading && !isAuthenticated) {
-                      router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
-                      return;
-                    }
-                    setAddingToCart(true);
-                    // Add to cart first, then redirect to checkout
-                    try {
-                      await cartService.addItem({
-                        product_id: product.id,
-                        quantity: quantity,
-                      });
-                      await refreshCart();
-                      showToast('success', 'Product added! Redirecting to checkout...');
-                      setTimeout(() => router.push('/checkout'), 500);
-                    } catch (error: any) {
-                      // If unauthorized, redirect to login
-                      if (error.response?.status === 401) {
-                        router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
-                      } else {
-                        showToast('error', error.response?.data?.message || 'Failed to add to cart');
-                      }
-                      setAddingToCart(false);
-                    }
-                  }}
-                  variant="outline"
-                  className="w-full"
-                  size="lg"
-                  disabled={displayStockStatus !== "in_stock" || addingToCart}
-                >
-                  {displayStockStatus !== "in_stock" ? (
-                    'Out of Stock'
-                  ) : (
-                    'Buy Now'
-                  )}
-                  {addingToCart ? (
-                    <span className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>
-                      Processing...
-                    </span>
-                  ) : (
-                    'Buy Now'
-                  )}
-                </Button>
+                {(product.product_type === 'frame' || product.product_type === 'sunglasses') ? (
+                  <>
+                    <Button
+                      onClick={() => setShowCheckoutModal(true)}
+                      disabled={displayStockStatus !== "in_stock"}
+                      className="w-full"
+                      size="lg"
+                    >
+                      {displayStockStatus !== "in_stock" ? 'Out of Stock' : 'Customize & Add to Cart'}
+                    </Button>
+                    <Button
+                      onClick={() => setShowCheckoutModal(true)}
+                      variant="outline"
+                      className="w-full"
+                      size="lg"
+                      disabled={displayStockStatus !== "in_stock"}
+                    >
+                      {displayStockStatus !== "in_stock" ? 'Out of Stock' : 'Buy Now'}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      onClick={handleAddToCart}
+                      disabled={displayStockStatus !== "in_stock" || addingToCart}
+                      className="w-full"
+                      size="lg"
+                    >
+                      {addingToCart ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Adding to Cart...
+                        </span>
+                      ) : displayStockStatus !== "in_stock" ? (
+                        'Out of Stock'
+                      ) : (
+                        'Add to Cart'
+                      )}
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        // Check if user is authenticated before proceeding to checkout
+                        if (!authLoading && !isAuthenticated) {
+                          router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+                          return;
+                        }
+                        setAddingToCart(true);
+                        // Add to cart first, then redirect to checkout
+                        try {
+                          await cartService.addItem({
+                            product_id: product.id,
+                            quantity: quantity,
+                          });
+                          await refreshCart();
+                          showToast('success', 'Product added! Redirecting to checkout...');
+                          setTimeout(() => router.push('/checkout'), 500);
+                        } catch (error: any) {
+                          // If unauthorized, redirect to login
+                          if (error.response?.status === 401) {
+                            router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+                          } else {
+                            showToast('error', error.response?.data?.message || 'Failed to add to cart');
+                          }
+                          setAddingToCart(false);
+                        }
+                      }}
+                      variant="outline"
+                      className="w-full"
+                      size="lg"
+                      disabled={displayStockStatus !== "in_stock" || addingToCart}
+                    >
+                      {displayStockStatus !== "in_stock" ? (
+                        'Out of Stock'
+                      ) : addingToCart ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>
+                          Processing...
+                        </span>
+                      ) : (
+                        'Buy Now'
+                      )}
+                    </Button>
+                  </>
+                )}
               </div>
 
               {/* Seller Info */}
@@ -578,6 +616,36 @@ export default function ProductDetailPage() {
 
       <Footer />
       <BottomNav />
+
+      {/* Product Checkout Modal */}
+      {showCheckoutModal && product && (
+        <ProductCheckoutModal
+          product={product}
+          isOpen={showCheckoutModal}
+          onClose={() => setShowCheckoutModal(false)}
+          initialSelectedVariantId={selectedVariantId}
+          onAddToCart={async (data) => {
+            // Check if user is authenticated
+            if (!authLoading && !isAuthenticated) {
+              router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+              return;
+            }
+            try {
+              await cartService.addItem(data);
+              await refreshCart();
+              showToast('success', 'Product added to cart successfully!');
+              setShowCheckoutModal(false);
+            } catch (error: any) {
+              if (error.response?.status === 401) {
+                router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+              } else {
+                showToast('error', error.response?.data?.message || 'Failed to add to cart');
+                throw error;
+              }
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

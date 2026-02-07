@@ -8,10 +8,12 @@ use App\Http\Controllers\Seller\Store\SellerStoreSocialLinksController;
 use App\Http\Controllers\Seller\Store\SellerStoreUsersController;
 use App\Http\Controllers\Seller\SellerOrderController;
 use App\Http\Controllers\Seller\SellerProductController;
+use App\Http\Controllers\Seller\FrameSizeController;
 use App\Http\Controllers\Seller\SellerPromotionController;
 use App\Http\Controllers\Seller\SellerAnnouncementController;
 use App\Http\Controllers\Seller\SellerBannerController;
 use App\Http\Controllers\Seller\SellerSubscriptionController;
+use App\Http\Controllers\Seller\CategoryLensConfigController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -100,6 +102,16 @@ Route::middleware('auth:sanctum')->prefix('product-variant')->group(function () 
     Route::post('/{id}/set-default', [SellerProductController::class, 'setDefaultVariant']);
 });
 
+// Frame size routes
+Route::middleware('auth:sanctum')->prefix('products/{productId}/frame-sizes')->group(function () {
+    Route::get('/', [FrameSizeController::class, 'index']);
+    Route::post('/', [FrameSizeController::class, 'store']);
+});
+Route::middleware('auth:sanctum')->prefix('frame-sizes')->group(function () {
+    Route::put('/{id}', [FrameSizeController::class, 'update']);
+    Route::delete('/{id}', [FrameSizeController::class, 'destroy']);
+});
+
 // Order routes
 Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
     Route::get('/', [SellerOrderController::class, 'index']);
@@ -151,4 +163,11 @@ Route::middleware('auth:sanctum')->prefix('subscription')->group(function () {
     Route::post('/subscribe', [SellerSubscriptionController::class, 'subscribe']);
     Route::post('/cancel', [SellerSubscriptionController::class, 'cancel']);
     Route::get('/features', [SellerSubscriptionController::class, 'getFeatures']);
+});
+
+// Category Lens Configuration routes
+Route::middleware('auth:sanctum')->prefix('category-lens-config')->group(function () {
+    Route::get('/', [CategoryLensConfigController::class, 'index']);
+    Route::get('/{categoryId}', [CategoryLensConfigController::class, 'show']);
+    Route::put('/{categoryId}', [CategoryLensConfigController::class, 'update']);
 });

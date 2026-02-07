@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
@@ -43,18 +44,49 @@ class Product extends Model
         'meta_title',
         'meta_description',
         'meta_keywords',
+        // Contact Lens Specific Fields
+        'base_curve_options',
+        'diameter_options',
+        'powers_range',
+        'replacement_frequency',
+        'contact_lens_brand',
+        'contact_lens_color',
+        'contact_lens_material',
+        'contact_lens_type',
+        'has_uv_filter',
+        'can_sleep_with',
+        'water_content',
+        'is_medical_device',
+        // Eye Hygiene Specific Fields
+        'size_volume',
+        'pack_type',
+        'expiry_date',
+        // Additional Fields
+        'model_3d_url',
+        'try_on_image',
+        'color_images',
+        'mm_calibers',
     ];
 
     protected $casts = [
         'images' => 'array',
         'lens_index_options' => 'array',
         'treatment_options' => 'array',
+        'base_curve_options' => 'array',
+        'diameter_options' => 'array',
+        'powers_range' => 'array',
+        'color_images' => 'array',
+        'mm_calibers' => 'array',
         'price' => 'decimal:2',
         'compare_at_price' => 'decimal:2',
         'cost_price' => 'decimal:2',
         'rating' => 'decimal:2',
         'is_featured' => 'boolean',
         'is_active' => 'boolean',
+        'has_uv_filter' => 'boolean',
+        'can_sleep_with' => 'boolean',
+        'is_medical_device' => 'boolean',
+        'expiry_date' => 'datetime',
     ];
 
     /**
@@ -103,6 +135,30 @@ class Product extends Model
     public function getFirstVariant()
     {
         return $this->variants()->where('is_default', true)->first() ?? $this->variants()->first();
+    }
+
+    /**
+     * Get the frame sizes for this product.
+     */
+    public function frameSizes(): HasMany
+    {
+        return $this->hasMany(FrameSize::class);
+    }
+
+    /**
+     * Get the lens types available for this product.
+     */
+    public function lensTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(LensType::class, 'product_lens_types');
+    }
+
+    /**
+     * Get the lens coatings available for this product.
+     */
+    public function lensCoatings(): BelongsToMany
+    {
+        return $this->belongsToMany(LensCoating::class, 'product_lens_coatings');
     }
 }
 

@@ -49,5 +49,55 @@ class Category extends Model
     {
         return $this->hasMany(Product::class);
     }
+
+    /**
+     * Get lens types configured for this category by a specific store.
+     */
+    public function storeLensTypes(int $storeId): BelongsToMany
+    {
+        return $this->belongsToMany(LensType::class, 'store_category_lens_types', 'category_id', 'lens_type_id')
+            ->wherePivot('store_id', $storeId)
+            ->withTimestamps();
+    }
+
+    /**
+     * Get lens treatments configured for this category by a specific store.
+     */
+    public function storeLensTreatments(int $storeId): BelongsToMany
+    {
+        return $this->belongsToMany(LensTreatment::class, 'store_category_lens_treatments', 'category_id', 'lens_treatment_id')
+            ->wherePivot('store_id', $storeId)
+            ->withTimestamps();
+    }
+
+    /**
+     * Get lens coatings configured for this category by a specific store.
+     */
+    public function storeLensCoatings(int $storeId): BelongsToMany
+    {
+        return $this->belongsToMany(LensCoating::class, 'store_category_lens_coatings', 'category_id', 'lens_coating_id')
+            ->wherePivot('store_id', $storeId)
+            ->withTimestamps();
+    }
+
+    /**
+     * Get lens thickness materials configured for this category by a specific store.
+     */
+    public function storeLensThicknessMaterials(int $storeId): BelongsToMany
+    {
+        return $this->belongsToMany(LensThicknessMaterial::class, 'store_category_lens_thickness_materials', 'category_id', 'lens_thickness_material_id')
+            ->wherePivot('store_id', $storeId)
+            ->withTimestamps();
+    }
+
+    /**
+     * Get lens thickness options configured for this category by a specific store.
+     */
+    public function storeLensThicknessOptions(int $storeId): BelongsToMany
+    {
+        return $this->belongsToMany(LensThicknessOption::class, 'store_category_lens_thickness_options', 'category_id', 'lens_thickness_option_id')
+            ->wherePivot('store_id', $storeId)
+            ->withTimestamps();
+    }
 }
 

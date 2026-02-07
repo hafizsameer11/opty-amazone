@@ -9,6 +9,7 @@ use App\Http\Controllers\Buyer\BuyerCartController;
 use App\Http\Controllers\Buyer\BuyerCheckoutController;
 use App\Http\Controllers\Buyer\BuyerOrderController;
 use App\Http\Controllers\Buyer\BuyerWalletController;
+use App\Http\Controllers\Buyer\PrescriptionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -93,6 +94,15 @@ Route::middleware('auth:sanctum')->prefix('store-orders')->group(function () {
     Route::get('/{id}', [BuyerOrderController::class, 'showStoreOrder']);
     Route::post('/{storeOrderId}/pay', [BuyerOrderController::class, 'payStoreOrder']);
     Route::post('/{storeOrderId}/cancel', [BuyerOrderController::class, 'cancelStoreOrder']);
+});
+
+// Prescription routes
+Route::middleware('auth:sanctum')->prefix('prescriptions')->group(function () {
+    Route::get('/', [PrescriptionController::class, 'index']);
+    Route::post('/', [PrescriptionController::class, 'store']);
+    Route::get('/{id}', [PrescriptionController::class, 'show']);
+    Route::put('/{id}', [PrescriptionController::class, 'update']);
+    Route::delete('/{id}', [PrescriptionController::class, 'destroy']);
 });
 
 // Wallet routes
