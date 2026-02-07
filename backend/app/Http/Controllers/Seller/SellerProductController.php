@@ -39,6 +39,24 @@ class SellerProductController extends Controller
             $query->where('product_type', $request->product_type);
         }
 
+        // Filter by category
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Filter by featured
+        if ($request->has('is_featured')) {
+            $query->where('is_featured', $request->is_featured === 'true' || $request->is_featured === true);
+        }
+
+        // Filter by on sale (has compare_at_price)
+        if ($request->has('on_sale')) {
+            if ($request->on_sale === 'true' || $request->on_sale === true) {
+                $query->whereNotNull('compare_at_price')
+                      ->where('compare_at_price', '>', \DB::raw('price'));
+            }
+        }
+
         // Search
         if ($request->has('search')) {
             $search = $request->search;
@@ -55,6 +73,22 @@ class SellerProductController extends Controller
         $query->orderBy($sortBy, $sortOrder);
 
         $products = $query->paginate($request->get('per_page', 15));
+
+        // Add product metrics (sales count and revenue)
+        $products->getCollection()->transform(function ($product) use ($store) {
+            $salesData = \DB::table('order_items')
+                ->join('store_orders', 'order_items.store_order_id', '=', 'store_orders.id')
+                ->where('order_items.product_id', $product->id)
+                ->where('store_orders.store_id', $store->id)
+                ->whereIn('store_orders.status', ['paid', 'delivered'])
+                ->selectRaw('SUM(order_items.quantity) as total_sold, SUM(order_items.line_total) as total_revenue')
+                ->first();
+
+            $product->total_sold = (int) ($salesData->total_sold ?? 0);
+            $product->total_revenue = (float) ($salesData->total_revenue ?? 0);
+            
+            return $product;
+        });
 
         return ResponseHelper::success($products, 'Products retrieved successfully');
     }
@@ -100,6 +134,8 @@ class SellerProductController extends Controller
             'product_type' => 'required|in:frame,sunglasses,contact_lens,eye_hygiene,accessory',
             'price' => 'required|numeric|min:0',
             'compare_at_price' => 'nullable|numeric|min:0',
+            'sale_start_date' => 'nullable|date',
+            'sale_end_date' => 'nullable|date|after_or_equal:sale_start_date',
             'cost_price' => 'nullable|numeric|min:0',
             'stock_quantity' => 'required|integer|min:0',
             'stock_status' => 'required|in:in_stock,out_of_stock,backorder',
@@ -188,6 +224,8 @@ class SellerProductController extends Controller
             'product_type' => 'sometimes|in:frame,sunglasses,contact_lens,eye_hygiene,accessory',
             'price' => 'sometimes|numeric|min:0',
             'compare_at_price' => 'nullable|numeric|min:0',
+            'sale_start_date' => 'nullable|date',
+            'sale_end_date' => 'nullable|date|after_or_equal:sale_start_date',
             'cost_price' => 'nullable|numeric|min:0',
             'stock_quantity' => 'sometimes|integer|min:0',
             'stock_status' => 'sometimes|in:in_stock,out_of_stock,backorder',

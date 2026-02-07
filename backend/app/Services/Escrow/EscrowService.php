@@ -6,11 +6,16 @@ use App\Models\Escrow;
 use App\Models\StoreOrder;
 use App\Models\Wallet;
 use App\Models\Transaction;
+use App\Services\Points\PointService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class EscrowService
 {
+    public function __construct(
+        private PointService $pointService
+    ) {}
+
     /**
      * Create escrow when payment is received.
      */
@@ -114,6 +119,17 @@ class EscrowService
                     'escrow_id' => $escrow->id,
                 ],
             ]);
+
+            // Award points to buyer for completed order
+            $order = $storeOrder->order;
+            if ($order && $order->user) {
+                try {
+                    $this->pointService->earnFromPurchase($order);
+                } catch (\Exception $e) {
+                    // Log error but don't fail the escrow release
+                    Log::error('Failed to award points for order: ' . $e->getMessage());
+                }
+            }
 
             DB::commit();
             

@@ -10,6 +10,7 @@ import { productService, type Category, type CreateProductData } from '@/service
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
+import DiscountCalculator from '@/components/products/DiscountCalculator';
 
 // This page is specifically for creating new products
 // It's similar to the edit page but always in "new" mode
@@ -287,7 +288,7 @@ export default function NewProductEditPage() {
                         required
                       />
                       <Input
-                        label="Compare At Price"
+                        label="Compare At Price (Original Price)"
                         type="number"
                         step="0.01"
                         min="0"

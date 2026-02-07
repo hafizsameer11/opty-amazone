@@ -9,6 +9,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import { productService, type Product, type ProductListParams } from '@/services/product-service';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import ProductListCard from '@/components/products/ProductListCard';
 
 function ProductCard({ product }: { product: Product }) {
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
@@ -154,12 +155,18 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string>('');
   const [selectedGender, setSelectedGender] = useState<string>('');
+  const [selectedFrameShape, setSelectedFrameShape] = useState<string>('');
+  const [selectedFrameMaterial, setSelectedFrameMaterial] = useState<string>('');
+  const [selectedStockStatus, setSelectedStockStatus] = useState<string>('');
+  const [minRating, setMinRating] = useState<string>('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const [categories, setCategories] = useState<Array<{ id: number; name: string; slug: string }>>([]);
+  const [availableFrameShapes, setAvailableFrameShapes] = useState<string[]>([]);
+  const [availableFrameMaterials, setAvailableFrameMaterials] = useState<string[]>([]);
 
   useEffect(() => {
     loadCategories();
@@ -167,7 +174,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     loadProducts();
-  }, [currentPage, selectedCategory, selectedType, selectedGender, minPrice, maxPrice, sortBy, sortOrder, search]);
+  }, [currentPage, selectedCategory, selectedType, selectedGender, selectedFrameShape, selectedFrameMaterial, selectedStockStatus, minRating, minPrice, maxPrice, sortBy, sortOrder, search]);
 
   const loadCategories = async () => {
     try {
@@ -192,13 +199,28 @@ export default function ProductsPage() {
       if (selectedCategory) params.category_id = parseInt(selectedCategory);
       if (selectedType) params.product_type = selectedType;
       if (selectedGender) params.gender = selectedGender;
+      if (selectedFrameShape) params.frame_shape = selectedFrameShape;
+      if (selectedFrameMaterial) params.frame_material = selectedFrameMaterial;
+      if (selectedStockStatus) params.stock_status = selectedStockStatus as 'in_stock' | 'out_of_stock' | 'backorder';
+      if (minRating) params.min_rating = parseFloat(minRating);
       if (minPrice) params.min_price = parseFloat(minPrice);
       if (maxPrice) params.max_price = parseFloat(maxPrice);
 
       const data = await productService.getAll(params);
-      setProducts(data.data || []);
+      const productsData = data.data || [];
+      setProducts(productsData);
       setTotalPages(data.last_page || 1);
       setTotal(data.total || 0);
+
+      // Extract unique frame shapes and materials from products
+      const shapes = new Set<string>();
+      const materials = new Set<string>();
+      productsData.forEach((product: Product) => {
+        if (product.frame_shape) shapes.add(product.frame_shape);
+        if (product.frame_material) materials.add(product.frame_material);
+      });
+      setAvailableFrameShapes(Array.from(shapes).sort());
+      setAvailableFrameMaterials(Array.from(materials).sort());
     } catch (error) {
       console.error('Failed to load products:', error);
     } finally {
@@ -217,6 +239,10 @@ export default function ProductsPage() {
     setSelectedCategory('');
     setSelectedType('');
     setSelectedGender('');
+    setSelectedFrameShape('');
+    setSelectedFrameMaterial('');
+    setSelectedStockStatus('');
+    setMinRating('');
     setMinPrice('');
     setMaxPrice('');
     setSortBy('created_at');
@@ -321,6 +347,87 @@ export default function ProductsPage() {
                 </select>
               </div>
 
+              {/* Frame Shape Filter */}
+              {availableFrameShapes.length > 0 && (
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Frame Shape</label>
+                  <select
+                    value={selectedFrameShape}
+                    onChange={(e) => {
+                      setSelectedFrameShape(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
+                  >
+                    <option value="">All Shapes</option>
+                    {availableFrameShapes.map((shape) => (
+                      <option key={shape} value={shape}>
+                        {shape.charAt(0).toUpperCase() + shape.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Frame Material Filter */}
+              {availableFrameMaterials.length > 0 && (
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Frame Material</label>
+                  <select
+                    value={selectedFrameMaterial}
+                    onChange={(e) => {
+                      setSelectedFrameMaterial(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
+                  >
+                    <option value="">All Materials</option>
+                    {availableFrameMaterials.map((material) => (
+                      <option key={material} value={material}>
+                        {material.charAt(0).toUpperCase() + material.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Stock Status Filter */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Stock Status</label>
+                <select
+                  value={selectedStockStatus}
+                  onChange={(e) => {
+                    setSelectedStockStatus(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
+                >
+                  <option value="">All</option>
+                  <option value="in_stock">In Stock</option>
+                  <option value="out_of_stock">Out of Stock</option>
+                  <option value="backorder">Backorder</option>
+                </select>
+              </div>
+
+              {/* Rating Filter */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Minimum Rating</label>
+                <select
+                  value={minRating}
+                  onChange={(e) => {
+                    setMinRating(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
+                >
+                  <option value="">Any Rating</option>
+                  <option value="4.5">4.5+ Stars</option>
+                  <option value="4.0">4.0+ Stars</option>
+                  <option value="3.5">3.5+ Stars</option>
+                  <option value="3.0">3.0+ Stars</option>
+                </select>
+              </div>
+
               {/* Price Range */}
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Price Range</label>
@@ -405,9 +512,12 @@ export default function ProductsPage() {
 
             {/* Products */}
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className={viewMode === 'grid' 
+                ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+                : 'space-y-4'
+              }>
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-80 bg-gray-200 rounded-xl animate-pulse"></div>
+                  <div key={i} className={viewMode === 'grid' ? 'h-80 bg-gray-200 rounded-xl animate-pulse' : 'h-48 bg-gray-200 rounded-xl animate-pulse'}></div>
                 ))}
               </div>
             ) : products.length > 0 ? (
@@ -417,7 +527,11 @@ export default function ProductsPage() {
                   : 'space-y-4'
                 }>
                   {products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                    viewMode === 'grid' ? (
+                      <ProductCard key={product.id} product={product} />
+                    ) : (
+                      <ProductListCard key={product.id} product={product} />
+                    )
                   ))}
                 </div>
 

@@ -12,6 +12,9 @@ import { userService, type Address } from '@/services/user-service';
 import { useToast } from '@/components/ui/Toast';
 import Loader from '@/components/ui/Loader';
 import Button from '@/components/ui/Button';
+import CouponInput from '@/components/checkout/CouponInput';
+import PointsRedeemInput from '@/components/checkout/PointsRedeemInput';
+import { type CouponValidation } from '@/services/coupon-service';
 import Link from 'next/link';
 
 export default function CheckoutPage() {
@@ -22,6 +25,9 @@ export default function CheckoutPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'wallet'>('wallet');
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
+  const [appliedPoints, setAppliedPoints] = useState<number | null>(null);
+  const [pointsDiscount, setPointsDiscount] = useState<number>(0);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
 
@@ -69,6 +75,8 @@ export default function CheckoutPage() {
       const result = await orderService.placeOrder({
         delivery_address_id: selectedAddressId,
         payment_method: paymentMethod,
+        coupon_code: appliedCoupon?.valid ? appliedCoupon.coupon?.code : undefined,
+        points_to_redeem: appliedPoints || undefined,
       });
       showToast('success', 'Order placed successfully! Redirecting...');
       setTimeout(() => router.push(`/orders/${result.order.id}`), 1000);
@@ -76,6 +84,35 @@ export default function CheckoutPage() {
       showToast('error', error.response?.data?.message || 'Failed to place order');
       setPlacingOrder(false);
     }
+  };
+
+  const handleCouponApplied = (validation: CouponValidation) => {
+    setAppliedCoupon(validation);
+  };
+
+  const handleCouponRemoved = () => {
+    setAppliedCoupon(null);
+  };
+
+  const calculateTotal = () => {
+    let total = Number(cart.total || 0);
+    if (appliedCoupon?.valid && appliedCoupon.discount_amount) {
+      total -= appliedCoupon.discount_amount;
+    }
+    if (pointsDiscount > 0) {
+      total -= pointsDiscount;
+    }
+    return Math.max(0, total);
+  };
+
+  const handlePointsRedeemed = (discountAmount: number, pointsUsed: number) => {
+    setAppliedPoints(pointsUsed);
+    setPointsDiscount(discountAmount);
+  };
+
+  const handlePointsRemoved = () => {
+    setAppliedPoints(null);
+    setPointsDiscount(0);
   };
 
   if (loading || loadingData) {
@@ -166,6 +203,26 @@ export default function CheckoutPage() {
               )}
             </div>
 
+            {/* Coupon Code */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <CouponInput
+                orderTotal={Number(cart.total || 0)}
+                onCouponApplied={handleCouponApplied}
+                onCouponRemoved={handleCouponRemoved}
+                appliedCoupon={appliedCoupon || undefined}
+              />
+            </div>
+
+            {/* Points Redemption */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <PointsRedeemInput
+                orderTotal={Number(cart.total || 0)}
+                onPointsRedeemed={handlePointsRedeemed}
+                onPointsRemoved={handlePointsRemoved}
+                appliedPoints={appliedPoints || undefined}
+              />
+            </div>
+
             {/* Payment Method */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4">Payment Method</h2>
@@ -220,14 +277,26 @@ export default function CheckoutPage() {
                   <span className="text-gray-600">Subtotal:</span>
                   <span className="font-semibold">€{Number(cart.total || 0).toFixed(2)}</span>
                 </div>
+                {appliedCoupon?.valid && appliedCoupon.discount_amount && (
+                  <div className="flex justify-between text-green-600">
+                    <span className="text-gray-600">Discount ({appliedCoupon.coupon?.code}):</span>
+                    <span className="font-semibold">-€{appliedCoupon.discount_amount.toFixed(2)}</span>
+                  </div>
+                )}
+                {pointsDiscount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span className="text-gray-600">Points Discount ({appliedPoints} pts):</span>
+                    <span className="font-semibold">-€{pointsDiscount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping:</span>
-                  <span className="font-semibold">$0.00</span>
+                  <span className="font-semibold">€0.00</span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-lg font-bold">Total:</span>
                   <span className="text-lg font-bold text-[#0066CC]">
-                    €{cart.total.toFixed(2)}
+                    €{calculateTotal().toFixed(2)}
                   </span>
                 </div>
               </div>

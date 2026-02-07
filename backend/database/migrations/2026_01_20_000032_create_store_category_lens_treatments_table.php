@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('lens_treatment_id')->constrained()->onDelete('cascade');
             $table->timestamps();
             
-            $table->unique(['store_id', 'category_id', 'lens_treatment_id']);
+            $table->unique(['store_id', 'category_id', 'lens_treatment_id'], 'store_cat_treat_unique');
             $table->index('store_id');
             $table->index('category_id');
             $table->index('lens_treatment_id');

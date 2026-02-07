@@ -13,6 +13,8 @@ export interface Product {
   product_type: 'frame' | 'sunglasses' | 'contact_lens' | 'eye_hygiene' | 'accessory';
   price: number;
   compare_at_price?: number;
+  sale_start_date?: string;
+  sale_end_date?: string;
   cost_price?: number;
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
@@ -29,6 +31,8 @@ export interface Product {
   view_count: number;
   is_featured: boolean;
   is_active: boolean;
+  total_sold?: number;
+  total_revenue?: number;
   meta_title?: string;
   meta_description?: string;
   meta_keywords?: string;
@@ -56,6 +60,8 @@ export interface CreateProductData {
   product_type: 'frame' | 'sunglasses' | 'contact_lens' | 'eye_hygiene' | 'accessory';
   price: number;
   compare_at_price?: number;
+  sale_start_date?: string;
+  sale_end_date?: string;
   cost_price?: number;
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
@@ -132,6 +138,9 @@ export const productService = {
     search?: string;
     is_active?: boolean;
     product_type?: string;
+    category_id?: number;
+    is_featured?: boolean;
+    on_sale?: boolean;
     sort_by?: string;
     sort_order?: 'asc' | 'desc';
     per_page?: number;

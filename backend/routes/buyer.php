@@ -9,6 +9,7 @@ use App\Http\Controllers\Buyer\BuyerCartController;
 use App\Http\Controllers\Buyer\BuyerCheckoutController;
 use App\Http\Controllers\Buyer\BuyerOrderController;
 use App\Http\Controllers\Buyer\BuyerWalletController;
+use App\Http\Controllers\Buyer\BuyerCouponController;
 use App\Http\Controllers\Buyer\PrescriptionController;
 use Illuminate\Support\Facades\Route;
 
@@ -81,6 +82,11 @@ Route::middleware('auth:sanctum')->prefix('checkout')->group(function () {
     Route::post('/place', [BuyerCheckoutController::class, 'place']);
 });
 
+// Coupon routes
+Route::middleware('auth:sanctum')->prefix('coupons')->group(function () {
+    Route::post('/validate', [BuyerCouponController::class, 'validate']);
+});
+
 // Order routes
 Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
     Route::get('/', [BuyerOrderController::class, 'index']);
@@ -112,4 +118,11 @@ Route::middleware('auth:sanctum')->prefix('wallet')->group(function () {
     Route::post('/create-checkout-session', [BuyerWalletController::class, 'createCheckoutSession']);
     Route::post('/top-up', [BuyerWalletController::class, 'topUp']);
     Route::post('/withdraw', [BuyerWalletController::class, 'withdraw']);
+});
+
+// Points routes
+Route::middleware('auth:sanctum')->prefix('points')->group(function () {
+    Route::get('/balance', [\App\Http\Controllers\Buyer\BuyerPointsController::class, 'getBalance']);
+    Route::get('/transactions', [\App\Http\Controllers\Buyer\BuyerPointsController::class, 'getTransactions']);
+    Route::post('/redeem', [\App\Http\Controllers\Buyer\BuyerPointsController::class, 'redeem']);
 });

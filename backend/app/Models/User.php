@@ -117,6 +117,22 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get the user's wallet.
+     */
+    public function wallet()
+    {
+        return $this->hasOne(Wallet::class);
+    }
+
+    /**
+     * Get point transactions for the user.
+     */
+    public function pointTransactions()
+    {
+        return $this->hasMany(PointTransaction::class);
+    }
+
+    /**
      * Get the URL for the user's profile image.
      */
     public function getProfileImageUrlAttribute(): ?string

@@ -4,6 +4,9 @@ export interface Promotion {
   id: number;
   product_id: number;
   budget: number;
+  discount_type: 'budget' | 'percentage' | 'fixed';
+  discount_value?: number;
+  applies_to_price: boolean;
   spent: number;
   duration_days: number;
   start_date: string;
@@ -25,7 +28,10 @@ export const promotionService = {
 
   async create(data: {
     product_id: number;
-    budget: number;
+    budget?: number;
+    discount_type: 'budget' | 'percentage' | 'fixed';
+    discount_value?: number;
+    applies_to_price?: boolean;
     duration_days: number;
     target_audience?: any;
   }) {

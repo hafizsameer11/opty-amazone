@@ -56,6 +56,8 @@ export interface Order {
 export interface PlaceOrderData {
   delivery_address_id: number;
   payment_method?: 'card' | 'wallet';
+  coupon_code?: string;
+  points_to_redeem?: number;
 }
 
 export const orderService = {

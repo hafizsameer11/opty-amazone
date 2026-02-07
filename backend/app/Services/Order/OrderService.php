@@ -9,16 +9,23 @@ use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\User;
 use App\Models\UserAddress;
+use App\Services\Coupon\CouponService;
+use App\Services\Points\PointService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class OrderService
 {
+    public function __construct(
+        private CouponService $couponService,
+        private PointService $pointService
+    ) {}
+
     /**
      * Place order from cart.
      * Creates one Order and multiple StoreOrders (one per store).
      */
-    public function placeOrder(User $user, int $deliveryAddressId, string $paymentMethod = null): array
+    public function placeOrder(User $user, int $deliveryAddressId, string $paymentMethod = null, string $couponCode = null, float $pointsToRedeem = null): array
     {
         DB::beginTransaction();
         
@@ -53,6 +60,49 @@ class OrderService
             $totalPlatformFee = 0;
             $totalDiscount = 0;
             $grandTotal = 0;
+
+            // Calculate total items first for coupon validation
+            foreach ($itemsByStore as $storeId => $items) {
+                $subtotal = $items->sum(function ($item) {
+                    return $item->price * $item->quantity;
+                });
+                $totalItems += $subtotal;
+            }
+
+            // Validate and apply coupon if provided
+            $coupon = null;
+            $couponDiscount = 0;
+            if ($couponCode) {
+                $validation = $this->couponService->validateCoupon($couponCode, $user->id, $totalItems);
+                if ($validation['valid']) {
+                    $coupon = $validation['coupon'];
+                    $couponDiscount = $validation['discount_amount'];
+                } else {
+                    throw new \Exception($validation['message']);
+                }
+            }
+
+            // Validate and apply points redemption if provided
+            $pointsDiscount = 0;
+            $pointsUsed = 0;
+            if ($pointsToRedeem && $pointsToRedeem > 0) {
+                try {
+                    // Calculate order total after coupon discount
+                    $orderTotalAfterCoupon = max(0, $totalItems - $couponDiscount);
+                    
+                    // Redeem points (this will deduct points from wallet)
+                    $redeemResult = $this->pointService->redeemPoints($user, $pointsToRedeem, null);
+                    $pointsDiscount = $redeemResult['discount_amount'];
+                    $pointsUsed = $redeemResult['points_used'];
+                    
+                    // Ensure points discount doesn't exceed order total
+                    if ($pointsDiscount > $orderTotalAfterCoupon) {
+                        $pointsDiscount = $orderTotalAfterCoupon;
+                    }
+                } catch (\Exception $e) {
+                    throw new \Exception('Points redemption failed: ' . $e->getMessage());
+                }
+            }
 
             // Create StoreOrder for each store
             foreach ($itemsByStore as $storeId => $items) {
@@ -102,10 +152,13 @@ class OrderService
                     ]);
                 }
 
-                $totalItems += $subtotal;
                 $grandTotal += $subtotal;
                 $storeOrders[] = $storeOrder;
             }
+
+            // Apply discounts to grand total
+            $totalDiscount = $couponDiscount + $pointsDiscount;
+            $grandTotal = max(0, $grandTotal - $totalDiscount);
 
             // Update order totals
             $order->update([
@@ -114,7 +167,31 @@ class OrderService
                 'platform_fee' => $totalPlatformFee,
                 'discount_total' => $totalDiscount,
                 'grand_total' => $grandTotal,
+                'meta' => [
+                    'coupon_id' => $coupon ? $coupon->id : null,
+                    'coupon_code' => $coupon ? $coupon->code : null,
+                    'points_redeemed' => $pointsUsed,
+                    'points_discount' => $pointsDiscount,
+                ],
             ]);
+
+            // Apply coupon to order (create usage record)
+            if ($coupon) {
+                $this->couponService->applyCoupon($order, $coupon);
+            }
+
+            // Update point transaction with order reference if points were redeemed
+            if ($pointsUsed > 0) {
+                \App\Models\PointTransaction::where('user_id', $user->id)
+                    ->where('type', 'redeem')
+                    ->whereNull('reference_id')
+                    ->orderBy('created_at', 'desc')
+                    ->first()
+                    ?->update([
+                        'reference_type' => 'order',
+                        'reference_id' => $order->id,
+                    ]);
+            }
 
             // Clear cart
             $cart->items()->delete();
@@ -216,6 +293,12 @@ class OrderService
             // Release escrow (handled by EscrowService)
             if ($storeOrder->escrow) {
                 app(\App\Services\Escrow\EscrowService::class)->releaseEscrow($storeOrder);
+            }
+
+            // Award points for purchase
+            $order = $storeOrder->order;
+            if ($order && $order->user) {
+                $this->pointService->earnFromPurchase($order);
             }
 
             DB::commit();

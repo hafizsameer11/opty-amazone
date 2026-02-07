@@ -10,6 +10,8 @@ import BottomNav from "@/components/layout/BottomNav";
 import Button from "@/components/ui/Button";
 import LensTypeModal from "@/components/products/LensTypeModal";
 import ProductCheckoutModal from "@/components/products/ProductCheckoutModal";
+import ContactLensConfiguration from "@/components/products/ContactLensConfiguration";
+import EyeHygieneDetails from "@/components/products/EyeHygieneDetails";
 import { productService, type Product } from "@/services/product-service";
 import { cartService } from "@/services/cart-service";
 import { lensDataService } from "@/services/lens-data-service";
@@ -354,134 +356,183 @@ export default function ProductDetailPage() {
                 <p className="text-gray-700">{product.short_description}</p>
               )}
 
+              {/* Quantity and Total Price - Only show for non-contact lens and non-eye hygiene products */}
+              {product.product_type !== 'contact_lens' && product.product_type !== 'eye_hygiene' && (
+                <>
+                  {/* Quantity */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      Quantity
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        className="w-10 h-10 rounded-lg border-2 border-gray-200 hover:border-gray-300 flex items-center justify-center font-semibold"
+                      >
+                        −
+                      </button>
+                      <span className="text-lg font-semibold w-12 text-center">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setQuantity(
+                            Math.min(displayStockQuantity, quantity + 1)
+                          )
+                        }
+                        className="w-10 h-10 rounded-lg border-2 border-gray-200 hover:border-gray-300 flex items-center justify-center font-semibold"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
 
-              {/* Quantity */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Quantity
-                </label>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 rounded-lg border-2 border-gray-200 hover:border-gray-300 flex items-center justify-center font-semibold"
-                  >
-                    −
-                  </button>
-                  <span className="text-lg font-semibold w-12 text-center">
-                    {quantity}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setQuantity(
-                        Math.min(displayStockQuantity, quantity + 1)
-                      )
+                  {/* Total Price */}
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Subtotal:</span>
+                      <span className="text-lg font-bold text-[#0066CC]">
+                        €{(Number(displayPrice || 0) * quantity).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Product Type Specific Configuration */}
+              {product.product_type === 'contact_lens' ? (
+                <ContactLensConfiguration
+                  product={product}
+                  onAddToCart={async (config) => {
+                    if (!authLoading && !isAuthenticated) {
+                      router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+                      return;
                     }
-                    className="w-10 h-10 rounded-lg border-2 border-gray-200 hover:border-gray-300 flex items-center justify-center font-semibold"
+                    setAddingToCart(true);
+                    try {
+                      await cartService.addItem(config);
+                      await refreshCart();
+                      showToast('success', 'Contact lenses added to cart successfully!');
+                    } catch (error: any) {
+                      if (error.response?.status === 401) {
+                        router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+                      } else {
+                        showToast('error', error.response?.data?.message || 'Failed to add to cart');
+                      }
+                    } finally {
+                      setAddingToCart(false);
+                    }
+                  }}
+                  addingToCart={addingToCart}
+                />
+              ) : product.product_type === 'eye_hygiene' ? (
+                <EyeHygieneDetails
+                  product={product}
+                  onAddToCart={async (config) => {
+                    if (!authLoading && !isAuthenticated) {
+                      router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+                      return;
+                    }
+                    setAddingToCart(true);
+                    try {
+                      await cartService.addItem(config);
+                      await refreshCart();
+                      showToast('success', 'Product added to cart successfully!');
+                    } catch (error: any) {
+                      if (error.response?.status === 401) {
+                        router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+                      } else {
+                        showToast('error', error.response?.data?.message || 'Failed to add to cart');
+                      }
+                    } finally {
+                      setAddingToCart(false);
+                    }
+                  }}
+                  addingToCart={addingToCart}
+                />
+              ) : (product.product_type === 'frame' || product.product_type === 'sunglasses') ? (
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => setShowCheckoutModal(true)}
+                    disabled={displayStockStatus !== "in_stock"}
+                    className="w-full"
+                    size="lg"
                   >
-                    +
-                  </button>
+                    {displayStockStatus !== "in_stock" ? 'Out of Stock' : 'Customize & Add to Cart'}
+                  </Button>
+                  <Button
+                    onClick={() => setShowCheckoutModal(true)}
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                    disabled={displayStockStatus !== "in_stock"}
+                  >
+                    {displayStockStatus !== "in_stock" ? 'Out of Stock' : 'Buy Now'}
+                  </Button>
                 </div>
-              </div>
-
-              {/* Total Price */}
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Subtotal:</span>
-                  <span className="text-lg font-bold text-[#0066CC]">
-                    €{(Number(displayPrice || 0) * quantity).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="space-y-3">
-                {(product.product_type === 'frame' || product.product_type === 'sunglasses') ? (
-                  <>
-                    <Button
-                      onClick={() => setShowCheckoutModal(true)}
-                      disabled={displayStockStatus !== "in_stock"}
-                      className="w-full"
-                      size="lg"
-                    >
-                      {displayStockStatus !== "in_stock" ? 'Out of Stock' : 'Customize & Add to Cart'}
-                    </Button>
-                    <Button
-                      onClick={() => setShowCheckoutModal(true)}
-                      variant="outline"
-                      className="w-full"
-                      size="lg"
-                      disabled={displayStockStatus !== "in_stock"}
-                    >
-                      {displayStockStatus !== "in_stock" ? 'Out of Stock' : 'Buy Now'}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      onClick={handleAddToCart}
-                      disabled={displayStockStatus !== "in_stock" || addingToCart}
-                      className="w-full"
-                      size="lg"
-                    >
-                      {addingToCart ? (
-                        <span className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Adding to Cart...
-                        </span>
-                      ) : displayStockStatus !== "in_stock" ? (
-                        'Out of Stock'
-                      ) : (
-                        'Add to Cart'
-                      )}
-                    </Button>
-                    <Button
-                      onClick={async () => {
-                        // Check if user is authenticated before proceeding to checkout
-                        if (!authLoading && !isAuthenticated) {
+              ) : (
+                <div className="space-y-3">
+                  <Button
+                    onClick={handleAddToCart}
+                    disabled={displayStockStatus !== "in_stock" || addingToCart}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {addingToCart ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Adding to Cart...
+                      </span>
+                    ) : displayStockStatus !== "in_stock" ? (
+                      'Out of Stock'
+                    ) : (
+                      'Add to Cart'
+                    )}
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!authLoading && !isAuthenticated) {
+                        router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+                        return;
+                      }
+                      setAddingToCart(true);
+                      try {
+                        await cartService.addItem({
+                          product_id: product.id,
+                          quantity: quantity,
+                        });
+                        await refreshCart();
+                        showToast('success', 'Product added! Redirecting to checkout...');
+                        setTimeout(() => router.push('/checkout'), 500);
+                      } catch (error: any) {
+                        if (error.response?.status === 401) {
                           router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
-                          return;
+                        } else {
+                          showToast('error', error.response?.data?.message || 'Failed to add to cart');
                         }
-                        setAddingToCart(true);
-                        // Add to cart first, then redirect to checkout
-                        try {
-                          await cartService.addItem({
-                            product_id: product.id,
-                            quantity: quantity,
-                          });
-                          await refreshCart();
-                          showToast('success', 'Product added! Redirecting to checkout...');
-                          setTimeout(() => router.push('/checkout'), 500);
-                        } catch (error: any) {
-                          // If unauthorized, redirect to login
-                          if (error.response?.status === 401) {
-                            router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
-                          } else {
-                            showToast('error', error.response?.data?.message || 'Failed to add to cart');
-                          }
-                          setAddingToCart(false);
-                        }
-                      }}
-                      variant="outline"
-                      className="w-full"
-                      size="lg"
-                      disabled={displayStockStatus !== "in_stock" || addingToCart}
-                    >
-                      {displayStockStatus !== "in_stock" ? (
-                        'Out of Stock'
-                      ) : addingToCart ? (
-                        <span className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>
-                          Processing...
-                        </span>
-                      ) : (
-                        'Buy Now'
-                      )}
-                    </Button>
-                  </>
-                )}
-              </div>
+                        setAddingToCart(false);
+                      }
+                    }}
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                    disabled={displayStockStatus !== "in_stock" || addingToCart}
+                  >
+                    {displayStockStatus !== "in_stock" ? (
+                      'Out of Stock'
+                    ) : addingToCart ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>
+                        Processing...
+                      </span>
+                    ) : (
+                      'Buy Now'
+                    )}
+                  </Button>
+                </div>
+              )}
 
               {/* Seller Info */}
               {product.store && (
@@ -532,8 +583,8 @@ export default function ProductDetailPage() {
                     <dt className="text-sm font-semibold text-gray-500 uppercase">
                       Product Type
                     </dt>
-                    <dd className="mt-1 text-sm text-gray-900">
-                      {product.product_type}
+                    <dd className="mt-1 text-sm text-gray-900 capitalize">
+                      {product.product_type.replace('_', ' ')}
                     </dd>
                   </div>
                   {product.frame_shape && (
@@ -572,6 +623,108 @@ export default function ProductDetailPage() {
                       {product.sku}
                     </dd>
                   </div>
+                  
+                  {/* Contact Lens Specific Fields */}
+                  {product.product_type === 'contact_lens' && (
+                    <>
+                      {product.contact_lens_brand && (
+                        <div>
+                          <dt className="text-sm font-semibold text-gray-500 uppercase">
+                            Brand
+                          </dt>
+                          <dd className="mt-1 text-sm text-gray-900">
+                            {product.contact_lens_brand}
+                          </dd>
+                        </div>
+                      )}
+                      {product.contact_lens_type && (
+                        <div>
+                          <dt className="text-sm font-semibold text-gray-500 uppercase">
+                            Lens Type
+                          </dt>
+                          <dd className="mt-1 text-sm text-gray-900 capitalize">
+                            {product.contact_lens_type}
+                          </dd>
+                        </div>
+                      )}
+                      {product.contact_lens_material && (
+                        <div>
+                          <dt className="text-sm font-semibold text-gray-500 uppercase">
+                            Material
+                          </dt>
+                          <dd className="mt-1 text-sm text-gray-900">
+                            {product.contact_lens_material}
+                          </dd>
+                        </div>
+                      )}
+                      {product.replacement_frequency && (
+                        <div>
+                          <dt className="text-sm font-semibold text-gray-500 uppercase">
+                            Replacement Frequency
+                          </dt>
+                          <dd className="mt-1 text-sm text-gray-900 capitalize">
+                            {product.replacement_frequency}
+                          </dd>
+                        </div>
+                      )}
+                      {product.has_uv_filter && (
+                        <div>
+                          <dt className="text-sm font-semibold text-gray-500 uppercase">
+                            UV Protection
+                          </dt>
+                          <dd className="mt-1 text-sm text-green-600 font-medium">
+                            Yes
+                          </dd>
+                        </div>
+                      )}
+                      {product.water_content && (
+                        <div>
+                          <dt className="text-sm font-semibold text-gray-500 uppercase">
+                            Water Content
+                          </dt>
+                          <dd className="mt-1 text-sm text-gray-900">
+                            {product.water_content}%
+                          </dd>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Eye Hygiene Specific Fields */}
+                  {product.product_type === 'eye_hygiene' && (
+                    <>
+                      {product.size_volume && (
+                        <div>
+                          <dt className="text-sm font-semibold text-gray-500 uppercase">
+                            Size/Volume
+                          </dt>
+                          <dd className="mt-1 text-sm text-gray-900">
+                            {product.size_volume}
+                          </dd>
+                        </div>
+                      )}
+                      {product.pack_type && (
+                        <div>
+                          <dt className="text-sm font-semibold text-gray-500 uppercase">
+                            Pack Type
+                          </dt>
+                          <dd className="mt-1 text-sm text-gray-900 capitalize">
+                            {product.pack_type}
+                          </dd>
+                        </div>
+                      )}
+                      {product.expiry_date && (
+                        <div>
+                          <dt className="text-sm font-semibold text-gray-500 uppercase">
+                            Expiry Date
+                          </dt>
+                          <dd className="mt-1 text-sm text-gray-900">
+                            {new Date(product.expiry_date).toLocaleDateString()}
+                          </dd>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </dl>
               </div>
             </div>

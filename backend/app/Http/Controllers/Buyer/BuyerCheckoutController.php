@@ -72,6 +72,8 @@ class BuyerCheckoutController extends Controller
         $request->validate([
             'delivery_address_id' => 'required|exists:user_addresses,id',
             'payment_method' => 'nullable|in:card,wallet',
+            'coupon_code' => 'nullable|string',
+            'points_to_redeem' => 'nullable|numeric|min:0',
         ]);
 
         $user = Auth::user();
@@ -80,7 +82,9 @@ class BuyerCheckoutController extends Controller
             $result = $this->orderService->placeOrder(
                 $user,
                 $request->delivery_address_id,
-                $request->payment_method
+                $request->payment_method,
+                $request->coupon_code,
+                $request->points_to_redeem ? (float) $request->points_to_redeem : null
             );
 
             // Send email notifications

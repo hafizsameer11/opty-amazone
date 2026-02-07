@@ -25,6 +25,8 @@ class Product extends Model
         'product_type',
         'price',
         'compare_at_price',
+        'sale_start_date',
+        'sale_end_date',
         'cost_price',
         'stock_quantity',
         'stock_status',
@@ -41,6 +43,8 @@ class Product extends Model
         'view_count',
         'is_featured',
         'is_active',
+        'is_approved',
+        'rejection_reason',
         'meta_title',
         'meta_description',
         'meta_keywords',
@@ -83,10 +87,13 @@ class Product extends Model
         'rating' => 'decimal:2',
         'is_featured' => 'boolean',
         'is_active' => 'boolean',
+        'is_approved' => 'boolean',
         'has_uv_filter' => 'boolean',
         'can_sleep_with' => 'boolean',
         'is_medical_device' => 'boolean',
         'expiry_date' => 'datetime',
+        'sale_start_date' => 'datetime',
+        'sale_end_date' => 'datetime',
     ];
 
     /**

@@ -10,6 +10,7 @@ use App\Http\Controllers\Seller\SellerOrderController;
 use App\Http\Controllers\Seller\SellerProductController;
 use App\Http\Controllers\Seller\FrameSizeController;
 use App\Http\Controllers\Seller\SellerPromotionController;
+use App\Http\Controllers\Seller\SellerCouponController;
 use App\Http\Controllers\Seller\SellerAnnouncementController;
 use App\Http\Controllers\Seller\SellerBannerController;
 use App\Http\Controllers\Seller\SellerSubscriptionController;
@@ -135,6 +136,16 @@ Route::middleware('auth:sanctum')->prefix('promotions')->group(function () {
     Route::delete('/{id}', [SellerPromotionController::class, 'destroy']);
     Route::post('/{id}/pause', [SellerPromotionController::class, 'pause']);
     Route::post('/{id}/resume', [SellerPromotionController::class, 'resume']);
+});
+
+// Coupon routes
+Route::middleware('auth:sanctum')->prefix('coupons')->group(function () {
+    Route::get('/', [SellerCouponController::class, 'index']);
+    Route::post('/', [SellerCouponController::class, 'store']);
+    Route::get('/{id}', [SellerCouponController::class, 'show']);
+    Route::put('/{id}', [SellerCouponController::class, 'update']);
+    Route::delete('/{id}', [SellerCouponController::class, 'destroy']);
+    Route::post('/{id}/toggle-status', [SellerCouponController::class, 'toggleStatus']);
 });
 
 // Announcement routes

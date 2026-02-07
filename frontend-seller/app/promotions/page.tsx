@@ -26,6 +26,9 @@ export default function PromotionsPage() {
   const [formData, setFormData] = useState({
     product_id: '',
     budget: '',
+    discount_type: 'budget' as 'budget' | 'percentage' | 'fixed',
+    discount_value: '',
+    applies_to_price: false,
     duration_days: '',
   });
 
@@ -80,11 +83,18 @@ export default function PromotionsPage() {
     setSuccess('');
 
     try {
-      const data = {
+      const data: any = {
         product_id: Number(formData.product_id),
-        budget: parseFloat(formData.budget),
+        discount_type: formData.discount_type,
         duration_days: parseInt(formData.duration_days),
       };
+
+      if (formData.discount_type === 'budget') {
+        data.budget = parseFloat(formData.budget) || 0;
+      } else {
+        data.discount_value = parseFloat(formData.discount_value) || 0;
+        data.applies_to_price = formData.applies_to_price;
+      }
 
       if (editingPromotion) {
         await promotionService.update(editingPromotion.id, data);
@@ -105,7 +115,10 @@ export default function PromotionsPage() {
     setEditingPromotion(promotion);
     setFormData({
       product_id: promotion.product_id.toString(),
-      budget: promotion.budget.toString(),
+      budget: promotion.budget?.toString() || '',
+      discount_type: promotion.discount_type || 'budget',
+      discount_value: promotion.discount_value?.toString() || '',
+      applies_to_price: promotion.applies_to_price || false,
       duration_days: promotion.duration_days.toString(),
     });
     setShowForm(true);
@@ -147,6 +160,9 @@ export default function PromotionsPage() {
     setFormData({
       product_id: '',
       budget: '',
+      discount_type: 'budget',
+      discount_value: '',
+      applies_to_price: false,
       duration_days: '',
     });
     setEditingPromotion(null);
@@ -238,15 +254,58 @@ export default function PromotionsPage() {
                         </select>
                       </div>
 
-                      <Input
-                        label="Budget ($) *"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData.budget}
-                        onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                        required
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Promotion Type *
+                        </label>
+                        <select
+                          value={formData.discount_type}
+                          onChange={(e) => setFormData({ ...formData, discount_type: e.target.value as 'budget' | 'percentage' | 'fixed' })}
+                          className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
+                          required
+                        >
+                          <option value="budget">Budget-Based Advertising</option>
+                          <option value="percentage">Percentage Discount</option>
+                          <option value="fixed">Fixed Amount Discount</option>
+                        </select>
+                      </div>
+
+                      {formData.discount_type === 'budget' ? (
+                        <Input
+                          label="Budget (€) *"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={formData.budget}
+                          onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                          required
+                        />
+                      ) : (
+                        <>
+                          <Input
+                            label={formData.discount_type === 'percentage' ? 'Discount Percentage (%) *' : 'Discount Amount (€) *'}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={formData.discount_type === 'percentage' ? '100' : undefined}
+                            value={formData.discount_value}
+                            onChange={(e) => setFormData({ ...formData, discount_value: e.target.value })}
+                            required
+                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id="applies_to_price"
+                              checked={formData.applies_to_price}
+                              onChange={(e) => setFormData({ ...formData, applies_to_price: e.target.checked })}
+                              className="w-4 h-4 text-[#0066CC] border-gray-300 rounded focus:ring-[#0066CC]"
+                            />
+                            <label htmlFor="applies_to_price" className="text-sm text-gray-700">
+                              Apply discount to product price automatically
+                            </label>
+                          </div>
+                        </>
+                      )}
 
                       <Input
                         label="Duration (Days) *"
@@ -301,7 +360,13 @@ export default function PromotionsPage() {
                               <div className="text-sm font-medium text-gray-900">{promotion.product.name}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              €{promotion.budget.toFixed(2)}
+                              {promotion.discount_type === 'budget' ? (
+                                <>€{promotion.budget.toFixed(2)}</>
+                              ) : promotion.discount_type === 'percentage' ? (
+                                <>{promotion.discount_value}% OFF</>
+                              ) : (
+                                <>€{promotion.discount_value?.toFixed(2)} OFF</>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               €{promotion.spent.toFixed(2)}

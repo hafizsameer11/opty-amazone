@@ -68,6 +68,16 @@ class BuyerProductController extends Controller
             $query->where('gender', $request->gender);
         }
 
+        // Filter by stock status
+        if ($request->has('stock_status')) {
+            $query->where('stock_status', $request->stock_status);
+        }
+
+        // Filter by minimum rating
+        if ($request->has('min_rating')) {
+            $query->where('rating', '>=', $request->min_rating);
+        }
+
         // Search
         if ($request->has('search')) {
             $search = $request->search;

@@ -80,6 +80,8 @@ export default function EditProductPage() {
         product_type: data.product_type,
         price: data.price,
         compare_at_price: data.compare_at_price || undefined,
+        sale_start_date: data.sale_start_date || undefined,
+        sale_end_date: data.sale_end_date || undefined,
         cost_price: data.cost_price || undefined,
         stock_quantity: data.stock_quantity,
         stock_status: data.stock_status,
@@ -314,7 +316,7 @@ export default function EditProductPage() {
                         required
                       />
                       <Input
-                        label="Compare At Price"
+                        label="Compare At Price (Original Price)"
                         type="number"
                         step="0.01"
                         min="0"
@@ -330,6 +332,50 @@ export default function EditProductPage() {
                         onChange={(e) => setFormData({ ...formData, cost_price: e.target.value ? parseFloat(e.target.value) : undefined })}
                       />
                     </div>
+                    
+                    {/* Discount Calculator */}
+                    <DiscountCalculator
+                      price={formData.price || 0}
+                      compareAtPrice={formData.compare_at_price}
+                      onCompareAtPriceChange={(value) => setFormData({ ...formData, compare_at_price: value })}
+                    />
+                    
+                    {/* Scheduled Sale Dates */}
+                    {formData.compare_at_price && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3">Scheduled Sale</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Sale Start Date
+                            </label>
+                            <Input
+                              type="datetime-local"
+                              value={formData.sale_start_date ? new Date(formData.sale_start_date).toISOString().slice(0, 16) : ''}
+                              onChange={(e) => setFormData({ ...formData, sale_start_date: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Sale End Date
+                            </label>
+                            <Input
+                              type="datetime-local"
+                              value={formData.sale_end_date ? new Date(formData.sale_end_date).toISOString().slice(0, 16) : ''}
+                              onChange={(e) => setFormData({ ...formData, sale_end_date: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+                        {formData.sale_start_date && formData.sale_end_date && (
+                          <p className="text-xs text-gray-600 mt-2">
+                            Sale will be active from {new Date(formData.sale_start_date).toLocaleString()} to {new Date(formData.sale_end_date).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className="grid grid-cols-2 gap-4 mt-4">
                       <Input
                         label="Stock Quantity *"

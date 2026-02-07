@@ -14,6 +14,9 @@ class ProductPromotion extends Model
         'store_id',
         'product_id',
         'budget',
+        'discount_type',
+        'discount_value',
+        'applies_to_price',
         'spent',
         'duration_days',
         'start_date',
@@ -26,10 +29,12 @@ class ProductPromotion extends Model
 
     protected $casts = [
         'budget' => 'decimal:2',
+        'discount_value' => 'decimal:2',
         'spent' => 'decimal:2',
         'start_date' => 'date',
         'end_date' => 'date',
         'target_audience' => 'array',
+        'applies_to_price' => 'boolean',
     ];
 
     /**

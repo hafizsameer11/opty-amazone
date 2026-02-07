@@ -110,6 +110,8 @@ export interface ProductListParams {
   frame_shape?: string;
   frame_material?: string;
   gender?: string;
+  stock_status?: 'in_stock' | 'out_of_stock' | 'backorder';
+  min_rating?: number;
   search?: string;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
