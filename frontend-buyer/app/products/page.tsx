@@ -7,6 +7,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BottomNav from '@/components/layout/BottomNav';
 import { productService, type Product, type ProductListParams } from '@/services/product-service';
+import { isEyeProductCategory } from '@/utils/product-utils';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import ProductListCard from '@/components/products/ProductListCard';
@@ -16,8 +17,7 @@ function ProductCard({ product }: { product: Product }) {
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   
   // Check if product has variants and is an eye product category or frame/sunglasses type
-  const isEyeProduct = (product.category?.id && [23, 28, 29].includes(product.category.id)) ||
-                       (product.product_type === 'frame' || product.product_type === 'sunglasses');
+  const isEyeProduct = isEyeProductCategory(product);
   const hasVariants = product.variants && product.variants.length > 0;
   const showColorSwatches = isEyeProduct && hasVariants;
   

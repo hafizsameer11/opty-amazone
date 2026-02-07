@@ -9,6 +9,7 @@ import Footer from '@/components/layout/Footer';
 import BottomNav from '@/components/layout/BottomNav';
 import { StoreService, type PublicStore } from '@/services/store-service';
 import { productService, type Product } from '@/services/product-service';
+import { isEyeProductCategory } from '@/utils/product-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -18,8 +19,7 @@ function ProductCard({ product }: { product: Product }) {
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   
   // Check if product has variants and is an eye product category or frame/sunglasses type
-  const isEyeProduct = (product.category?.id && [23, 28, 29].includes(product.category.id)) ||
-                       (product.product_type === 'frame' || product.product_type === 'sunglasses');
+  const isEyeProduct = isEyeProductCategory(product);
   const hasVariants = product.variants && product.variants.length > 0;
   const showColorSwatches = isEyeProduct && hasVariants;
   

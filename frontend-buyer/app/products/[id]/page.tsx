@@ -15,6 +15,7 @@ import EyeHygieneDetails from "@/components/products/EyeHygieneDetails";
 import { productService, type Product } from "@/services/product-service";
 import { cartService } from "@/services/cart-service";
 import { lensDataService } from "@/services/lens-data-service";
+import { shouldShowLensOptions } from "@/utils/product-utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/components/ui/Toast";
@@ -64,8 +65,8 @@ export default function ProductDetailPage() {
       const data = await productService.getDetails(Number(params.id));
       setProduct(data);
       
-      // Load lens data if it's a frame or sunglasses product
-      if (data.product_type === 'frame' || data.product_type === 'sunglasses') {
+      // Load lens data if it should show lens options
+      if (shouldShowLensOptions(data)) {
         try {
           const [lensTypes, treatments, coatings] = await Promise.all([
             lensDataService.getLensTypes(),
@@ -104,8 +105,7 @@ export default function ProductDetailPage() {
   }
 
   // Check if product has variants and is an eye product category or frame/sunglasses type
-  const isEyeProduct = (product.category?.id && [23, 28, 29].includes(product.category.id)) ||
-                       (product.product_type === 'frame' || product.product_type === 'sunglasses');
+  const isEyeProduct = shouldShowLensOptions(product);
   const hasVariants = product.variants && product.variants.length > 0;
   const showColorSwatches = isEyeProduct && hasVariants;
   
@@ -452,7 +452,7 @@ export default function ProductDetailPage() {
                   }}
                   addingToCart={addingToCart}
                 />
-              ) : (product.product_type === 'frame' || product.product_type === 'sunglasses') ? (
+              ) : shouldShowLensOptions(product) ? (
                 <div className="space-y-3">
                   <Button
                     onClick={() => setShowCheckoutModal(true)}

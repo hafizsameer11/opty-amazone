@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Product } from '@/services/product-service';
 import { lensDataService, type LensType, type LensTreatment, type LensCoating, type LensThicknessMaterial, type LensThicknessOption, type ProgressiveVariant } from '@/services/lens-data-service';
 import { cartService, type AddToCartData } from '@/services/cart-service';
+import { shouldShowLensOptions } from '@/utils/product-utils';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
 import PrescriptionEntry from './PrescriptionEntry';
@@ -100,10 +101,10 @@ export default function ProductCheckoutModal({
 
   // Load lens data
   useEffect(() => {
-    if (isOpen && (product.product_type === 'frame' || product.product_type === 'sunglasses')) {
+    if (isOpen && shouldShowLensOptions(product)) {
       loadLensData();
     }
-  }, [isOpen, product.product_type, product.id]);
+  }, [isOpen, product.product_type, product.category, product.id]);
 
   const loadLensData = async () => {
     try {

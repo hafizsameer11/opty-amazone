@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/services/product-service';
+import { isEyeProductCategory } from '@/utils/product-utils';
 
 interface ProductListCardProps {
   product: Product;
@@ -14,8 +15,7 @@ export default function ProductListCard({ product }: ProductListCardProps) {
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   
   // Check if product has variants and is an eye product category or frame/sunglasses type
-  const isEyeProduct = (product.category?.id && [23, 28, 29].includes(product.category.id)) ||
-                       (product.product_type === 'frame' || product.product_type === 'sunglasses');
+  const isEyeProduct = isEyeProductCategory(product);
   const hasVariants = product.variants && product.variants.length > 0;
   const showColorSwatches = isEyeProduct && hasVariants;
   

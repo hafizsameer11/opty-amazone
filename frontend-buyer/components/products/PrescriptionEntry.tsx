@@ -578,8 +578,8 @@ export default function PrescriptionEntry({
                               const textX = 400 + 180 * Math.cos(angle);
                               const textY = 420 + 180 * Math.sin(angle);
                               // Calculate rotation to align text horizontally along the curve
-                              // The tangent angle is perpendicular to the radius, so rotate by deg degrees
-                              const textRotation = deg;
+                              // For horizontal alignment, rotate by (deg - 90) to make text parallel to the arc
+                              const textRotation = deg - 90;
                               return (
                                 <g key={deg}>
                                   <line x1={400 + 200 * Math.cos(angle)} y1={420 + 200 * Math.sin(angle)} x2={x} y2={y} stroke="#000" strokeWidth={deg % 30 === 0 ? "3.5" : "1.8"} />
@@ -606,7 +606,7 @@ export default function PrescriptionEntry({
                                       fill="#444" 
                                       fontWeight="600" 
                                       fontFamily="Arial, sans-serif"
-                                      transform={`rotate(${180 - textRotation}, ${400 + 180 * Math.cos((180 - deg - 90) * (Math.PI / 180))}, ${420 + 180 * Math.sin((180 - deg - 90) * (Math.PI / 180))})`}
+                                      transform={`rotate(${90 - deg}, ${400 + 180 * Math.cos((180 - deg - 90) * (Math.PI / 180))}, ${420 + 180 * Math.sin((180 - deg - 90) * (Math.PI / 180))})`}
                                     >
                                       {180 - deg}
                                     </text>
@@ -704,8 +704,8 @@ export default function PrescriptionEntry({
                               const textX = 400 + 180 * Math.cos(angle);
                               const textY = 420 + 180 * Math.sin(angle);
                               // Calculate rotation to align text horizontally along the curve
-                              // The tangent angle is perpendicular to the radius, so rotate by deg degrees
-                              const textRotation = deg;
+                              // For horizontal alignment, rotate by (deg - 90) to make text parallel to the arc
+                              const textRotation = deg - 90;
                               return (
                                 <g key={deg}>
                                   <line x1={400 + 200 * Math.cos(angle)} y1={420 + 200 * Math.sin(angle)} x2={x} y2={y} stroke="#000" strokeWidth={deg % 30 === 0 ? "3.5" : "1.8"} />
@@ -732,7 +732,7 @@ export default function PrescriptionEntry({
                                       fill="#444" 
                                       fontWeight="600" 
                                       fontFamily="Arial, sans-serif"
-                                      transform={`rotate(${180 - textRotation}, ${400 + 180 * Math.cos((180 - deg - 90) * (Math.PI / 180))}, ${420 + 180 * Math.sin((180 - deg - 90) * (Math.PI / 180))})`}
+                                      transform={`rotate(${90 - deg}, ${400 + 180 * Math.cos((180 - deg - 90) * (Math.PI / 180))}, ${420 + 180 * Math.sin((180 - deg - 90) * (Math.PI / 180))})`}
                                     >
                                       {taboValue}
                                     </text>
@@ -1285,11 +1285,25 @@ export default function PrescriptionEntry({
                         const y1 = 200 + innerRadius * Math.sin(angle);
                         const x2 = 200 + outerRadius * Math.cos(angle);
                         const y2 = 200 + outerRadius * Math.sin(angle);
+                        const textX = 200 + 150 * Math.cos(angle);
+                        const textY = 200 + 150 * Math.sin(angle);
+                        // Rotate text to be horizontal along the arc (deg - 90)
+                        const textRotation = deg - 90;
                         return (
                           <g key={deg}>
                             <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={isMajor ? "#111827" : "#6b7280"} strokeWidth={isMajor ? "2" : "1"} />
                             {isMajor && (
-                              <text x={200 + 150 * Math.cos(angle)} y={200 + 150 * Math.sin(angle)} textAnchor="middle" dominantBaseline="middle" fill="#111827" fontSize="14" fontWeight="bold" fontFamily="system-ui, -apple-system, sans-serif">
+                              <text 
+                                x={textX} 
+                                y={textY} 
+                                textAnchor="middle" 
+                                dominantBaseline="middle" 
+                                fill="#111827" 
+                                fontSize="14" 
+                                fontWeight="bold" 
+                                fontFamily="system-ui, -apple-system, sans-serif"
+                                transform={`rotate(${textRotation}, ${textX}, ${textY})`}
+                              >
                                 {deg}
                               </text>
                             )}

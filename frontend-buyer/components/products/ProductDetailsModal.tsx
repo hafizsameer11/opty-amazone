@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { productService, type Product } from '@/services/product-service';
+import { isEyeProductCategory } from '@/utils/product-utils';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -66,7 +67,7 @@ export default function ProductDetailsModal({
   };
 
   // Check if product has variants and is an eye product category
-  const isEyeProduct = product?.category?.id && [23, 28, 29].includes(product.category.id);
+  const isEyeProduct = product ? isEyeProductCategory(product) : false;
   const hasVariants = product?.variants && product.variants.length > 0;
   const showColorSwatches = isEyeProduct && hasVariants;
   

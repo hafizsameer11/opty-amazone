@@ -1,6 +1,7 @@
 "use client";
 
 import { Product } from "@/types/product";
+import { shouldShowLensOptions } from "@/utils/product-utils";
 
 interface ProductOptionsProps {
   product: Product;
@@ -34,7 +35,7 @@ export default function ProductOptions({
   onQuantityChange,
 }: ProductOptionsProps) {
   // Render frame/sunglasses options
-  if (product.product_type === "frame" || product.product_type === "sunglasses") {
+  if (shouldShowLensOptions(product)) {
     const frameProduct = product as any;
     
     return (
