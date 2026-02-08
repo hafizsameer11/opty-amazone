@@ -15,6 +15,7 @@ use App\Http\Controllers\Seller\SellerAnnouncementController;
 use App\Http\Controllers\Seller\SellerBannerController;
 use App\Http\Controllers\Seller\SellerSubscriptionController;
 use App\Http\Controllers\Seller\CategoryLensConfigController;
+use App\Http\Controllers\Seller\CategoryFieldConfigController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -181,4 +182,12 @@ Route::middleware('auth:sanctum')->prefix('category-lens-config')->group(functio
     Route::get('/', [CategoryLensConfigController::class, 'index']);
     Route::get('/{categoryId}', [CategoryLensConfigController::class, 'show']);
     Route::put('/{categoryId}', [CategoryLensConfigController::class, 'update']);
+});
+
+// Category Field Configuration routes
+Route::middleware('auth:sanctum')->prefix('category-field-configs')->group(function () {
+    Route::get('/', [CategoryFieldConfigController::class, 'index']);
+    Route::get('/{categoryId}', [CategoryFieldConfigController::class, 'show']);
+    Route::put('/{categoryId}', [CategoryFieldConfigController::class, 'update']);
+    Route::get('/{categoryId}/fields', [CategoryFieldConfigController::class, 'getFieldsForCategory']);
 });

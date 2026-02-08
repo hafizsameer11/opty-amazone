@@ -7,6 +7,7 @@ use App\Helpers\ResponseHelper;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Category;
+use App\Models\StoreCategoryFieldConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -113,6 +114,30 @@ class SellerProductController extends Controller
     }
 
     /**
+     * Get enabled fields for a category.
+     */
+    private function getEnabledFieldsForCategory($storeId, $categoryId): array
+    {
+        $config = StoreCategoryFieldConfig::where('store_id', $storeId)
+            ->where('category_id', $categoryId)
+            ->first();
+
+        if (!$config || empty($config->field_config)) {
+            // Return all fields as enabled if no config exists (backward compatibility)
+            return [];
+        }
+
+        $enabledFields = [];
+        foreach ($config->field_config as $field => $enabled) {
+            if ($enabled) {
+                $enabledFields[] = $field;
+            }
+        }
+
+        return $enabledFields;
+    }
+
+    /**
      * Create a new product.
      */
     public function store(Request $request)
@@ -124,7 +149,8 @@ class SellerProductController extends Controller
             return ResponseHelper::error('Store not found', null, 404);
         }
 
-        $validated = $request->validate([
+        // Base validation rules (always required)
+        $baseRules = [
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
             'sub_category_id' => 'nullable|exists:categories,id',
@@ -141,6 +167,21 @@ class SellerProductController extends Controller
             'stock_status' => 'required|in:in_stock,out_of_stock,backorder',
             'images' => 'nullable|array',
             'images.*' => 'string|url',
+            'is_featured' => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
+            'meta_title' => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string|max:500',
+            'meta_keywords' => 'nullable|string|max:255',
+        ];
+
+        // Get enabled fields for category if category_id is provided
+        $enabledFields = [];
+        if ($request->has('category_id') && $request->category_id) {
+            $enabledFields = $this->getEnabledFieldsForCategory($store->id, $request->category_id);
+        }
+
+        // Define all possible field rules
+        $allFieldRules = [
             'frame_shape' => 'nullable|string|max:255',
             'frame_material' => 'nullable|string|max:255',
             'frame_color' => 'nullable|string|max:255',
@@ -148,12 +189,6 @@ class SellerProductController extends Controller
             'lens_type' => 'nullable|string',
             'lens_index_options' => 'nullable|array',
             'treatment_options' => 'nullable|array',
-            'is_featured' => 'nullable|boolean',
-            'is_active' => 'nullable|boolean',
-            'meta_title' => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string|max:500',
-            'meta_keywords' => 'nullable|string|max:255',
-            // Contact Lens Specific Fields
             'base_curve_options' => 'nullable|array',
             'base_curve_options.*' => 'string',
             'diameter_options' => 'nullable|array',
@@ -168,17 +203,44 @@ class SellerProductController extends Controller
             'can_sleep_with' => 'nullable|boolean',
             'water_content' => 'nullable|string|max:50',
             'is_medical_device' => 'nullable|boolean',
-            // Eye Hygiene Specific Fields
             'size_volume' => 'nullable|string|max:50',
             'pack_type' => 'nullable|string|max:50',
             'expiry_date' => 'nullable|date',
-            // Additional Fields
             'model_3d_url' => 'nullable|string|max:500|url',
             'try_on_image' => 'nullable|string|max:500|url',
             'color_images' => 'nullable|array',
             'color_images.*' => 'string|url',
             'mm_calibers' => 'nullable|array',
-        ]);
+        ];
+
+        // Build validation rules: include base rules + only enabled fields
+        $validationRules = $baseRules;
+        
+        if (empty($enabledFields)) {
+            // If no config exists, allow all fields (backward compatibility)
+            $validationRules = array_merge($validationRules, $allFieldRules);
+        } else {
+            // Only include enabled fields
+            foreach ($enabledFields as $field) {
+                if (isset($allFieldRules[$field])) {
+                    $validationRules[$field] = $allFieldRules[$field];
+                }
+            }
+        }
+
+        $validated = $request->validate($validationRules);
+
+        // Remove disabled fields from validated data
+        if (!empty($enabledFields)) {
+            $filteredValidated = [];
+            foreach ($validated as $key => $value) {
+                // Keep base fields and enabled fields
+                if (in_array($key, array_keys($baseRules)) || in_array($key, $enabledFields)) {
+                    $filteredValidated[$key] = $value;
+                }
+            }
+            $validated = $filteredValidated;
+        }
 
         try {
             $validated['store_id'] = $store->id;

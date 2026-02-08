@@ -263,19 +263,55 @@ export default function ProductsPage() {
           <main className="flex-1 overflow-y-auto">
             <div className="py-6">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="mb-6 flex items-center justify-between">
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Products</h1>
-                    <p className="text-gray-600 mt-1">Manage your product listings</p>
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h1 className="text-3xl font-bold text-gray-900">Products</h1>
+                      <p className="text-gray-600 mt-1">Manage your product listings</p>
+                    </div>
                   </div>
-                  <Link href="/products/new">
-                    <Button>
-                      <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                      Add Product
-                    </Button>
-                  </Link>
+                  <div className="flex flex-wrap gap-3">
+                    <Link href="/products/new/eye-glasses">
+                      <Button variant="outline">
+                        <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Eye Glasses
+                      </Button>
+                    </Link>
+                    <Link href="/products/new/sun-glasses">
+                      <Button variant="outline">
+                        <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Sun Glasses
+                      </Button>
+                    </Link>
+                    <Link href="/products/new/contact-lenses">
+                      <Button variant="outline">
+                        <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Contact Lenses
+                      </Button>
+                    </Link>
+                    <Link href="/products/new/eye-hygiene">
+                      <Button variant="outline">
+                        <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Eye Hygiene
+                      </Button>
+                    </Link>
+                    <Link href="/products/new/accessori">
+                      <Button variant="outline">
+                        <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Accessory
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
 
                 {/* Filters */}
