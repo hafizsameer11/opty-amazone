@@ -37,10 +37,14 @@ class CartItem extends Model
         'contact_lens_left_diameter',
         'contact_lens_left_power',
         'contact_lens_left_qty',
+        'contact_lens_left_cylinder',
+        'contact_lens_left_axis',
         'contact_lens_right_base_curve',
         'contact_lens_right_diameter',
         'contact_lens_right_power',
         'contact_lens_right_qty',
+        'contact_lens_right_cylinder',
+        'contact_lens_right_axis',
     ];
 
     protected $casts = [
@@ -53,9 +57,11 @@ class CartItem extends Model
         'contact_lens_left_base_curve' => 'decimal:2',
         'contact_lens_left_diameter' => 'decimal:2',
         'contact_lens_left_power' => 'decimal:2',
+        'contact_lens_left_cylinder' => 'decimal:2',
         'contact_lens_right_base_curve' => 'decimal:2',
         'contact_lens_right_diameter' => 'decimal:2',
         'contact_lens_right_power' => 'decimal:2',
+        'contact_lens_right_cylinder' => 'decimal:2',
     ];
 
     /**

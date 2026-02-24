@@ -207,6 +207,8 @@ class CategoryFieldConfigController extends Controller
         $validated = $request->validate([
             'field_config' => 'required|array',
             'field_config.*' => 'boolean',
+            'pd_options' => 'nullable|array',
+            'pd_options.*' => 'string',
         ]);
 
         // Validate that all fields in field_config are valid
@@ -231,6 +233,7 @@ class CategoryFieldConfigController extends Controller
                 ],
                 [
                     'field_config' => $completeConfig,
+                    'pd_options' => $validated['pd_options'] ?? null,
                 ]
             );
 
@@ -279,6 +282,7 @@ class CategoryFieldConfigController extends Controller
             'product_type' => $productType,
             'enabled_fields' => $enabledFields,
             'field_config' => $fieldConfig,
+            'pd_options' => $config ? ($config->pd_options ?? null) : null,
         ], 'Enabled fields retrieved successfully');
     }
 

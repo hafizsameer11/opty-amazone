@@ -577,6 +577,7 @@ export default function ProductsPage() {
                       </table>
                     </div>
                   </div>
+                  </>
                 )}
 
                 {/* Product Details Modal */}

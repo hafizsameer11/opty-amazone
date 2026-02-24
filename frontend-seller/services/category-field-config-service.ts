@@ -25,6 +25,7 @@ export interface CategoryFieldsForForm {
   product_type: string;
   enabled_fields: string[];
   field_config: Record<string, boolean>;
+  pd_options?: string[] | null;
 }
 
 export interface UpdateCategoryFieldConfigData {

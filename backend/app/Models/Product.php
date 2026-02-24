@@ -70,6 +70,8 @@ class Product extends Model
         'try_on_image',
         'color_images',
         'mm_calibers',
+        'lens_colors',
+        'lens_area_coordinates',
     ];
 
     protected $casts = [
@@ -81,6 +83,8 @@ class Product extends Model
         'powers_range' => 'array',
         'color_images' => 'array',
         'mm_calibers' => 'array',
+        'lens_colors' => 'array',
+        'lens_area_coordinates' => 'array',
         'price' => 'decimal:2',
         'compare_at_price' => 'decimal:2',
         'cost_price' => 'decimal:2',

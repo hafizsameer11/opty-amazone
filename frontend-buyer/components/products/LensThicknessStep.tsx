@@ -76,9 +76,13 @@ export default function LensThicknessStep({
   const [recommendedIndex, setRecommendedIndex] = useState<string>("1.56");
   const [showManualSelect, setShowManualSelect] = useState(false);
 
+  // Auto-select recommended lens index when prescription or options change
   useEffect(() => {
+    if (lensIndexOptions.length === 0) return;
+    
     const recommended = calculateRecommendedIndex(prescription);
     setRecommendedIndex(recommended);
+    
     // Auto-select recommended index if not already selected
     if (!selectedLensIndex) {
       const recommendedOption = lensIndexOptions.find(
@@ -86,14 +90,33 @@ export default function LensThicknessStep({
       );
       if (recommendedOption) {
         onLensIndexSelect(recommendedOption);
+      } else {
+        // If recommended option not found, select first available
+        onLensIndexSelect(lensIndexOptions[0]);
       }
     }
-  }, [prescription, lensIndexOptions, selectedLensIndex, onLensIndexSelect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prescription?.rightEye?.sph, prescription?.rightEye?.cyl, prescription?.leftEye?.sph, prescription?.leftEye?.cyl, lensIndexOptions.length]);
+
+  // Auto-select first material if none selected
+  useEffect(() => {
+    if (!selectedMaterial && lensMaterials && lensMaterials.length > 0) {
+      onMaterialSelect(lensMaterials[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lensMaterials.length]);
 
   const handleContinue = () => {
-    if (selectedMaterial && selectedLensIndex) {
-      onContinue();
+    // Only require material if materials are available and none is selected
+    if (lensMaterials && lensMaterials.length > 0 && !selectedMaterial) {
+      alert('Please select a lens material to continue');
+      return;
     }
+    if (!selectedLensIndex) {
+      alert('Please select a lens thickness option to continue');
+      return;
+    }
+    onContinue();
   };
 
   return (
@@ -114,35 +137,38 @@ export default function LensThicknessStep({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 pr-2">
-        <div className="mb-6">
-          {/* Lens Material Selection */}
-          <div className="space-y-3">
-            {lensMaterials.map((material) => (
-              <label
-                key={material.id}
-                className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                  selectedMaterial?.id === material.id
-                    ? "border-blue-600 bg-blue-50"
-                    : "border-gray-200 hover:border-gray-300 bg-white"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    name="lens-material"
-                    checked={selectedMaterial?.id === material.id}
-                    onChange={() => onMaterialSelect(material)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span className="font-medium text-gray-900">{material.name}</span>
-                </div>
-                <div className="text-base font-semibold text-gray-900">
-                  ${Number(material.price || 0).toFixed(2)}
-                </div>
-              </label>
-            ))}
+        {/* Lens Material Selection - Only show if materials are available */}
+        {lensMaterials && lensMaterials.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-base font-bold text-gray-900 mb-3">Lens Material</h3>
+            <div className="space-y-3">
+              {lensMaterials.map((material) => (
+                <label
+                  key={material.id}
+                  className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    selectedMaterial?.id === material.id
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="lens-material"
+                      checked={selectedMaterial?.id === material.id}
+                      onChange={() => onMaterialSelect(material)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="font-medium text-gray-900">{material.name}</span>
+                  </div>
+                  <div className="text-base font-semibold text-gray-900">
+                    ${Number(material.price || 0).toFixed(2)}
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Lens Index (Thickness) Selection */}
         <div className="mb-6">
@@ -199,9 +225,13 @@ export default function LensThicknessStep({
       {/* Footer */}
       <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 flex-shrink-0">
         <button
+          type="button"
           onClick={handleContinue}
-          disabled={!selectedMaterial || !selectedLensIndex}
-          className="w-full bg-blue-950 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`w-full px-6 py-3 rounded-lg font-semibold transition-colors ${
+            selectedMaterial && selectedLensIndex
+              ? 'bg-blue-950 text-white hover:bg-blue-900'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          }`}
         >
           Add
         </button>
@@ -209,3 +239,4 @@ export default function LensThicknessStep({
     </div>
   );
 }
+

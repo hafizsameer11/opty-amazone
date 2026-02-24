@@ -59,15 +59,20 @@ export interface AddToCartData {
   treatment_ids?: number[];
   lens_coatings?: string;
   progressive_variant_id?: number;
+  lens_color_id?: number;
   // Contact lens fields
   contact_lens_left_base_curve?: number;
   contact_lens_left_diameter?: number;
   contact_lens_left_power?: number;
   contact_lens_left_qty?: number;
+  contact_lens_left_cylinder?: number;
+  contact_lens_left_axis?: number;
   contact_lens_right_base_curve?: number;
   contact_lens_right_diameter?: number;
   contact_lens_right_power?: number;
   contact_lens_right_qty?: number;
+  contact_lens_right_cylinder?: number;
+  contact_lens_right_axis?: number;
 }
 
 export const cartService = {

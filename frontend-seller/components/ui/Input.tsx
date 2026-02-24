@@ -14,19 +14,21 @@ export default function Input({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-semibold text-gray-800 mb-2">
+        <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
           {label}
         </label>
       )}
       <input
         className={`
-          w-full px-4 py-3 border-2 rounded-md
-          text-base text-gray-900
+          w-full px-4 py-3.5 border-2 rounded-xl
+          text-base text-gray-900 font-medium
           transition-all duration-200
-          focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-[#0066CC]
-          placeholder:text-gray-400
-          ${error ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-white hover:border-gray-400'}
-          ${props.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
+          focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-blue-500
+          placeholder:text-gray-400 placeholder:font-normal
+          shadow-sm hover:shadow-md
+          ${error ? 'border-red-400 bg-red-50 focus:ring-red-200' : 'border-gray-300 bg-white hover:border-blue-300'}
+          ${props.disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''}
           ${className}
         `}
         {...props}

@@ -3,9 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import BottomNav from '@/components/layout/BottomNav';
+// Layout components are now handled by app/template.tsx
 import { pointsService, type PointsBalance, type PointTransaction } from '@/services/points-service';
 import { useToast } from '@/components/ui/Toast';
 import Loader from '@/components/ui/Loader';
@@ -75,14 +73,7 @@ export default function PointsPage() {
   };
 
   if (loading || loadingData) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-        <Header />
-        <Loader fullScreen text="Loading points..." />
-        <Footer />
-        <BottomNav />
-      </div>
-    );
+    return <Loader fullScreen text="Loading points..." />;
   }
 
   if (!isAuthenticated || !balance) {
@@ -90,9 +81,7 @@ export default function PointsPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      <main className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
+    <div className="max-w-7xl mx-auto px-4 py-8 w-full">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">My Points</h1>
 
         {/* Points Balance Card */}
@@ -205,9 +194,6 @@ export default function PointsPage() {
             )}
           </div>
         </div>
-      </main>
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

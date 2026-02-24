@@ -3,9 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import BottomNav from '@/components/layout/BottomNav';
+// Layout components are now handled by app/template.tsx
 import { cartService } from '@/services/cart-service';
 import { orderService } from '@/services/order-service';
 import { userService, type Address } from '@/services/user-service';
@@ -116,19 +114,12 @@ export default function CheckoutPage() {
   };
 
   if (loading || loadingData) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-        <Header />
-        <Loader fullScreen text="Loading checkout..." />
-        <Footer />
-        <BottomNav />
-      </div>
-    );
+    return <Loader fullScreen text="Loading checkout..." />;
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
@@ -142,9 +133,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      <main className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
+    <div className="max-w-7xl mx-auto px-4 py-8 w-full">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Checkout</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -312,9 +301,6 @@ export default function CheckoutPage() {
             </div>
           </div>
         </div>
-      </main>
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

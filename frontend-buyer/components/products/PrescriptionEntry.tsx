@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
+import type { PrescriptionOptions } from "@/services/prescription-options-service";
 
 interface PrescriptionData {
   pd: string;
@@ -29,40 +30,8 @@ interface PrescriptionEntryProps {
   productName?: string;
   productPrice?: number;
   isProgressive?: boolean;
+  prescriptionOptions?: PrescriptionOptions;
 }
-
-// Generate options for SPH, CYL, AXIS
-const generateSPHOptions = () => {
-  const options = [];
-  for (let i = -20.0; i <= 20.0; i += 0.25) {
-    options.push(i.toFixed(2));
-  }
-  return options;
-};
-
-const generateCYLOptions = () => {
-  const options = ["--"];
-  for (let i = -6.0; i <= 6.0; i += 0.25) {
-    options.push(i.toFixed(2));
-  }
-  return options;
-};
-
-const generateAXISOptions = () => {
-  const options = ["--"];
-  for (let i = 0; i <= 180; i += 1) {
-    options.push(i.toString());
-  }
-  return options;
-};
-
-const generatePDOptions = () => {
-  const options = [];
-  for (let i = 50.0; i <= 75.0; i += 0.5) {
-    options.push(i.toFixed(2));
-  }
-  return options;
-};
 
 export default function PrescriptionEntry({
   lensTypeName,
@@ -73,9 +42,10 @@ export default function PrescriptionEntry({
   productName,
   productPrice,
   isProgressive = false,
+  prescriptionOptions,
 }: PrescriptionEntryProps) {
   const [prescription, setPrescription] = useState<PrescriptionData>({
-    pd: "55.00",
+    pd: prescriptionOptions?.pd?.[0] || "",
     rightEye: {
       sph: "--",
       cyl: "--",
@@ -118,10 +88,20 @@ export default function PrescriptionEntry({
     }
   }, [prescription.leftEye.axis, prescription.rightEye.axis]);
 
-  const sphOptions = generateSPHOptions();
-  const cylOptions = generateCYLOptions();
-  const axisOptions = generateAXISOptions();
-  const pdOptions = generatePDOptions();
+  // Use API options if available, otherwise empty arrays
+  const sphOptions = prescriptionOptions?.sph?.both || [];
+  const cylOptions = prescriptionOptions?.cyl?.both || [];
+  const axisOptions = prescriptionOptions?.axis?.both || [];
+  const pdOptions = prescriptionOptions?.pd || [];
+  const hOptions = prescriptionOptions?.h || [];
+  
+  // Get eye-specific options
+  const rightSphOptions = prescriptionOptions?.sph?.right || prescriptionOptions?.sph?.both || [];
+  const leftSphOptions = prescriptionOptions?.sph?.left || prescriptionOptions?.sph?.both || [];
+  const rightCylOptions = prescriptionOptions?.cyl?.right || prescriptionOptions?.cyl?.both || [];
+  const leftCylOptions = prescriptionOptions?.cyl?.left || prescriptionOptions?.cyl?.both || [];
+  const rightAxisOptions = prescriptionOptions?.axis?.right || prescriptionOptions?.axis?.both || [];
+  const leftAxisOptions = prescriptionOptions?.axis?.left || prescriptionOptions?.axis?.both || [];
 
   const handleCopyRightToLeft = () => {
     setPrescription({
@@ -256,11 +236,15 @@ export default function PrescriptionEntry({
                   className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] font-semibold bg-white shadow-sm hover:border-gray-300 transition-all"
                 >
                   <option value="">- Select -</option>
-                  {Array.from({ length: 31 }, (_, i) => i + 10).map((h) => (
-                    <option key={h} value={h.toString()} style={{ color: '#111827' }}>
-                      {h} mm
-                    </option>
-                  ))}
+                  {hOptions.length > 0 ? (
+                    hOptions.map((h) => (
+                      <option key={h} value={h} style={{ color: '#111827' }}>
+                        {h} mm
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No options configured</option>
+                  )}
                 </select>
               </div>
             </>
@@ -285,11 +269,15 @@ export default function PrescriptionEntry({
                 style={{ color: '#111827' }}
                 className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] font-semibold bg-white shadow-sm hover:border-gray-300 transition-all"
               >
-                {pdOptions.map((pd) => (
-                  <option key={pd} value={pd} style={{ color: '#111827' }}>
-                    {pd} mm
-                  </option>
-                ))}
+                {pdOptions.length > 0 ? (
+                  pdOptions.map((pd) => (
+                    <option key={pd} value={pd} style={{ color: '#111827' }}>
+                      {pd} mm
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>No options configured</option>
+                )}
               </select>
             </div>
           )}
@@ -330,11 +318,15 @@ export default function PrescriptionEntry({
                     }`}
                   >
                     <option value="--">--</option>
-                    {sphOptions.map((sph) => (
-                      <option key={sph} value={sph} style={{ color: '#111827' }}>
-                        {sph}
-                      </option>
-                    ))}
+                    {leftSphOptions.length > 0 ? (
+                      leftSphOptions.map((sph) => (
+                        <option key={sph} value={sph} style={{ color: '#111827' }}>
+                          {sph}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -350,11 +342,15 @@ export default function PrescriptionEntry({
                     style={{ color: '#111827' }}
                     className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] text-sm font-semibold bg-white hover:border-gray-300 transition-all"
                   >
-                    {cylOptions.map((cyl) => (
-                      <option key={cyl} value={cyl} style={{ color: '#111827' }}>
-                        {cyl}
-                      </option>
-                    ))}
+                    {leftCylOptions.length > 0 ? (
+                      leftCylOptions.map((cyl) => (
+                        <option key={cyl} value={cyl} style={{ color: '#111827' }}>
+                          {cyl}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                 </div>
                 <div className="relative">
@@ -368,17 +364,21 @@ export default function PrescriptionEntry({
                         rightEye: { ...prescription.rightEye, axis: newAxis },
                       });
                       if (newAxis !== "--") {
-                        setRightAxisAngle(parseInt(newAxis) || 0);
+                        setLeftAxisAngle(parseInt(newAxis) || 0);
                       }
                     }}
                     style={{ color: '#111827' }}
                     className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] text-sm font-semibold bg-white pr-10 hover:border-gray-300 transition-all"
                   >
-                    {axisOptions.map((axis) => (
-                      <option key={axis} value={axis} style={{ color: '#111827' }}>
-                        {axis}
-                      </option>
-                    ))}
+                    {leftAxisOptions.length > 0 ? (
+                      leftAxisOptions.map((axis) => (
+                        <option key={axis} value={axis} style={{ color: '#111827' }}>
+                          {axis}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                   <button
                     type="button"
@@ -428,11 +428,15 @@ export default function PrescriptionEntry({
                     }`}
                   >
                     <option value="--">--</option>
-                    {sphOptions.map((sph) => (
-                      <option key={sph} value={sph} style={{ color: '#111827' }}>
-                        {sph}
-                      </option>
-                    ))}
+                    {leftSphOptions.length > 0 ? (
+                      leftSphOptions.map((sph) => (
+                        <option key={sph} value={sph} style={{ color: '#111827' }}>
+                          {sph}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -448,11 +452,15 @@ export default function PrescriptionEntry({
                     style={{ color: '#111827' }}
                     className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] text-sm font-semibold bg-white hover:border-gray-300 transition-all"
                   >
-                    {cylOptions.map((cyl) => (
-                      <option key={cyl} value={cyl} style={{ color: '#111827' }}>
-                        {cyl}
-                      </option>
-                    ))}
+                    {leftCylOptions.length > 0 ? (
+                      leftCylOptions.map((cyl) => (
+                        <option key={cyl} value={cyl} style={{ color: '#111827' }}>
+                          {cyl}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                 </div>
                 <div className="relative">
@@ -466,17 +474,21 @@ export default function PrescriptionEntry({
                         leftEye: { ...prescription.leftEye, axis: newAxis },
                       });
                       if (newAxis !== "--") {
-                        setRightAxisAngle(parseInt(newAxis) || 0);
+                        setLeftAxisAngle(parseInt(newAxis) || 0);
                       }
                     }}
                     style={{ color: '#111827' }}
                     className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] text-sm font-semibold bg-white pr-10 hover:border-gray-300 transition-all"
                   >
-                    {axisOptions.map((axis) => (
-                      <option key={axis} value={axis} style={{ color: '#111827' }}>
-                        {axis}
-                      </option>
-                    ))}
+                    {leftAxisOptions.length > 0 ? (
+                      leftAxisOptions.map((axis) => (
+                        <option key={axis} value={axis} style={{ color: '#111827' }}>
+                          {axis}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                   <button
                     type="button"
@@ -1039,11 +1051,15 @@ export default function PrescriptionEntry({
                     }`}
                   >
                     <option value="--">--</option>
-                    {sphOptions.map((sph) => (
-                      <option key={sph} value={sph} style={{ color: '#111827' }}>
-                        {sph}
-                      </option>
-                    ))}
+                    {leftSphOptions.length > 0 ? (
+                      leftSphOptions.map((sph) => (
+                        <option key={sph} value={sph} style={{ color: '#111827' }}>
+                          {sph}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -1059,11 +1075,15 @@ export default function PrescriptionEntry({
                     style={{ color: '#111827' }}
                     className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] text-sm font-semibold bg-white hover:border-gray-300 transition-all"
                   >
-                    {cylOptions.map((cyl) => (
-                      <option key={cyl} value={cyl} style={{ color: '#111827' }}>
-                        {cyl}
-                      </option>
-                    ))}
+                    {leftCylOptions.length > 0 ? (
+                      leftCylOptions.map((cyl) => (
+                        <option key={cyl} value={cyl} style={{ color: '#111827' }}>
+                          {cyl}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                 </div>
                 <div className="relative">
@@ -1077,17 +1097,21 @@ export default function PrescriptionEntry({
                         rightEye: { ...prescription.rightEye, axis: newAxis },
                       });
                       if (newAxis !== "--") {
-                        setRightAxisAngle(parseInt(newAxis) || 0);
+                        setLeftAxisAngle(parseInt(newAxis) || 0);
                       }
                     }}
                     style={{ color: '#111827' }}
                     className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] text-sm font-semibold bg-white pr-10 hover:border-gray-300 transition-all"
                   >
-                    {axisOptions.map((axis) => (
-                      <option key={axis} value={axis} style={{ color: '#111827' }}>
-                        {axis}
-                      </option>
-                    ))}
+                    {leftAxisOptions.length > 0 ? (
+                      leftAxisOptions.map((axis) => (
+                        <option key={axis} value={axis} style={{ color: '#111827' }}>
+                          {axis}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                   <button
                     type="button"
@@ -1137,11 +1161,15 @@ export default function PrescriptionEntry({
                     }`}
                   >
                     <option value="--">--</option>
-                    {sphOptions.map((sph) => (
-                      <option key={sph} value={sph} style={{ color: '#111827' }}>
-                        {sph}
-                      </option>
-                    ))}
+                    {leftSphOptions.length > 0 ? (
+                      leftSphOptions.map((sph) => (
+                        <option key={sph} value={sph} style={{ color: '#111827' }}>
+                          {sph}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -1157,11 +1185,15 @@ export default function PrescriptionEntry({
                     style={{ color: '#111827' }}
                     className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] text-sm font-semibold bg-white hover:border-gray-300 transition-all"
                   >
-                    {cylOptions.map((cyl) => (
-                      <option key={cyl} value={cyl} style={{ color: '#111827' }}>
-                        {cyl}
-                      </option>
-                    ))}
+                    {leftCylOptions.length > 0 ? (
+                      leftCylOptions.map((cyl) => (
+                        <option key={cyl} value={cyl} style={{ color: '#111827' }}>
+                          {cyl}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                 </div>
                 <div className="relative">
@@ -1175,17 +1207,21 @@ export default function PrescriptionEntry({
                         leftEye: { ...prescription.leftEye, axis: newAxis },
                       });
                       if (newAxis !== "--") {
-                        setRightAxisAngle(parseInt(newAxis) || 0);
+                        setLeftAxisAngle(parseInt(newAxis) || 0);
                       }
                     }}
                     style={{ color: '#111827' }}
                     className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] text-sm font-semibold bg-white pr-10 hover:border-gray-300 transition-all"
                   >
-                    {axisOptions.map((axis) => (
-                      <option key={axis} value={axis} style={{ color: '#111827' }}>
-                        {axis}
-                      </option>
-                    ))}
+                    {leftAxisOptions.length > 0 ? (
+                      leftAxisOptions.map((axis) => (
+                        <option key={axis} value={axis} style={{ color: '#111827' }}>
+                          {axis}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No options configured</option>
+                    )}
                   </select>
                   <button
                     type="button"

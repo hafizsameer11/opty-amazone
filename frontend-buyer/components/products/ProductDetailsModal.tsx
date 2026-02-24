@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { productService, type Product } from '@/services/product-service';
 import { isEyeProductCategory } from '@/utils/product-utils';
+import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -72,9 +73,9 @@ export default function ProductDetailsModal({
   const showColorSwatches = isEyeProduct && hasVariants;
   
   // Get selected variant or default variant
-  const selectedVariant = selectedVariantId && hasVariants
+  const selectedVariant = selectedVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === selectedVariantId)
-    : (hasVariants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
+    : (hasVariants && product.variants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
   
   // Determine which images to show
   const images = selectedVariant && selectedVariant.images && selectedVariant.images.length > 0
@@ -117,41 +118,47 @@ export default function ProductDetailsModal({
       ) : (
         <div className="space-y-6">
           {/* Product Images and Basic Info - Side by Side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-[55%_45%] gap-6">
             {/* Image Gallery */}
-            <div className="space-y-4">
-              <div className="relative aspect-square bg-white rounded-xl border-2 border-gray-200 overflow-hidden shadow-sm">
-                <Image
-                  src={images[selectedImageIndex] || firstImage}
-                  alt={product.name}
-                  fill
-                  className="object-contain p-4"
-                  priority
-                />
-              </div>
-              {images.length > 1 && (
-                <div className="grid grid-cols-4 gap-2">
-                  {images.map((image, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => setSelectedImageIndex(index)}
-                      className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${
-                        selectedImageIndex === index
-                          ? 'border-[#0066CC] ring-2 ring-[#0066CC]/30 shadow-md'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <Image
-                        src={image}
-                        alt={`${product.name} view ${index + 1}`}
-                        fill
-                        className="object-cover"
-                      />
-                    </button>
-                  ))}
+            <div>
+              <div className="flex gap-4">
+                {/* Thumbnails - Left Side */}
+                {images.length > 1 && (
+                  <div className="flex flex-col gap-2 flex-shrink-0">
+                    {images.map((image, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => setSelectedImageIndex(index)}
+                        className={`relative w-24 h-24 rounded-lg border-2 overflow-hidden transition-all ${
+                          selectedImageIndex === index
+                            ? 'border-[#0066CC] ring-2 ring-[#0066CC]/30 shadow-md'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <Image
+                          src={getFullImageUrl(image)}
+                          alt={`${product.name} view ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          unoptimized={isLocalhostImage(getFullImageUrl(image))}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Main Image */}
+                <div className="relative flex-1 aspect-square bg-white rounded-xl border-2 border-gray-200 overflow-hidden shadow-sm">
+                  <Image
+                    src={getFullImageUrl(images[selectedImageIndex] || firstImage)}
+                    alt={product.name}
+                    fill
+                    className="object-contain p-4"
+                    priority
+                    unoptimized={isLocalhostImage(getFullImageUrl(images[selectedImageIndex] || firstImage))}
+                  />
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Product Basic Info */}
@@ -276,7 +283,7 @@ export default function ProductDetailsModal({
               {/* Product Options - Category Specific */}
               <div className="pt-4 border-t border-gray-200">
                 <ProductOptions
-                  product={product}
+                  product={product as any}
                   selectedColor={selectedVariant?.color_name}
                   onColorChange={(color) => {
                     const variant = product.variants?.find(v => v.color_name === color);

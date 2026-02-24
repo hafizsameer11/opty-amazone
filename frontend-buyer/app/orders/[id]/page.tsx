@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import BottomNav from '@/components/layout/BottomNav';
+// Layout components are now handled by app/template.tsx
 import { orderService, type Order, type StoreOrder } from '@/services/order-service';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
@@ -53,7 +51,7 @@ export default function OrderDetailsPage() {
 
   if (loading || loadingOrder) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading order details...</p>
@@ -115,9 +113,7 @@ export default function OrderDetailsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 via-white to-gray-50 pb-20 lg:pb-0">
-      <Header />
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 w-full">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 w-full">
         {/* Header Section */}
         <div className="mb-6 lg:mb-8">
           <button
@@ -528,9 +524,6 @@ export default function OrderDetailsPage() {
             </div>
           </div>
         </div>
-      </main>
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

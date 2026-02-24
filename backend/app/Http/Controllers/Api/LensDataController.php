@@ -145,12 +145,20 @@ class LensDataController extends Controller
                         ->orderBy('lens_thickness_options.sort_order')
                         ->get();
 
+                    // Get prescription options for this product
+                    $prescriptionOptionsController = new \App\Http\Controllers\Api\PrescriptionOptionsController();
+                    $prescriptionResponse = $prescriptionOptionsController->getForProduct($productId);
+                    $prescriptionOptions = $prescriptionResponse->getData()->success 
+                        ? $prescriptionResponse->getData()->data 
+                        : null;
+
                     return ResponseHelper::success([
                         'lens_types' => $lensTypes,
                         'treatments' => $treatments,
                         'coatings' => $coatings,
                         'thickness_materials' => $thicknessMaterials,
                         'thickness_options' => $thicknessOptions,
+                        'prescription_options' => $prescriptionOptions,
                         'source' => 'category',
                     ], 'Category lens configuration retrieved successfully');
                 }
@@ -164,12 +172,20 @@ class LensDataController extends Controller
         $thicknessMaterials = LensThicknessMaterial::active()->get();
         $thicknessOptions = LensThicknessOption::active()->get();
 
+        // Get prescription options for this product
+        $prescriptionOptionsController = new \App\Http\Controllers\Api\PrescriptionOptionsController();
+        $prescriptionResponse = $prescriptionOptionsController->getForProduct($productId);
+        $prescriptionOptions = $prescriptionResponse->getData()->success 
+            ? $prescriptionResponse->getData()->data 
+            : null;
+
         return ResponseHelper::success([
             'lens_types' => $lensTypes,
             'treatments' => $treatments,
             'coatings' => $coatings,
             'thickness_materials' => $thicknessMaterials,
             'thickness_options' => $thicknessOptions,
+            'prescription_options' => $prescriptionOptions,
             'source' => 'global',
         ], 'Global lens configuration retrieved successfully');
     }

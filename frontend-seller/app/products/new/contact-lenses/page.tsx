@@ -11,7 +11,8 @@ import { categoryFieldConfigService } from '@/services/category-field-config-ser
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
-import CategoryProductForm from '@/components/products/CategoryProductForm';
+import ProductImageUpload from '@/components/products/ProductImageUpload';
+import SimplifiedProductOptions from '@/components/products/SimplifiedProductOptions';
 
 export default function ContactLensesProductPage() {
   const router = useRouter();
@@ -108,20 +109,10 @@ export default function ContactLensesProductPage() {
     }
   };
 
-  const handleImageAdd = () => {
-    const url = prompt('Enter image URL:');
-    if (url) {
-      setFormData({
-        ...formData,
-        images: [...(formData.images || []), url],
-      });
-    }
-  };
-
-  const handleImageRemove = (index: number) => {
+  const handleImagesChange = (images: string[]) => {
     setFormData({
       ...formData,
-      images: formData.images?.filter((_, i) => i !== index) || [],
+      images,
     });
   };
 
@@ -285,37 +276,22 @@ export default function ContactLensesProductPage() {
 
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Images</h2>
-                    <div className="space-y-4">
-                      {formData.images && formData.images.length > 0 && (
-                        <div className="grid grid-cols-4 gap-4">
-                          {formData.images.map((img, index) => (
-                            <div key={index} className="relative">
-                              <img src={img} alt={`Product ${index + 1}`} className="w-full h-24 object-cover rounded" />
-                              <button
-                                type="button"
-                                onClick={() => handleImageRemove(index)}
-                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <Button type="button" variant="outline" onClick={handleImageAdd}>
-                        Add Image URL
-                      </Button>
-                    </div>
+                    <ProductImageUpload
+                      images={formData.images || []}
+                      onChange={handleImagesChange}
+                      maxImages={10}
+                    />
                   </div>
 
-                  <CategoryProductForm
-                    formData={formData}
-                    setFormData={setFormData}
-                    enabledFields={enabledFields}
-                    productType="contact_lens"
-                  />
+                  {/* Product Options */}
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Options</h2>
+                    <SimplifiedProductOptions
+                      formData={formData}
+                      setFormData={setFormData}
+                      productType="contact_lens"
+                    />
+                  </div>
 
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Status</h2>

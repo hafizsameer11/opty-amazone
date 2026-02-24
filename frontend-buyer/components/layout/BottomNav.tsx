@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
+  const { cartCount } = useCart();
 
   const navItems = [
     {
@@ -64,22 +66,32 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 lg:hidden">
-      <div className="flex items-center justify-around h-16 px-2">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-              isActive(item.href)
-                ? 'text-[#0066CC]'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            {item.icon}
-            <span className="text-xs mt-1 font-medium">{item.label}</span>
-          </Link>
-        ))}
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 lg:hidden safe-area-bottom">
+      <div className="flex items-center justify-around h-16 px-2 max-w-md mx-auto">
+        {navItems.map((item) => {
+          const isCart = item.href === '/cart';
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+                isActive(item.href)
+                  ? 'text-[#0066CC]'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="relative">
+                {item.icon}
+                {isCart && cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs mt-1 font-medium">{item.label}</span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );

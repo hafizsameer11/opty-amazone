@@ -14,10 +14,12 @@ class StoreCategoryFieldConfig extends Model
         'store_id',
         'category_id',
         'field_config',
+        'pd_options',
     ];
 
     protected $casts = [
         'field_config' => 'array',
+        'pd_options' => 'array',
     ];
 
     /**

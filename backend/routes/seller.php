@@ -16,6 +16,7 @@ use App\Http\Controllers\Seller\SellerBannerController;
 use App\Http\Controllers\Seller\SellerSubscriptionController;
 use App\Http\Controllers\Seller\CategoryLensConfigController;
 use App\Http\Controllers\Seller\CategoryFieldConfigController;
+use App\Http\Controllers\Seller\PrescriptionDropdownController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -87,10 +88,11 @@ Route::middleware('auth:sanctum')->prefix('products')->group(function () {
     Route::get('/', [SellerProductController::class, 'index']);
     Route::get('/categories', [SellerProductController::class, 'getCategories']);
     Route::post('/', [SellerProductController::class, 'store']);
+    Route::post('/upload-image', [SellerProductController::class, 'uploadImage']); // Must be before /{id} route
+    Route::post('/{id}/toggle-status', [SellerProductController::class, 'toggleStatus']);
     Route::get('/{id}', [SellerProductController::class, 'show']);
     Route::put('/{id}', [SellerProductController::class, 'update']);
     Route::delete('/{id}', [SellerProductController::class, 'destroy']);
-    Route::post('/{id}/toggle-status', [SellerProductController::class, 'toggleStatus']);
     
     // Variant routes
     Route::get('/{id}/variants', [SellerProductController::class, 'getVariants']);
@@ -190,4 +192,12 @@ Route::middleware('auth:sanctum')->prefix('category-field-configs')->group(funct
     Route::get('/{categoryId}', [CategoryFieldConfigController::class, 'show']);
     Route::put('/{categoryId}', [CategoryFieldConfigController::class, 'update']);
     Route::get('/{categoryId}/fields', [CategoryFieldConfigController::class, 'getFieldsForCategory']);
+});
+
+// Prescription Dropdown Configuration routes
+Route::middleware('auth:sanctum')->prefix('prescription-dropdowns')->group(function () {
+    Route::get('/', [PrescriptionDropdownController::class, 'index']);
+    Route::get('/{categoryId}', [PrescriptionDropdownController::class, 'show']);
+    Route::post('/{categoryId}', [PrescriptionDropdownController::class, 'store']);
+    Route::delete('/{id}', [PrescriptionDropdownController::class, 'destroy']);
 });

@@ -34,6 +34,13 @@ export interface LensTreatment {
   price: number;
 }
 
+export interface LensColor {
+  id: number;
+  name: string;
+  color_code: string; // hex color
+  description?: string;
+}
+
 export interface ContactLensPower {
   id: number;
   sphere: string;
@@ -97,6 +104,7 @@ export interface FrameProduct extends BaseProduct {
   lens_types: LensType[];
   lens_index_options: LensIndex[];
   treatment_options: LensTreatment[];
+  lens_colors?: LensColor[];
   uv_protection?: boolean; // For sunglasses
   polarization?: boolean; // For sunglasses
   uv_protection_level?: string; // e.g., "UV400"

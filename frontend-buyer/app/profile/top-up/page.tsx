@@ -1,14 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import { useAuth } from '@/contexts/AuthContext';
 import { walletService } from '@/services/wallet-service';
 import { useToast } from '@/components/ui/Toast';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import BottomNav from '@/components/layout/BottomNav';
+// Layout components are now handled by app/template.tsx
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Loader from '@/components/ui/Loader';
@@ -18,7 +16,7 @@ const stripePromise = loadStripe(
   'pk_test_51SFZTeFZetT6fppMXO3CMbwUEfzCdEKbn9wlyDFnqMUGZWVQzsenp6jzWM3NAedklviHaCIl1P30Nc1n47aa6rwM00RYn3J6d4'
 );
 
-export default function TopUpPage() {
+function TopUpForm() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -153,7 +151,7 @@ export default function TopUpPage() {
       }
 
       // Redirect to Stripe Checkout
-      const result = await stripe.redirectToCheckout({
+      const result = await (stripe as any).redirectToCheckout({
         sessionId: session.id,
       });
 
@@ -169,14 +167,7 @@ export default function TopUpPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-        <Header />
-        <Loader fullScreen text="Loading..." />
-        <Footer />
-        <BottomNav />
-      </div>
-    );
+    return <Loader fullScreen text="Loading..." />;
   }
 
   if (!isAuthenticated) {
@@ -184,9 +175,7 @@ export default function TopUpPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      <main className="flex-1 max-w-4xl mx-auto px-4 py-8 w-full">
+    <div className="max-w-4xl mx-auto px-4 py-8 w-full">
         <div className="mb-6">
           <button
             onClick={() => router.back()}
@@ -336,10 +325,15 @@ export default function TopUpPage() {
             </div>
           </div>
         </div>
-      </main>
-      <Footer />
-      <BottomNav />
     </div>
+  );
+}
+
+export default function TopUpPage() {
+  return (
+    <Suspense fallback={<Loader fullScreen text="Loading..." />}>
+      <TopUpForm />
+    </Suspense>
   );
 }
 

@@ -4,9 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import BottomNav from '@/components/layout/BottomNav';
+// Layout components are now handled by app/template.tsx
 import { StoreService, type PublicStore } from '@/services/store-service';
 import { productService, type Product } from '@/services/product-service';
 import { isEyeProductCategory } from '@/utils/product-utils';
@@ -24,7 +22,7 @@ function ProductCard({ product }: { product: Product }) {
   const showColorSwatches = isEyeProduct && hasVariants;
   
   // Get default variant or first variant
-  const defaultVariant = hasVariants 
+  const defaultVariant = hasVariants && product.variants
     ? product.variants.find(v => v.is_default) || product.variants[0]
     : null;
   
@@ -47,7 +45,7 @@ function ProductCard({ product }: { product: Product }) {
 
   const displayImage = getDisplayImage();
   const activeVariantId = selectedVariantId || hoveredVariantId;
-  const displayPrice = activeVariantId && hasVariants
+  const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
     : (defaultVariant?.price ?? product.price);
 
@@ -248,7 +246,7 @@ export default function StorePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading store...</p>
@@ -259,7 +257,7 @@ export default function StorePage() {
 
   if (!store) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <p className="text-gray-600 mb-4">Store not found</p>
           <Button onClick={() => router.push('/stores')} variant="primary">
@@ -271,9 +269,7 @@ export default function StorePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      <main className="flex-1">
+    <div className="w-full">
         {/* Store Header */}
         <div className="relative">
           {/* Banner */}
@@ -462,9 +458,6 @@ export default function StorePage() {
             </div>
           )}
         </div>
-      </main>
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

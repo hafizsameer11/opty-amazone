@@ -47,12 +47,14 @@ export default function RegisterPage() {
     } catch (err: any) {
       // Prioritize field-specific errors over general message
       const errors = err.response?.data?.errors;
+      const errorValues = errors ? Object.values(errors) : [];
+      const firstError = errorValues.length > 0 ? (errorValues[0] as string[])?.[0] : undefined;
       const errorMessage = 
         errors?.email?.[0] ||
         errors?.password?.[0] ||
         errors?.name?.[0] ||
         errors?.phone?.[0] ||
-        Object.values(errors || {})[0]?.[0] || // Get first error from any field
+        firstError || // Get first error from any field
         err.response?.data?.message ||
         'Registration failed. Please try again.';
       setError(errorMessage);

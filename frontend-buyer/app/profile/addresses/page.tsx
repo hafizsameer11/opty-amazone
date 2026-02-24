@@ -3,9 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import BottomNav from "@/components/layout/BottomNav";
+// Layout components are now handled by app/template.tsx
 import { userService, type Address } from "../../../services/user-service";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
@@ -64,7 +62,7 @@ export default function AddressesPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
@@ -78,11 +76,7 @@ export default function AddressesPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      
-      <main className="flex-1">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
           {/* Page Header */}
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -182,11 +176,6 @@ export default function AddressesPage() {
               ))}
             </div>
           )}
-        </div>
-      </main>
-
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

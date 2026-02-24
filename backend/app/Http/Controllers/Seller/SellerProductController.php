@@ -8,9 +8,11 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Category;
 use App\Models\StoreCategoryFieldConfig;
+use App\Http\Requests\Seller\Store\UploadImageRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class SellerProductController extends Controller
@@ -585,6 +587,36 @@ class SellerProductController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return ResponseHelper::error('Failed to set default variant: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Upload product image.
+     */
+    public function uploadImage(UploadImageRequest $request)
+    {
+        try {
+            $user = Auth::user();
+            $store = $user->store;
+
+            if (!$store) {
+                return ResponseHelper::error('Store not found', null, 404);
+            }
+
+            $file = $request->file('image');
+            
+            // Store image in public disk
+            $path = $file->store("products/{$store->id}", 'public');
+            
+            // Get the full URL
+            $url = Storage::url($path);
+
+            return ResponseHelper::success([
+                'url' => $url,
+                'path' => $path,
+            ], 'Image uploaded successfully');
+        } catch (\Exception $e) {
+            return ResponseHelper::error('Failed to upload image: ' . $e->getMessage());
         }
     }
 }

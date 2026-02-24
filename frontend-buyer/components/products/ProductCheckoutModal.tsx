@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
-import { Product } from '@/services/product-service';
+import { Product, type LensColor } from '@/services/product-service';
 import { lensDataService, type LensType, type LensTreatment, type LensCoating, type LensThicknessMaterial, type LensThicknessOption, type ProgressiveVariant } from '@/services/lens-data-service';
+import { getPrescriptionOptions, type PrescriptionOptions } from '@/services/prescription-options-service';
 import { cartService, type AddToCartData } from '@/services/cart-service';
 import { shouldShowLensOptions } from '@/utils/product-utils';
 import Button from '@/components/ui/Button';
@@ -18,6 +19,7 @@ interface ProductCheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialSelectedVariantId?: number | null;
+  initialSelectedLensColor?: LensColor | null;
   onAddToCart?: (data: AddToCartData) => Promise<void>;
 }
 
@@ -48,6 +50,7 @@ export default function ProductCheckoutModal({
   isOpen,
   onClose,
   initialSelectedVariantId,
+  initialSelectedLensColor,
   onAddToCart,
 }: ProductCheckoutModalProps) {
   // Step management
@@ -64,10 +67,12 @@ export default function ProductCheckoutModal({
   const [coatings, setCoatings] = useState<LensCoating[]>([]);
   const [thicknessMaterials, setThicknessMaterials] = useState<LensThicknessMaterial[]>([]);
   const [thicknessOptions, setThicknessOptions] = useState<LensThicknessOption[]>([]);
+  const [prescriptionOptions, setPrescriptionOptions] = useState<PrescriptionOptions | null>(null);
   const [loadingLensData, setLoadingLensData] = useState(true);
 
   // Selections
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(initialSelectedVariantId || null);
+  const [selectedLensColor, setSelectedLensColor] = useState<LensColor | null>(initialSelectedLensColor || null);
   const [selectedLensType, setSelectedLensType] = useState<LensType | null>(null);
   const [selectedProgressiveVariant, setSelectedProgressiveVariant] = useState<any | null>(null);
   const [prescription, setPrescription] = useState<PrescriptionData | null>(null);
@@ -135,6 +140,14 @@ export default function ProductCheckoutModal({
           materialsData = categoryConfig.thickness_materials;
           optionsData = categoryConfig.thickness_options;
         }
+        
+        // Get prescription options (included in categoryConfig or fetch separately)
+        if (categoryConfig.prescription_options) {
+          setPrescriptionOptions(categoryConfig.prescription_options);
+        } else {
+          const prescriptionOpts = await getPrescriptionOptions(product.id);
+          setPrescriptionOptions(prescriptionOpts);
+        }
       } catch (error) {
         console.warn('Failed to load category config, using global:', error);
         // Fallback to global lens options
@@ -150,6 +163,15 @@ export default function ProductCheckoutModal({
         coatingsData = coatings;
         materialsData = materials;
         optionsData = options;
+        
+        // Still try to fetch prescription options
+        try {
+          const prescriptionOpts = await getPrescriptionOptions(product.id);
+          setPrescriptionOptions(prescriptionOpts);
+        } catch (presError) {
+          console.warn('Failed to load prescription options:', presError);
+          setPrescriptionOptions(null);
+        }
       }
       
       setLensTypes(lensTypesData);
@@ -209,7 +231,7 @@ export default function ProductCheckoutModal({
       const progressiveType = prescriptionTypes.find(t => t.name.toLowerCase().includes('progressive'));
       if (progressiveType) {
         try {
-          const prescriptionLensTypesData = await lensDataService.getPrescriptionLensTypes({ isActive: true });
+          const prescriptionLensTypesData = await lensDataService.getLensTypes();
           const filteredPrescriptionTypes = (prescriptionLensTypesData || []).filter(lens => {
             const nameLower = lens.name.toLowerCase();
             return nameLower.includes('distance vision') ||
@@ -221,7 +243,7 @@ export default function ProductCheckoutModal({
             
             const progressiveTypeData = filteredPrescriptionTypes.find(t => t.name.toLowerCase().includes('progressive'));
             if (progressiveTypeData) {
-              const variants = await lensDataService.getPrescriptionLensVariantsByType(progressiveTypeData.id, { isActive: true });
+              const variants = await lensDataService.getProgressiveVariants(progressiveTypeData.id);
               setProgressiveVariants(variants || []);
             }
           }
@@ -468,6 +490,7 @@ export default function ProductCheckoutModal({
         product_id: product.id,
         variant_id: selectedVariantId || undefined,
         quantity,
+        lens_color_id: selectedLensColor?.id,
         frame_size_id: selectedFrameSize?.id,
         prescription_id: undefined, // Will be created on backend if needed
         lens_index: selectedLensIndex?.thickness_value || selectedLensType?.index,
@@ -643,19 +666,41 @@ export default function ProductCheckoutModal({
             {/* Center Column: Product Image */}
             <div className="flex-1 flex flex-col items-center justify-center flex-shrink-0">
               <div className="bg-gray-100 rounded-lg overflow-hidden relative cursor-crosshair group/preview" style={{ height: '500px', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '2rem' }}>
-                <Image 
-                  src={mainImage} 
-                  alt={product.name} 
-                  width={500}
-                  height={500}
+                <LensColorOverlay
+                  imageUrl={mainImage}
+                  alt={product.name}
+                  selectedLensColor={selectedLensColor}
+                  lensAreaCoordinates={(product as any).lens_area_coordinates}
                   className="transition-transform duration-500 group-hover/preview:scale-[1.02]"
-                  style={{ width: 'auto', height: '100%', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', objectPosition: 'center top' }}
                 />
               </div>
               <div className="mt-4">
                 <div className="text-lg font-semibold text-gray-900">{product.name}</div>
                 <div className="text-xl font-bold text-gray-900">${basePrice.toFixed(2)}</div>
               </div>
+              {/* Lens Color Selection */}
+              {(product as any).lens_colors && (product as any).lens_colors.length > 0 && (
+                <div className="mt-4 w-full px-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Lens Color:</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {(product as any).lens_colors.map((lensColor: LensColor) => (
+                      <button
+                        key={lensColor.id}
+                        type="button"
+                        onClick={() => setSelectedLensColor(lensColor)}
+                        className={`h-10 w-10 rounded-full border-2 transition-all ${
+                          selectedLensColor?.id === lensColor.id
+                            ? "border-[#0066CC] ring-2 ring-[#0066CC]/30 scale-110"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                        style={{ backgroundColor: lensColor.color_code }}
+                        aria-label={`Select lens color ${lensColor.name}`}
+                        title={lensColor.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right Column: Customization Steps */}
@@ -711,6 +756,8 @@ export default function ProductCheckoutModal({
                     productImage={mainImage}
                     productName={product.name}
                     productPrice={basePrice}
+                    isProgressive={selectedLensType.name.toLowerCase().includes('progressive')}
+                    prescriptionOptions={prescriptionOptions || undefined}
                   />
                 )}
 
@@ -721,13 +768,25 @@ export default function ProductCheckoutModal({
                       rightEye: { sph: '--', cyl: '--', axis: '--' },
                       leftEye: { sph: '--', cyl: '--', axis: '--' },
                     }}
-                    lensMaterials={thicknessMaterials.map(m => ({
-                      id: m.id,
-                      name: m.name,
-                      price: Number(m.price || 0),
-                    }))}
-                    selectedMaterial={selectedThicknessMaterial}
-                    onMaterialSelect={setSelectedThicknessMaterial}
+                    lensMaterials={thicknessMaterials && thicknessMaterials.length > 0 
+                      ? thicknessMaterials.map(m => ({
+                          id: m.id,
+                          name: m.name,
+                          price: Number(m.price || 0),
+                        }))
+                      : [
+                          { id: 1, name: "Standard", price: 0 },
+                          { id: 2, name: "Premium", price: 25.0 },
+                        ]}
+                    selectedMaterial={selectedThicknessMaterial ? {
+                      id: selectedThicknessMaterial.id,
+                      name: selectedThicknessMaterial.name,
+                      price: Number(selectedThicknessMaterial.price || 0),
+                    } : null}
+                    onMaterialSelect={(material) => {
+                      const thicknessMat = thicknessMaterials?.find(m => m.id === material.id);
+                      if (thicknessMat) setSelectedThicknessMaterial(thicknessMat);
+                    }}
                     lensIndexOptions={lensIndexOptions}
                     selectedLensIndex={lensIndexOptions.find(opt => opt.id === selectedLensIndex?.id) || null}
                     onLensIndexSelect={(opt) => {

@@ -4,15 +4,13 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import BottomNav from "@/components/layout/BottomNav";
+// Layout components are now handled by app/template.tsx
 import Button from "@/components/ui/Button";
 import LensTypeModal from "@/components/products/LensTypeModal";
 import ProductCheckoutModal from "@/components/products/ProductCheckoutModal";
 import ContactLensConfiguration from "@/components/products/ContactLensConfiguration";
 import EyeHygieneDetails from "@/components/products/EyeHygieneDetails";
-import { productService, type Product } from "@/services/product-service";
+import { productService, type Product, type LensColor } from "@/services/product-service";
 import { cartService } from "@/services/cart-service";
 import { lensDataService } from "@/services/lens-data-service";
 import { shouldShowLensOptions } from "@/utils/product-utils";
@@ -20,6 +18,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/components/ui/Toast";
 import Loader from "@/components/ui/Loader";
+import LensColorOverlay from "@/components/products/LensColorOverlay";
+import { getFullImageUrl, isLocalhostImage } from "@/lib/image-utils";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -32,6 +32,7 @@ export default function ProductDetailPage() {
   const [lensData, setLensData] = useState<any>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  const [selectedLensColor, setSelectedLensColor] = useState<LensColor | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [showLensModal, setShowLensModal] = useState(false);
@@ -86,19 +87,12 @@ export default function ProductDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-        <Header />
-        <Loader fullScreen text="Loading product..." />
-        <Footer />
-        <BottomNav />
-      </div>
-    );
+    return <Loader fullScreen text="Loading product..." />;
   }
 
   if (!product) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <p className="text-gray-600">Product not found</p>
       </div>
     );
@@ -110,9 +104,9 @@ export default function ProductDetailPage() {
   const showColorSwatches = isEyeProduct && hasVariants;
   
   // Get selected variant or default variant
-  const selectedVariant = selectedVariantId && hasVariants
+  const selectedVariant = selectedVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === selectedVariantId)
-    : (hasVariants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
+    : (hasVariants && product.variants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
   
   // Determine which images to show
   const images = selectedVariant && selectedVariant.images && selectedVariant.images.length > 0
@@ -160,12 +154,9 @@ export default function ProductDetailPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      
-      <main className="flex-1">
-        <div className="w-full max-w-7xl mx-auto px-1 sm:px-2 lg:px-0 py-6 md:py-8">
-          {/* Breadcrumb */}
+    <>
+      <div className="w-full max-w-7xl mx-auto px-1 sm:px-2 lg:px-0 py-6 md:py-8">
+        {/* Breadcrumb */}
           <nav className="mb-4 text-sm text-gray-600">
             <Link href="/" className="hover:text-[#0066CC]">
               Home
@@ -181,43 +172,48 @@ export default function ProductDetailPage() {
 
           <div className="flex flex-col lg:flex-row gap-6 md:gap-8 mb-8">
             {/* Image Gallery - Left Side */}
-            <div className="w-full lg:w-1/2 lg:sticky lg:top-4 lg:self-start space-y-4">
-              <div className="relative aspect-square bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                <Image
-                  src={images[selectedImageIndex] || firstImage}
-                  alt={product.name}
-                  fill
-                  className="object-contain p-4"
-                  priority
-                />
-              </div>
-              {images.length > 1 && (
-                <div className="grid grid-cols-4 gap-2">
-                  {images.map((image, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => setSelectedImageIndex(index)}
-                      className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${
-                        selectedImageIndex === index
-                          ? "border-[#0066CC] ring-2 ring-[#0066CC]/30 shadow-md"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <Image
-                        src={image}
-                        alt={`${product.name} view ${index + 1}`}
-                        fill
-                        className="object-cover"
-                      />
-                    </button>
-                  ))}
+            <div className="w-full lg:w-[55%] lg:sticky lg:top-4 lg:self-start">
+              <div className="flex gap-4">
+                {/* Thumbnails - Left Side */}
+                {images.length > 1 && (
+                  <div className="flex flex-col gap-2 flex-shrink-0">
+                    {images.map((image, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => setSelectedImageIndex(index)}
+                        className={`relative w-24 h-24 rounded-lg border-2 overflow-hidden transition-all ${
+                          selectedImageIndex === index
+                            ? "border-[#0066CC] ring-2 ring-[#0066CC]/30 shadow-md"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <Image
+                          src={getFullImageUrl(image)}
+                          alt={`${product.name} view ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          unoptimized={isLocalhostImage(getFullImageUrl(image))}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Main Image */}
+                <div className="relative flex-1 aspect-square bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                  <LensColorOverlay
+                    imageUrl={images[selectedImageIndex] || firstImage}
+                    alt={product.name}
+                    selectedLensColor={selectedLensColor}
+                    lensAreaCoordinates={(product as any).lens_area_coordinates}
+                    className="object-contain p-4"
+                  />
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Product Info - Right Side */}
-            <div className="w-full lg:w-1/2 space-y-6">
+            <div className="w-full lg:w-[45%] space-y-6">
               {/* Brand & Title */}
               <div>
                 {product.store && (
@@ -302,6 +298,57 @@ export default function ProductDetailPage() {
                           <span className="text-xs text-red-500">(Out of Stock)</span>
                         )}
                         {selectedVariantId === variant.id && (
+                          <svg className="w-4 h-4 text-[#0066CC]" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Lens Color Selection */}
+              {isEyeProduct && (product as any).lens_colors && (product as any).lens_colors.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-gray-700">Lens Color:</label>
+                    {selectedLensColor && (
+                      <span className="text-xs text-[#0066CC] font-medium">
+                        Selected: {selectedLensColor.name}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(product as any).lens_colors.map((lensColor: LensColor) => (
+                      <button
+                        key={lensColor.id}
+                        type="button"
+                        onClick={() => setSelectedLensColor(lensColor)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                          selectedLensColor?.id === lensColor.id
+                            ? 'border-[#0066CC] ring-2 ring-[#0066CC]/30 bg-[#0066CC]/5 shadow-sm'
+                            : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div
+                          className={`w-6 h-6 rounded-full border-2 ${
+                            selectedLensColor?.id === lensColor.id
+                              ? 'border-[#0066CC] ring-1 ring-[#0066CC]/20'
+                              : 'border-gray-300'
+                          }`}
+                          style={{
+                            backgroundColor: lensColor.color_code,
+                          }}
+                        />
+                        <span className={`text-sm font-medium ${
+                          selectedLensColor?.id === lensColor.id
+                            ? 'text-[#0066CC]'
+                            : 'text-gray-700'
+                        }`}>
+                          {lensColor.name}
+                        </span>
+                        {selectedLensColor?.id === lensColor.id && (
                           <svg className="w-4 h-4 text-[#0066CC]" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
@@ -765,40 +812,36 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
-      </main>
-
-      <Footer />
-      <BottomNav />
-
       {/* Product Checkout Modal */}
       {showCheckoutModal && product && (
         <ProductCheckoutModal
-          product={product}
-          isOpen={showCheckoutModal}
-          onClose={() => setShowCheckoutModal(false)}
-          initialSelectedVariantId={selectedVariantId}
-          onAddToCart={async (data) => {
-            // Check if user is authenticated
-            if (!authLoading && !isAuthenticated) {
+        product={product}
+        isOpen={showCheckoutModal}
+        onClose={() => setShowCheckoutModal(false)}
+        initialSelectedVariantId={selectedVariantId}
+        initialSelectedLensColor={selectedLensColor}
+        onAddToCart={async (data) => {
+          // Check if user is authenticated
+          if (!authLoading && !isAuthenticated) {
+            router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+            return;
+          }
+          try {
+            await cartService.addItem(data);
+            await refreshCart();
+            showToast('success', 'Product added to cart successfully!');
+            setShowCheckoutModal(false);
+          } catch (error: any) {
+            if (error.response?.status === 401) {
               router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
-              return;
+            } else {
+              showToast('error', error.response?.data?.message || 'Failed to add to cart');
+              throw error;
             }
-            try {
-              await cartService.addItem(data);
-              await refreshCart();
-              showToast('success', 'Product added to cart successfully!');
-              setShowCheckoutModal(false);
-            } catch (error: any) {
-              if (error.response?.status === 401) {
-                router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
-              } else {
-                showToast('error', error.response?.data?.message || 'Failed to add to cart');
-                throw error;
-              }
-            }
-          }}
+          }
+        }}
         />
       )}
-    </div>
+    </>
   );
 }

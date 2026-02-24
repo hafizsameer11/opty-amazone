@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import BottomNav from '@/components/layout/BottomNav';
+// Layout components are now handled by app/template.tsx
 import { StoreService, type PublicStore } from '@/services/store-service';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
@@ -127,9 +125,7 @@ export default function StoresPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 w-full">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 w-full">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">All Stores</h1>
@@ -216,9 +212,6 @@ export default function StoresPage() {
             </Button>
           </div>
         )}
-      </main>
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

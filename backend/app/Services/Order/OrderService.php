@@ -149,6 +149,31 @@ class OrderService
                         'lens_configuration' => $cartItem->lens_configuration,
                         'prescription_data' => $cartItem->prescription_data,
                         'product_images' => $images,
+                        // Copy specific fields from cart item
+                        'frame_size_id' => $cartItem->frame_size_id,
+                        'prescription_id' => $cartItem->prescription_id,
+                        'lens_index' => $cartItem->lens_index,
+                        'lens_type' => $cartItem->lens_type,
+                        'lens_thickness_material_id' => $cartItem->lens_thickness_material_id,
+                        'lens_thickness_option_id' => $cartItem->lens_thickness_option_id,
+                        'treatment_ids' => $cartItem->treatment_ids,
+                        'lens_coatings' => $cartItem->lens_coatings,
+                        'photochromic_color_id' => $cartItem->photochromic_color_id,
+                        'prescription_sun_color_id' => $cartItem->prescription_sun_color_id,
+                        'progressive_variant_id' => $cartItem->progressive_variant_id,
+                        // Contact lens fields
+                        'contact_lens_left_base_curve' => $cartItem->contact_lens_left_base_curve,
+                        'contact_lens_left_diameter' => $cartItem->contact_lens_left_diameter,
+                        'contact_lens_left_power' => $cartItem->contact_lens_left_power,
+                        'contact_lens_left_qty' => $cartItem->contact_lens_left_qty,
+                        'contact_lens_left_cylinder' => $cartItem->contact_lens_left_cylinder,
+                        'contact_lens_left_axis' => $cartItem->contact_lens_left_axis,
+                        'contact_lens_right_base_curve' => $cartItem->contact_lens_right_base_curve,
+                        'contact_lens_right_diameter' => $cartItem->contact_lens_right_diameter,
+                        'contact_lens_right_power' => $cartItem->contact_lens_right_power,
+                        'contact_lens_right_qty' => $cartItem->contact_lens_right_qty,
+                        'contact_lens_right_cylinder' => $cartItem->contact_lens_right_cylinder,
+                        'contact_lens_right_axis' => $cartItem->contact_lens_right_axis,
                     ]);
                 }
 

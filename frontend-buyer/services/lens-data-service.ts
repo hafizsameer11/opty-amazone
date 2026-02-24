@@ -1,4 +1,5 @@
 import apiClient from '@/lib/api-client';
+import { getPrescriptionOptions, type PrescriptionOptions } from './prescription-options-service';
 
 export interface LensType {
   id: number;
@@ -106,6 +107,7 @@ export const lensDataService = {
   /**
    * Get lens configuration for a product based on its category.
    * Returns category-specific lens options if configured, otherwise returns global options.
+   * Also includes prescription options.
    */
   async getLensConfigForProduct(productId: number): Promise<{
     lens_types: LensType[];
@@ -113,11 +115,20 @@ export const lensDataService = {
     coatings: LensCoating[];
     thickness_materials: LensThicknessMaterial[];
     thickness_options: LensThicknessOption[];
+    prescription_options?: PrescriptionOptions;
     source: 'category' | 'global';
   }> {
     try {
       const res = await apiClient.get(`/lens/product/${productId}/config`);
-      return res.data.data;
+      const config = res.data.data;
+      
+      // Fetch prescription options separately
+      const prescriptionOptions = await getPrescriptionOptions(productId);
+      
+      return {
+        ...config,
+        prescription_options: prescriptionOptions,
+      };
     } catch (error) {
       console.error('Failed to fetch product lens config, falling back to global:', error);
       // Fallback to global options
@@ -128,12 +139,17 @@ export const lensDataService = {
         this.getThicknessMaterials(),
         this.getThicknessOptions(),
       ]);
+      
+      // Still fetch prescription options even on fallback
+      const prescriptionOptions = await getPrescriptionOptions(productId);
+      
       return {
         lens_types: lensTypes,
         treatments,
         coatings,
         thickness_materials: materials,
         thickness_options: options,
+        prescription_options: prescriptionOptions,
         source: 'global',
       };
     }

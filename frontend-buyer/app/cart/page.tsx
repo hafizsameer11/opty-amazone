@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/Toast';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import BottomNav from '@/components/layout/BottomNav';
+// Layout components are now handled by app/template.tsx
 import { cartService, type Cart, type CartItem } from '@/services/cart-service';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
@@ -89,14 +87,7 @@ export default function CartPage() {
   };
 
   if (loading || loadingCart) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-        <Header />
-        <Loader fullScreen text="Loading your cart..." />
-        <Footer />
-        <BottomNav />
-      </div>
-    );
+    return <Loader fullScreen text="Loading your cart..." />;
   }
 
   if (!isAuthenticated || !cart) {
@@ -104,9 +95,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      <main className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
+    <div className="max-w-7xl mx-auto px-4 py-8 w-full">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Shopping Cart</h1>
 
         {cart.items.length === 0 ? (
@@ -279,9 +268,6 @@ export default function CartPage() {
             productId={selectedProductId}
           />
         )}
-      </main>
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

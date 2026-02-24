@@ -3,9 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import BottomNav from "@/components/layout/BottomNav";
+// Layout components are now handled by app/template.tsx
 import { useAuth } from "@/contexts/AuthContext";
 import EditProfileForm from "../../../components/profile/EditProfileForm";
 
@@ -22,7 +20,7 @@ export default function EditProfilePage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
@@ -36,11 +34,7 @@ export default function EditProfilePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      
-      <main className="flex-1">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
           {/* Back Button */}
           <Link
             href="/profile"
@@ -74,11 +68,6 @@ export default function EditProfilePage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8">
             <EditProfileForm />
           </div>
-        </div>
-      </main>
-
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

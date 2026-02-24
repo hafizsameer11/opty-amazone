@@ -23,6 +23,31 @@ class OrderItem extends Model
         'lens_configuration',
         'prescription_data',
         'product_images',
+        // New specific fields
+        'frame_size_id',
+        'prescription_id',
+        'lens_index',
+        'lens_type',
+        'lens_thickness_material_id',
+        'lens_thickness_option_id',
+        'treatment_ids',
+        'lens_coatings',
+        'photochromic_color_id',
+        'prescription_sun_color_id',
+        'progressive_variant_id',
+        // Contact lens fields
+        'contact_lens_left_base_curve',
+        'contact_lens_left_diameter',
+        'contact_lens_left_power',
+        'contact_lens_left_qty',
+        'contact_lens_left_cylinder',
+        'contact_lens_left_axis',
+        'contact_lens_right_base_curve',
+        'contact_lens_right_diameter',
+        'contact_lens_right_power',
+        'contact_lens_right_qty',
+        'contact_lens_right_cylinder',
+        'contact_lens_right_axis',
     ];
 
     protected $casts = [
@@ -32,6 +57,16 @@ class OrderItem extends Model
         'lens_configuration' => 'array',
         'prescription_data' => 'array',
         'product_images' => 'array',
+        'treatment_ids' => 'array',
+        'lens_index' => 'decimal:2',
+        'contact_lens_left_base_curve' => 'decimal:2',
+        'contact_lens_left_diameter' => 'decimal:2',
+        'contact_lens_left_power' => 'decimal:2',
+        'contact_lens_left_cylinder' => 'decimal:2',
+        'contact_lens_right_base_curve' => 'decimal:2',
+        'contact_lens_right_diameter' => 'decimal:2',
+        'contact_lens_right_power' => 'decimal:2',
+        'contact_lens_right_cylinder' => 'decimal:2',
     ];
 
     /**

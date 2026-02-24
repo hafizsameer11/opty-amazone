@@ -3,9 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import BottomNav from "@/components/layout/BottomNav";
+// Layout components are now handled by app/template.tsx
 import { productService, type Product } from "@/services/product-service";
 import { StoreService, type PublicStore } from "@/services/store-service";
 import { isEyeProductCategory } from "@/utils/product-utils";
@@ -21,7 +19,7 @@ function ProductCard({ product }: { product: Product }) {
   const showColorSwatches = isEyeProduct && hasVariants;
   
   // Get default variant or first variant
-  const defaultVariant = hasVariants 
+  const defaultVariant = hasVariants && product.variants
     ? product.variants.find(v => v.is_default) || product.variants[0]
     : null;
   
@@ -44,7 +42,7 @@ function ProductCard({ product }: { product: Product }) {
 
   const displayImage = getDisplayImage();
   const activeVariantId = selectedVariantId || hoveredVariantId;
-  const displayPrice = activeVariantId && hasVariants
+  const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
     : (defaultVariant?.price ?? product.price);
 
@@ -185,11 +183,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-
-      <main className="flex-1">
-        <div className="w-full max-w-7xl mx-auto space-y-6 md:space-y-8">
+    <div className="w-full max-w-7xl mx-auto space-y-6 md:space-y-8 px-1 sm:px-2 lg:px-0">
 
         {/* Top selling products */}
         <section className="w-full px-1 sm:px-2 lg:px-0 pb-4 md:pb-6">
@@ -405,11 +399,6 @@ export default function HomePage() {
             )}
           </div>
         </section>
-        </div>
-      </main>
-
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

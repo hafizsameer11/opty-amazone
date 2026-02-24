@@ -5,9 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { walletService } from '@/services/wallet-service';
 import { useToast } from '@/components/ui/Toast';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import BottomNav from '@/components/layout/BottomNav';
+// Layout components are now handled by app/template.tsx
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Loader from '@/components/ui/Loader';
@@ -94,14 +92,7 @@ export default function WithdrawPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-        <Header />
-        <Loader fullScreen text="Loading..." />
-        <Footer />
-        <BottomNav />
-      </div>
-    );
+    return <Loader fullScreen text="Loading..." />;
   }
 
   if (!isAuthenticated) {
@@ -112,9 +103,7 @@ export default function WithdrawPage() {
   const canWithdraw = maxWithdraw >= 10;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      <main className="flex-1 max-w-4xl mx-auto px-4 py-8 w-full">
+    <div className="max-w-4xl mx-auto px-4 py-8 w-full">
         <div className="mb-6">
           <button
             onClick={() => router.back()}
@@ -304,9 +293,6 @@ export default function WithdrawPage() {
             </div>
           </div>
         </div>
-      </main>
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

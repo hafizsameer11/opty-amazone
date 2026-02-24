@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -17,6 +17,7 @@ export default function Header() {
   const [hoveredCategory, setHoveredCategory] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [clickedCategory, setClickedCategory] = useState<number | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -56,16 +57,40 @@ export default function Header() {
     }
   }, [clickedCategory, hoveredCategory]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const loadCategories = async () => {
     try {
+      // Get parent categories with their children (parentOnly = true gets only parents but includes children)
       const data = await productService.getCategories(true);
+      console.log('🔍 Raw categories data from API:', data);
       setCategories(data || []);
       // Debug: Log categories to verify children are loaded
       if (data && data.length > 0) {
-        console.log('Categories loaded:', data.map(c => ({ name: c.name, children: c.children?.length || 0 })));
+        const categoriesWithChildren = data.filter((c: any) => c.children && c.children.length > 0);
+        console.log(`📊 Total categories: ${data.length}, Categories with children: ${categoriesWithChildren.length}`);
+        if (categoriesWithChildren.length > 0) {
+          console.log('✅ Categories with children:', categoriesWithChildren.map((c: any) => ({ 
+            id: c.id,
+            name: c.name, 
+            childrenCount: c.children?.length || 0,
+            firstChild: c.children?.[0]?.name || 'none'
+          })));
+        } else {
+          console.warn('⚠️ No categories have children! Check backend API response.');
+        }
+      } else {
+        console.warn('⚠️ No categories loaded');
       }
     } catch (error) {
-      console.error('Failed to load categories:', error);
+      console.error('❌ Failed to load categories:', error);
     }
   };
 
@@ -97,13 +122,13 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-[#131921] text-white sticky top-0 z-50 shadow-lg" style={{ overflow: 'visible' }}>
-      {/* Top Navigation Bar */}
-      <div className="bg-[#232f3e] border-b border-white/10 relative" style={{ overflow: 'visible' }}>
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 relative" style={{ overflow: 'visible' }}>
-          <div className="flex items-center justify-between py-2.5 relative" style={{ overflow: 'visible' }}>
+    <header className="bg-[#131921] text-white sticky top-0 z-50 shadow-lg" style={{ overflow: 'visible', position: 'relative' }}>
+      {/* Top Navigation Bar - Hidden on mobile */}
+      <div className="hidden md:block bg-[#232f3e] border-b border-white/10 relative" style={{ overflow: 'visible', position: 'relative', zIndex: 50 }}>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 relative" style={{ overflow: 'visible', position: 'relative', zIndex: 50 }}>
+          <div className="flex items-center justify-between py-2.5 relative" style={{ overflow: 'visible', position: 'relative', zIndex: 50 }}>
             {/* Category Navigation */}
-            <nav className="flex items-center gap-4 sm:gap-6 overflow-x-auto scrollbar-hide relative" style={{ overflowX: 'auto', overflowY: 'visible', position: 'relative' }}>
+            <nav className="flex items-center gap-4 sm:gap-6 overflow-x-auto scrollbar-hide" style={{ position: 'relative', zIndex: 50, overflowY: 'visible' }}>
               <Link 
                 href="/" 
                 className="whitespace-nowrap hover:text-[#febd69] transition-colors text-sm font-medium flex items-center gap-1 group"
@@ -112,16 +137,35 @@ export default function Header() {
               </Link>
               {categories.map((category) => {
                 const isOpen = hoveredCategory === category.id || clickedCategory === category.id;
+                const hasChildren = category.children && category.children.length > 0;
+                
+                // Debug log
+                if (hasChildren) {
+                  console.log(`Category "${category.name}" - hasChildren: ${hasChildren}, isOpen: ${isOpen}, hoveredCategory: ${hoveredCategory}, clickedCategory: ${clickedCategory}`);
+                }
+                
                 return (
                   <div
                     key={category.id}
-                    className="relative group category-dropdown-container"
-                    onMouseEnter={() => setHoveredCategory(category.id)}
-                    onMouseLeave={() => {
-                      // Only clear hover on mouse leave, keep clicked for mobile
-                      if (!clickedCategory || clickedCategory !== category.id) {
-                        setHoveredCategory(null);
+                    className="relative category-dropdown-container"
+                    onMouseEnter={(e) => {
+                      // Clear any pending timeout
+                      if (hoverTimeoutRef.current) {
+                        clearTimeout(hoverTimeoutRef.current);
+                        hoverTimeoutRef.current = null;
                       }
+                      if (hasChildren) {
+                        setHoveredCategory(category.id);
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      // Add delay before closing to allow moving to dropdown
+                      hoverTimeoutRef.current = setTimeout(() => {
+                        // Only clear hover on mouse leave, keep clicked for mobile
+                        if (!clickedCategory || clickedCategory !== category.id) {
+                          setHoveredCategory(null);
+                        }
+                      }, 200); // 200ms delay
                     }}
                     style={{ position: 'relative', zIndex: isOpen ? 1000 : 'auto' }}
                   >
@@ -129,15 +173,28 @@ export default function Header() {
                       <Link
                         href={`/categories/${category.slug}`}
                         className="whitespace-nowrap hover:text-[#febd69] transition-colors text-sm font-medium flex items-center gap-1.5 relative z-10"
+                        onMouseEnter={(e) => {
+                          e.stopPropagation();
+                          // Clear any pending timeout
+                          if (hoverTimeoutRef.current) {
+                            clearTimeout(hoverTimeoutRef.current);
+                            hoverTimeoutRef.current = null;
+                          }
+                          if (hasChildren) {
+                            setHoveredCategory(category.id);
+                          }
+                        }}
                       >
                         <span className="lowercase first-letter:uppercase">{category.name}</span>
+                        {hasChildren && <span className="text-xs text-gray-400 ml-1">({category.children?.length || 0})</span>}
                       </Link>
-                      {(category.children && category.children.length > 0) && (
+                      {hasChildren && (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            console.log(`Clicked dropdown button for: ${category.name}`);
                             const newClickedCategory = clickedCategory === category.id ? null : category.id;
                             setClickedCategory(newClickedCategory);
                             // Also set hovered to keep it open
@@ -162,34 +219,75 @@ export default function Header() {
                     </div>
                     
                     {/* Dropdown Menu */}
-                    {(category.children && category.children.length > 0) && isOpen && (
+                    {hasChildren && isOpen && (
                       <div 
                         className="absolute top-full left-0 pt-2 min-w-[220px]"
                         style={{ 
-                          zIndex: 9999, 
+                          zIndex: 10000, 
                           position: 'absolute',
-                          marginTop: '0.25rem'
+                          marginTop: '0.5rem',
+                          pointerEvents: 'auto',
+                          top: '100%',
+                          left: 0,
+                          display: 'block',
+                          visibility: 'visible',
+                          opacity: 1,
+                          transform: 'translateZ(0)',
+                          willChange: 'transform',
+                          backgroundColor: 'white',
+                          boxShadow: '0 10px 25px rgba(0,0,0,0.3)'
+                        }}
+                        ref={(el) => {
+                          if (el) {
+                            const rect = el.getBoundingClientRect();
+                            console.log(`📍 Dropdown for ${category.name} - Position:`, {
+                              top: rect.top,
+                              left: rect.left,
+                              width: rect.width,
+                              height: rect.height,
+                              visible: rect.width > 0 && rect.height > 0
+                            });
+                            const styles = window.getComputedStyle(el);
+                            console.log(`   Styles:`, {
+                              display: styles.display,
+                              visibility: styles.visibility,
+                              opacity: styles.opacity,
+                              zIndex: styles.zIndex,
+                              position: styles.position,
+                              overflow: styles.overflow
+                            });
+                          }
                         }}
                         onMouseEnter={() => {
+                          // Clear any pending timeout
+                          if (hoverTimeoutRef.current) {
+                            clearTimeout(hoverTimeoutRef.current);
+                            hoverTimeoutRef.current = null;
+                          }
                           setHoveredCategory(category.id);
                         }}
                         onMouseLeave={() => {
-                          // Only clear on desktop, keep on mobile if clicked
-                          if (window.innerWidth >= 768) {
-                            setHoveredCategory(null);
-                            setClickedCategory(null);
-                          }
+                          // Add delay before closing
+                          hoverTimeoutRef.current = setTimeout(() => {
+                            // Only clear on desktop, keep on mobile if clicked
+                            if (window.innerWidth >= 768) {
+                              setHoveredCategory(null);
+                              setClickedCategory(null);
+                            }
+                          }, 200); // 200ms delay
                         }}
                       >
                         <div 
-                          className="bg-white rounded-lg shadow-2xl border border-gray-200 py-2 overflow-hidden" 
+                          className="bg-white rounded-lg shadow-2xl border border-gray-200 py-2" 
                           style={{ 
                             position: 'relative', 
-                            zIndex: 9999,
-                            display: 'block'
+                            zIndex: 10000,
+                            display: 'block',
+                            visibility: 'visible',
+                            opacity: 1
                           }}
                         >
-                          {category.children.map((subCategory) => (
+                          {category.children?.map((subCategory) => (
                             <div key={subCategory.id} className="relative group/sub">
                               <Link
                                 href={`/categories/${subCategory.slug}`}
@@ -208,7 +306,15 @@ export default function Header() {
                               {(subCategory.children && subCategory.children.length > 0) && (
                                 <div 
                                   className="absolute left-full top-0 ml-1 bg-white rounded-lg shadow-2xl border border-gray-200 min-w-[200px] py-2 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200"
-                                  style={{ zIndex: 10000, position: 'absolute' }}
+                                  style={{ zIndex: 10001, position: 'absolute' }}
+                                  onMouseEnter={(e) => {
+                                    e.stopPropagation();
+                                    // Keep parent dropdown open
+                                    setHoveredCategory(category.id);
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.stopPropagation();
+                                  }}
                                 >
                                   {subCategory.children.map((subSubCategory) => (
                                     <Link
@@ -292,9 +398,9 @@ export default function Header() {
             </Link>
 
             {/* Search Bar */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-3xl">
+            <form onSubmit={handleSearch} className="flex-1 max-w-3xl hidden md:block">
               <div className="flex rounded-lg overflow-hidden shadow-md bg-white hover:shadow-lg transition-shadow">
-                <div className="hidden md:block relative border-r border-gray-300">
+                <div className="relative border-r border-gray-300">
                   <select
                     value={selectedCategoryId || ''}
                     onChange={(e) => {
@@ -305,8 +411,8 @@ export default function Header() {
                   >
                     <option value="">All Categories</option>
                     {(() => {
-                      const renderOptions = (cat: Category, prefix = ''): JSX.Element[] => {
-                        const options: JSX.Element[] = [
+                      const renderOptions = (cat: Category, prefix = ''): React.ReactElement[] => {
+                        const options: React.ReactElement[] = [
                           <option key={cat.id} value={cat.id}>
                             {prefix}{cat.name}
                           </option>
@@ -318,7 +424,7 @@ export default function Header() {
                         }
                         return options;
                       };
-                      const allOptions: JSX.Element[] = [];
+                      const allOptions: React.ReactElement[] = [];
                       categories.forEach((category) => {
                         allOptions.push(...renderOptions(category));
                       });
@@ -350,31 +456,42 @@ export default function Header() {
               </div>
             </form>
 
+            {/* Mobile Search Button */}
+            <Link
+              href="/products"
+              className="md:hidden flex-1 flex items-center justify-center bg-white rounded-lg px-4 py-2.5 text-gray-500 text-sm"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <span>Search</span>
+            </Link>
+
             {/* Cart & Account Section */}
-            <div className="flex items-center gap-4 sm:gap-6 flex-shrink-0">
-              {/* Cart */}
+            <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 flex-shrink-0">
+              {/* Cart - Mobile optimized */}
               <Link
                 href="/cart"
-                className="relative flex flex-col items-center hover:text-[#febd69] transition-colors group"
+                className="relative hover:text-[#febd69] transition-colors group md:flex md:flex-col md:items-center"
               >
                 <div className="relative">
-                  <svg className="w-7 h-7 sm:w-8 sm:h-8 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                   {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-[#febd69] text-[#131921] text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-pulse">
+                    <span className="absolute -top-1 -right-1 bg-[#febd69] text-[#131921] text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md min-w-[20px]">
                       {cartCount > 99 ? '99+' : cartCount}
                     </span>
                   )}
                 </div>
-                <span className="text-xs sm:text-sm font-medium mt-0.5 hidden sm:block">Cart</span>
+                <span className="text-xs sm:text-sm font-medium mt-0.5 hidden md:block">Cart</span>
               </Link>
 
-              {/* Account */}
+              {/* Account - Mobile optimized */}
               {isAuthenticated ? (
                 <Link
                   href="/profile"
-                  className="flex flex-col items-start hover:text-[#febd69] transition-colors group"
+                  className="hidden md:flex flex-col items-start hover:text-[#febd69] transition-colors group"
                 >
                   <span className="text-[11px] text-gray-300 group-hover:text-gray-200">Hello, {user?.name?.split(' ')[0] || 'User'}</span>
                   <span className="text-sm font-semibold flex items-center gap-1">
@@ -387,7 +504,7 @@ export default function Header() {
               ) : (
                 <Link
                   href="/auth/login"
-                  className="flex flex-col items-start hover:text-[#febd69] transition-colors group"
+                  className="hidden md:flex flex-col items-start hover:text-[#febd69] transition-colors group"
                 >
                   <span className="text-[11px] text-gray-300 group-hover:text-gray-200">Hello, Sign in</span>
                   <span className="text-sm font-semibold flex items-center gap-1">
@@ -398,6 +515,16 @@ export default function Header() {
                   </span>
                 </Link>
               )}
+              
+              {/* Mobile Profile Icon */}
+              <Link
+                href={isAuthenticated ? "/profile" : "/auth/login"}
+                className="md:hidden hover:text-[#febd69] transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </Link>
             </div>
           </div>
         </div>

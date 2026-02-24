@@ -3,50 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import Header from '@/components/layout/Header';
-import BottomNav from '@/components/layout/BottomNav';
-// Footer component (inline due to module resolution issue)
-const Footer = () => (
-  <footer className="bg-gray-900 text-gray-300 mt-auto">
-    <div className="w-full px-2 sm:px-3 lg:px-4 py-10">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div>
-          <h3 className="text-white font-semibold mb-4">Get to Know Us</h3>
-          <ul className="space-y-2 text-sm">
-            <li><Link href="/about" className="hover:text-white transition-colors">About Us</Link></li>
-            <li><Link href="/careers" className="hover:text-white transition-colors">Careers</Link></li>
-            <li><Link href="/press" className="hover:text-white transition-colors">Press Releases</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h3 className="text-white font-semibold mb-4">Make Money with Us</h3>
-          <ul className="space-y-2 text-sm">
-            <li><Link href="/sell" className="hover:text-white transition-colors">Sell on OpticalMarket</Link></li>
-            <li><Link href="/affiliate" className="hover:text-white transition-colors">Affiliate Program</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h3 className="text-white font-semibold mb-4">Customer Service</h3>
-          <ul className="space-y-2 text-sm">
-            <li><Link href="/help" className="hover:text-white transition-colors">Help Center</Link></li>
-            <li><Link href="/returns" className="hover:text-white transition-colors">Returns</Link></li>
-            <li><Link href="/shipping" className="hover:text-white transition-colors">Shipping Info</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h3 className="text-white font-semibold mb-4">Legal</h3>
-          <ul className="space-y-2 text-sm">
-            <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-            <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
-          </ul>
-        </div>
-      </div>
-      <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
-        <p>&copy; {new Date().getFullYear()} OpticalMarket. All rights reserved.</p>
-      </div>
-    </div>
-  </footer>
-);
+// Layout components are now handled by app/template.tsx
 import { orderService, type Order } from '@/services/order-service';
 import { OrderSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
@@ -130,9 +87,7 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      <main className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
+    <div className="max-w-7xl mx-auto px-4 py-8 w-full">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">My Orders</h1>
 
         {loadingOrders ? (
@@ -224,9 +179,6 @@ export default function OrdersPage() {
             orderId={selectedOrderId}
           />
         )}
-      </main>
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

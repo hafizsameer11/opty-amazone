@@ -54,6 +54,11 @@ Route::prefix('lens')->name('lens.')->group(function () {
     Route::get('/product/{productId}/config', [App\Http\Controllers\Api\LensDataController::class, 'getLensConfigForProduct'])->name('product-config');
 });
 
+// Prescription options routes (public)
+Route::prefix('prescription-options')->group(function () {
+    Route::get('/product/{productId}', [App\Http\Controllers\Api\PrescriptionOptionsController::class, 'getForProduct']);
+});
+
 Route::prefix('buyer')->group(base_path('routes/buyer.php'));
 Route::prefix('seller')->group(base_path('routes/seller.php'));
 Route::prefix('admin')->group(base_path('routes/admin.php'));

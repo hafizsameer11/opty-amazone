@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import BottomNav from '@/components/layout/BottomNav';
+// Layout components are now handled by app/template.tsx
 import { productService, type Product, type ProductListParams } from '@/services/product-service';
 import { isEyeProductCategory } from '@/utils/product-utils';
 import Button from '@/components/ui/Button';
@@ -22,7 +20,7 @@ function ProductCard({ product }: { product: Product }) {
   const showColorSwatches = isEyeProduct && hasVariants;
   
   // Get default variant or first variant
-  const defaultVariant = hasVariants 
+  const defaultVariant = hasVariants && product.variants
     ? product.variants.find(v => v.is_default) || product.variants[0]
     : null;
   
@@ -45,7 +43,7 @@ function ProductCard({ product }: { product: Product }) {
 
   const displayImage = getDisplayImage();
   const activeVariantId = selectedVariantId || hoveredVariantId;
-  const displayPrice = activeVariantId && hasVariants
+  const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
     : (defaultVariant?.price ?? product.price);
 
@@ -251,9 +249,7 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 w-full">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 w-full">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">All Products</h1>
@@ -583,9 +579,6 @@ export default function ProductsPage() {
             )}
           </div>
         </div>
-      </main>
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

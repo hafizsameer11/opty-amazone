@@ -7,19 +7,17 @@ import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
 import Sidebar from '@/components/layout/Sidebar';
 import { productService, type Category, type CreateProductData } from '@/services/product-service';
-import { categoryFieldConfigService } from '@/services/category-field-config-service';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
-import CategoryProductForm from '@/components/products/CategoryProductForm';
+import ProductImageUpload from '@/components/products/ProductImageUpload';
+import SimplifiedProductOptions from '@/components/products/SimplifiedProductOptions';
 
 export default function EyeGlassesProductPage() {
   const router = useRouter();
   const { isAuthenticated, loading } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState<number | undefined>();
-  const [enabledFields, setEnabledFields] = useState<string[]>([]);
-  const [loadingConfig, setLoadingConfig] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -65,25 +63,9 @@ export default function EyeGlassesProductPage() {
       if (eyeGlassesCategory) {
         setCategoryId(eyeGlassesCategory.id);
         setFormData(prev => ({ ...prev, category_id: eyeGlassesCategory.id }));
-        await loadFieldConfig(eyeGlassesCategory.id);
       }
     } catch (error) {
       console.error('Failed to load categories:', error);
-      setLoadingConfig(false);
-    }
-  };
-
-  const loadFieldConfig = async (catId: number) => {
-    try {
-      setLoadingConfig(true);
-      const config = await categoryFieldConfigService.getFieldsForCategory(catId);
-      setEnabledFields(config.enabled_fields);
-    } catch (error) {
-      console.error('Failed to load field config:', error);
-      // Continue with empty enabled fields (all fields will be shown)
-      setEnabledFields([]);
-    } finally {
-      setLoadingConfig(false);
     }
   };
 
@@ -111,24 +93,14 @@ export default function EyeGlassesProductPage() {
     }
   };
 
-  const handleImageAdd = () => {
-    const url = prompt('Enter image URL:');
-    if (url) {
-      setFormData({
-        ...formData,
-        images: [...(formData.images || []), url],
-      });
-    }
-  };
-
-  const handleImageRemove = (index: number) => {
+  const handleImagesChange = (images: string[]) => {
     setFormData({
       ...formData,
-      images: formData.images?.filter((_, i) => i !== index) || [],
+      images,
     });
   };
 
-  if (loading || loadingConfig) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -291,38 +263,22 @@ export default function EyeGlassesProductPage() {
                   {/* Images */}
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Images</h2>
-                    <div className="space-y-4">
-                      {formData.images && formData.images.length > 0 && (
-                        <div className="grid grid-cols-4 gap-4">
-                          {formData.images.map((img, index) => (
-                            <div key={index} className="relative">
-                              <img src={img} alt={`Product ${index + 1}`} className="w-full h-24 object-cover rounded" />
-                              <button
-                                type="button"
-                                onClick={() => handleImageRemove(index)}
-                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <Button type="button" variant="outline" onClick={handleImageAdd}>
-                        Add Image URL
-                      </Button>
-                    </div>
+                    <ProductImageUpload
+                      images={formData.images || []}
+                      onChange={handleImagesChange}
+                      maxImages={10}
+                    />
                   </div>
 
-                  {/* Category-Specific Product Options */}
-                  <CategoryProductForm
-                    formData={formData}
-                    setFormData={setFormData}
-                    enabledFields={enabledFields}
-                    productType="frame"
-                  />
+                  {/* Product Options & Lens Customization */}
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Options & Customization</h2>
+                    <SimplifiedProductOptions
+                      formData={formData}
+                      setFormData={setFormData}
+                      productType="frame"
+                    />
+                  </div>
 
                   {/* Status */}
                   <div>

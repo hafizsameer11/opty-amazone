@@ -1,23 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { productService, type ProductVariant, type CreateVariantData } from '@/services/product-service';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Image from 'next/image';
 import Alert from '@/components/ui/Alert';
+import apiClient from '@/lib/api-client';
 
 interface ColorVariationsManagerProps {
   productId: number;
   categoryId?: number;
+  productType?: string;
 }
 
-export default function ColorVariationsManager({ productId, categoryId }: ColorVariationsManagerProps) {
+export default function ColorVariationsManager({ productId, categoryId, productType }: ColorVariationsManagerProps) {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<CreateVariantData>({
     color_name: '',
     color_code: '',
@@ -29,8 +33,10 @@ export default function ColorVariationsManager({ productId, categoryId }: ColorV
     sort_order: 0,
   });
 
-  // Check if this is an eye product category (23, 28, 29)
-  const isEyeProduct = categoryId && [23, 28, 29].includes(categoryId);
+  // Check if this is an eye product (frame or sunglasses) based on product type
+  // Also check category IDs as fallback for legacy products
+  const isEyeProduct = productType === 'frame' || productType === 'sunglasses' || 
+    (categoryId && [23, 28, 29].includes(categoryId));
 
   useEffect(() => {
     if (productId && isEyeProduct) {
@@ -53,11 +59,65 @@ export default function ColorVariationsManager({ productId, categoryId }: ColorV
 
   const handleAddImage = () => {
     const url = prompt('Enter image URL:');
-    if (url) {
+    if (url && url.trim()) {
       setFormData({
         ...formData,
-        images: [...(formData.images || []), url],
+        images: [...(formData.images || []), url.trim()],
       });
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setAlert({ type: 'error', message: 'Please select an image file' });
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setAlert({ type: 'error', message: 'Image size must be less than 5MB' });
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('image', file);
+
+      const response = await apiClient.post('/seller/products/upload-image', formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data.success && response.data.data?.url) {
+        const imageUrl = response.data.data.url.startsWith('http')
+          ? response.data.data.url
+          : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${response.data.data.url}`;
+        
+        setFormData({
+          ...formData,
+          images: [...(formData.images || []), imageUrl],
+        });
+        setAlert({ type: 'success', message: 'Image uploaded successfully' });
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      setAlert({
+        type: 'error',
+        message: error.response?.data?.message || 'Failed to upload image',
+      });
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -252,9 +312,28 @@ export default function ColorVariationsManager({ productId, categoryId }: ColorV
                   </Button>
                 </div>
               ))}
-              <Button type="button" variant="outline" size="sm" onClick={handleAddImage}>
-                Add Image URL
-              </Button>
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={uploadingImage}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                >
+                  {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={handleAddImage}>
+                  Add Image URL
+                </Button>
+              </div>
             </div>
           </div>
 

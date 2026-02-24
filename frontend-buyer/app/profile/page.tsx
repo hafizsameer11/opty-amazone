@@ -3,9 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import BottomNav from "@/components/layout/BottomNav";
+// Layout components are now handled by app/template.tsx
 import { userService, type ProfileResponse } from "../../services/user-service";
 import { orderService, type Order } from "../../services/order-service";
 import { walletService, type WalletTransaction } from "../../services/wallet-service";
@@ -132,7 +130,7 @@ export default function ProfilePage() {
   // Show loading state while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
@@ -289,12 +287,12 @@ export default function ProfilePage() {
                   <p className="text-gray-900">{profile.phone}</p>
                 </div>
               )}
-              {profile.city && (
+              {(profile as any).city && (
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                     City
                   </p>
-                  <p className="text-gray-900">{profile.city}</p>
+                  <p className="text-gray-900">{(profile as any).city}</p>
                 </div>
               )}
             </div>
@@ -788,12 +786,9 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      
-      <main className="flex-1">
-        <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-0 py-8">
-          <div className="mb-5 sm:mb-7">
+    <>
+      <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-0 py-8">
+        <div className="mb-5 sm:mb-7">
             <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
               Your Account
             </h1>
@@ -880,20 +875,15 @@ export default function ProfilePage() {
             <section className="flex-1 min-w-0">{renderContent()}</section>
           </div>
         </div>
-
-        {/* Order Details Modal */}
-        {selectedOrderId && (
-          <OrderDetailsModal
-            isOpen={isOrderModalOpen}
-            onClose={handleOrderModalClose}
-            orderId={selectedOrderId}
-          />
-        )}
-      </main>
-
-      <Footer />
-      <BottomNav />
-    </div>
+      {/* Order Details Modal */}
+      {selectedOrderId && (
+        <OrderDetailsModal
+          isOpen={isOrderModalOpen}
+          onClose={handleOrderModalClose}
+          orderId={selectedOrderId}
+        />
+      )}
+    </>
   );
 }
 

@@ -47,6 +47,32 @@ export interface LensCoating {
   is_active: boolean;
 }
 
+export interface LensColor {
+  id: number;
+  name: string;
+  color_code: string; // hex color
+  description?: string;
+}
+
+export interface LensAreaCoordinates {
+  left: {
+    x: number; // percentage from left (0-100)
+    y: number; // percentage from top (0-100)
+    width: number; // percentage width (0-100)
+    height: number; // percentage height (0-100)
+    shape?: 'circle' | 'ellipse' | 'rounded-rect';
+    borderRadius?: number; // percentage for rounded corners
+  };
+  right: {
+    x: number; // percentage from left (0-100)
+    y: number; // percentage from top (0-100)
+    width: number; // percentage width (0-100)
+    height: number; // percentage height (0-100)
+    shape?: 'circle' | 'ellipse' | 'rounded-rect';
+    borderRadius?: number; // percentage for rounded corners
+  };
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -71,6 +97,8 @@ export interface Product {
   frame_sizes?: FrameSize[];
   lens_types?: LensType[];
   lens_coatings?: LensCoating[];
+  lens_colors?: LensColor[];
+  lens_area_coordinates?: LensAreaCoordinates;
   // Contact lens fields
   base_curve_options?: string[];
   diameter_options?: string[];

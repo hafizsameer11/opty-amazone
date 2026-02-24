@@ -6,9 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import BottomNav from "@/components/layout/BottomNav";
+// Layout components are now handled by app/template.tsx
 import {
   userService,
   type AddressPayload,
@@ -159,11 +157,7 @@ export default function NewAddressPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
-      <Header />
-      
-      <main className="flex-1">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
           {/* Back Button */}
           <Link
             href="/profile/addresses"
@@ -373,11 +367,6 @@ export default function NewAddressPage() {
               </div>
             </form>
           </div>
-        </div>
-      </main>
-
-      <Footer />
-      <BottomNav />
     </div>
   );
 }

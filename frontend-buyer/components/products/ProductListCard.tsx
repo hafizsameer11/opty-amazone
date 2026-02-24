@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/services/product-service';
 import { isEyeProductCategory } from '@/utils/product-utils';
+import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 
 interface ProductListCardProps {
   product: Product;
@@ -20,7 +21,7 @@ export default function ProductListCard({ product }: ProductListCardProps) {
   const showColorSwatches = isEyeProduct && hasVariants;
   
   // Get default variant or first variant
-  const defaultVariant = hasVariants 
+  const defaultVariant = hasVariants && product.variants
     ? product.variants.find(v => v.is_default) || product.variants[0]
     : null;
   
@@ -43,7 +44,7 @@ export default function ProductListCard({ product }: ProductListCardProps) {
 
   const displayImage = getDisplayImage();
   const activeVariantId = selectedVariantId || hoveredVariantId;
-  const displayPrice = activeVariantId && hasVariants
+  const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
     : (defaultVariant?.price ?? product.price);
 
@@ -56,11 +57,12 @@ export default function ProductListCard({ product }: ProductListCardProps) {
       <div className="relative w-48 sm:w-64 h-48 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 border-r border-gray-100 flex-shrink-0">
         <div className="absolute inset-0 flex items-center justify-center p-4">
           <Image
-            src={displayImage}
+            src={getFullImageUrl(displayImage)}
             alt={product.name}
             width={200}
             height={200}
             className="object-contain max-h-full max-w-full transition-all duration-300 group-hover:scale-105"
+            unoptimized={isLocalhostImage(getFullImageUrl(displayImage))}
           />
         </div>
       </div>
