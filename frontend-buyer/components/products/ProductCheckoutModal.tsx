@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
 import PrescriptionEntry from './PrescriptionEntry';
 import LensThicknessStep from './LensThicknessStep';
+import LensColorOverlay from './LensColorOverlay';
 
 type CheckoutStep = 'lens_type' | 'progressive_variant' | 'prescription' | 'lens_thickness' | 'treatments' | 'frame_size' | 'summary';
 

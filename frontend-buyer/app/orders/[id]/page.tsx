@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { orderService, type Order, type StoreOrder } from '@/services/order-service';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
+import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 
 export default function OrderDetailsPage() {
   const params = useParams();
@@ -301,12 +302,13 @@ export default function OrderDetailsPage() {
                             className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-[#0066CC]/30 transition-colors"
                           >
                             <div className="relative w-24 h-24 sm:w-28 sm:h-28 bg-white rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                              {item.product_images && item.product_images[0] ? (
+                              {getFullImageUrl(item.product_images?.[0]) !== '/file.svg' ? (
                                 <Image
-                                  src={item.product_images[0]}
+                                  src={getFullImageUrl(item.product_images?.[0])}
                                   alt={item.product_name}
                                   fill
                                   className="object-cover"
+                                  unoptimized={isLocalhostImage(getFullImageUrl(item.product_images?.[0]))}
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-gray-100">

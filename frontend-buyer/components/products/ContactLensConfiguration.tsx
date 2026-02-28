@@ -809,8 +809,7 @@ export default function ContactLensConfiguration({
                           // Position text above the arc (smaller radius) to align with the curve
                           const textX = 400 + 180 * Math.cos(angle);
                           const textY = 420 + 180 * Math.sin(angle);
-                          // Rotate text to be horizontal along the curve - reverse rotation for bottom arc
-                          const textRotation = -deg;
+                          // Keep labels horizontal around the arc for readability.
                           return (
                             <g key={`right-cl-${deg}`}>
                               <line x1={400 + 200 * Math.cos(angle)} y1={420 + 200 * Math.sin(angle)} x2={x} y2={y} stroke="#000" strokeWidth={deg % 30 === 0 ? "3.5" : "1.8"} />
@@ -823,7 +822,6 @@ export default function ContactLensConfiguration({
                                 fill="#000" 
                                 fontWeight={deg % 30 === 0 ? "bold" : "600"} 
                                 fontFamily="Arial, sans-serif"
-                                transform={`rotate(${textRotation}, ${textX}, ${textY})`}
                               >
                                 {deg}
                               </text>
@@ -917,8 +915,7 @@ export default function ContactLensConfiguration({
                           // Position text above the arc (smaller radius) to align with the curve
                           const textX = 400 + 180 * Math.cos(angle);
                           const textY = 420 + 180 * Math.sin(angle);
-                          // Rotate text to be horizontal along the curve - reverse rotation for bottom arc
-                          const textRotation = -deg;
+                          // Keep labels horizontal around the arc for readability.
                           return (
                             <g key={`left-cl-${deg}`}>
                               <line x1={400 + 200 * Math.cos(angle)} y1={420 + 200 * Math.sin(angle)} x2={x} y2={y} stroke="#000" strokeWidth={deg % 30 === 0 ? "3.5" : "1.8"} />
@@ -931,7 +928,6 @@ export default function ContactLensConfiguration({
                                 fill="#000" 
                                 fontWeight={deg % 30 === 0 ? "bold" : "600"} 
                                 fontFamily="Arial, sans-serif"
-                                transform={`rotate(${textRotation}, ${textX}, ${textY})`}
                               >
                                 {deg}
                               </text>

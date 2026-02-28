@@ -18,6 +18,10 @@ export default function EditStorePage() {
   const [store, setStore] = useState<Store | null>(null);
   const [loadingStore, setLoadingStore] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
+  const [uploadingBannerImage, setUploadingBannerImage] = useState(false);
+  const [deletingProfileImage, setDeletingProfileImage] = useState(false);
+  const [deletingBannerImage, setDeletingBannerImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -56,6 +60,74 @@ export default function EditStorePage() {
       setError('Failed to load store');
     } finally {
       setLoadingStore(false);
+    }
+  };
+
+  const getFullImageUrl = (url?: string | null) => {
+    if (!url) return '';
+    const normalized = String(url).trim();
+    if (!normalized) return '';
+    if (normalized.startsWith('http://') || normalized.startsWith('https://') || normalized.startsWith('data:')) {
+      return normalized;
+    }
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+    const backendBase = apiBase.replace('/api', '');
+    const relativePath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    return `${backendBase}${relativePath}`;
+  };
+
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    type: 'profile' | 'banner'
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setError(null);
+      setSuccess(null);
+
+      if (type === 'profile') setUploadingProfileImage(true);
+      if (type === 'banner') setUploadingBannerImage(true);
+
+      const response = type === 'profile'
+        ? await StoreService.uploadProfileImage(file)
+        : await StoreService.uploadBannerImage(file);
+
+      if (response.success && response.data?.store) {
+        setStore(response.data.store);
+        setSuccess(type === 'profile' ? 'Store logo updated successfully' : 'Store banner updated successfully');
+      }
+    } catch (uploadError: any) {
+      setError(uploadError.response?.data?.message || `Failed to upload ${type} image`);
+    } finally {
+      if (type === 'profile') setUploadingProfileImage(false);
+      if (type === 'banner') setUploadingBannerImage(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleDeleteImage = async (type: 'profile' | 'banner') => {
+    try {
+      setError(null);
+      setSuccess(null);
+
+      if (type === 'profile') setDeletingProfileImage(true);
+      if (type === 'banner') setDeletingBannerImage(true);
+
+      const response = type === 'profile'
+        ? await StoreService.deleteProfileImage()
+        : await StoreService.deleteBannerImage();
+
+      if (response.success && response.data?.store) {
+        setStore(response.data.store);
+        setSuccess(type === 'profile' ? 'Store logo removed successfully' : 'Store banner removed successfully');
+      }
+    } catch (deleteError: any) {
+      setError(deleteError.response?.data?.message || `Failed to remove ${type} image`);
+    } finally {
+      if (type === 'profile') setDeletingProfileImage(false);
+      if (type === 'banner') setDeletingBannerImage(false);
     }
   };
 
@@ -111,6 +183,95 @@ export default function EditStorePage() {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:p-8">
                   {error && <Alert type="error" message={error} className="mb-6" />}
                   {success && <Alert type="success" message={success} className="mb-6" />}
+
+                  <div className="mb-8 pb-8 border-b border-gray-200">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-1">Store Images</h2>
+                    <p className="text-sm text-gray-600 mb-5">Update your store logo and banner shown to buyers</p>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="rounded-xl border border-gray-200 p-4">
+                        <p className="text-sm font-semibold text-gray-900 mb-3">Store Logo</p>
+                        <div className="w-24 h-24 rounded-full bg-gray-100 border border-gray-200 overflow-hidden mb-4 flex items-center justify-center">
+                          {store?.profile_image_url || store?.profile_image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={getFullImageUrl(store.profile_image_url || store.profile_image)}
+                              alt="Store logo"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-2xl font-bold text-gray-400">
+                              {store?.name?.charAt(0).toUpperCase() || 'S'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <label className="inline-flex">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleImageUpload(e, 'profile')}
+                              disabled={uploadingProfileImage || deletingProfileImage}
+                            />
+                            <span className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-[#0066CC] text-white text-sm font-medium hover:bg-[#0052a3] cursor-pointer disabled:opacity-50">
+                              {uploadingProfileImage ? 'Uploading...' : 'Upload Logo'}
+                            </span>
+                          </label>
+                          {(store?.profile_image_url || store?.profile_image) && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => handleDeleteImage('profile')}
+                              disabled={deletingProfileImage || uploadingProfileImage}
+                            >
+                              {deletingProfileImage ? 'Removing...' : 'Remove'}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-gray-200 p-4">
+                        <p className="text-sm font-semibold text-gray-900 mb-3">Store Banner</p>
+                        <div className="w-full h-28 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden mb-4 flex items-center justify-center">
+                          {store?.banner_image_url || store?.banner_image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={getFullImageUrl(store.banner_image_url || store.banner_image)}
+                              alt="Store banner"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-sm font-medium text-gray-400">No banner image</span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <label className="inline-flex">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleImageUpload(e, 'banner')}
+                              disabled={uploadingBannerImage || deletingBannerImage}
+                            />
+                            <span className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-[#0066CC] text-white text-sm font-medium hover:bg-[#0052a3] cursor-pointer disabled:opacity-50">
+                              {uploadingBannerImage ? 'Uploading...' : 'Upload Banner'}
+                            </span>
+                          </label>
+                          {(store?.banner_image_url || store?.banner_image) && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => handleDeleteImage('banner')}
+                              disabled={deletingBannerImage || uploadingBannerImage}
+                            >
+                              {deletingBannerImage ? 'Removing...' : 'Remove'}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="mb-6 pb-6 border-b border-gray-200">
                     <h2 className="text-lg font-semibold text-gray-900 mb-1">Store Information</h2>

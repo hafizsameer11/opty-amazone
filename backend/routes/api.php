@@ -39,6 +39,11 @@ Route::prefix('categories')->group(function () {
     Route::get('/', [App\Http\Controllers\Api\CategoryController::class, 'index']);
 });
 
+// Public banners routes
+Route::prefix('banners')->group(function () {
+    Route::get('/', [App\Http\Controllers\Api\PublicBannerController::class, 'index']);
+});
+
 // Search routes
 Route::prefix('search')->group(function () {
     Route::get('/', [App\Http\Controllers\Api\SearchController::class, 'search']);

@@ -7,6 +7,8 @@ import { useCart } from '@/contexts/CartContext';
 import { useRouter } from 'next/navigation';
 import { AuthService } from '@/services/auth-service';
 import { productService, type Category } from '@/services/product-service';
+import { useLanguage } from '@/contexts/LanguageContext';
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 
 export default function Header() {
   const { user, isAuthenticated } = useAuth();
@@ -18,6 +20,7 @@ export default function Header() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [clickedCategory, setClickedCategory] = useState<number | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     try {
@@ -133,7 +136,7 @@ export default function Header() {
                 href="/" 
                 className="whitespace-nowrap hover:text-[#febd69] transition-colors text-sm font-medium flex items-center gap-1 group"
               >
-                <span>All</span>
+                <span>{t('all')}</span>
               </Link>
               {categories.map((category) => {
                 const isOpen = hoveredCategory === category.id || clickedCategory === category.id;
@@ -291,7 +294,7 @@ export default function Header() {
                             <div key={subCategory.id} className="relative group/sub">
                               <Link
                                 href={`/categories/${subCategory.slug}`}
-                                className="block px-5 py-2.5 text-gray-900 hover:bg-[#febd69]/10 transition-colors flex items-center justify-between group-hover/sub:pl-6"
+                                className="px-5 py-2.5 text-gray-900 hover:bg-[#febd69]/10 transition-colors flex items-center justify-between group-hover/sub:pl-6"
                                 onClick={() => setClickedCategory(null)}
                               >
                                 <span className="font-medium text-sm">{subCategory.name}</span>
@@ -345,13 +348,13 @@ export default function Header() {
                     href="/profile" 
                     className="text-sm hover:text-[#febd69] transition-colors font-medium whitespace-nowrap"
                   >
-                    {user?.name?.split(' ')[0] || 'Account'}
+                    {user?.name?.split(' ')[0] || t('account')}
                   </Link>
                   <button
                     onClick={handleLogout}
                     className="text-sm hover:text-[#febd69] transition-colors font-medium whitespace-nowrap"
                   >
-                    Sign Out
+                    {t('signOut')}
                   </button>
                 </>
               ) : (
@@ -360,16 +363,17 @@ export default function Header() {
                     href="/auth/login" 
                     className="text-sm hover:text-[#febd69] transition-colors font-medium whitespace-nowrap"
                   >
-                    Sign In
+                    {t('signIn')}
                   </Link>
                   <Link 
                     href="/auth/register" 
                     className="text-sm hover:text-[#febd69] transition-colors font-medium whitespace-nowrap"
                   >
-                    Register
+                    {t('register')}
                   </Link>
                 </>
               )}
+              <LanguageSwitcher />
             </div>
           </div>
         </div>
@@ -409,7 +413,7 @@ export default function Header() {
                     }}
                     className="bg-gray-50 text-gray-700 px-4 py-2.5 text-sm focus:outline-none appearance-none pr-8 cursor-pointer hover:bg-gray-100 transition-colors font-medium"
                   >
-                    <option value="">All Categories</option>
+                    <option value="">{t('allCategories')}</option>
                     {(() => {
                       const renderOptions = (cat: Category, prefix = ''): React.ReactElement[] => {
                         const options: React.ReactElement[] = [
@@ -441,7 +445,7 @@ export default function Header() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search for glasses, lenses, and more..."
+                  placeholder={t('searchPlaceholder')}
                   className="flex-1 px-4 py-2.5 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#febd69]/50"
                 />
                 <button
@@ -451,7 +455,7 @@ export default function Header() {
                   <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <span className="hidden sm:inline">Search</span>
+                  <span className="hidden sm:inline">{t('search')}</span>
                 </button>
               </div>
             </form>
@@ -464,11 +468,14 @@ export default function Header() {
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <span>Search</span>
+              <span>{t('search')}</span>
             </Link>
 
             {/* Cart & Account Section */}
             <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 flex-shrink-0">
+              <div className="md:hidden">
+                <LanguageSwitcher />
+              </div>
               {/* Cart - Mobile optimized */}
               <Link
                 href="/cart"
@@ -484,7 +491,7 @@ export default function Header() {
                     </span>
                   )}
                 </div>
-                <span className="text-xs sm:text-sm font-medium mt-0.5 hidden md:block">Cart</span>
+                <span className="text-xs sm:text-sm font-medium mt-0.5 hidden md:block">{t('cart')}</span>
               </Link>
 
               {/* Account - Mobile optimized */}
@@ -493,9 +500,9 @@ export default function Header() {
                   href="/profile"
                   className="hidden md:flex flex-col items-start hover:text-[#febd69] transition-colors group"
                 >
-                  <span className="text-[11px] text-gray-300 group-hover:text-gray-200">Hello, {user?.name?.split(' ')[0] || 'User'}</span>
+                  <span className="text-[11px] text-gray-300 group-hover:text-gray-200">{t('hello')}, {user?.name?.split(' ')[0] || t('account')}</span>
                   <span className="text-sm font-semibold flex items-center gap-1">
-                    Account & Lists
+                    {t('accountLists')}
                     <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -506,9 +513,9 @@ export default function Header() {
                   href="/auth/login"
                   className="hidden md:flex flex-col items-start hover:text-[#febd69] transition-colors group"
                 >
-                  <span className="text-[11px] text-gray-300 group-hover:text-gray-200">Hello, Sign in</span>
+                  <span className="text-[11px] text-gray-300 group-hover:text-gray-200">{t('hello')}, {t('signIn')}</span>
                   <span className="text-sm font-semibold flex items-center gap-1">
-                    Account & Lists
+                    {t('accountLists')}
                     <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>

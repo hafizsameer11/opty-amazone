@@ -571,7 +571,8 @@ export default function PrescriptionEntry({
                             {/* Minor tick marks (every degree) */}
                             {Array.from({ length: 181 }, (_, i) => i).map((deg) => {
                               if (deg % 10 === 0) return null; // Skip major marks
-                              const angle = (deg - 90) * (Math.PI / 180);
+                              // Draw scale across the TOP semicircle (0 on left, 180 on right).
+                              const angle = (deg - 180) * (Math.PI / 180);
                               const x1 = 400 + 210 * Math.cos(angle);
                               const y1 = 420 + 210 * Math.sin(angle);
                               const x2 = 400 + 220 * Math.cos(angle);
@@ -584,14 +585,13 @@ export default function PrescriptionEntry({
                             {/* Major tick marks and labels (every 10 degrees) */}
                             {Array.from({ length: 181 }, (_, i) => i).map((deg) => {
                               if (deg % 10 !== 0) return null;
-                              const angle = (deg - 90) * (Math.PI / 180);
+                              // Draw labels across the TOP semicircle (0 on left, 180 on right).
+                              const angle = (deg - 180) * (Math.PI / 180);
                               const x = 400 + 220 * Math.cos(angle);
                               const y = 420 + 220 * Math.sin(angle);
                               const textX = 400 + 180 * Math.cos(angle);
                               const textY = 420 + 180 * Math.sin(angle);
-                              // Calculate rotation to align text horizontally along the curve
-                              // For horizontal alignment, rotate by (deg - 90) to make text parallel to the arc
-                              const textRotation = deg - 90;
+                              // Keep labels horizontal around the arc for readability.
                               return (
                                 <g key={deg}>
                                   <line x1={400 + 200 * Math.cos(angle)} y1={420 + 200 * Math.sin(angle)} x2={x} y2={y} stroke="#000" strokeWidth={deg % 30 === 0 ? "3.5" : "1.8"} />
@@ -604,7 +604,6 @@ export default function PrescriptionEntry({
                                     fill="#000" 
                                     fontWeight={deg % 30 === 0 ? "bold" : "600"} 
                                     fontFamily="Arial, sans-serif"
-                                    transform={`rotate(${textRotation}, ${textX}, ${textY})`}
                                   >
                                     {deg}
                                   </text>
@@ -618,7 +617,6 @@ export default function PrescriptionEntry({
                                       fill="#444" 
                                       fontWeight="600" 
                                       fontFamily="Arial, sans-serif"
-                                      transform={`rotate(${90 - deg}, ${400 + 180 * Math.cos((180 - deg - 90) * (Math.PI / 180))}, ${420 + 180 * Math.sin((180 - deg - 90) * (Math.PI / 180))})`}
                                     >
                                       {180 - deg}
                                     </text>
@@ -630,8 +628,8 @@ export default function PrescriptionEntry({
                             <line 
                               x1="400" 
                               y1="420" 
-                              x2={400 + 220 * Math.cos((rightAxisAngle - 90) * (Math.PI / 180))} 
-                              y2={420 + 220 * Math.sin((rightAxisAngle - 90) * (Math.PI / 180))} 
+                              x2={400 + 220 * Math.cos((rightAxisAngle - 180) * (Math.PI / 180))} 
+                              y2={420 + 220 * Math.sin((rightAxisAngle - 180) * (Math.PI / 180))} 
                               stroke="#2563eb" 
                               strokeWidth="6" 
                               markerEnd="url(#arrowhead-right)" 
@@ -653,10 +651,11 @@ export default function PrescriptionEntry({
                                 const centerY = rect.top + rect.height / 2;
                                 const x = moveEvent.clientX - centerX;
                                 const y = moveEvent.clientY - centerY;
-                                let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
-                                if (angle < 0) angle += 360;
-                                angle = Math.round(angle);
-                                if (angle > 180) angle = 180;
+                                // Map pointer to top-arc axis: 0 (left) -> 90 (top) -> 180 (right).
+                                // Ignore lower half to keep interaction on the semicircle.
+                                if (y > 0) return;
+                                let angle = Math.atan2(y, x) * (180 / Math.PI) + 180;
+                                angle = Math.round(Math.max(0, Math.min(180, angle)));
                                 setRightAxisAngle(angle);
                                 setPrescription({
                                   ...prescription,
@@ -696,7 +695,8 @@ export default function PrescriptionEntry({
                             {/* Minor tick marks (every degree) */}
                             {Array.from({ length: 181 }, (_, i) => i).map((deg) => {
                               if (deg % 10 === 0) return null; // Skip major marks
-                              const angle = (deg - 90) * (Math.PI / 180);
+                              // Draw scale across the TOP semicircle (0 on left, 180 on right).
+                              const angle = (deg - 180) * (Math.PI / 180);
                               const x1 = 400 + 210 * Math.cos(angle);
                               const y1 = 420 + 210 * Math.sin(angle);
                               const x2 = 400 + 220 * Math.cos(angle);
@@ -709,15 +709,14 @@ export default function PrescriptionEntry({
                             {/* Major tick marks and labels with TABO notation */}
                             {Array.from({ length: 181 }, (_, i) => i).map((deg) => {
                               if (deg % 10 !== 0) return null;
-                              const angle = (deg - 90) * (Math.PI / 180);
+                              // Draw labels across the TOP semicircle (0 on left, 180 on right).
+                              const angle = (deg - 180) * (Math.PI / 180);
                               const taboValue = intToTabo(deg);
                               const x = 400 + 220 * Math.cos(angle);
                               const y = 420 + 220 * Math.sin(angle);
                               const textX = 400 + 180 * Math.cos(angle);
                               const textY = 420 + 180 * Math.sin(angle);
-                              // Calculate rotation to align text horizontally along the curve
-                              // For horizontal alignment, rotate by (deg - 90) to make text parallel to the arc
-                              const textRotation = deg - 90;
+                              // Keep labels horizontal around the arc for readability.
                               return (
                                 <g key={deg}>
                                   <line x1={400 + 200 * Math.cos(angle)} y1={420 + 200 * Math.sin(angle)} x2={x} y2={y} stroke="#000" strokeWidth={deg % 30 === 0 ? "3.5" : "1.8"} />
@@ -730,7 +729,6 @@ export default function PrescriptionEntry({
                                     fill="#000" 
                                     fontWeight={deg % 30 === 0 ? "bold" : "600"} 
                                     fontFamily="Arial, sans-serif"
-                                    transform={`rotate(${textRotation}, ${textX}, ${textY})`}
                                   >
                                     {deg}
                                   </text>
@@ -744,7 +742,6 @@ export default function PrescriptionEntry({
                                       fill="#444" 
                                       fontWeight="600" 
                                       fontFamily="Arial, sans-serif"
-                                      transform={`rotate(${90 - deg}, ${400 + 180 * Math.cos((180 - deg - 90) * (Math.PI / 180))}, ${420 + 180 * Math.sin((180 - deg - 90) * (Math.PI / 180))})`}
                                     >
                                       {taboValue}
                                     </text>
@@ -756,8 +753,8 @@ export default function PrescriptionEntry({
                             <line 
                               x1="400" 
                               y1="420" 
-                              x2={400 + 220 * Math.cos((leftAxisAngle - 90) * (Math.PI / 180))} 
-                              y2={420 + 220 * Math.sin((leftAxisAngle - 90) * (Math.PI / 180))} 
+                              x2={400 + 220 * Math.cos((leftAxisAngle - 180) * (Math.PI / 180))} 
+                              y2={420 + 220 * Math.sin((leftAxisAngle - 180) * (Math.PI / 180))} 
                               stroke="#2563eb" 
                               strokeWidth="6" 
                               markerEnd="url(#arrowhead-left)" 
@@ -781,10 +778,11 @@ export default function PrescriptionEntry({
                                 const centerY = rect.top + rect.height / 2;
                                 const x = moveEvent.clientX - centerX;
                                 const y = moveEvent.clientY - centerY;
-                                let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
-                                if (angle < 0) angle += 360;
-                                angle = Math.round(angle);
-                                if (angle > 180) angle = 180;
+                                // Map pointer to top-arc axis: 0 (left) -> 90 (top) -> 180 (right).
+                                // Ignore lower half to keep interaction on the semicircle.
+                                if (y > 0) return;
+                                let angle = Math.atan2(y, x) * (180 / Math.PI) + 180;
+                                angle = Math.round(Math.max(0, Math.min(180, angle)));
                                 // Store as INT, but display TABO
                                 setLeftAxisAngle(angle);
                                 setPrescription({
@@ -1323,8 +1321,7 @@ export default function PrescriptionEntry({
                         const y2 = 200 + outerRadius * Math.sin(angle);
                         const textX = 200 + 150 * Math.cos(angle);
                         const textY = 200 + 150 * Math.sin(angle);
-                        // Rotate text to be horizontal along the arc (deg - 90)
-                        const textRotation = deg - 90;
+                        // Keep labels horizontal around the arc for readability.
                         return (
                           <g key={deg}>
                             <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={isMajor ? "#111827" : "#6b7280"} strokeWidth={isMajor ? "2" : "1"} />
@@ -1338,7 +1335,6 @@ export default function PrescriptionEntry({
                                 fontSize="14" 
                                 fontWeight="bold" 
                                 fontFamily="system-ui, -apple-system, sans-serif"
-                                transform={`rotate(${textRotation}, ${textX}, ${textY})`}
                               >
                                 {deg}
                               </text>

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface NavItem {
   name: string;
@@ -14,10 +15,11 @@ interface NavItem {
 export default function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const navigation: NavItem[] = [
     {
-      name: 'Guide',
+      name: t('guide'),
       href: '/guide',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -26,7 +28,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: 'Dashboard',
+      name: t('dashboard'),
       href: '/',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,7 +37,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: 'Store',
+      name: t('store'),
       href: '/store',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -44,7 +46,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: 'Products',
+      name: t('products'),
       href: '/products',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,7 +55,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: 'Lens Configuration',
+      name: t('lensConfiguration'),
       href: '/category-lens-config',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -63,7 +65,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: 'Prescription Options',
+      name: t('prescriptionOptions'),
       href: '/prescription-dropdowns',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +74,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: 'Field Configuration',
+      name: t('fieldConfiguration'),
       href: '/category-field-config',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +83,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: 'Orders',
+      name: t('orders'),
       href: '/orders',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,7 +93,7 @@ export default function Sidebar() {
       badge: 0,
     },
     {
-      name: 'Promotions',
+      name: t('discountCampaigns'),
       href: '/promotions',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,7 +102,16 @@ export default function Sidebar() {
       ),
     },
     {
-      name: 'Announcements',
+      name: t('boostAds'),
+      href: '/boost-ads',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      ),
+    },
+    {
+      name: t('announcements'),
       href: '/announcements',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -109,7 +120,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: 'Banners',
+      name: t('banners'),
       href: '/banners',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,7 +129,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: 'Analytics',
+      name: t('analytics'),
       href: '/analytics',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,7 +138,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: 'Messages',
+      name: t('messages'),
       href: '/messages',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,8 +167,8 @@ export default function Sidebar() {
                 <span className="text-white font-bold text-xl">OM</span>
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">Seller Hub</h1>
-                <p className="text-xs text-gray-500">Dashboard</p>
+                <h1 className="text-lg font-bold text-gray-900">{t('sellerHub')}</h1>
+                <p className="text-xs text-gray-500">{t('dashboard')}</p>
               </div>
             </div>
           </div>
@@ -199,9 +210,9 @@ export default function Sidebar() {
                 </div>
                 <div className="ml-3 flex-1">
                   <p className="text-sm font-semibold text-gray-900 group-hover:text-[#0066CC] transition-colors">
-                    {user?.name || 'User'}
+                    {user?.name || t('user')}
                   </p>
-                  <p className="text-xs text-gray-500">View Profile</p>
+                  <p className="text-xs text-gray-500">{t('viewProfile')}</p>
                 </div>
                 <svg className="ml-2 h-5 w-5 text-gray-400 group-hover:text-[#0066CC] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

@@ -7,8 +7,14 @@ import Image from 'next/image';
 import { StoreService, type PublicStore } from '@/services/store-service';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 
 function StoreCard({ store }: { store: PublicStore }) {
+  const bannerImageUrl = getFullImageUrl(store.banner_image_url || store.banner_image);
+  const profileImageUrl = getFullImageUrl(store.profile_image_url || store.profile_image);
+  const hasBannerImage = bannerImageUrl !== '/file.svg';
+  const hasProfileImage = profileImageUrl !== '/file.svg';
+
   return (
     <Link
       href={`/stores/${store.id}`}
@@ -16,12 +22,13 @@ function StoreCard({ store }: { store: PublicStore }) {
     >
       {/* Banner Image */}
       <div className="relative w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200">
-        {store.banner_image ? (
+        {hasBannerImage ? (
           <Image
-            src={store.banner_image}
+            src={bannerImageUrl}
             alt={store.name}
             fill
             className="object-cover"
+            unoptimized={isLocalhostImage(bannerImageUrl)}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -32,13 +39,14 @@ function StoreCard({ store }: { store: PublicStore }) {
         )}
         {/* Profile Image Overlay */}
         <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2">
-          <div className="w-20 h-20 rounded-full border-4 border-white overflow-hidden shadow-lg bg-white">
-            {store.profile_image ? (
+          <div className="relative w-20 h-20 rounded-full border-4 border-white overflow-hidden shadow-lg bg-white">
+            {hasProfileImage ? (
               <Image
-                src={store.profile_image}
+                src={profileImageUrl}
                 alt={store.name}
                 fill
                 className="object-cover"
+                unoptimized={isLocalhostImage(profileImageUrl)}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0066CC] to-[#0052a3] text-white font-bold text-2xl">

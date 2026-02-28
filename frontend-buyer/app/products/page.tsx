@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 // Layout components are now handled by app/template.tsx
@@ -9,6 +9,28 @@ import { isEyeProductCategory } from '@/utils/product-utils';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import ProductListCard from '@/components/products/ProductListCard';
+import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
+
+const PRODUCT_TYPE_OPTIONS = [
+  { value: 'frame', label: 'Frames', icon: '🕶️' },
+  { value: 'sunglasses', label: 'Sunglasses', icon: '😎' },
+  { value: 'contact_lens', label: 'Contact Lenses', icon: '👁️' },
+  { value: 'eye_hygiene', label: 'Eye Hygiene', icon: '💧' },
+  { value: 'accessory', label: 'Accessories', icon: '🎁' },
+];
+
+const GENDER_OPTIONS = [
+  { value: 'men', label: 'Men' },
+  { value: 'women', label: 'Women' },
+  { value: 'unisex', label: 'Unisex' },
+  { value: 'kids', label: 'Kids' },
+];
+
+const STOCK_OPTIONS = [
+  { value: 'in_stock', label: 'In Stock' },
+  { value: 'out_of_stock', label: 'Out of Stock' },
+  { value: 'backorder', label: 'Backorder' },
+];
 
 function ProductCard({ product }: { product: Product }) {
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
@@ -42,6 +64,7 @@ function ProductCard({ product }: { product: Product }) {
   };
 
   const displayImage = getDisplayImage();
+  const displayImageUrl = getFullImageUrl(displayImage);
   const activeVariantId = selectedVariantId || hoveredVariantId;
   const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
@@ -55,11 +78,12 @@ function ProductCard({ product }: { product: Product }) {
       <div className="relative w-full h-48 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-100">
         <div className="absolute inset-0 flex items-center justify-center">
           <Image
-            src={displayImage}
+            src={displayImageUrl}
             alt={product.name}
             width={200}
             height={200}
             className="object-contain max-h-[80%] transition-all duration-300 group-hover:scale-105"
+            unoptimized={isLocalhostImage(displayImageUrl)}
           />
         </div>
       </div>
@@ -248,6 +272,37 @@ export default function ProductsPage() {
     setCurrentPage(1);
   };
 
+  const activeFilters = useMemo(
+    () =>
+      [
+        search ? `Search: ${search}` : null,
+        selectedCategory
+          ? `Category: ${categories.find((c) => c.id.toString() === selectedCategory)?.name || selectedCategory}`
+          : null,
+        selectedType ? `Type: ${PRODUCT_TYPE_OPTIONS.find((o) => o.value === selectedType)?.label || selectedType}` : null,
+        selectedGender ? `Gender: ${selectedGender}` : null,
+        selectedFrameShape ? `Shape: ${selectedFrameShape}` : null,
+        selectedFrameMaterial ? `Material: ${selectedFrameMaterial}` : null,
+        selectedStockStatus ? `Stock: ${selectedStockStatus.replace('_', ' ')}` : null,
+        minRating ? `Min rating: ${minRating}+` : null,
+        minPrice ? `Min price: €${minPrice}` : null,
+        maxPrice ? `Max price: €${maxPrice}` : null,
+      ].filter(Boolean) as string[],
+    [
+      search,
+      selectedCategory,
+      categories,
+      selectedType,
+      selectedGender,
+      selectedFrameShape,
+      selectedFrameMaterial,
+      selectedStockStatus,
+      minRating,
+      minPrice,
+      maxPrice,
+    ]
+  );
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 w-full">
         {/* Header */}
@@ -259,197 +314,245 @@ export default function ProductsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Filters Sidebar */}
           <aside className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sticky top-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">Filters</h2>
-                <button
-                  onClick={clearFilters}
-                  className="text-sm text-[#0066CC] hover:text-[#0052a3] font-medium"
-                >
-                  Clear All
-                </button>
+            <div className="bg-white/95 backdrop-blur rounded-2xl shadow-sm border border-gray-200 p-5 sticky top-4 transition-all hover:shadow-md">
+              <div className="mb-4 rounded-xl bg-gradient-to-r from-[#0066CC] to-[#00A0FF] p-4 text-white">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold inline-flex items-center gap-2">
+                    <span aria-hidden="true">✨</span>
+                    Filters
+                  </h2>
+                  <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold">
+                    {activeFilters.length} active
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-blue-100">Refine products with smart quick picks</p>
+              </div>
+
+              <div className="mb-4 flex flex-wrap gap-2">
+                {activeFilters.slice(0, 4).map((filter) => (
+                  <span
+                    key={filter}
+                    className="rounded-full bg-blue-50 text-[#0066CC] border border-blue-200 px-2.5 py-1 text-[11px] font-semibold animate-pulse"
+                  >
+                    {filter}
+                  </span>
+                ))}
+                {activeFilters.length > 4 && (
+                  <span className="rounded-full bg-gray-100 text-gray-700 px-2.5 py-1 text-[11px] font-semibold">
+                    +{activeFilters.length - 4} more
+                  </span>
+                )}
               </div>
 
               {/* Search */}
               <form onSubmit={handleSearch} className="mb-6">
-                <Input
-                  type="text"
-                  placeholder="Search products..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full"
-                />
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔎</span>
+                  <Input
+                    type="text"
+                    placeholder="Search products..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-10"
+                  />
+                </div>
                 <Button type="submit" variant="primary" size="sm" className="w-full mt-2">
                   Search
                 </Button>
               </form>
 
-              {/* Category Filter */}
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Category</label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => {
-                    setSelectedCategory(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id.toString()}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
+                <p className="text-sm font-semibold text-gray-900 mb-2">Quick Product Type</p>
+                <div className="flex flex-wrap gap-2">
+                  {PRODUCT_TYPE_OPTIONS.map((option) => {
+                    const active = selectedType === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setSelectedType(active ? '' : option.value);
+                          setCurrentPage(1);
+                        }}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-all duration-200 ${
+                          active
+                            ? 'bg-[#0066CC] text-white border-[#0066CC] shadow-sm scale-105'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-[#0066CC] hover:text-[#0066CC] hover:-translate-y-0.5'
+                        }`}
+                      >
+                        <span className="mr-1" aria-hidden="true">{option.icon}</span>
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Product Type Filter */}
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Product Type</label>
-                <select
-                  value={selectedType}
-                  onChange={(e) => {
-                    setSelectedType(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
-                >
-                  <option value="">All Types</option>
-                  <option value="frame">Frames</option>
-                  <option value="sunglasses">Sunglasses</option>
-                  <option value="contact_lens">Contact Lenses</option>
-                  <option value="eye_hygiene">Eye Hygiene</option>
-                  <option value="accessory">Accessories</option>
-                </select>
+                <p className="text-sm font-semibold text-gray-900 mb-2">Quick Gender</p>
+                <div className="flex flex-wrap gap-2">
+                  {GENDER_OPTIONS.map((option) => {
+                    const active = selectedGender === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setSelectedGender(active ? '' : option.value);
+                          setCurrentPage(1);
+                        }}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-all duration-200 ${
+                          active
+                            ? 'bg-[#0066CC] text-white border-[#0066CC] shadow-sm scale-105'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-[#0066CC] hover:text-[#0066CC] hover:-translate-y-0.5'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Gender Filter */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Gender</label>
-                <select
-                  value={selectedGender}
-                  onChange={(e) => {
-                    setSelectedGender(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
-                >
-                  <option value="">All</option>
-                  <option value="men">Men</option>
-                  <option value="women">Women</option>
-                  <option value="unisex">Unisex</option>
-                  <option value="kids">Kids</option>
-                </select>
-              </div>
-
-              {/* Frame Shape Filter */}
-              {availableFrameShapes.length > 0 && (
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Frame Shape</label>
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Category</label>
                   <select
-                    value={selectedFrameShape}
+                    value={selectedCategory}
                     onChange={(e) => {
-                      setSelectedFrameShape(e.target.value);
+                      setSelectedCategory(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
                   >
-                    <option value="">All Shapes</option>
-                    {availableFrameShapes.map((shape) => (
-                      <option key={shape} value={shape}>
-                        {shape.charAt(0).toUpperCase() + shape.slice(1)}
+                    <option value="">All Categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id.toString()}>
+                        {cat.name}
                       </option>
                     ))}
                   </select>
                 </div>
-              )}
 
-              {/* Frame Material Filter */}
-              {availableFrameMaterials.length > 0 && (
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Frame Material</label>
+                {availableFrameShapes.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Frame Shape</label>
+                    <select
+                      value={selectedFrameShape}
+                      onChange={(e) => {
+                        setSelectedFrameShape(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
+                    >
+                      <option value="">All Shapes</option>
+                      {availableFrameShapes.map((shape) => (
+                        <option key={shape} value={shape}>
+                          {shape.charAt(0).toUpperCase() + shape.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {availableFrameMaterials.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Frame Material</label>
+                    <select
+                      value={selectedFrameMaterial}
+                      onChange={(e) => {
+                        setSelectedFrameMaterial(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
+                    >
+                      <option value="">All Materials</option>
+                      {availableFrameMaterials.map((material) => (
+                        <option key={material} value={material}>
+                          {material.charAt(0).toUpperCase() + material.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Stock Status</label>
+                  <div className="flex flex-wrap gap-2">
+                    {STOCK_OPTIONS.map((option) => {
+                      const active = selectedStockStatus === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setSelectedStockStatus(active ? '' : option.value);
+                            setCurrentPage(1);
+                          }}
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-all duration-200 ${
+                            active
+                              ? 'bg-[#0066CC] text-white border-[#0066CC] shadow-sm scale-105'
+                              : 'bg-white text-gray-700 border-gray-300 hover:border-[#0066CC] hover:text-[#0066CC] hover:-translate-y-0.5'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Minimum Rating</label>
                   <select
-                    value={selectedFrameMaterial}
+                    value={minRating}
                     onChange={(e) => {
-                      setSelectedFrameMaterial(e.target.value);
+                      setMinRating(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
                   >
-                    <option value="">All Materials</option>
-                    {availableFrameMaterials.map((material) => (
-                      <option key={material} value={material}>
-                        {material.charAt(0).toUpperCase() + material.slice(1)}
-                      </option>
-                    ))}
+                    <option value="">Any Rating</option>
+                    <option value="4.5">4.5+ Stars</option>
+                    <option value="4.0">4.0+ Stars</option>
+                    <option value="3.5">3.5+ Stars</option>
+                    <option value="3.0">3.0+ Stars</option>
                   </select>
                 </div>
-              )}
 
-              {/* Stock Status Filter */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Stock Status</label>
-                <select
-                  value={selectedStockStatus}
-                  onChange={(e) => {
-                    setSelectedStockStatus(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
-                >
-                  <option value="">All</option>
-                  <option value="in_stock">In Stock</option>
-                  <option value="out_of_stock">Out of Stock</option>
-                  <option value="backorder">Backorder</option>
-                </select>
-              </div>
-
-              {/* Rating Filter */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Minimum Rating</label>
-                <select
-                  value={minRating}
-                  onChange={(e) => {
-                    setMinRating(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
-                >
-                  <option value="">Any Rating</option>
-                  <option value="4.5">4.5+ Stars</option>
-                  <option value="4.0">4.0+ Stars</option>
-                  <option value="3.5">3.5+ Stars</option>
-                  <option value="3.0">3.0+ Stars</option>
-                </select>
-              </div>
-
-              {/* Price Range */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Price Range</label>
-                <div className="space-y-2">
-                  <Input
-                    type="number"
-                    placeholder="Min Price"
-                    value={minPrice}
-                    onChange={(e) => {
-                      setMinPrice(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Max Price"
-                    value={maxPrice}
-                    onChange={(e) => {
-                      setMaxPrice(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full"
-                  />
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Price Range</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Min €"
+                      value={minPrice}
+                      onChange={(e) => {
+                        setMinPrice(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Max €"
+                      value={maxPrice}
+                      onChange={(e) => {
+                        setMaxPrice(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
               </div>
+
+              <button
+                onClick={clearFilters}
+                className="mt-6 w-full rounded-xl border border-[#0066CC] px-3 py-2.5 text-sm font-semibold text-[#0066CC] hover:bg-blue-50 transition-colors"
+              >
+                Clear All Filters
+              </button>
             </div>
           </aside>
 
@@ -461,6 +564,11 @@ export default function ProductsPage() {
                 <span className="text-sm text-gray-600">
                   Showing {products.length} of {total} products
                 </span>
+                {activeFilters.length > 0 && (
+                  <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-[#0066CC]">
+                    {activeFilters.length} filters active
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-4">
                 {/* Sort */}

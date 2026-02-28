@@ -29,8 +29,9 @@ class CategoryLensConfigController extends Controller
             return ResponseHelper::error('Store not found', null, 404);
         }
 
-        // Get all categories (or only categories used by seller's products)
+        // Only allow main categories (exclude sub-categories) for seller lens configuration.
         $categories = Category::where('is_active', true)
+            ->whereNull('parent_id')
             ->orderBy('name')
             ->get();
 
@@ -65,6 +66,10 @@ class CategoryLensConfigController extends Controller
         $category = Category::find($categoryId);
         if (!$category) {
             return ResponseHelper::error('Category not found', null, 404);
+        }
+
+        if ($category->parent_id !== null) {
+            return ResponseHelper::error('Lens configuration is only available for main categories', null, 422);
         }
 
         // Get all available lens options (for reference)
@@ -138,6 +143,10 @@ class CategoryLensConfigController extends Controller
         $category = Category::find($categoryId);
         if (!$category) {
             return ResponseHelper::error('Category not found', null, 404);
+        }
+
+        if ($category->parent_id !== null) {
+            return ResponseHelper::error('Lens configuration is only available for main categories', null, 422);
         }
 
         $validated = $request->validate([

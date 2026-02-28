@@ -47,3 +47,7 @@ export default function Loader({ size = 'md', text, fullScreen = false }: Loader
 
 
 
+
+
+
+

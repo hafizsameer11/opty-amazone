@@ -11,6 +11,7 @@ import Loader from '@/components/ui/Loader';
 import ProductDetailsModal from '@/components/products/ProductDetailsModal';
 import Image from 'next/image';
 import Link from 'next/link';
+import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 
 export default function CartPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -124,12 +125,13 @@ export default function CartPage() {
                           className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-[#0066CC]/50 hover:shadow-md transition-all group cursor-pointer"
                           title="Click to view product details"
                         >
-                          {(item.variant?.images && item.variant.images[0]) || (item.product.images && item.product.images[0]) ? (
+                          {getFullImageUrl(item.variant?.images?.[0] || item.product.images?.[0]) !== '/file.svg' ? (
                             <Image
-                              src={item.variant?.images?.[0] || item.product.images[0]}
+                              src={getFullImageUrl(item.variant?.images?.[0] || item.product.images?.[0])}
                               alt={item.product.name}
                               fill
                               className="object-cover group-hover:scale-110 transition-transform duration-300"
+                              unoptimized={isLocalhostImage(getFullImageUrl(item.variant?.images?.[0] || item.product.images?.[0]))}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gray-200">

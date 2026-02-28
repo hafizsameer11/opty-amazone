@@ -11,10 +11,16 @@ import { isEyeProductCategory } from '@/utils/product-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 
 function ProductCard({ product }: { product: Product }) {
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  const formatProductType = (type: Product['product_type']) =>
+    type
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   
   // Check if product has variants and is an eye product category or frame/sunglasses type
   const isEyeProduct = isEyeProductCategory(product);
@@ -44,6 +50,8 @@ function ProductCard({ product }: { product: Product }) {
   };
 
   const displayImage = getDisplayImage();
+  const displayImageUrl = getFullImageUrl(displayImage);
+  const hasDisplayImage = displayImageUrl !== '/file.svg';
   const activeVariantId = selectedVariantId || hoveredVariantId;
   const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
@@ -56,16 +64,28 @@ function ProductCard({ product }: { product: Product }) {
     >
       <div className="relative w-full h-40 sm:h-48 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-100">
         <div className="absolute inset-0 flex items-center justify-center">
-          <Image
-            src={displayImage}
-            alt={product.name}
-            width={180}
-            height={180}
-            className="object-contain max-h-[80%] transition-all duration-300 group-hover:scale-105"
-          />
+          {hasDisplayImage ? (
+            <Image
+              src={displayImageUrl}
+              alt={product.name}
+              width={180}
+              height={180}
+              className="object-contain max-h-[80%] transition-all duration-300 group-hover:scale-105"
+              unoptimized={isLocalhostImage(displayImageUrl)}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zm3 8l3-3 2 2 4-4 3 3" />
+              </svg>
+            </div>
+          )}
         </div>
       </div>
       <div className="p-4 flex-1 flex flex-col">
+        <span className="inline-flex w-fit items-center rounded-full bg-[#0066CC]/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#0066CC] mb-2">
+          {formatProductType(product.product_type)}
+        </span>
         <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-[#0066CC] transition-colors text-sm">
           {product.name}
         </h3>
@@ -244,6 +264,11 @@ export default function StorePage() {
       )
     : products;
 
+  const bannerImageUrl = getFullImageUrl(store?.banner_image_url || store?.banner_image);
+  const profileImageUrl = getFullImageUrl(store?.profile_image_url || store?.profile_image);
+  const hasBannerImage = bannerImageUrl !== '/file.svg';
+  const hasProfileImage = profileImageUrl !== '/file.svg';
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -274,12 +299,13 @@ export default function StorePage() {
         <div className="relative">
           {/* Banner */}
           <div className="relative w-full h-48 sm:h-64 lg:h-80 bg-gradient-to-br from-[#0066CC] to-[#0052a3]">
-            {store.banner_image ? (
+            {hasBannerImage ? (
               <Image
-                src={store.banner_image}
+                src={bannerImageUrl}
                 alt={store.name}
                 fill
                 className="object-cover opacity-90"
+                unoptimized={isLocalhostImage(bannerImageUrl)}
               />
             ) : null}
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
@@ -290,13 +316,14 @@ export default function StorePage() {
             <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
                 {/* Logo */}
-                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white overflow-hidden shadow-lg bg-white flex-shrink-0">
-                  {store.profile_image ? (
+                <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white overflow-hidden shadow-lg bg-white flex-shrink-0">
+                  {hasProfileImage ? (
                     <Image
-                      src={store.profile_image}
+                      src={profileImageUrl}
                       alt={store.name}
                       fill
                       className="object-cover"
+                      unoptimized={isLocalhostImage(profileImageUrl)}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0066CC] to-[#0052a3] text-white font-bold text-3xl">

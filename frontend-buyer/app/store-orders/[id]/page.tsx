@@ -8,6 +8,7 @@ import { orderService, type StoreOrder } from '@/services/order-service';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
 import Link from 'next/link';
+import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 
 export default function StoreOrderDetailsPage() {
   const params = useParams();
@@ -166,12 +167,13 @@ export default function StoreOrderDetailsPage() {
               {storeOrder.items.map((item) => (
                 <div key={item.id} className="flex gap-4 border-b pb-4">
                   <div className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                    {item.product_images && item.product_images[0] && (
+                    {getFullImageUrl(item.product_images?.[0]) !== '/file.svg' && (
                       <Image
-                        src={item.product_images[0]}
+                        src={getFullImageUrl(item.product_images?.[0])}
                         alt={item.product_name}
                         fill
                         className="object-cover"
+                        unoptimized={isLocalhostImage(getFullImageUrl(item.product_images?.[0]))}
                       />
                     )}
                   </div>

@@ -10,6 +10,7 @@ import { isEyeProductCategory } from '@/utils/product-utils';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Loader from '@/components/ui/Loader';
+import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 
 function ProductCard({ product }: { product: Product }) {
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
@@ -43,6 +44,7 @@ function ProductCard({ product }: { product: Product }) {
   };
 
   const displayImage = getDisplayImage();
+  const displayImageUrl = getFullImageUrl(displayImage);
   const activeVariantId = selectedVariantId || hoveredVariantId;
   const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
@@ -56,11 +58,12 @@ function ProductCard({ product }: { product: Product }) {
       <div className="relative w-full h-48 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-100">
         <div className="absolute inset-0 flex items-center justify-center">
           <Image
-            src={displayImage}
+            src={displayImageUrl}
             alt={product.name}
             width={200}
             height={200}
             className="object-contain max-h-[80%] transition-all duration-300 group-hover:scale-105"
+            unoptimized={isLocalhostImage(displayImageUrl)}
           />
         </div>
       </div>

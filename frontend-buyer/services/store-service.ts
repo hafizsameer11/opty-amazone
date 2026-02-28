@@ -7,7 +7,9 @@ export interface PublicStore {
   slug: string;
   description?: string;
   profile_image?: string;
+  profile_image_url?: string;
   banner_image?: string;
+  banner_image_url?: string;
   rating?: number;
   followers_count?: number;
   products_count?: number;

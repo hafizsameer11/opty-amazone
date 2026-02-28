@@ -536,11 +536,18 @@ export default function GuidePage() {
                               features: ['Order list', 'Status updates', 'Order details', 'Tracking', 'Invoices', 'Customer info']
                             },
                             {
-                              name: 'Promotions',
+                              name: 'Discount Campaigns',
                               href: '/promotions',
                               icon: '🎉',
-                              description: 'Create promotional campaigns, set discounts, schedule sales, track promotion performance',
+                              description: 'Create discount campaigns, set discount rules, schedule sales, and track campaign performance',
                               features: ['Create campaigns', 'Discount rules', 'Scheduling', 'Performance tracking']
+                            },
+                            {
+                              name: 'Boost Ads',
+                              href: '/boost-ads',
+                              icon: '⚡',
+                              description: 'Boost products with paid ads placement using Stripe checkout (frontend flow)',
+                              features: ['Select product', 'Set budget', 'Stripe card payment', 'Ad placement request']
                             },
                             {
                               name: 'Announcements',

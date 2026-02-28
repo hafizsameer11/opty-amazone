@@ -3,25 +3,26 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface NavItem {
-  name: string;
+  nameKey: string;
   href: string;
   icon: React.ReactNode;
 }
 
 const navigation: NavItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: <DashboardIcon /> },
-  { name: 'Users', href: '/users', icon: <UsersIcon /> },
-  { name: 'Sellers', href: '/sellers', icon: <SellersIcon /> },
-  { name: 'Products', href: '/products', icon: <ProductsIcon /> },
-  { name: 'Orders', href: '/orders', icon: <OrdersIcon /> },
-  { name: 'Categories', href: '/categories', icon: <CategoriesIcon /> },
-  { name: 'Coupons', href: '/coupons', icon: <CouponsIcon /> },
-  { name: 'Points', href: '/points', icon: <PointsIcon /> },
-  { name: 'Analytics', href: '/analytics', icon: <AnalyticsIcon /> },
-  { name: 'Settings', href: '/settings', icon: <SettingsIcon /> },
-  { name: 'Activity Logs', href: '/activity-logs', icon: <ActivityIcon /> },
+  { nameKey: 'dashboard', href: '/dashboard', icon: <DashboardIcon /> },
+  { nameKey: 'users', href: '/users', icon: <UsersIcon /> },
+  { nameKey: 'sellers', href: '/sellers', icon: <SellersIcon /> },
+  { nameKey: 'products', href: '/products', icon: <ProductsIcon /> },
+  { nameKey: 'orders', href: '/orders', icon: <OrdersIcon /> },
+  { nameKey: 'categories', href: '/categories', icon: <CategoriesIcon /> },
+  { nameKey: 'coupons', href: '/coupons', icon: <CouponsIcon /> },
+  { nameKey: 'points', href: '/points', icon: <PointsIcon /> },
+  { nameKey: 'analytics', href: '/analytics', icon: <AnalyticsIcon /> },
+  { nameKey: 'settings', href: '/settings', icon: <SettingsIcon /> },
+  { nameKey: 'activityLogs', href: '/activity-logs', icon: <ActivityIcon /> },
 ];
 
 function DashboardIcon() {
@@ -116,14 +117,15 @@ function PointsIcon() {
 export default function AdminSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
 
   return (
     <div className="fixed left-0 top-0 h-full w-64 glass-strong border-r border-white/20 z-40">
       <div className="flex flex-col h-full">
         {/* Logo */}
         <div className="p-6 border-b border-white/20">
-          <h1 className="text-2xl font-bold text-white">Admin Panel</h1>
-          <p className="text-sm text-white/70 mt-1">Optical Marketplace</p>
+          <h1 className="text-2xl font-bold text-white">{t('adminPanel')}</h1>
+          <p className="text-sm text-white/70 mt-1">{t('opticalMarketplace')}</p>
         </div>
 
         {/* Navigation */}
@@ -132,7 +134,7 @@ export default function AdminSidebar() {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
             return (
               <Link
-                key={item.name}
+                key={item.nameKey}
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                   isActive
@@ -141,7 +143,7 @@ export default function AdminSidebar() {
                 }`}
               >
                 {item.icon}
-                <span className="font-medium">{item.name}</span>
+                <span className="font-medium">{t(item.nameKey)}</span>
               </Link>
             );
           })}
@@ -154,7 +156,7 @@ export default function AdminSidebar() {
               {user?.name?.charAt(0).toUpperCase() || 'A'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{user?.name || 'Admin'}</p>
+              <p className="text-sm font-semibold text-white truncate">{user?.name || t('admin')}</p>
               <p className="text-xs text-white/70 truncate">{user?.email || ''}</p>
             </div>
           </div>
@@ -162,7 +164,7 @@ export default function AdminSidebar() {
             onClick={logout}
             className="w-full px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
           >
-            Logout
+            {t('logout')}
           </button>
         </div>
       </div>

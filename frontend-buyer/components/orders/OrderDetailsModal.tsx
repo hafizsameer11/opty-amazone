@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
 import { useToast } from '@/components/ui/Toast';
+import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 
 interface OrderDetailsModalProps {
   isOpen: boolean;
@@ -244,12 +245,13 @@ export default function OrderDetailsModal({
                             className="flex gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
                           >
                             <div className="relative w-16 h-16 bg-white rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                              {item.product_images && item.product_images[0] ? (
+                              {getFullImageUrl(item.product_images?.[0]) !== '/file.svg' ? (
                                 <Image
-                                  src={item.product_images[0]}
+                                  src={getFullImageUrl(item.product_images?.[0])}
                                   alt={item.product_name}
                                   fill
                                   className="object-cover"
+                                  unoptimized={isLocalhostImage(getFullImageUrl(item.product_images?.[0]))}
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-gray-100">

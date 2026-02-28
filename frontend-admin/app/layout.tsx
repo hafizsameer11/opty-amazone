@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ToastProvider } from "@/components/ui/Toast";
+import GoogleTranslateWidget from "@/components/ui/GoogleTranslateWidget";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -32,9 +34,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${poppins.variable} font-sans`}>
         <AuthProvider>
-          <ToastProvider>
-            {children}
-          </ToastProvider>
+          <LanguageProvider>
+            <ToastProvider>
+              {children}
+              <GoogleTranslateWidget />
+            </ToastProvider>
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

@@ -5,11 +5,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
+import { useLanguage } from '@/contexts/LanguageContext';
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 
 export default function Header() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [showDropdown, setShowDropdown] = useState(false);
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     await logout();
@@ -22,11 +25,12 @@ export default function Header() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <h2 className="text-xl font-bold text-gray-900 bg-gradient-to-r from-[#0066CC] to-[#0052A3] bg-clip-text text-transparent">
-              Dashboard
+              {t('dashboard')}
             </h2>
           </div>
 
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
             {/* Notifications */}
             <button className="relative p-2.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#0066CC] rounded-lg transition-all duration-200">
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,7 +50,7 @@ export default function Header() {
                 </div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-semibold text-gray-900">{user?.name || 'User'}</p>
-                  <p className="text-xs text-gray-500">Seller</p>
+                  <p className="text-xs text-gray-500">{t('seller')}</p>
                 </div>
                 <svg className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -69,7 +73,7 @@ export default function Header() {
                         <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        Your Profile
+                        {t('yourProfile')}
                       </Link>
                       <Link
                         href="/store"
@@ -79,7 +83,7 @@ export default function Header() {
                         <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
-                        Store Settings
+                        {t('storeSettings')}
                       </Link>
                       <hr className="my-2 border-gray-200" />
                       <button
@@ -89,7 +93,7 @@ export default function Header() {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
-                        Sign out
+                        {t('signOut')}
                       </button>
                     </div>
                   </div>

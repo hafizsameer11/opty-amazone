@@ -11,23 +11,32 @@ const BACKEND_BASE_URL = API_BASE_URL.replace('/api', '');
  */
 export function getFullImageUrl(url: string | null | undefined): string {
   if (!url) return '/file.svg';
-  
-  // If it's already a full URL (http/https) or data URL, return as is
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-    return url;
+
+  const normalized = String(url).trim();
+  if (!normalized || normalized === 'null' || normalized === 'undefined') {
+    return '/file.svg';
   }
-  
-  // If it's a relative path starting with /storage, convert to full URL
-  if (url.startsWith('/storage') || url.startsWith('/')) {
-    return `${BACKEND_BASE_URL}${url}`;
+
+  const sanitized = normalized.replace(/\\/g, '/');
+
+  // If it's already a full URL (http/https) or data URL, validate and return as is.
+  if (sanitized.startsWith('http://') || sanitized.startsWith('https://') || sanitized.startsWith('data:')) {
+    try {
+      return encodeURI(sanitized);
+    } catch {
+      return '/file.svg';
+    }
   }
-  
-  // If it's a relative path without leading slash, add it
-  if (!url.startsWith('/')) {
-    return `${BACKEND_BASE_URL}/${url}`;
+
+  // Convert relative paths to full backend URLs.
+  const relativePath = sanitized.startsWith('/') ? sanitized : `/${sanitized}`;
+  const fullUrl = `${BACKEND_BASE_URL}${relativePath}`;
+
+  try {
+    return encodeURI(fullUrl);
+  } catch {
+    return '/file.svg';
   }
-  
-  return url;
 }
 
 /**

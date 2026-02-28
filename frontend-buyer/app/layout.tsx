@@ -3,8 +3,10 @@ import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ToastProvider } from "@/components/ui/Toast";
 import PageLoader from "@/components/ui/PageLoader";
+import GoogleTranslateWidget from "@/components/ui/GoogleTranslateWidget";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -38,12 +40,15 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          <CartProvider>
-            <ToastProvider>
-              <PageLoader />
-              {children}
-            </ToastProvider>
-          </CartProvider>
+          <LanguageProvider>
+            <CartProvider>
+              <ToastProvider>
+                <PageLoader />
+                {children}
+                <GoogleTranslateWidget />
+              </ToastProvider>
+            </CartProvider>
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

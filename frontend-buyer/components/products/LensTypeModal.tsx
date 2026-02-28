@@ -6,6 +6,7 @@ import Button from "@/components/ui/Button";
 import PrescriptionEntry from "./PrescriptionEntry";
 import LensThicknessStep from "./LensThicknessStep";
 import TreatmentStep from "./TreatmentStep";
+import { getFullImageUrl, isLocalhostImage } from "@/lib/image-utils";
 
 interface LensType {
   id: number;
@@ -372,7 +373,13 @@ export default function LensTypeModal({
   const renderProductImage = () => (
     <div className="flex-1 flex flex-col items-center justify-center bg-white px-1 py-2 relative flex-shrink-0">
       <div className="relative w-full max-w-md aspect-square mb-1">
-        <Image src={productImage} alt={productName} fill className="object-contain" />
+        <Image
+          src={getFullImageUrl(productImage)}
+          alt={productName}
+          fill
+          className="object-contain"
+          unoptimized={isLocalhostImage(getFullImageUrl(productImage))}
+        />
       </div>
       <div className="text-center">
         <p className="text-sm font-semibold text-gray-900">{productName}</p>
