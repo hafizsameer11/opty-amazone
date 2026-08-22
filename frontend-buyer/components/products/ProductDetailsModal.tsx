@@ -86,11 +86,13 @@ export default function ProductDetailsModal({
 
   const availableFrameSizes = (() => {
     const all = product?.frame_sizes ?? [];
+    const inStock = (s: FrameSize) =>
+      Number(s.stock_quantity) > 0 && s.stock_status !== 'out_of_stock';
     if (!hasVariants) {
-      return all.filter((s) => !s.product_variant_id);
+      return all.filter((s) => !s.product_variant_id && inStock(s));
     }
     if (!activeVariantId) return [];
-    return all.filter((s) => s.product_variant_id === activeVariantId);
+    return all.filter((s) => s.product_variant_id === activeVariantId && inStock(s));
   })();
 
   const selectedFrameSizeRow: FrameSize | null =
