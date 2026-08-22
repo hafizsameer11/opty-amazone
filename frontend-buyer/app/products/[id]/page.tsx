@@ -467,52 +467,35 @@ export default function ProductDetailPage() {
 
               {showSizePicker && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="text-sm font-semibold text-gray-700">Size:</label>
-                    {selectedFrameSize ? (
-                      <span className="text-xs text-[#0066CC] font-medium">
-                        Selected: {formatFrameSizeLabel(selectedFrameSize)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-500">Choose a size for this color</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {availableFrameSizes.map((size) => {
-                      const label = formatFrameSizeLabel(size);
-                      const isSelected = selectedFrameSizeId === size.id;
-                      const outOfStock =
-                        size.stock_status === 'out_of_stock' || size.stock_quantity <= 0;
-                      return (
-                        <button
-                          key={size.id}
-                          type="button"
-                          disabled={outOfStock}
-                          onClick={() => {
-                            setSelectedFrameSizeId(size.id);
-                            setSelectedImageIndex(0);
-                            setQuantity(1);
-                          }}
-                          className={`min-w-[4.5rem] px-4 py-2.5 rounded-full border-2 text-sm font-semibold transition-all ${
-                            isSelected
-                              ? 'border-[#0066CC] bg-[#0066CC] text-white shadow-sm'
-                              : outOfStock
-                              ? 'border-gray-200 text-gray-400 opacity-60 cursor-not-allowed'
-                              : 'border-gray-300 text-gray-800 hover:border-[#0066CC] hover:text-[#0066CC]'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <label htmlFor="frame-size-select" className="block text-sm font-semibold text-gray-700">
+                    Size:
+                  </label>
+                  <select
+                    id="frame-size-select"
+                    value={selectedFrameSizeId ?? ''}
+                    onChange={(e) => {
+                      const nextId = e.target.value ? Number(e.target.value) : null;
+                      setSelectedFrameSizeId(nextId);
+                      setSelectedImageIndex(0);
+                      setQuantity(1);
+                    }}
+                    className="w-full max-w-md px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
+                  >
+                    <option value="">Select size</option>
+                    {availableFrameSizes.map((size) => (
+                      <option key={size.id} value={size.id}>
+                        {formatFrameSizeLabel(size)}
+                        {` (${formatFrameSizeDimensions(size)})`}
+                        {` — ${size.stock_quantity} available`}
+                      </option>
+                    ))}
+                  </select>
                   {selectedFrameSize && (
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
                       <span>{formatFrameSizeDimensions(selectedFrameSize)}</span>
                       <span className="text-gray-300">|</span>
                       <span>
-                        {selectedFrameSize.stock_quantity}{' '}
-                        {selectedFrameSize.stock_quantity === 1 ? 'available' : 'available'}
+                        {selectedFrameSize.stock_quantity} available
                       </span>
                       {selectedFrameSize.price != null && Number.isFinite(Number(selectedFrameSize.price)) && (
                         <>

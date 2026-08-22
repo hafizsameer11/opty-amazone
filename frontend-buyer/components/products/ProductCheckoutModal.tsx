@@ -938,24 +938,28 @@ export default function ProductCheckoutModal({
                       <h2 className="text-lg font-bold text-gray-900">Frame Size</h2>
                     </div>
                     <div className="flex-1 overflow-y-auto p-4">
-                      <div className="grid grid-cols-2 gap-3">
+                      <label htmlFor="checkout-frame-size" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Select size
+                      </label>
+                      <select
+                        id="checkout-frame-size"
+                        value={selectedFrameSize?.id ?? ''}
+                        onChange={(e) => {
+                          const nextId = e.target.value ? Number(e.target.value) : null;
+                          const row = availableFrameSizes.find((s) => s.id === nextId) ?? null;
+                          setSelectedFrameSize(row);
+                        }}
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
+                      >
+                        <option value="">Select size</option>
                         {availableFrameSizes.map((size) => (
-                          <button
-                            key={size.id}
-                            onClick={() => setSelectedFrameSize(size)}
-                            className={`px-4 py-3 rounded-lg border-2 text-left transition-all ${
-                              selectedFrameSize?.id === size.id
-                                ? 'border-[#0066CC] bg-[#0066CC]/5'
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <span className="font-medium text-sm">{size.size_label}</span>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {size.lens_width}mm-{size.bridge_width}mm-{size.temple_length}mm
-                            </p>
-                          </button>
+                          <option key={size.id} value={size.id}>
+                            {(size.size_label || `${size.lens_width}-${size.bridge_width}-${size.temple_length}`)}
+                            {` (${size.lens_width}mm-${size.bridge_width}mm-${size.temple_length}mm)`}
+                            {` — ${size.stock_quantity} available`}
+                          </option>
                         ))}
-                      </div>
+                      </select>
                     </div>
                     <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 flex-shrink-0">
                       <Button variant="outline" onClick={() => setCurrentStep('treatments')}>
