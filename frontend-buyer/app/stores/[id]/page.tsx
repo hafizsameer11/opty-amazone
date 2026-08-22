@@ -6,12 +6,37 @@ import Link from 'next/link';
 import Image from 'next/image';
 // Layout components are now handled by app/template.tsx
 import { StoreService, type PublicStore } from '@/services/store-service';
+import { getAxiosErrorMessage } from '@/lib/api-client';
 import { productService, type Product } from '@/services/product-service';
 import { isEyeProductCategory } from '@/utils/product-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
+import ProductCardCategoryLine from '@/components/products/ProductCardCategoryLine';
+import StoreChatPanel from '@/components/stores/StoreChatPanel';
+import ReportStoreButton from '@/components/stores/ReportStoreButton';
+
+function normalizeExternalUrl(url: string): string {
+  const t = url.trim();
+  if (!t) return '#';
+  if (/^https?:\/\//i.test(t)) return t;
+  return `https://${t}`;
+}
+
+function socialPlatformLabel(platform: string): string {
+  const p = platform.toLowerCase();
+  const map: Record<string, string> = {
+    facebook: 'Facebook',
+    instagram: 'Instagram',
+    twitter: 'Twitter',
+    linkedin: 'LinkedIn',
+    youtube: 'YouTube',
+    website: 'Website',
+    other: 'Link',
+  };
+  return map[p] ?? platform.charAt(0).toUpperCase() + platform.slice(1);
+}
 
 function ProductCard({ product }: { product: Product }) {
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
@@ -86,6 +111,7 @@ function ProductCard({ product }: { product: Product }) {
         <span className="inline-flex w-fit items-center rounded-full bg-[#0066CC]/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#0066CC] mb-2">
           {formatProductType(product.product_type)}
         </span>
+        <ProductCardCategoryLine product={product} size="compact" className="mb-1.5" />
         <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-[#0066CC] transition-colors text-sm">
           {product.name}
         </h3>
@@ -160,13 +186,21 @@ function ProductCard({ product }: { product: Product }) {
 export default function StorePage() {
   const params = useParams();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [store, setStore] = useState<PublicStore | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followMessage, setFollowMessage] = useState<string | null>(null);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('fraud');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportFiles, setReportFiles] = useState<File[]>([]);
+  const [reportSending, setReportSending] = useState(false);
+  const [reportMessage, setReportMessage] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -174,11 +208,10 @@ export default function StorePage() {
   const [totalProducts, setTotalProducts] = useState(0);
 
   useEffect(() => {
-    if (params.id) {
-      loadStore();
-      loadReviews();
-      loadProducts(1, false);
-    }
+    if (!params.id) return;
+    loadStore();
+    loadReviews();
+    loadProducts(1, false);
   }, [params.id]);
 
   const loadStore = async () => {
@@ -186,16 +219,31 @@ export default function StorePage() {
       setLoading(true);
       const data = await StoreService.getPublicStore(Number(params.id));
       setStore(data.store);
-      // Check if user is following (if authenticated)
-      if (isAuthenticated) {
-        // TODO: Check follow status
-      }
     } catch (error) {
       console.error('Failed to load store:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const syncFollowStatus = async () => {
+    const storeId = Number(params.id);
+    if (!params.id || Number.isNaN(storeId)) return;
+    if (!isAuthenticated || user?.role !== 'buyer') {
+      setIsFollowing(false);
+      return;
+    }
+    try {
+      const following = await StoreService.getFollowStatus(storeId);
+      setIsFollowing(following);
+    } catch {
+      setIsFollowing(false);
+    }
+  };
+
+  useEffect(() => {
+    syncFollowStatus();
+  }, [params.id, isAuthenticated, user?.role]);
 
   const loadProducts = async (page = 1, append = false) => {
     try {
@@ -225,12 +273,6 @@ export default function StorePage() {
     }
   };
 
-  useEffect(() => {
-    if (params.id) {
-      loadProducts(1, false);
-    }
-  }, [params.id]);
-
   const loadReviews = async () => {
     try {
       const data = await StoreService.getPublicStoreReviews(Number(params.id), { per_page: 5 });
@@ -241,19 +283,77 @@ export default function StorePage() {
   };
 
   const handleFollow = async () => {
+    setFollowMessage(null);
     if (!isAuthenticated) {
-      router.push('/auth/login?redirect=' + window.location.pathname);
+      router.push('/auth/login?redirect=' + encodeURIComponent(window.location.pathname));
       return;
     }
+    if (user?.role !== 'buyer') {
+      setFollowMessage('Only buyer accounts can follow stores.');
+      return;
+    }
+    const storeId = Number(params.id);
+    setFollowLoading(true);
     try {
       if (isFollowing) {
-        await StoreService.unfollowStore(Number(params.id));
+        await StoreService.unfollowStore(storeId);
+        setIsFollowing(false);
+        setStore((prev) =>
+          prev
+            ? {
+                ...prev,
+                followers_count: Math.max(0, (prev.followers_count || 0) - 1),
+              }
+            : prev
+        );
       } else {
-        await StoreService.followStore(Number(params.id));
+        await StoreService.followStore(storeId);
+        setIsFollowing(true);
+        setStore((prev) =>
+          prev
+            ? {
+                ...prev,
+                followers_count: (prev.followers_count || 0) + 1,
+              }
+            : prev
+        );
       }
-      setIsFollowing(!isFollowing);
     } catch (error) {
-      console.error('Failed to toggle follow:', error);
+      setFollowMessage(getAxiosErrorMessage(error));
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleReport = async () => {
+    setReportMessage(null);
+    if (!isAuthenticated) {
+      router.push('/auth/login?redirect=' + encodeURIComponent(window.location.pathname));
+      return;
+    }
+    if (user?.role !== 'buyer') {
+      setReportMessage('Only buyer accounts can report stores.');
+      return;
+    }
+    if (!reportReason.trim()) {
+      setReportMessage('Please select a reason.');
+      return;
+    }
+    setReportSending(true);
+    try {
+      await StoreService.reportStore(Number(params.id), {
+        reason: reportReason,
+        details: reportDetails.trim() || undefined,
+        evidence: reportFiles,
+      });
+      setReportMessage('Report submitted. Our team will review it.');
+      setReportOpen(false);
+      setReportDetails('');
+      setReportFiles([]);
+    } catch (error) {
+      setReportMessage(getAxiosErrorMessage(error));
+    } finally {
+      setReportSending(false);
     }
   };
 
@@ -346,7 +446,7 @@ export default function StorePage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                       </svg>
                       <span className="text-sm text-gray-600">
-                        <span className="font-semibold text-gray-900">{store.products_count || 0}</span> Products
+                        <span className="font-semibold text-gray-900">{store.products_count ?? 0}</span> Products
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -354,30 +454,132 @@ export default function StorePage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                       </svg>
                       <span className="text-sm text-gray-600">
-                        <span className="font-semibold text-gray-900">{store.followers_count || 0}</span> Followers
+                        <span className="font-semibold text-gray-900">{store.followers_count ?? 0}</span> Followers
                       </span>
                     </div>
-                    {store.rating && (
-                      <div className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                        <span className="text-sm text-gray-600">
-                          <span className="font-semibold text-gray-900">{Number(store.rating).toFixed(1)}</span> Rating
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      <span className="text-sm text-gray-600">
+                        <span className="font-semibold text-gray-900">
+                          {store.rating != null ? Number(store.rating).toFixed(1) : '—'}
+                        </span>{' '}
+                        Rating
+                        <span className="text-gray-400 ml-1">
+                          ({store.reviews_count ?? reviews.length} reviews)
                         </span>
-                      </div>
-                    )}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Follow Button */}
-                  {isAuthenticated && (
+                  {/* Follow + messages */}
+                  {followMessage && (
+                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 max-w-md">
+                      {followMessage}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-3">
                     <Button
                       onClick={handleFollow}
                       variant={isFollowing ? 'outline' : 'primary'}
                       size="md"
+                      disabled={followLoading}
                     >
-                      {isFollowing ? 'Following' : 'Follow Store'}
+                      {followLoading
+                        ? 'Please wait…'
+                        : !isAuthenticated
+                          ? 'Sign in to follow'
+                          : isFollowing
+                            ? 'Following'
+                            : 'Follow Store'}
                     </Button>
+                    <Button
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          router.push('/auth/login?redirect=' + encodeURIComponent(window.location.pathname));
+                          return;
+                        }
+                        setReportOpen((o) => !o);
+                      }}
+                      variant="outline"
+                      size="md"
+                    >
+                      Report store
+                    </Button>
+                  </div>
+
+                  {reportMessage && (
+                    <p className="mt-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 max-w-md">
+                      {reportMessage}
+                    </p>
+                  )}
+
+                  {reportOpen && (
+                    <div className="mt-4 max-w-md rounded-xl border border-red-100 bg-red-50/50 p-4 space-y-3">
+                      <h3 className="text-sm font-semibold text-gray-900">Report this store</h3>
+                      <select
+                        value={reportReason}
+                        onChange={(e) => setReportReason(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      >
+                        <option value="fraud">Suspected fraud</option>
+                        <option value="counterfeit">Counterfeit products</option>
+                        <option value="scam">Scam / phishing</option>
+                        <option value="inappropriate">Inappropriate content</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <textarea
+                        value={reportDetails}
+                        onChange={(e) => setReportDetails(e.target.value)}
+                        rows={3}
+                        placeholder="Describe the issue (optional)"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      />
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        multiple
+                        onChange={(e) => setReportFiles(Array.from(e.target.files || []).slice(0, 5))}
+                        className="block w-full text-sm text-gray-600"
+                      />
+                      <div className="flex gap-2">
+                        <Button onClick={handleReport} disabled={reportSending} size="sm">
+                          {reportSending ? 'Submitting…' : 'Submit report'}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setReportOpen(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <StoreChatPanel storeId={store.id} storeName={store.name} />
+                  <ReportStoreButton storeId={store.id} storeName={store.name} />
+
+                  {/* Social / web links */}
+                  {Array.isArray(store.social_links) && store.social_links.length > 0 && (
+                    <div className="mt-5 pt-5 border-t border-gray-100">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                        Links
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {store.social_links.map((link) => (
+                          <a
+                            key={link.id}
+                            href={normalizeExternalUrl(link.url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-[#0066CC] hover:bg-[#0066CC]/10 hover:border-[#0066CC]/30 transition-colors"
+                          >
+                            {socialPlatformLabel(link.platform)}
+                            <svg className="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -446,10 +648,16 @@ export default function StorePage() {
           </div>
 
           {/* Reviews Section */}
-          {reviews.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Recent Reviews</h2>
-              <div className="space-y-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">
+              Reviews
+              <span className="ml-2 text-base font-normal text-gray-500">
+                ({store.reviews_count ?? reviews.length}
+                {store.rating != null ? ` · ${Number(store.rating).toFixed(1)}★` : ''})
+              </span>
+            </h2>
+            {reviews.length > 0 ? (
+              <div className="space-y-4 mt-4">
                 {reviews.map((review) => (
                   <div key={review.id} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
                     <div className="flex items-start gap-4">
@@ -482,8 +690,10 @@ export default function StorePage() {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="mt-4 text-gray-600 text-sm">No reviews yet for this store.</p>
+            )}
+          </div>
         </div>
     </div>
   );

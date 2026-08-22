@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 // Layout components are now handled by app/template.tsx
 import { cartService, type Cart, type CartItem } from '@/services/cart-service';
+import OrderLineSelections from '@/components/orders/OrderLineSelections';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
 import ProductDetailsModal from '@/components/products/ProductDetailsModal';
@@ -125,13 +126,27 @@ export default function CartPage() {
                           className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-[#0066CC]/50 hover:shadow-md transition-all group cursor-pointer"
                           title="Click to view product details"
                         >
-                          {getFullImageUrl(item.variant?.images?.[0] || item.product.images?.[0]) !== '/file.svg' ? (
+                          {getFullImageUrl(
+                            item.product_variant?.eye_hygiene?.image_url ||
+                              item.variant?.images?.[0] ||
+                              item.product.images?.[0]
+                          ) !== '/file.svg' ? (
                             <Image
-                              src={getFullImageUrl(item.variant?.images?.[0] || item.product.images?.[0])}
+                              src={getFullImageUrl(
+                                item.product_variant?.eye_hygiene?.image_url ||
+                                  item.variant?.images?.[0] ||
+                                  item.product.images?.[0]
+                              )}
                               alt={item.product.name}
                               fill
                               className="object-cover group-hover:scale-110 transition-transform duration-300"
-                              unoptimized={isLocalhostImage(getFullImageUrl(item.variant?.images?.[0] || item.product.images?.[0]))}
+                              unoptimized={isLocalhostImage(
+                                getFullImageUrl(
+                                  item.product_variant?.eye_hygiene?.image_url ||
+                                    item.variant?.images?.[0] ||
+                                    item.product.images?.[0]
+                                )
+                              )}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gray-200">
@@ -156,19 +171,7 @@ export default function CartPage() {
                               </svg>
                             </span>
                           </button>
-                          {item.variant && (
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-gray-600">Color:</span>
-                              <div
-                                className="w-4 h-4 rounded-full border border-gray-300"
-                                style={{
-                                  backgroundColor: item.variant.color_code || '#ccc',
-                                }}
-                                title={item.variant.color_name}
-                              />
-                              <span className="text-xs text-gray-600">{item.variant.color_name}</span>
-                            </div>
-                          )}
+                          <OrderLineSelections line={item} className="mt-1" />
                           <p className="text-sm text-gray-600 mt-1">
                             €{Number(item.price || 0).toFixed(2)} each
                           </p>

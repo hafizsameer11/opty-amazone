@@ -9,7 +9,7 @@ export interface WalletTransaction {
   id: number;
   type: 'top_up' | 'withdraw' | 'payment' | 'refund';
   amount: number;
-  status: 'pending' | 'completed' | 'failed';
+  status: 'pending' | 'success' | 'completed' | 'failed';
   description?: string;
   created_at: string;
 }

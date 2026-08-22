@@ -1,23 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get('admin_token')?.value || 
-    (typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null);
-
-  const isLoginPage = request.nextUrl.pathname === '/login';
-  const isPublicPage = request.nextUrl.pathname === '/login';
-
-  // If accessing login page and already authenticated, redirect to dashboard
-  if (isLoginPage && token) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  // If accessing protected page and not authenticated, redirect to login
-  if (!isPublicPage && !token && !isLoginPage) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
+/**
+ * Admin app auth is Bearer-token based (localStorage + axios); see AuthContext and api-client.
+ * Route protection is handled client-side in AdminLayout + API 401 redirect — do not gate here
+ * with cookies (token is not available to Edge middleware).
+ */
+export function middleware(_request: NextRequest) {
   return NextResponse.next();
 }
 

@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { loadStripe } from '@stripe/stripe-js';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { walletService } from '@/services/wallet-service';
 import { useToast } from '@/components/ui/Toast';
@@ -11,15 +10,9 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Loader from '@/components/ui/Loader';
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY || 
-  'pk_test_51SFZTeFZetT6fppMXO3CMbwUEfzCdEKbn9wlyDFnqMUGZWVQzsenp6jzWM3NAedklviHaCIl1P30Nc1n47aa6rwM00RYn3J6d4'
-);
-
 function TopUpForm() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { showToast } = useToast();
   const [amount, setAmount] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -34,21 +27,8 @@ function TopUpForm() {
   useEffect(() => {
     if (isAuthenticated) {
       loadBalance();
-      
-      // Check if redirected from Stripe success
-      const sessionId = searchParams.get('session_id');
-      const success = searchParams.get('success');
-      const canceled = searchParams.get('canceled');
-      
-      if (canceled === 'true') {
-        showToast('info', 'Payment was canceled');
-        localStorage.removeItem('topup_amount');
-        router.replace('/profile/top-up');
-      } else if (success === 'true' && sessionId) {
-        handleStripeSuccess(sessionId);
-      }
     }
-  }, [isAuthenticated, searchParams]);
+  }, [isAuthenticated]);
 
   const loadBalance = async () => {
     try {
@@ -60,43 +40,6 @@ function TopUpForm() {
   };
 
   const quickAmounts = [10, 25, 50, 100, 200, 500];
-
-  const handleStripeSuccess = async (sessionId: string) => {
-    try {
-      setProcessing(true);
-      const storedAmount = localStorage.getItem('topup_amount');
-      const topUpAmount = storedAmount ? parseFloat(storedAmount) : parseFloat(amount);
-      
-      if (!topUpAmount || topUpAmount <= 0) {
-        showToast('error', 'Unable to retrieve top-up amount');
-        router.replace('/profile/top-up');
-        return;
-      }
-      
-      await walletService.topUp({
-        amount: topUpAmount,
-        stripe_session_id: sessionId,
-      });
-      
-      showToast('success', `Successfully topped up €${topUpAmount.toFixed(2)}`);
-      await loadBalance();
-      setAmount('');
-      localStorage.removeItem('topup_amount');
-      
-      // Clean URL
-      router.replace('/profile/top-up');
-      
-      // Redirect after delay
-      setTimeout(() => {
-        router.push('/profile?tab=wallet');
-      }, 2000);
-    } catch (error: any) {
-      showToast('error', error.response?.data?.message || 'Failed to process top-up');
-      router.replace('/profile/top-up');
-    } finally {
-      setProcessing(false);
-    }
-  };
 
   const handleTopUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,55 +57,19 @@ function TopUpForm() {
 
     setProcessing(true);
     try {
-      // Store amount for after Stripe redirect
-      localStorage.setItem('topup_amount', topUpAmount.toString());
-      
-      // Initialize Stripe
-      const stripe = await stripePromise;
-      if (!stripe) {
-        throw new Error('Stripe failed to load');
-      }
-
-      // Get auth token
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('Please login to continue');
-      }
-
-      // Create Stripe Checkout Session
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          amount: topUpAmount * 100, // Convert to cents
-          currency: 'eur',
-          success_url: `${window.location.origin}/profile/top-up?success=true&session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${window.location.origin}/profile/top-up?canceled=true`,
-        }),
+      await walletService.topUp({
+        amount: topUpAmount,
       });
-
-      const session = await response.json();
-      
-      if (session.error) {
-        throw new Error(session.error);
-      }
-
-      // Redirect to Stripe Checkout
-      const result = await (stripe as any).redirectToCheckout({
-        sessionId: session.id,
-      });
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
+      showToast('success', `Successfully topped up €${topUpAmount.toFixed(2)}`);
+      await loadBalance();
+      setAmount('');
+      setTimeout(() => {
+        router.push('/profile?tab=wallet');
+      }, 1200);
     } catch (error: any) {
-      console.error('Stripe error:', error);
-      showToast('error', error.message || 'Failed to initiate payment. Please try again.');
+      showToast('error', error.response?.data?.message || error.message || 'Failed to top up wallet. Please try again.');
+    } finally {
       setProcessing(false);
-      localStorage.removeItem('topup_amount');
     }
   };
 
@@ -257,8 +164,8 @@ function TopUpForm() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div>
-                      <p className="text-sm font-semibold text-blue-900 mb-1">Secure Payment</p>
-                      <p className="text-xs text-blue-700">You will be redirected to Stripe Checkout for secure payment processing.</p>
+                      <p className="text-sm font-semibold text-blue-900 mb-1">Direct Wallet Credit</p>
+                      <p className="text-xs text-blue-700">Top-up is currently processed directly without Stripe.</p>
                     </div>
                   </div>
                 </div>

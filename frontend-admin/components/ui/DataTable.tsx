@@ -1,14 +1,17 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import LoadingSpinner from './LoadingSpinner';
 import Skeleton from './Skeleton';
 
-interface Column<T> {
+export interface Column<T> {
   key: string;
   header: string;
   render?: (item: T) => React.ReactNode;
   sortable?: boolean;
+  /** Hide this column below the `md` breakpoint to reduce horizontal scroll */
+  hideBelowMd?: boolean;
+  /** Extra classes for th/td (e.g. whitespace-nowrap) */
+  className?: string;
 }
 
 interface DataTableProps<T> {
@@ -61,36 +64,37 @@ export default function DataTable<T extends Record<string, any>>({
     );
   }
 
+  const colVisibility = (column: Column<T>) =>
+    column.hideBelowMd ? 'hidden md:table-cell' : '';
+
   return (
     <div className="glass-card rounded-xl overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full min-w-0">
           <thead>
-            <tr className="border-b border-white/20">
+            <tr className="border-b border-slate-200 bg-slate-50">
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className={`px-6 py-4 text-left text-sm font-bold text-white/90 uppercase tracking-wider ${
-                    column.sortable ? 'cursor-pointer hover:text-white' : ''
-                  }`}
+                  className={`px-4 lg:px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider ${colVisibility(column)} ${
+                    column.sortable ? 'cursor-pointer hover:text-slate-900' : ''
+                  } ${column.className || ''}`}
                   onClick={() => column.sortable && handleSort(column.key)}
                 >
                   <div className="flex items-center gap-2">
                     {column.header}
                     {column.sortable && sortColumn === column.key && (
-                      <span className="text-xs">
-                        {sortDirection === 'asc' ? '↑' : '↓'}
-                      </span>
+                      <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </div>
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/10">
+          <tbody className="divide-y divide-slate-100 bg-white">
             {sortedData.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-8 text-center text-white/70">
+                <td colSpan={columns.length} className="px-4 lg:px-6 py-8 text-center text-slate-500">
                   No data available
                 </td>
               </tr>
@@ -98,13 +102,14 @@ export default function DataTable<T extends Record<string, any>>({
               sortedData.map((item) => (
                 <tr
                   key={keyExtractor(item)}
-                  className={`hover:bg-white/10 transition-colors ${
-                    onRowClick ? 'cursor-pointer' : ''
-                  }`}
+                  className={`hover:bg-slate-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
                   onClick={() => onRowClick?.(item)}
                 >
                   {columns.map((column) => (
-                    <td key={column.key} className="px-6 py-4 text-sm text-white/80">
+                    <td
+                      key={column.key}
+                      className={`px-4 lg:px-6 py-4 text-sm text-slate-700 ${colVisibility(column)} ${column.className || ''}`}
+                    >
                       {column.render ? column.render(item) : item[column.key]}
                     </td>
                   ))}
@@ -117,4 +122,3 @@ export default function DataTable<T extends Record<string, any>>({
     </div>
   );
 }
-

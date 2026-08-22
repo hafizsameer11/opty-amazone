@@ -16,12 +16,15 @@ export interface ProductVariant {
 export interface FrameSize {
   id: number;
   product_id: number;
+  product_variant_id?: number | null;
   lens_width: number;
   bridge_width: number;
   temple_length: number;
   frame_width?: number;
   frame_height?: number;
   size_label?: string;
+  price?: number | null;
+  image?: string | null;
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
 }

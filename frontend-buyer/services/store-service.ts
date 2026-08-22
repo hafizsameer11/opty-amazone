@@ -1,6 +1,12 @@
 import apiClient from '@/lib/api-client';
 import type { Store, StoreReview, CreateReviewData } from '@/types/store';
 
+export interface StoreSocialLinkPublic {
+  id: number;
+  platform: string;
+  url: string;
+}
+
 export interface PublicStore {
   id: number;
   name: string;
@@ -11,8 +17,10 @@ export interface PublicStore {
   banner_image?: string;
   banner_image_url?: string;
   rating?: number;
+  reviews_count?: number;
   followers_count?: number;
   products_count?: number;
+  social_links?: StoreSocialLinkPublic[];
   is_active: boolean;
   status: string;
 }
@@ -33,7 +41,22 @@ export class StoreService {
    */
   static async getAllStores(params?: { search?: string; per_page?: number; page?: number }): Promise<StoreListResponse> {
     const response = await apiClient.get('/stores', { params });
-    return response.data.data;
+    const payload = response.data?.data ?? response.data;
+    const rawStores = payload?.stores;
+    const stores = Array.isArray(rawStores)
+      ? rawStores
+      : Array.isArray(rawStores?.data)
+        ? rawStores.data
+        : [];
+    return {
+      stores,
+      pagination: payload?.pagination ?? {
+        current_page: 1,
+        last_page: 1,
+        per_page: params?.per_page ?? 15,
+        total: stores.length,
+      },
+    };
   }
 
   /**
@@ -58,6 +81,14 @@ export class StoreService {
   static async getStore(id: number): Promise<{ success: boolean; data: { store: Store } }> {
     const response = await apiClient.get(`/buyer/stores/${id}`);
     return response.data;
+  }
+
+  /**
+   * Whether the logged-in buyer follows this store (false for guests or non-buyers).
+   */
+  static async getFollowStatus(storeId: number): Promise<boolean> {
+    const response = await apiClient.get(`/buyer/stores/${storeId}/follow-status`);
+    return Boolean(response.data?.data?.is_following);
   }
 
   /**
@@ -97,6 +128,23 @@ export class StoreService {
    */
   static async createReview(id: number, data: CreateReviewData): Promise<{ success: boolean; data: { review: StoreReview }; message: string }> {
     const response = await apiClient.post(`/buyer/stores/${id}/reviews`, data);
+    return response.data;
+  }
+
+  /**
+   * Report a store (fraud / abuse)
+   */
+  static async reportStore(
+    storeId: number,
+    data: { reason: string; details?: string; evidence?: File[] }
+  ): Promise<{ success: boolean; message: string }> {
+    const form = new FormData();
+    form.append('reason', data.reason);
+    if (data.details) form.append('details', data.details);
+    (data.evidence || []).forEach((file) => form.append('evidence[]', file));
+    const response = await apiClient.post(`/buyer/stores/${storeId}/report`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   }
 }

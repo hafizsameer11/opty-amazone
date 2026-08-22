@@ -19,6 +19,7 @@ class CategoryController extends Controller
         // Get only parent categories or all
         if ($request->has('parent_only') && $request->parent_only) {
             $query->whereNull('parent_id')
+                ->where('slug', '!=', 'opty-kids')
                 ->with(['children' => function ($q) {
                     $q->where('is_active', true)
                       ->orderBy('sort_order')

@@ -53,6 +53,12 @@ class AuthService
                 ]);
             }
 
+            if ($user->is_blocked) {
+                throw ValidationException::withMessages([
+                    'email' => ['This account has been suspended. Contact support if you believe this is a mistake.'],
+                ]);
+            }
+
             // Revoke all existing tokens
             $user->tokens()->delete();
 

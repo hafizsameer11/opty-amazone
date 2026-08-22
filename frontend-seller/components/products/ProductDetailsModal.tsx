@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { productService, type Product } from '@/services/product-service';
+import { getProductEditPath } from '@/lib/product-edit-routes';
 import Modal from '@/components/ui/Modal';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -48,7 +49,11 @@ export default function ProductDetailsModal({
 
   const handleEdit = () => {
     onClose();
-    router.push(`/products/${productId}/edit`);
+    if (product) {
+      router.push(getProductEditPath(product));
+    } else {
+      router.push(`/products/${productId}/edit`);
+    }
   };
 
   const handleToggleStatus = async () => {

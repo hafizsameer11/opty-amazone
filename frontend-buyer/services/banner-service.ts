@@ -8,6 +8,7 @@ export interface PublicBanner {
   sort_order: number;
   image: string;
   image_url?: string | null;
+  is_home_boosted?: boolean;
 }
 
 export const bannerService = {

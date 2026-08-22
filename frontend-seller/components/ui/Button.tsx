@@ -14,6 +14,7 @@ export default function Button({
   children,
   className = '',
   disabled,
+  type = 'button',
   ...props
 }: ButtonProps) {
   const baseClasses = 'font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm hover:shadow-md active:scale-[0.98]';
@@ -33,6 +34,7 @@ export default function Button({
 
   return (
     <button
+      type={type}
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       disabled={disabled || isLoading}
       {...props}

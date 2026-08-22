@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+/** Base URL without /api (works with env as http://host or http://host/api). */
+export function getApiOrigin(): string {
+  const raw = process.env.NEXT_PUBLIC_API_URL || 'https://api.vistaexpress.it/api';
+  return raw.replace(/\/api\/?$/, '') || 'https://api.vistaexpress.it';
+}
+
+const API_BASE_URL = `${getApiOrigin()}/api`;
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -18,6 +24,9 @@ apiClient.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+    }
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
     }
     return config;
   },
@@ -53,5 +62,30 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/**
+ * Readable message from Laravel/axios error responses (validation `errors`, `message`, etc.).
+ */
+export function getAxiosErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const data = (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })
+      .response?.data;
+    if (data?.errors && typeof data.errors === 'object') {
+      for (const key of Object.keys(data.errors)) {
+        const arr = data.errors[key];
+        if (Array.isArray(arr) && arr[0]) {
+          return String(arr[0]);
+        }
+      }
+    }
+    if (typeof data?.message === 'string' && data.message.trim()) {
+      return data.message;
+    }
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return 'Something went wrong';
+}
 
 export default apiClient;

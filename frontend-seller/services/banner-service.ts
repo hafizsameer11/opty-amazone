@@ -8,6 +8,9 @@ export interface Banner {
   position: 'top' | 'middle' | 'bottom' | 'sidebar';
   sort_order: number;
   is_active: boolean;
+  is_home_boosted?: boolean;
+  is_approved?: boolean;
+  rejection_reason?: string | null;
 }
 
 export const bannerService = {
@@ -24,11 +27,20 @@ export const bannerService = {
   },
 
   async update(id: number, data: Partial<Banner> | FormData) {
-    const headers: any = {};
     if (data instanceof FormData) {
-      headers['Content-Type'] = 'multipart/form-data';
+      const formDataWithMethod = new FormData();
+      data.forEach((value, key) => {
+        formDataWithMethod.append(key, value);
+      });
+      // Laravel/PHP handles multipart updates reliably via POST + method spoofing.
+      formDataWithMethod.append('_method', 'PUT');
+      const res = await apiClient.post(`/seller/banners/${id}`, formDataWithMethod, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data.data;
     }
-    const res = await apiClient.put(`/seller/banners/${id}`, data, { headers });
+
+    const res = await apiClient.put(`/seller/banners/${id}`, data);
     return res.data.data;
   },
 

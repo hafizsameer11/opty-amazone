@@ -1,4 +1,22 @@
 import apiClient from '@/lib/api-client';
+import type { OrderLineSelections } from '@/types/order-line';
+
+export type OrderItem = OrderLineSelections & {
+  id: number;
+  product_id: number;
+  quantity: number;
+  price: number;
+  line_total: number;
+  product_name: string;
+  product_sku: string;
+  product_images?: string[];
+  product?: {
+    id: number;
+    name: string;
+    sku?: string;
+    images?: string[];
+  } | null;
+};
 
 export interface StoreOrder {
   id: number;
@@ -22,13 +40,7 @@ export interface StoreOrder {
       email: string;
     };
   };
-  items: Array<{
-    id: number;
-    product_name: string;
-    quantity: number;
-    price: number;
-    line_total: number;
-  }>;
+  items: OrderItem[];
 }
 
 export interface AcceptOrderData {

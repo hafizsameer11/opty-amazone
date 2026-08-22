@@ -96,6 +96,18 @@ export default function ProductCheckoutModal({
     ? product.variants.find(v => v.id === selectedVariantId)
     : null;
 
+  const activeVariantId = selectedVariantId ?? selectedVariant?.id ?? null;
+
+  const availableFrameSizes = useMemo(() => {
+    const all = product.frame_sizes ?? [];
+    const hasVariants = Boolean(product.variants && product.variants.length > 0);
+    if (!hasVariants) {
+      return all.filter((s) => !s.product_variant_id);
+    }
+    if (!activeVariantId) return [];
+    return all.filter((s) => s.product_variant_id === activeVariantId);
+  }, [product.frame_sizes, product.variants, activeVariantId]);
+
   // Get product images
   const productImages = selectedVariant?.images && selectedVariant.images.length > 0
     ? selectedVariant.images
@@ -471,7 +483,7 @@ export default function ProductCheckoutModal({
   // Handle treatments continue
   const handleTreatmentsContinue = () => {
     // Skip frame size if not needed, or go to frame size
-    if (product.frame_sizes && product.frame_sizes.length > 0) {
+    if (product.frame_sizes && availableFrameSizes.length > 0) {
       setCurrentStep('frame_size');
     } else {
       setCurrentStep('summary');
@@ -873,7 +885,7 @@ export default function ProductCheckoutModal({
                     </div>
                     <div className="flex-1 overflow-y-auto p-4">
                       <div className="grid grid-cols-2 gap-3">
-                        {product.frame_sizes?.map((size) => (
+                        {availableFrameSizes.map((size) => (
                           <button
                             key={size.id}
                             onClick={() => setSelectedFrameSize(size)}
@@ -931,7 +943,7 @@ export default function ProductCheckoutModal({
                     </div>
                     <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 flex-shrink-0">
                       <Button variant="outline" onClick={() => {
-                        if (product.frame_sizes && product.frame_sizes.length > 0) {
+                        if (availableFrameSizes.length > 0) {
                           setCurrentStep('frame_size');
                         } else {
                           setCurrentStep('treatments');

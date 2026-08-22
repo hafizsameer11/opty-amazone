@@ -6,6 +6,7 @@ export interface User {
   email: string;
   phone?: string;
   role: 'buyer' | 'seller' | 'admin';
+  is_blocked?: boolean;
   email_verified_at?: string;
   created_at: string;
   updated_at: string;

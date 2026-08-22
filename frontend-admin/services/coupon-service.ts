@@ -15,4 +15,14 @@ export const couponService = {
     const res = await apiClient.get('/admin/coupons', { params });
     return res.data.data;
   },
+
+  async toggleStatus(id: number) {
+    const res = await apiClient.post(`/admin/coupons/${id}/toggle-status`);
+    return res.data.data;
+  },
+
+  async destroy(id: number) {
+    const res = await apiClient.delete(`/admin/coupons/${id}`);
+    return res.data;
+  },
 };

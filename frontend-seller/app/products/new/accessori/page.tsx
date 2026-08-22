@@ -93,11 +93,8 @@ export default function AccessoriProductPage() {
     setSaving(true);
 
     try {
-      const product = await productService.create(formData);
-      setSuccess('Product created successfully');
-      setTimeout(() => {
-        router.push('/products');
-      }, 1500);
+      await productService.create(formData);
+      router.push('/products');
     } catch (error: any) {
       const errorMessage = 
         error.response?.data?.errors?.name?.[0] ||

@@ -30,6 +30,7 @@ class OrderItem extends Model
         'lens_type',
         'lens_thickness_material_id',
         'lens_thickness_option_id',
+        'lens_color_id',
         'treatment_ids',
         'lens_coatings',
         'photochromic_color_id',
@@ -48,6 +49,9 @@ class OrderItem extends Model
         'contact_lens_right_qty',
         'contact_lens_right_cylinder',
         'contact_lens_right_axis',
+        'contact_lens_pack_quantity',
+        'product_size_volume_id',
+        'eye_hygiene_variant_id',
     ];
 
     protected $casts = [

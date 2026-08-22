@@ -69,36 +69,7 @@ export default function ProductOptions({
           </div>
         )}
 
-        {/* Lens Color Selection */}
-        {frameProduct.lens_colors && frameProduct.lens_colors.length > 0 && (
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Lens Color
-            </label>
-            <div className="flex gap-2 flex-wrap">
-              {frameProduct.lens_colors.map((lensColor: any) => (
-                <button
-                  key={lensColor.id}
-                  type="button"
-                  onClick={() => onLensColorChange?.(lensColor)}
-                  className={`h-10 w-10 rounded-full border-2 transition-all ${
-                    selectedLensColor?.id === lensColor.id
-                      ? "border-[#0066CC] ring-2 ring-[#0066CC]/30 scale-110"
-                      : "border-gray-300 hover:border-gray-400"
-                  }`}
-                  style={{ backgroundColor: lensColor.color_code }}
-                  aria-label={`Select lens color ${lensColor.name}`}
-                  title={lensColor.name}
-                />
-              ))}
-            </div>
-            {selectedLensColor && (
-              <p className="text-xs text-gray-600 mt-2">
-                Selected: {selectedLensColor.name}
-              </p>
-            )}
-          </div>
-        )}
+        {/* Lens colour UI hidden for glasses buyers — default still used in cart via parent selection. */}
 
         {/* Frame Size Selection */}
         {frameProduct.frame_sizes && frameProduct.frame_sizes.length > 0 && (

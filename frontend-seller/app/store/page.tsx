@@ -12,10 +12,16 @@ import Button from '@/components/ui/Button';
 import Link from 'next/link';
 
 export default function StorePage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
   const [store, setStore] = useState<Store | null>(null);
   const [loadingStore, setLoadingStore] = useState(true);
+  const [stats, setStats] = useState({
+    total_products: 0,
+    total_orders: 0,
+    total_followers: 0,
+    total_reviews: 0,
+  });
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -24,10 +30,11 @@ export default function StorePage() {
   }, [isAuthenticated, loading, router]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadStore();
-    }
-  }, [isAuthenticated]);
+    if (!isAuthenticated) return;
+    loadStore();
+    loadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.updated_at, user?.name, user?.email, user?.phone]);
 
   const loadStore = async () => {
     try {
@@ -38,9 +45,7 @@ export default function StorePage() {
       }
     } catch (error: any) {
       console.error('Failed to load store:', error);
-      // Store will be auto-created on backend, so we can retry or show message
       if (error.response?.status === 404 || error.response?.data?.message?.includes('not found')) {
-        // Try once more after a short delay to allow auto-creation
         setTimeout(async () => {
           try {
             const retryResponse = await StoreService.getStore();
@@ -54,6 +59,22 @@ export default function StorePage() {
       }
     } finally {
       setLoadingStore(false);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const response = await StoreService.getDashboard();
+      if (response.success && response.data) {
+        setStats({
+          total_products: response.data.total_products ?? 0,
+          total_orders: response.data.total_orders ?? 0,
+          total_followers: response.data.total_followers ?? 0,
+          total_reviews: (response.data as any).total_reviews ?? 0,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to load store stats', e);
     }
   };
 
@@ -199,19 +220,19 @@ export default function StorePage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-6">Store Statistics</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-5 text-center border border-blue-200">
-                      <div className="text-2xl font-bold text-blue-600 mb-1">-</div>
+                      <div className="text-2xl font-bold text-blue-600 mb-1">{stats.total_products}</div>
                       <div className="text-sm font-medium text-gray-700">Products</div>
                     </div>
                     <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-5 text-center border border-green-200">
-                      <div className="text-2xl font-bold text-green-600 mb-1">-</div>
+                      <div className="text-2xl font-bold text-green-600 mb-1">{stats.total_orders}</div>
                       <div className="text-sm font-medium text-gray-700">Orders</div>
                     </div>
                     <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-5 text-center border border-purple-200">
-                      <div className="text-2xl font-bold text-purple-600 mb-1">-</div>
+                      <div className="text-2xl font-bold text-purple-600 mb-1">{stats.total_followers}</div>
                       <div className="text-sm font-medium text-gray-700">Followers</div>
                     </div>
                     <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-5 text-center border border-orange-200">
-                      <div className="text-2xl font-bold text-orange-600 mb-1">-</div>
+                      <div className="text-2xl font-bold text-orange-600 mb-1">{stats.total_reviews}</div>
                       <div className="text-sm font-medium text-gray-700">Reviews</div>
                     </div>
                   </div>

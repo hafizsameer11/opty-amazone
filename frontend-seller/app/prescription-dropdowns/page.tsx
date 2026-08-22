@@ -90,6 +90,11 @@ export default function PrescriptionDropdownsPage() {
                 Configure prescription field dropdown values (SPH, CYL, AXIS, PD, etc.) for parent categories only.
                 Sub-categories will automatically inherit configuration from their parent categories.
               </p>
+              <div className="mt-4 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-950">
+                <strong>Contact lenses:</strong> sphere, cylinder, axis, base curve, and diameter are set per product on
+                the contact lens product edit screen—not in this list. The &quot;Contact lenses&quot; category is omitted
+                here on purpose.
+              </div>
             </div>
 
             {error && (

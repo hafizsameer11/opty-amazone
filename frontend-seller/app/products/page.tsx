@@ -10,9 +10,11 @@ import { productService, type Product } from '@/services/product-service';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
+import ActionsMenu from '@/components/ui/ActionsMenu';
 import ProductDetailsModal from '@/components/products/ProductDetailsModal';
 import BulkActions from '@/components/products/BulkActions';
 import Link from 'next/link';
+import { getProductEditPath } from '@/lib/product-edit-routes';
 
 export default function ProductsPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -429,7 +431,7 @@ export default function ProductsPage() {
                         <table className="min-w-full divide-y divide-gray-200">
                           <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                             <tr>
-                              <th className="px-6 py-4 text-left">
+                              <th className="px-4 lg:px-6 py-4 text-left">
                                 <input
                                   type="checkbox"
                                   checked={products.length > 0 && selectedProducts.size === products.length}
@@ -438,13 +440,15 @@ export default function ProductsPage() {
                                   className="w-4 h-4 text-[#0066CC] border-gray-300 rounded focus:ring-[#0066CC]"
                                 />
                               </th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Product</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">SKU</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Price</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Stock</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Performance</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
-                              <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
+                              <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Product</th>
+                              <th className="hidden md:table-cell px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">SKU</th>
+                              <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Price</th>
+                              <th className="hidden md:table-cell px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Stock</th>
+                              <th className="hidden lg:table-cell px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Performance</th>
+                              <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
+                              <th className="px-4 lg:px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                <span className="sr-only">Actions</span>
+                              </th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -455,7 +459,7 @@ export default function ProductsPage() {
                               style={{ animationDelay: `${index * 0.05}s` }}
                               onClick={() => handleProductClick(product.id)}
                             >
-                              <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <td className="px-4 lg:px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                                 <input
                                   type="checkbox"
                                   checked={selectedProducts.has(product.id)}
@@ -464,40 +468,62 @@ export default function ProductsPage() {
                                   className="w-4 h-4 text-[#0066CC] border-gray-300 rounded focus:ring-[#0066CC]"
                                 />
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
+                              <td className="px-4 lg:px-6 py-4">
+                                <div className="flex items-center min-w-0">
                                   {product.images && product.images.length > 0 ? (
                                     <img
                                       src={product.images[0]}
                                       alt={product.name}
-                                      className="h-12 w-12 rounded-lg object-cover mr-4 border-2 border-gray-200"
+                                      className="h-12 w-12 rounded-lg object-contain bg-white mr-3 sm:mr-4 border border-gray-200 shrink-0"
                                     />
                                   ) : (
-                                    <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 mr-4 flex items-center justify-center border-2 border-gray-200">
+                                    <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 mr-3 sm:mr-4 flex items-center justify-center border border-gray-200 shrink-0">
                                       <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                       </svg>
                                     </div>
                                   )}
-                                  <div>
-                                    <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                                      {product.name}
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
+                                      <span className="line-clamp-2">{product.name}</span>
                                       {product.is_featured && (
                                         <Badge variant="primary" size="sm">Featured</Badge>
                                       )}
+                                      {product.sale_campaign?.display_label && (
+                                        <span
+                                          className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-200"
+                                          title={
+                                            product.sale_campaign.end_date
+                                              ? `Offer ends ${new Date(product.sale_campaign.end_date).toLocaleString()}`
+                                              : 'On sale'
+                                          }
+                                        >
+                                          Sale {product.sale_campaign.display_label}
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="text-sm text-gray-500 capitalize">{product.product_type.replace('_', ' ')}</div>
+                                    <button
+                                      type="button"
+                                      className="text-xs text-[#0066CC] hover:underline mt-0.5"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleProductClick(product.id);
+                                      }}
+                                    >
+                                      View detail
+                                    </button>
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">{product.sku}</td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="hidden md:table-cell px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">{product.sku}</td>
+                              <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-bold text-[#0066CC]">€{Number(product.price || 0).toFixed(2)}</div>
                                 {product.compare_at_price && (
                                   <div className="text-xs text-gray-400 line-through">€{Number(product.compare_at_price).toFixed(2)}</div>
                                 )}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="hidden md:table-cell px-4 lg:px-6 py-4 whitespace-nowrap">
                                 <Badge
                                   variant={
                                     product.stock_status === 'in_stock'
@@ -511,7 +537,7 @@ export default function ProductsPage() {
                                   {product.stock_quantity} {product.stock_status.replace('_', ' ')}
                                 </Badge>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="hidden lg:table-cell px-4 lg:px-6 py-4 whitespace-nowrap">
                                 <div className="text-xs space-y-1">
                                   <div className="flex items-center gap-1">
                                     <span className="text-gray-600">Views:</span>
@@ -523,53 +549,42 @@ export default function ProductsPage() {
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <span className="text-gray-600">Revenue:</span>
-                                    <span className="font-medium text-[#0066CC]">€{(product.total_revenue || 0).toFixed(2)}</span>
+                                    <span className="font-medium text-[#0066CC]">€{Number(product.total_revenue || 0).toFixed(2)}</span>
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                                 <Badge variant={product.is_active ? 'success' : 'default'} size="sm">
                                   {product.is_active ? 'Active' : 'Inactive'}
                                 </Badge>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-end gap-2 flex-wrap">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDuplicateProduct(product.id);
-                                    }}
-                                    className="text-purple-600 hover:text-purple-800 font-medium transition-colors text-xs"
-                                    title="Duplicate Product"
-                                  >
-                                    <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                    </svg>
-                                  </button>
-                                  <Link href={`/products/${product.id}/edit`}>
-                                    <button className="text-[#0066CC] hover:text-[#0052a3] font-medium transition-colors">
-                                      Edit
-                                    </button>
-                                  </Link>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleStatus(product.id);
-                                    }}
-                                    className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                                  >
-                                    {product.is_active ? 'Deactivate' : 'Activate'}
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDelete(product.id);
-                                    }}
-                                    className="text-red-600 hover:text-red-800 font-medium transition-colors"
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
+                              <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
+                                <ActionsMenu
+                                  items={[
+                                    {
+                                      label: 'View detail',
+                                      onClick: () => handleProductClick(product.id),
+                                    },
+                                    {
+                                      label: 'Edit',
+                                      href: getProductEditPath(product),
+                                      onClick: () => {},
+                                    },
+                                    {
+                                      label: 'Duplicate',
+                                      onClick: () => void handleDuplicateProduct(product.id),
+                                    },
+                                    {
+                                      label: product.is_active ? 'Deactivate' : 'Activate',
+                                      onClick: () => void handleToggleStatus(product.id),
+                                    },
+                                    {
+                                      label: 'Delete',
+                                      onClick: () => void handleDelete(product.id),
+                                      variant: 'danger',
+                                    },
+                                  ]}
+                                />
                               </td>
                             </tr>
                           ))}

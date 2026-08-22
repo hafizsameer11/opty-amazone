@@ -11,6 +11,7 @@ import type { StoreSocialLink, CreateSocialLinkData } from '@/types/store';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
+import SectionBackLink from '@/components/ui/SectionBackLink';
 
 export default function SocialLinksPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -196,18 +197,15 @@ export default function SocialLinksPage() {
           <main className="flex-1 overflow-y-auto">
             <div className="py-6">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="mb-6 flex items-center justify-between">
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <button
-                      onClick={() => router.back()}
-                      className="text-[#0066CC] hover:underline mb-4 block"
-                    >
-                      ← Back to Store
-                    </button>
+                    <SectionBackLink href="/store" className="mb-3">
+                      Back to Store
+                    </SectionBackLink>
                     <h1 className="text-3xl font-bold text-gray-900">Social Links</h1>
                     <p className="text-gray-600 mt-1">Add and manage your social media profiles</p>
                   </div>
-                  <Button onClick={() => setShowForm(true)}>
+                  <Button onClick={() => setShowForm(true)} className="shrink-0 self-start">
                     <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>

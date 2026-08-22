@@ -76,9 +76,7 @@ export default function CouponForm({ coupon, onSubmit, onCancel, loading = false
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <Alert variant="error" onClose={() => setError('')}>
-          {error}
-        </Alert>
+        <Alert type="error" message={error} onClose={() => setError('')} />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

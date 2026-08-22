@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 // Layout components are now handled by app/template.tsx
-import { cartService } from '@/services/cart-service';
+import { cartService, type CartItem } from '@/services/cart-service';
+import OrderLineSelections from '@/components/orders/OrderLineSelections';
 import { orderService } from '@/services/order-service';
 import { userService, type Address } from '@/services/user-service';
 import { useToast } from '@/components/ui/Toast';
@@ -247,15 +248,27 @@ export default function CheckoutPage() {
             <div className="bg-white rounded-lg shadow p-6 sticky top-4">
               <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
               
-              <div className="space-y-4 mb-6">
-                {cart.breakdown?.map((store: any) => (
-                  <div key={store.store_id} className="border-b pb-4">
+              <div className="space-y-4 mb-6 max-h-[420px] overflow-y-auto pr-1">
+                {cart.breakdown?.map((store: { store_id: number; store_name: string; items: CartItem[]; subtotal: number }) => (
+                  <div key={store.store_id} className="border-b pb-4 last:border-0">
                     <p className="font-semibold text-gray-900 mb-2">{store.store_name}</p>
-                    <p className="text-sm text-gray-600">
-                      {store.items.length} item{store.items.length > 1 ? 's' : ''}
-                    </p>
-                    <p className="text-sm font-semibold text-gray-900 mt-1">
-                      €{Number(store.subtotal || 0).toFixed(2)}
+                    <ul className="space-y-3 mb-3">
+                      {store.items.map((item: CartItem) => (
+                        <li key={item.id} className="text-sm border border-gray-100 rounded-lg p-3 bg-gray-50/80">
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium text-gray-900 line-clamp-2">{item.product.name}</span>
+                            <span className="text-gray-600 shrink-0">×{item.quantity}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            €{Number(item.price || 0).toFixed(2)} each ·{' '}
+                            €{(Number(item.price || 0) * item.quantity).toFixed(2)} line
+                          </p>
+                          <OrderLineSelections line={item} className="mt-2 pt-2 border-t border-gray-200/80" />
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Store subtotal: €{Number(store.subtotal || 0).toFixed(2)}
                     </p>
                   </div>
                 ))}

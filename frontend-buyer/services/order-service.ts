@@ -1,4 +1,23 @@
 import apiClient from '@/lib/api-client';
+import type { OrderLineSelections } from '@/types/order-line';
+
+/** Single line on a store order / parent order — includes persisted customization. */
+export type OrderItem = OrderLineSelections & {
+  id: number;
+  product_id: number;
+  quantity: number;
+  price: number;
+  line_total: number;
+  product_name: string;
+  product_sku: string;
+  product_images: string[];
+  product?: {
+    id: number;
+    name: string;
+    sku?: string;
+    images?: string[];
+  } | null;
+};
 
 export interface StoreOrder {
   id: number;
@@ -22,16 +41,7 @@ export interface StoreOrder {
     name: string;
     slug: string;
   };
-  items: Array<{
-    id: number;
-    product_id: number;
-    quantity: number;
-    price: number;
-    line_total: number;
-    product_name: string;
-    product_sku: string;
-    product_images: string[];
-  }>;
+  items: OrderItem[];
   escrow?: {
     id: number;
     amount: number;

@@ -2,8 +2,10 @@
  * Utility functions for handling image URLs from the backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-const BACKEND_BASE_URL = API_BASE_URL.replace('/api', '');
+import { getApiOrigin } from './api-client';
+
+const API_BASE_URL = `${getApiOrigin()}/api`;
+const BACKEND_BASE_URL = getApiOrigin();
 
 /**
  * Convert a relative image URL to a full URL
@@ -48,6 +50,37 @@ export function getFullImageUrls(urls: string[] | null | undefined): string[] {
   }
   
   return urls.map(url => getFullImageUrl(url));
+}
+
+/** Stable key for deduping the same asset served as relative vs absolute URL. */
+export function imageUrlKey(url: string): string {
+  return getFullImageUrl(url).replace(/\?.*$/, '').toLowerCase();
+}
+
+/**
+ * Product gallery first, then extra URLs (e.g. pack-specific shots), deduped by imageUrlKey.
+ * Returns full URLs for display.
+ */
+export function mergeGalleryUrls(basePathsOrUrls: string[], extraFullUrls: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const u of basePathsOrUrls) {
+    const full = getFullImageUrl(u);
+    const k = imageUrlKey(full);
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(full);
+    }
+  }
+  for (const u of extraFullUrls) {
+    const full = getFullImageUrl(u);
+    const k = imageUrlKey(full);
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(full);
+    }
+  }
+  return out;
 }
 
 /**

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { orderService, type Order, type StoreOrder } from '@/services/order-service';
+import { orderService, type Order, type OrderItem } from '@/services/order-service';
+import OrderLineSelections from '@/components/orders/OrderLineSelections';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
@@ -110,6 +111,12 @@ export default function OrderDetailsModal({
       .join(' ');
   };
 
+  const getStoreOrderTotal = (storeOrder: Order['store_orders'][number]) => {
+    const rawTotal = Number(storeOrder.total ?? 0);
+    if (rawTotal > 0) return rawTotal;
+    return Number(storeOrder.subtotal ?? 0) + Number(storeOrder.delivery_fee ?? 0);
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -187,6 +194,45 @@ export default function OrderDetailsModal({
                   </div>
 
                   <div className="p-4">
+                    {/* Seller Quote / Schedule */}
+                    {(storeOrder.status === 'accepted' ||
+                      storeOrder.status === 'paid' ||
+                      storeOrder.status === 'out_for_delivery' ||
+                      storeOrder.status === 'delivered') && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
+                        <p className="text-xs font-semibold text-indigo-700 mb-2 uppercase">
+                          Seller Schedule & Pricing
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                          <p className="text-gray-700">
+                            <span className="font-medium">Estimated delivery:</span>{' '}
+                            {storeOrder.estimated_delivery_date
+                              ? new Date(storeOrder.estimated_delivery_date).toLocaleDateString()
+                              : 'Not scheduled yet'}
+                          </p>
+                          <p className="text-gray-700">
+                            <span className="font-medium">Accepted on:</span>{' '}
+                            {storeOrder.accepted_at
+                              ? new Date(storeOrder.accepted_at).toLocaleDateString()
+                              : 'N/A'}
+                          </p>
+                          <p className="text-gray-700">
+                            <span className="font-medium">Delivery method:</span>{' '}
+                            {storeOrder.delivery_method || 'Standard'}
+                          </p>
+                          <p className="text-gray-700">
+                            <span className="font-medium">Delivery fee:</span>{' '}
+                            €{Number(storeOrder.delivery_fee || 0).toFixed(2)}
+                          </p>
+                        </div>
+                        {storeOrder.delivery_notes && (
+                          <p className="mt-2 text-sm text-gray-700">
+                            <span className="font-medium">Notes:</span> {storeOrder.delivery_notes}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {/* OTP Code Display */}
                     {storeOrder.delivery_code && (
                       <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-lg p-4 mb-4">
@@ -221,7 +267,7 @@ export default function OrderDetailsModal({
                           <div>
                             <p className="text-xs font-semibold text-gray-700 mb-1">Payment Required</p>
                             <p className="text-xl font-bold text-[#0066CC]">
-                              €{Number(storeOrder.total || 0).toFixed(2)}
+                              €{getStoreOrderTotal(storeOrder).toFixed(2)}
                             </p>
                           </div>
                         </div>
@@ -239,7 +285,7 @@ export default function OrderDetailsModal({
                     <div className="mb-4">
                       <h4 className="text-sm font-bold text-gray-900 mb-3">Items ({storeOrder.items.length})</h4>
                       <div className="space-y-2">
-                        {storeOrder.items.map((item) => (
+                        {storeOrder.items.map((item: OrderItem) => (
                           <div
                             key={item.id}
                             className="flex gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
@@ -283,6 +329,7 @@ export default function OrderDetailsModal({
                               <p className="text-sm font-bold text-[#0066CC]">
                                 €{Number(item.line_total || 0).toFixed(2)}
                               </p>
+                              <OrderLineSelections line={item} className="mt-2 pt-2 border-t border-gray-200" />
                             </div>
                           </div>
                         ))}
@@ -308,7 +355,7 @@ export default function OrderDetailsModal({
                           <div className="flex justify-between">
                             <span className="font-bold text-gray-900">Total:</span>
                             <span className="text-lg font-bold text-[#0066CC]">
-                              €{Number(storeOrder.total || 0).toFixed(2)}
+                              €{getStoreOrderTotal(storeOrder).toFixed(2)}
                             </span>
                           </div>
                         </div>

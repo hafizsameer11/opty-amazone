@@ -13,17 +13,7 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create Admin User
-        User::firstOrCreate(
-            ['email' => 'admin@optyamazone.com'],
-            [
-                'name' => 'Admin User',
-                'phone' => '+1234567890',
-                'role' => 'admin',
-                'email_verified_at' => now(),
-                'password' => Hash::make('password'),
-            ]
-        );
+        $this->call(AdminSeeder::class);
 
         // Create Test Buyer
         User::firstOrCreate(

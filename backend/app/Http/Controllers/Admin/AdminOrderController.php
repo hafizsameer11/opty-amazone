@@ -10,37 +10,31 @@ use Illuminate\Http\Request;
 
 class AdminOrderController extends Controller
 {
-    /**
-     * Get all orders.
-     */
     public function index(Request $request): JsonResponse
     {
         $query = Order::with('user', 'storeOrders.store');
 
-        if ($request->has('status')) {
-            $query->where('payment_status', $request->status);
+        if ($request->filled('payment_status')) {
+            $query->where('payment_status', $request->payment_status);
         }
 
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('order_no', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($userQuery) use ($search) {
-                      $userQuery->where('name', 'like', "%{$search}%")
-                                ->orWhere('email', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
             });
         }
 
         $orders = $query->orderBy('created_at', 'desc')
-            ->paginate($request->get('per_page', 15));
+            ->paginate($request->integer('per_page', 15));
 
         return ResponseHelper::success($orders, 'Orders retrieved successfully');
     }
 
-    /**
-     * Get order details.
-     */
     public function show($id): JsonResponse
     {
         $order = Order::with([
@@ -53,18 +47,15 @@ class AdminOrderController extends Controller
         return ResponseHelper::success($order, 'Order retrieved successfully');
     }
 
-    /**
-     * Update order status.
-     */
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:pending,paid,refunded,cancelled',
+            'payment_status' => 'required|in:pending,paid,failed,refunded,cancelled',
         ]);
 
         $order = Order::findOrFail($id);
-        $order->update(['payment_status' => $request->status]);
+        $order->update(['payment_status' => $request->payment_status]);
 
-        return ResponseHelper::success($order->fresh(), 'Order status updated successfully');
+        return ResponseHelper::success($order->fresh(['user', 'storeOrders.store']), 'Order payment status updated');
     }
 }

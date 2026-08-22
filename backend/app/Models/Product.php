@@ -81,6 +81,7 @@ class Product extends Model
         'base_curve_options' => 'array',
         'diameter_options' => 'array',
         'powers_range' => 'array',
+        'contact_lens_unit_config' => 'array',
         'color_images' => 'array',
         'mm_calibers' => 'array',
         'lens_colors' => 'array',

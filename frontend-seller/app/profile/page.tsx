@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { userService, type ProfileResponse } from "@/services/user-service";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { isSellerProfileComplete } from "@/lib/seller-profile-gate";
+import { displayProfileImageUrl } from "@/lib/profile-image-url";
+import type { User } from "@/types/auth";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import BottomNav from "@/components/layout/BottomNav";
@@ -23,13 +27,36 @@ type AccountTab =
   | "support"
   | "faqs";
 
+const ACCOUNT_SHORTCUT_TABS: AccountTab[] = [
+  "products",
+  "orders",
+  "analytics",
+  "store-settings",
+];
+
 export default function ProfilePage() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<ProfileResponse["user"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<AccountTab>("overview");
+
+  const showSetupBanner =
+    searchParams.get("setup") === "1" &&
+    Boolean(user && !isSellerProfileComplete(user));
+  const accountShortcutsLocked = Boolean(
+    user && !isSellerProfileComplete(user)
+  );
+
+  useEffect(() => {
+    if (!accountShortcutsLocked) return;
+    if (ACCOUNT_SHORTCUT_TABS.includes(activeTab)) {
+      setActiveTab("overview");
+    }
+  }, [accountShortcutsLocked, activeTab]);
 
   useEffect(() => {
     const load = async () => {
@@ -131,6 +158,9 @@ export default function ProfilePage() {
     }
 
     if (activeTab === "overview") {
+      const overviewAvatarSrc = displayProfileImageUrl(
+        profile.profile_image_url
+      );
       return (
         <div className="rounded-2xl bg-white shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-5 sm:px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-3">
@@ -147,10 +177,10 @@ export default function ProfilePage() {
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-full bg-[#0066CC]/10 flex items-center justify-center text-lg font-semibold text-[#0066CC] overflow-hidden">
-                  {profile.profile_image_url ? (
+                  {overviewAvatarSrc ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={profile.profile_image_url}
+                      src={overviewAvatarSrc}
                       alt={profile.name}
                       className="h-full w-full object-cover"
                     />
@@ -238,7 +268,11 @@ export default function ProfilePage() {
             </div>
           </div>
           <div className="px-5 sm:px-6 py-6">
-            <EditProfileForm />
+            <EditProfileForm
+              onProfileSynced={(u: User) =>
+                setProfile((p) => (p ? { ...p, ...u } : { ...u }))
+              }
+            />
           </div>
         </div>
       );
@@ -442,6 +476,15 @@ export default function ProfilePage() {
                   </div>
                 )}
 
+                {showSetupBanner && (
+                  <div className="mb-4">
+                    <Alert
+                      type="error"
+                      message={`${t("profileSetupTitle")}: ${t("profileSetupBody")}`}
+                    />
+                  </div>
+                )}
+
                 <div className="flex flex-col lg:flex-row gap-5">
         {/* Sidebar */}
         <aside className="lg:w-80 flex-shrink-0">
@@ -478,16 +521,24 @@ export default function ProfilePage() {
           <nav className="space-y-2">
             {menuItems.map((item) => {
               const isActive = activeTab === item.id;
+              const tabLocked =
+                accountShortcutsLocked &&
+                ACCOUNT_SHORTCUT_TABS.includes(item.id);
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setActiveTab(item.id)}
+                  disabled={tabLocked}
+                  title={tabLocked ? t("completeProfileNavHint") : undefined}
+                  onClick={() => {
+                    if (tabLocked) return;
+                    setActiveTab(item.id);
+                  }}
                   className={`w-full text-left rounded-2xl border px-4 py-3 text-sm flex flex-col transition-all ${
                     isActive
                       ? "border-[#0066CC] bg-gradient-to-r from-[#0066CC]/10 to-[#00CC66]/5 shadow-sm"
                       : "border-gray-200 bg-white hover:bg-gray-50"
-                  }`}
+                  } ${tabLocked ? "opacity-50 cursor-not-allowed hover:bg-white" : ""}`}
                 >
                   <span className="font-semibold text-gray-900">
                     {item.label}

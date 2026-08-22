@@ -205,8 +205,12 @@ export const productService = {
   },
 
   // Frame size management
-  async getFrameSizes(productId: number): Promise<FrameSize[]> {
-    const res = await apiClient.get(`/seller/products/${productId}/frame-sizes`);
+  async getFrameSizes(productId: number, variantId?: number | null): Promise<FrameSize[]> {
+    const params =
+      variantId === undefined
+        ? undefined
+        : { variant_id: variantId === null ? 'null' : variantId };
+    const res = await apiClient.get(`/seller/products/${productId}/frame-sizes`, { params });
     return res.data.data;
   },
 
@@ -228,12 +232,15 @@ export const productService = {
 export interface FrameSize {
   id: number;
   product_id: number;
+  product_variant_id?: number | null;
   lens_width: number;
   bridge_width: number;
   temple_length: number;
   frame_width?: number;
   frame_height?: number;
   size_label?: string;
+  price?: number | null;
+  image?: string | null;
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
   created_at: string;
@@ -241,12 +248,15 @@ export interface FrameSize {
 }
 
 export interface CreateFrameSizeData {
+  product_variant_id?: number | null;
   lens_width: number;
   bridge_width: number;
   temple_length: number;
   frame_width?: number;
   frame_height?: number;
   size_label?: string;
+  price?: number;
+  image?: string;
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
 }

@@ -2,11 +2,13 @@
 
 namespace App\Services\User;
 
+use App\Models\Store;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class UserService
@@ -25,10 +27,19 @@ class UserService
     public function updateProfile(User $user, array $data): User
     {
         try {
+            $user->loadMissing('store');
+            $store = $user->store;
+            $oldName = $user->name;
+            $oldEmail = $user->email;
+            $oldPhone = $user->phone;
+
             $user->fill($data);
             $user->save();
 
-            return $user->fresh();
+            $user = $user->fresh();
+            $this->syncOwnedStoreWithProfile($store, $data, $oldName, $oldEmail, $oldPhone, $user);
+
+            return $user;
         } catch (\Exception $e) {
             Log::error('Profile update failed: ' . $e->getMessage(), [
                 'user_id' => $user->id,
@@ -36,6 +47,56 @@ class UserService
 
             throw $e;
         }
+    }
+
+    /**
+     * Keep default store contact data aligned with the seller account when they
+     * still match the previous user values (same pattern as createDefaultStore).
+     */
+    private function syncOwnedStoreWithProfile(
+        ?Store $store,
+        array $data,
+        string $oldName,
+        ?string $oldEmail,
+        ?string $oldPhone,
+        User $user
+    ): void {
+        if (!$store) {
+            return;
+        }
+
+        $sync = [];
+
+        if (array_key_exists('email', $data) && $store->email === $oldEmail) {
+            $sync['email'] = $user->email;
+        }
+
+        if (array_key_exists('phone', $data)
+            && (string) ($store->phone ?? '') === (string) ($oldPhone ?? '')) {
+            $sync['phone'] = $user->phone;
+        }
+
+        if (isset($data['name'])) {
+            $autoPattern = $oldName . "'s Store";
+            if ($store->name === $autoPattern) {
+                $sync['name'] = $user->name . "'s Store";
+                $slug = Str::slug($sync['name']);
+                $originalSlug = $slug;
+                $counter = 1;
+                while (Store::where('slug', $slug)->where('id', '!=', $store->id)->exists()) {
+                    $slug = $originalSlug . '-' . $counter;
+                    $counter++;
+                }
+                $sync['slug'] = $slug;
+            }
+        }
+
+        if ($sync === []) {
+            return;
+        }
+
+        $store->fill($sync);
+        $store->save();
     }
 
     /**

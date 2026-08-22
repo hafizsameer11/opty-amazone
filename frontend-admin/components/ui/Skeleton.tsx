@@ -14,7 +14,7 @@ export default function Skeleton({ className = '', variant = 'rectangular' }: Sk
 
   return (
     <div
-      className={`animate-shimmer bg-white/10 ${variantClasses[variant]} ${className}`}
+      className={`animate-shimmer bg-slate-100 ${variantClasses[variant]} ${className}`}
     />
   );
 }

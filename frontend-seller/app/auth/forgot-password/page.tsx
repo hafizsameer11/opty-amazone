@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -52,7 +53,7 @@ export default function ForgotPasswordPage() {
       <div className="max-w-md w-full">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-[#0066CC] mb-2">OpticalMarket</h1>
+          <Image src="/vistaexpress-logo.png" alt="VistaExpress" width={300} height={150} className="mx-auto mb-2 h-20 w-auto object-contain" priority />
           <p className="text-gray-600">Seller Dashboard</p>
         </div>
 

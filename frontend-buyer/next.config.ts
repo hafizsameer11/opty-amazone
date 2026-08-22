@@ -29,6 +29,16 @@ const nextConfig: NextConfig = {
         port: "8000",
         pathname: "/**",
       },
+      {
+        protocol: "http",
+        hostname: "api.vistaexpress.it",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "api.vistaexpress.it",
+        pathname: "/**",
+      },
     ],
     // Allow loading images from localhost
     dangerouslyAllowSVG: true,

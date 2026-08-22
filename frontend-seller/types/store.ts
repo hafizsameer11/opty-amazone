@@ -17,6 +17,9 @@ export interface Store {
   onboarding_status: string;
   onboarding_level: number;
   onboarding_percent: number;
+  verification_submitted_at?: string | null;
+  store_setup_completed_at?: string | null;
+  can_sell?: boolean;
   meta?: any;
   created_at: string;
   updated_at: string;

@@ -16,11 +16,6 @@ use Stripe\Checkout\Session;
 
 class BuyerWalletController extends Controller
 {
-    public function __construct()
-    {
-        // Set Stripe API key
-        Stripe::setApiKey(env('STRIPE_SECRET_KEY'));
-    }
     /**
      * Get wallet balance.
      */
@@ -50,6 +45,16 @@ class BuyerWalletController extends Controller
      */
     public function createCheckoutSession(Request $request): JsonResponse
     {
+        if (!class_exists(\Stripe\Stripe::class) || !class_exists(\Stripe\Checkout\Session::class)) {
+            return ResponseHelper::error('Stripe is not available on this server', null, 503);
+        }
+
+        $stripeSecret = env('STRIPE_SECRET_KEY');
+        if (empty($stripeSecret)) {
+            return ResponseHelper::error('Stripe is not configured', null, 503);
+        }
+        Stripe::setApiKey($stripeSecret);
+
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:500', // Minimum €5.00 in cents
             'currency' => 'required|string|in:eur,usd,gbp',
@@ -152,10 +157,10 @@ class BuyerWalletController extends Controller
                 'user_id' => $user->id,
                 'type' => 'top_up',
                 'amount' => $amount,
-                'status' => 'completed',
+                'status' => 'success',
                 'description' => "Wallet top-up of €{$amount}",
                 'meta' => [
-                    'payment_method' => 'stripe',
+                    'payment_method' => $request->filled('stripe_session_id') ? 'stripe' : 'manual',
                     'stripe_session_id' => $request->get('stripe_session_id'),
                 ],
             ]);

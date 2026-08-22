@@ -12,10 +12,14 @@ const pageTitles: Record<string, string> = {
   '/products': 'products',
   '/orders': 'orders',
   '/categories': 'categories',
+  '/banners': 'storeBanners',
   '/coupons': 'coupons',
   '/analytics': 'analytics',
   '/settings': 'settings',
   '/activity-logs': 'activityLogs',
+  '/points': 'points',
+  '/messages': 'messages',
+  '/store-reports': 'storeReports',
 };
 
 export default function AdminHeader() {
@@ -25,18 +29,18 @@ export default function AdminHeader() {
   const pageTitleKey = pageTitles[pathname || ''] || 'dashboard';
 
   return (
-    <header className="glass-strong border-b border-white/20 sticky top-0 z-30">
+    <header className="admin-header sticky top-0 z-30">
       <div className="px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-bold text-white">{t(pageTitleKey)}</h2>
+          <h2 className="text-xl font-bold text-slate-900 notranslate">{t(pageTitleKey)}</h2>
         </div>
         <div className="flex items-center gap-4">
-          <LanguageSwitcher />
+          <LanguageSwitcher variant="dock" />
           <div className="text-right hidden md:block">
-            <p className="text-sm font-semibold text-white">{user?.name}</p>
-            <p className="text-xs text-white/70">{user?.email}</p>
+            <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
+            <p className="text-xs text-slate-500">{user?.email}</p>
           </div>
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white font-bold">
+          <div className="w-10 h-10 rounded-full bg-[#0066CC] flex items-center justify-center text-white font-bold">
             {user?.name?.charAt(0).toUpperCase() || 'A'}
           </div>
         </div>

@@ -21,8 +21,11 @@ export default function LensColorOverlay({
 }: LensColorOverlayProps) {
   const fullImageUrl = getFullImageUrl(imageUrl);
   const shouldUnoptimize = isLocalhostImage(fullImageUrl);
+  const hasLensCoordinates = Boolean(
+    lensAreaCoordinates?.left && lensAreaCoordinates?.right
+  );
   
-  if (!selectedLensColor) {
+  if (!selectedLensColor || !hasLensCoordinates) {
     return (
       <div className="relative w-full h-full">
         <Image
@@ -37,24 +40,9 @@ export default function LensColorOverlay({
     );
   }
 
-  // Use precise coordinates if available, otherwise use default positioning
-  const leftLens = lensAreaCoordinates?.left || {
-    x: 27,
-    y: 45,
-    width: 20,
-    height: 22,
-    shape: 'ellipse',
-    borderRadius: 50,
-  };
-
-  const rightLens = lensAreaCoordinates?.right || {
-    x: 73, // 100 - 27 (mirror of left)
-    y: 45,
-    width: 20,
-    height: 22,
-    shape: 'ellipse',
-    borderRadius: 50,
-  };
+  // Only render tint overlays when exact lens coordinates are provided.
+  const leftLens = lensAreaCoordinates!.left;
+  const rightLens = lensAreaCoordinates!.right;
 
   const getLensStyle = (lens: typeof leftLens, isRight: boolean = false) => {
     const baseStyle: React.CSSProperties = {

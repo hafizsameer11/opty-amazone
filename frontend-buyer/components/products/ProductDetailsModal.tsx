@@ -140,7 +140,7 @@ export default function ProductDetailsModal({
                           src={getFullImageUrl(image)}
                           alt={`${product.name} view ${index + 1}`}
                           fill
-                          className="object-cover"
+                          className="object-contain p-1 bg-white"
                           unoptimized={isLocalhostImage(getFullImageUrl(image))}
                         />
                       </button>

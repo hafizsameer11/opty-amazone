@@ -7,6 +7,7 @@ import Input from '@/components/ui/Input';
 import Image from 'next/image';
 import Alert from '@/components/ui/Alert';
 import apiClient from '@/lib/api-client';
+import FrameSizesEditor from '@/components/products/FrameSizesEditor';
 
 interface ColorVariationsManagerProps {
   productId: number;
@@ -440,6 +441,15 @@ export default function ColorVariationsManager({ productId, categoryId, productT
                     )}
                   </div>
                 )}
+                <div className="mt-4">
+                  <FrameSizesEditor
+                    productId={productId}
+                    productVariantId={variant.id}
+                    compact
+                    title={`Sizes for ${variant.color_name}`}
+                    description="Add one or more sizes with stock quantity. Optional price and image apply when buyers pick this size."
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -447,11 +457,19 @@ export default function ColorVariationsManager({ productId, categoryId, productT
       )}
 
       {variants.length === 0 && !showForm && (
-        <div className="text-center py-8 border-t border-gray-200">
-          <p className="text-gray-600 mb-4">No color variations added yet</p>
-          <Button onClick={() => setShowForm(true)} size="sm">
-            Add First Color Variation
-          </Button>
+        <div className="space-y-4 border-t border-gray-200 pt-6">
+          <FrameSizesEditor
+            productId={productId}
+            productVariantId={null}
+            title="Frame sizes"
+            description="Add sizes when this product has no color variants."
+          />
+          <div className="text-center py-4">
+            <p className="text-gray-600 mb-4">No color variations added yet</p>
+            <Button onClick={() => setShowForm(true)} size="sm">
+              Add First Color Variation
+            </Button>
+          </div>
         </div>
       )}
     </div>

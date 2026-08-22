@@ -7,12 +7,14 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import { displayProfileImageUrl } from '@/lib/profile-image-url';
 
 export default function Header() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [showDropdown, setShowDropdown] = useState(false);
   const { t } = useLanguage();
+  const headerAvatarUrl = displayProfileImageUrl(user?.profile_image_url);
 
   const handleLogout = async () => {
     await logout();
@@ -45,8 +47,17 @@ export default function Header() {
                 onClick={() => setShowDropdown(!showDropdown)}
                 className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#0066CC] transition-all duration-200"
               >
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#0066CC] to-[#00CC66] flex items-center justify-center text-white font-bold text-sm shadow-md">
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#0066CC] to-[#00CC66] flex items-center justify-center text-white font-bold text-sm shadow-md overflow-hidden shrink-0">
+                  {headerAvatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={headerAvatarUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    user?.name?.charAt(0).toUpperCase() || 'U'
+                  )}
                 </div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-semibold text-gray-900">{user?.name || 'User'}</p>

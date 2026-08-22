@@ -47,7 +47,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
-          <p>&copy; {new Date().getFullYear()} OpticalMarket Seller Portal. {t('allRightsReserved')}</p>
+          <p>&copy; {new Date().getFullYear()} VistaExpress Seller Portal. {t('allRightsReserved')}</p>
         </div>
       </div>
     </footer>

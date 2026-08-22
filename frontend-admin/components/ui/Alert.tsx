@@ -9,14 +9,16 @@ interface AlertProps {
 
 export default function Alert({ variant = 'info', children, onClose, className = '' }: AlertProps) {
   const variantClasses = {
-    success: 'bg-success/20 border-success/50 text-white',
-    error: 'bg-error/20 border-error/50 text-white',
-    info: 'bg-primary/20 border-primary/50 text-white',
-    warning: 'bg-warning/20 border-warning/50 text-white',
+    success: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+    error: 'bg-red-50 border-red-200 text-red-800',
+    info: 'bg-blue-50 border-blue-200 text-blue-800',
+    warning: 'bg-amber-50 border-amber-200 text-amber-800',
   };
 
   return (
-    <div className={`glass border-2 rounded-lg p-4 ${variantClasses[variant]} flex items-center justify-between gap-3 ${className}`}>
+    <div
+      className={`border rounded-lg p-4 ${variantClasses[variant]} flex items-center justify-between gap-3 ${className}`}
+    >
       <span className="flex-1 font-medium text-sm">{children}</span>
       {onClose && (
         <button

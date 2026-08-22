@@ -147,10 +147,10 @@ export default function AnalyticsPage() {
                           <div className="flex justify-between mb-2">
                             <span className="text-sm font-medium text-gray-700">Products</span>
                             <span className={`text-sm font-semibold ${
-                              dashboardData.statistics.products.change >= 0 ? 'text-green-600' : 'text-red-600'
+                              Number(dashboardData.statistics.products.change) >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>
-                              {dashboardData.statistics.products.change >= 0 ? '+' : ''}
-                              {dashboardData.statistics.products.change.toFixed(1)}%
+                              {Number(dashboardData.statistics.products.change) >= 0 ? '+' : ''}
+                              {Number(dashboardData.statistics.products.change ?? 0).toFixed(1)}%
                             </span>
                           </div>
                           <div className="flex gap-2 text-xs text-gray-500">
@@ -164,10 +164,10 @@ export default function AnalyticsPage() {
                           <div className="flex justify-between mb-2">
                             <span className="text-sm font-medium text-gray-700">Orders</span>
                             <span className={`text-sm font-semibold ${
-                              dashboardData.statistics.orders.change >= 0 ? 'text-green-600' : 'text-red-600'
+                              Number(dashboardData.statistics.orders.change) >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>
-                              {dashboardData.statistics.orders.change >= 0 ? '+' : ''}
-                              {dashboardData.statistics.orders.change.toFixed(1)}%
+                              {Number(dashboardData.statistics.orders.change) >= 0 ? '+' : ''}
+                              {Number(dashboardData.statistics.orders.change ?? 0).toFixed(1)}%
                             </span>
                           </div>
                           <div className="flex gap-2 text-xs text-gray-500">
@@ -181,10 +181,10 @@ export default function AnalyticsPage() {
                           <div className="flex justify-between mb-2">
                             <span className="text-sm font-medium text-gray-700">Followers</span>
                             <span className={`text-sm font-semibold ${
-                              dashboardData.statistics.followers.change >= 0 ? 'text-green-600' : 'text-red-600'
+                              Number(dashboardData.statistics.followers.change) >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>
-                              {dashboardData.statistics.followers.change >= 0 ? '+' : ''}
-                              {dashboardData.statistics.followers.change.toFixed(1)}%
+                              {Number(dashboardData.statistics.followers.change) >= 0 ? '+' : ''}
+                              {Number(dashboardData.statistics.followers.change ?? 0).toFixed(1)}%
                             </span>
                           </div>
                           <div className="flex gap-2 text-xs text-gray-500">
@@ -198,10 +198,10 @@ export default function AnalyticsPage() {
                           <div className="flex justify-between mb-2">
                             <span className="text-sm font-medium text-gray-700">Revenue</span>
                             <span className={`text-sm font-semibold ${
-                              dashboardData.statistics.revenue.change >= 0 ? 'text-green-600' : 'text-red-600'
+                              Number(dashboardData.statistics.revenue.change) >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>
-                              {dashboardData.statistics.revenue.change >= 0 ? '+' : ''}
-                              {dashboardData.statistics.revenue.change.toFixed(1)}%
+                              {Number(dashboardData.statistics.revenue.change) >= 0 ? '+' : ''}
+                              {Number(dashboardData.statistics.revenue.change ?? 0).toFixed(1)}%
                             </span>
                           </div>
                           <div className="flex gap-2 text-xs text-gray-500">

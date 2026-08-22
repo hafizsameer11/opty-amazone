@@ -81,4 +81,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/rules/{id}', [\App\Http\Controllers\Admin\AdminPointsController::class, 'saveRule']);
         Route::get('/transactions', [\App\Http\Controllers\Admin\AdminPointsController::class, 'getTransactions']);
     });
+
+    Route::prefix('store-chat')->group(function () {
+        Route::get('/unread-count', [\App\Http\Controllers\Admin\AdminStoreChatController::class, 'unreadCount']);
+        Route::get('/conversations', [\App\Http\Controllers\Admin\AdminStoreChatController::class, 'index']);
+        Route::post('/conversations', [\App\Http\Controllers\Admin\AdminStoreChatController::class, 'startConversation']);
+        Route::get('/conversations/{id}', [\App\Http\Controllers\Admin\AdminStoreChatController::class, 'show']);
+        Route::get('/conversations/{id}/messages', [\App\Http\Controllers\Admin\AdminStoreChatController::class, 'messages']);
+        Route::post('/conversations/{id}/messages', [\App\Http\Controllers\Admin\AdminStoreChatController::class, 'storeMessage']);
+    });
+
+    Route::prefix('store-reports')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'index']);
+        Route::get('/{id}', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'show']);
+        Route::post('/{id}/status', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'updateStatus']);
+    });
 });

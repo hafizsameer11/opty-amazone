@@ -12,12 +12,15 @@ class FrameSize extends Model
 
     protected $fillable = [
         'product_id',
+        'product_variant_id',
         'lens_width',
         'bridge_width',
         'temple_length',
         'frame_width',
         'frame_height',
         'size_label',
+        'price',
+        'image',
         'stock_quantity',
         'stock_status',
     ];
@@ -28,6 +31,7 @@ class FrameSize extends Model
         'temple_length' => 'decimal:2',
         'frame_width' => 'decimal:2',
         'frame_height' => 'decimal:2',
+        'price' => 'decimal:2',
         'stock_quantity' => 'integer',
     ];
 
@@ -37,6 +41,11 @@ class FrameSize extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
     }
 
     /**

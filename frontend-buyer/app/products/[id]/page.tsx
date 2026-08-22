@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -8,9 +8,9 @@ import { useParams, useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import LensTypeModal from "@/components/products/LensTypeModal";
 import ProductCheckoutModal from "@/components/products/ProductCheckoutModal";
-import ContactLensConfiguration from "@/components/products/ContactLensConfiguration";
+import ContactLensConfiguration, { parseContactLensUnitConfig } from "@/components/products/ContactLensConfiguration";
 import EyeHygieneDetails from "@/components/products/EyeHygieneDetails";
-import { productService, type Product, type LensColor } from "@/services/product-service";
+import { productService, type Product, type LensColor, type FrameSize } from "@/services/product-service";
 import { cartService } from "@/services/cart-service";
 import { lensDataService } from "@/services/lens-data-service";
 import { shouldShowLensOptions } from "@/utils/product-utils";
@@ -39,6 +39,23 @@ export default function ProductDetailPage() {
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [selectedShipping, setSelectedShipping] = useState("standard");
   const [couponCode, setCouponCode] = useState("");
+  const [clDisplayPrice, setClDisplayPrice] = useState<number | null>(null);
+  const [clMainImages, setClMainImages] = useState<string[] | null>(null);
+  const [clHideThumbnailGallery, setClHideThumbnailGallery] = useState(false);
+  const [clSelectedPackQty, setClSelectedPackQty] = useState<number | null>(null);
+  const [selectedFrameSizeId, setSelectedFrameSizeId] = useState<number | null>(null);
+
+  const handleClDisplayPriceChange = useCallback((price: number | null) => {
+    setClDisplayPrice(price);
+  }, []);
+
+  const handleClPackGalleryChange = useCallback(
+    (change: { mainUrls: string[] | null; hideSidebar?: boolean }) => {
+      setClMainImages(change.mainUrls);
+      setClHideThumbnailGallery(Boolean(change.hideSidebar));
+    },
+    []
+  );
 
   useEffect(() => {
     if (params.id) {
@@ -47,16 +64,35 @@ export default function ProductDetailPage() {
   }, [params.id]);
 
   useEffect(() => {
-    // Check URL params for variant
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const variantParam = urlParams.get('variant');
-      if (variantParam && product?.variants) {
-        const variantId = parseInt(variantParam);
-        if (product.variants.some(v => v.id === variantId)) {
-          setSelectedVariantId(variantId);
-        }
+    setSelectedImageIndex(0);
+  }, [clMainImages, selectedVariantId]);
+
+  useEffect(() => {
+    if (!product) return;
+
+    const sizes = product.frame_sizes ?? [];
+    const defaultVariant =
+      product.variants?.find((v) => v.is_default) || product.variants?.[0];
+
+    if (product.variants && product.variants.length > 0 && defaultVariant) {
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const variantParam = urlParams?.get('variant');
+      const parsed = variantParam ? parseInt(variantParam, 10) : NaN;
+      if (!Number.isNaN(parsed) && product.variants.some((v) => v.id === parsed)) {
+        setSelectedVariantId(parsed);
+      } else {
+        setSelectedVariantId(defaultVariant.id);
       }
+    }
+
+    if (sizes.length > 0) {
+      const hasColorVariants = Boolean(product.variants && product.variants.length > 0);
+      const activeVariant =
+        product.variants?.find((v) => v.id === defaultVariant?.id) || defaultVariant;
+      const initialSizes = hasColorVariants
+        ? sizes.filter((s) => s.product_variant_id === activeVariant?.id)
+        : sizes.filter((s) => !s.product_variant_id);
+      setSelectedFrameSizeId(initialSizes[0]?.id ?? null);
     }
   }, [product]);
 
@@ -65,6 +101,11 @@ export default function ProductDetailPage() {
       setLoading(true);
       const data = await productService.getDetails(Number(params.id));
       setProduct(data);
+      setClDisplayPrice(null);
+      setClMainImages(null);
+      setClHideThumbnailGallery(false);
+      setClSelectedPackQty(null);
+      setSelectedFrameSizeId(null);
       
       // Load lens data if it should show lens options
       if (shouldShowLensOptions(data)) {
@@ -107,17 +148,62 @@ export default function ProductDetailPage() {
   const selectedVariant = selectedVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === selectedVariantId)
     : (hasVariants && product.variants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
+
+  const activeVariantId = selectedVariantId ?? selectedVariant?.id ?? null;
+  const isGlassesProduct = product.product_type === 'frame' || product.product_type === 'sunglasses';
+
+  const availableFrameSizes = (() => {
+    const all = product.frame_sizes ?? [];
+    if (!hasVariants) {
+      return all.filter((s) => !s.product_variant_id);
+    }
+    if (!activeVariantId) return [];
+    return all.filter((s) => s.product_variant_id === activeVariantId);
+  })();
+
+  const selectedFrameSize: FrameSize | null =
+    selectedFrameSizeId != null
+      ? availableFrameSizes.find((s) => s.id === selectedFrameSizeId) ?? null
+      : null;
   
   // Determine which images to show
-  const images = selectedVariant && selectedVariant.images && selectedVariant.images.length > 0
-    ? selectedVariant.images
-    : (product.images || []);
+  const clUnitConfig =
+    product.product_type === "contact_lens" ? parseContactLensUnitConfig(product) : null;
+  const hasClConfiguredPacks = Boolean(clUnitConfig?.packs?.length);
+  const activePackRow =
+    hasClConfiguredPacks && clSelectedPackQty != null
+      ? clUnitConfig?.packs.find((p) => p.quantity === clSelectedPackQty)
+      : clUnitConfig?.packs?.[0];
+  const variantImages =
+    selectedVariant && selectedVariant.images && selectedVariant.images.length > 0
+      ? selectedVariant.images
+      : product.images || [];
+  const sizeImage = selectedFrameSize?.image ? [selectedFrameSize.image] : null;
+  const images =
+    product.product_type === "contact_lens" && clMainImages?.length
+      ? clMainImages
+      : sizeImage?.length
+      ? sizeImage
+      : variantImages;
   const firstImage = images[0] || '/file.svg';
+  const showThumbnailGallery = images.length > 1 && !clHideThumbnailGallery;
   
   // Determine which price to show
-  const displayPrice = selectedVariant?.price ?? product.price;
-  const displayStockStatus = selectedVariant?.stock_status ?? product.stock_status;
-  const displayStockQuantity = selectedVariant?.stock_quantity ?? product.stock_quantity;
+  const displayPrice =
+    product.product_type === "contact_lens" && hasClConfiguredPacks
+      ? Number(
+          activePackRow?.price ??
+            clDisplayPrice ??
+            clUnitConfig?.packs?.[0]?.price ??
+            product.price
+        )
+      : selectedFrameSize?.price != null
+      ? Number(selectedFrameSize.price)
+      : selectedVariant?.price ?? product.price;
+  const displayStockStatus =
+    selectedFrameSize?.stock_status ?? selectedVariant?.stock_status ?? product.stock_status;
+  const displayStockQuantity =
+    selectedFrameSize?.stock_quantity ?? selectedVariant?.stock_quantity ?? product.stock_quantity;
 
   const handleAddToCart = async () => {
     // Check if user is authenticated before adding to cart
@@ -132,6 +218,7 @@ export default function ProductDetailPage() {
       await cartService.addItem({
         product_id: product.id,
         variant_id: selectedVariantId || undefined,
+        frame_size_id: selectedFrameSizeId || undefined,
         quantity: quantity,
       });
       await refreshCart(); // Refresh cart count
@@ -150,7 +237,9 @@ export default function ProductDetailPage() {
 
   const handleVariantSelect = (variantId: number) => {
     setSelectedVariantId(variantId);
-    setSelectedImageIndex(0); // Reset to first image when variant changes
+    setSelectedImageIndex(0);
+    const sizes = (product?.frame_sizes ?? []).filter((s) => s.product_variant_id === variantId);
+    setSelectedFrameSizeId(sizes[0]?.id ?? null);
   };
 
   return (
@@ -175,7 +264,7 @@ export default function ProductDetailPage() {
             <div className="w-full lg:w-[55%] lg:sticky lg:top-4 lg:self-start">
               <div className="flex gap-4">
                 {/* Thumbnails - Left Side */}
-                {images.length > 1 && (
+                {images.length > 1 && showThumbnailGallery && (
                   <div className="flex flex-col gap-2 flex-shrink-0">
                     {images.map((image, index) => (
                       <button
@@ -308,6 +397,51 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
+              {isGlassesProduct && availableFrameSizes.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">Size:</label>
+                  <div className="flex flex-wrap gap-2">
+                    {availableFrameSizes.map((size) => {
+                      const label =
+                        size.size_label ||
+                        `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)}`;
+                      const isSelected = selectedFrameSizeId === size.id;
+                      const outOfStock = size.stock_status === 'out_of_stock' || size.stock_quantity <= 0;
+                      return (
+                        <button
+                          key={size.id}
+                          type="button"
+                          disabled={outOfStock}
+                          onClick={() => {
+                            setSelectedFrameSizeId(size.id);
+                            setSelectedImageIndex(0);
+                            setQuantity(1);
+                          }}
+                          className={`min-w-[7rem] px-3 py-2 rounded-lg border-2 text-left text-sm transition-all ${
+                            isSelected
+                              ? 'border-[#0066CC] bg-[#0066CC]/5 text-[#0066CC] ring-2 ring-[#0066CC]/20'
+                              : outOfStock
+                              ? 'border-gray-200 opacity-50 cursor-not-allowed'
+                              : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          <span className="font-semibold block">{label}</span>
+                          <span className="text-xs text-gray-500 block">
+                            {Number(size.lens_width)}-{Number(size.bridge_width)}-{Number(size.temple_length)} mm
+                          </span>
+                          {size.price != null && Number.isFinite(Number(size.price)) && (
+                            <span className="text-xs block mt-0.5">€{Number(size.price).toFixed(2)}</span>
+                          )}
+                          {size.stock_quantity != null && (
+                            <span className="text-[10px] block opacity-70">{size.stock_quantity} in stock</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Lens Color Selection */}
               {isEyeProduct && (product as any).lens_colors && (product as any).lens_colors.length > 0 && (
                 <div className="space-y-2">
@@ -361,10 +495,12 @@ export default function ProductDetailPage() {
 
               {/* Price */}
               <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-bold text-[#0066CC]">
+                <span className="text-3xl font-bold text-[#0066CC] notranslate">
                   €{Number(displayPrice || 0).toFixed(2)}
                 </span>
-                {product.compare_at_price && Number(product.compare_at_price) > Number(displayPrice || 0) && (
+                {product.compare_at_price &&
+                  Number(product.compare_at_price) > Number(displayPrice || 0) &&
+                  !(product.product_type === "contact_lens" && hasClConfiguredPacks) && (
                   <>
                     <span className="text-xl text-gray-400 line-through">
                       €{Number(product.compare_at_price || 0).toFixed(2)}
@@ -452,6 +588,9 @@ export default function ProductDetailPage() {
               {product.product_type === 'contact_lens' ? (
                 <ContactLensConfiguration
                   product={product}
+                  onDisplayPriceChange={handleClDisplayPriceChange}
+                  onSelectedPackQuantityChange={setClSelectedPackQty}
+                  onPackGalleryChange={handleClPackGalleryChange}
                   onAddToCart={async (config) => {
                     if (!authLoading && !isAuthenticated) {
                       router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);

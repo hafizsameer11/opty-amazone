@@ -3,55 +3,68 @@
 import { CreateProductData } from '@/services/product-service';
 import Input from '@/components/ui/Input';
 import LensCustomization from './LensCustomization';
+import ProductLensColorsEditor from './ProductLensColorsEditor';
+import EyeHygieneVariantsEditor from './EyeHygieneVariantsEditor';
 
 interface SimplifiedProductOptionsProps {
   formData: CreateProductData;
   setFormData: (data: CreateProductData | ((prev: CreateProductData) => CreateProductData)) => void;
   productType: 'frame' | 'sunglasses' | 'contact_lens' | 'eye_hygiene' | 'accessory';
+  /** Denser layout for unified product form */
+  compact?: boolean;
 }
 
 export default function SimplifiedProductOptions({
   formData,
   setFormData,
   productType,
+  compact = false,
 }: SimplifiedProductOptionsProps) {
   // For eye glasses and sunglasses, show lens customization
   const showLensCustomization = productType === 'frame' || productType === 'sunglasses';
+  const framePad = compact ? 'p-3' : 'p-6';
+  const frameTitle = compact ? 'text-sm font-semibold text-gray-900 mb-2' : 'text-lg font-semibold text-gray-900 mb-4';
+  const inputCls = compact
+    ? '[&_label]:text-xs [&_label]:mb-1 [&_input]:py-2 [&_input]:px-2 [&_input]:text-sm [&_input]:rounded-md'
+    : '';
 
   return (
-    <div className="space-y-6">
-      {/* Frame Information - Only for frames and sunglasses */}
+    <div className={compact ? 'space-y-3' : 'space-y-6'}>
       {showLensCustomization && (
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Frame Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className={`bg-white ${framePad} rounded-lg border border-gray-200`}>
+          <h3 className={frameTitle}>Frame & listing defaults</h3>
+          <p className={compact ? 'text-[11px] text-gray-500 mb-2' : 'text-sm text-gray-500 mb-3'}>
+            Default frame info for this SKU. For <strong>multiple frame colors</strong> with photos and stock, save the
+            product then use <strong>Frame color variants</strong> below on the edit page.
+          </p>
+          <div className={`grid grid-cols-1 md:grid-cols-3 ${compact ? 'gap-2' : 'gap-4'} ${inputCls}`}>
             <Input
-              label="Frame Shape"
+              label="Frame shape"
               value={formData.frame_shape || ''}
               onChange={(e) => setFormData({ ...formData, frame_shape: e.target.value })}
-              placeholder="e.g., Round, Square, Aviator"
+              placeholder="Round, square…"
             />
             <Input
-              label="Frame Material"
+              label="Frame material"
               value={formData.frame_material || ''}
               onChange={(e) => setFormData({ ...formData, frame_material: e.target.value })}
-              placeholder="e.g., Acetate, Metal, Titanium"
+              placeholder="Acetate, metal…"
             />
             <Input
-              label="Frame Color"
+              label="Default frame color"
               value={formData.frame_color || ''}
               onChange={(e) => setFormData({ ...formData, frame_color: e.target.value })}
-              placeholder="e.g., Black, Brown, Tortoise"
+              placeholder="Black, tortoise…"
             />
           </div>
-          <div className="mt-4">
-            <label className="block text-sm font-semibold text-gray-800 mb-2">
-              Gender
-            </label>
+          <div className={compact ? 'mt-2' : 'mt-4'}>
+            <label className={`block ${compact ? 'text-xs' : 'text-sm'} font-semibold text-gray-700 mb-1`}>Gender</label>
             <select
               value={formData.gender || 'unisex'}
-              onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
+              onChange={(e) => setFormData({ ...formData, gender: e.target.value as 'men' | 'women' | 'unisex' | 'kids' })}
+              className={`w-full border border-gray-300 rounded-md focus:ring-1 focus:ring-[#0066CC] ${
+                compact ? 'px-2 py-1.5 text-sm' : 'px-4 py-3 border-2'
+              }`}
             >
               <option value="unisex">Unisex</option>
               <option value="men">Men</option>
@@ -62,9 +75,16 @@ export default function SimplifiedProductOptions({
         </div>
       )}
 
-      {/* Lens Customization - Only for frames and sunglasses */}
       {showLensCustomization && (
-        <LensCustomization formData={formData} setFormData={setFormData} />
+        <LensCustomization formData={formData} setFormData={setFormData} compact={compact} />
+      )}
+
+      {showLensCustomization && (
+        <ProductLensColorsEditor
+          compact={compact}
+          value={formData.lens_colors || []}
+          onChange={(lens_colors) => setFormData({ ...formData, lens_colors })}
+        />
       )}
 
       {/* Contact Lens Specific Options */}
@@ -152,24 +172,30 @@ export default function SimplifiedProductOptions({
 
       {/* Eye Hygiene Specific Options */}
       {productType === 'eye_hygiene' && (
-        <div className="bg-white p-6 rounded-lg border border-gray-200 space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`bg-white ${framePad} rounded-lg border border-gray-200 space-y-4`}>
+          <h3 className={frameTitle}>Product details</h3>
+          <p className={compact ? 'text-[11px] text-gray-500 mb-2' : 'text-sm text-gray-500 mb-3'}>
+            Legacy single fields below are optional when you use <strong>size / pack variants</strong> (each row can
+            carry its own price, stock, and image).
+          </p>
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${compact ? 'gap-2' : 'gap-4'} ${inputCls}`}>
             <Input
-              label="Size/Volume"
+              label="Size/Volume (listing default)"
               value={formData.size_volume || ''}
               onChange={(e) => setFormData({ ...formData, size_volume: e.target.value })}
               placeholder="e.g., 100ml, 200ml, 500ml"
             />
             <Input
-              label="Pack Type"
+              label="Pack type (listing default)"
               value={formData.pack_type || ''}
               onChange={(e) => setFormData({ ...formData, pack_type: e.target.value })}
               placeholder="e.g., Single, Multi-pack, Bulk"
             />
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Expiry Date
+              <label
+                className={`block ${compact ? 'text-xs' : 'text-sm'} font-semibold text-gray-800 mb-2`}
+              >
+                Expiry date (product-level)
               </label>
               <Input
                 type="date"
@@ -178,6 +204,7 @@ export default function SimplifiedProductOptions({
               />
             </div>
           </div>
+          <EyeHygieneVariantsEditor formData={formData} setFormData={setFormData} compact={compact} />
         </div>
       )}
 

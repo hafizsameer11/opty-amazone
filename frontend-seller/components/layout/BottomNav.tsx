@@ -3,10 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { isSellerProfileComplete } from '@/lib/seller-profile-gate';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const navLocked = Boolean(user && !isSellerProfileComplete(user));
 
   const navItems = [
     {
@@ -66,20 +70,27 @@ export default function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 lg:hidden">
       <div className="flex items-center justify-around h-16 px-2">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-              isActive(item.href)
-                ? 'text-[#0066CC]'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            {item.icon}
-            <span className="text-xs mt-1 font-medium">{item.label}</span>
-          </Link>
-        ))}
+        {navItems.map((item) => {
+          const active = isActive(item.href);
+          const locked = navLocked && item.href !== '/profile';
+          const className = `flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+            active ? 'text-[#0066CC]' : 'text-gray-600 hover:text-gray-900'
+          } ${locked ? 'opacity-40 pointer-events-none' : ''}`;
+          if (locked) {
+            return (
+              <span key={item.href} title={t('completeProfileNavHint')} className={className}>
+                {item.icon}
+                <span className="text-xs mt-1 font-medium">{item.label}</span>
+              </span>
+            );
+          }
+          return (
+            <Link key={item.href} href={item.href} className={className}>
+              {item.icon}
+              <span className="text-xs mt-1 font-medium">{item.label}</span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );

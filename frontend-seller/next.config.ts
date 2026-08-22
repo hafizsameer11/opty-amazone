@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
         port: "8000",
         pathname: "/storage/**",
       },
+      {
+        protocol: "http",
+        hostname: "api.vistaexpress.it",
+        pathname: "/storage/**",
+      },
+      {
+        protocol: "https",
+        hostname: "api.vistaexpress.it",
+        pathname: "/storage/**",
+      },
     ],
   },
 };

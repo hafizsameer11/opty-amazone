@@ -91,6 +91,7 @@ class BuyerCartController extends Controller
             'contact_lens_right_qty' => 'nullable|integer|min:0',
             'contact_lens_right_cylinder' => 'nullable|numeric|min:-10|max:10',
             'contact_lens_right_axis' => 'nullable|integer|min:0|max:180',
+            'contact_lens_pack_quantity' => 'nullable|integer|min:1',
         ]);
 
         $user = Auth::user();
@@ -119,6 +120,17 @@ class BuyerCartController extends Controller
             }
         }
 
+        if ($request->contact_lens_pack_quantity) {
+            $packPrice = $this->resolveContactLensPackPrice(
+                $product,
+                (int) $request->contact_lens_pack_quantity
+            );
+            if ($packPrice === null) {
+                return ResponseHelper::error('Invalid contact lens pack size', null, 422);
+            }
+            $price = $packPrice;
+        }
+
         if ($stockQuantity < $request->quantity) {
             return ResponseHelper::error('Insufficient stock', null, 400);
         }
@@ -139,7 +151,8 @@ class BuyerCartController extends Controller
                 ->where('lens_type', $request->lens_type ?? null)
                 ->where('lens_thickness_material_id', $request->lens_thickness_material_id ?? null)
                 ->where('lens_thickness_option_id', $request->lens_thickness_option_id ?? null)
-                ->where('lens_color_id', $request->lens_color_id ?? null);
+                ->where('lens_color_id', $request->lens_color_id ?? null)
+                ->where('contact_lens_pack_quantity', $request->contact_lens_pack_quantity ?? null);
 
             $existingItem = $existingItemQuery->first();
 
@@ -186,6 +199,7 @@ class BuyerCartController extends Controller
                     'contact_lens_right_qty' => $request->contact_lens_right_qty,
                     'contact_lens_right_cylinder' => $request->contact_lens_right_cylinder,
                     'contact_lens_right_axis' => $request->contact_lens_right_axis,
+                    'contact_lens_pack_quantity' => $request->contact_lens_pack_quantity,
                 ];
 
                 $item = CartItem::create($itemData);
@@ -249,6 +263,29 @@ class BuyerCartController extends Controller
         $cart->items()->delete();
 
         return ResponseHelper::success(null, 'Cart cleared');
+    }
+
+    private function resolveContactLensPackPrice(Product $product, int $packQuantity): ?float
+    {
+        $config = $product->contact_lens_unit_config;
+        if (!is_array($config) || empty($config['packs']) || !is_array($config['packs'])) {
+            return null;
+        }
+
+        foreach ($config['packs'] as $pack) {
+            if (!is_array($pack)) {
+                continue;
+            }
+            if ((int) ($pack['quantity'] ?? 0) === $packQuantity) {
+                if (isset($pack['price']) && $pack['price'] !== '' && is_numeric($pack['price'])) {
+                    return (float) $pack['price'];
+                }
+
+                return (float) $product->price;
+            }
+        }
+
+        return null;
     }
 }
 

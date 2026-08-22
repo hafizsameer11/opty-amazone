@@ -127,6 +127,13 @@ export default function ProfilePage() {
     }
   };
 
+  const isNewOrder = (createdAt: string) => {
+    const createdAtMs = new Date(createdAt).getTime();
+    if (!Number.isFinite(createdAtMs)) return false;
+    const hoursSinceCreated = (Date.now() - createdAtMs) / (1000 * 60 * 60);
+    return hoursSinceCreated >= 0 && hoursSinceCreated <= 24;
+  };
+
   // Show loading state while checking auth
   if (authLoading) {
     return (
@@ -424,8 +431,15 @@ export default function ProfilePage() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div>
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                           Order #{order.order_no}
+                          {isNewOrder(order.created_at) && (
+                            <span
+                              className="inline-block h-2.5 w-2.5 rounded-full bg-[#ef4444] animate-pulse"
+                              title="New order"
+                              aria-label="New order"
+                            />
+                          )}
                         </h3>
                         <p className="text-sm text-gray-600">
                           {new Date(order.created_at).toLocaleDateString()}
@@ -527,9 +541,9 @@ export default function ProfilePage() {
                   <div className="flex gap-3">
                     <Button
                       onClick={() => router.push('/profile/top-up')}
-                      variant="secondary"
+                      variant="outline"
                       size="sm"
-                      className="bg-white text-[#0066CC] hover:bg-gray-100"
+                      className="!border-white !bg-white !text-[#0066CC] hover:!bg-gray-100 hover:!text-[#0052a3]"
                     >
                       Top Up
                     </Button>
@@ -537,7 +551,7 @@ export default function ProfilePage() {
                       onClick={() => router.push('/profile/withdraw')}
                       variant="outline"
                       size="sm"
-                      className="border-white text-white hover:bg-white/10"
+                      className="!border-white !bg-transparent !text-white hover:!bg-white/10 hover:!text-white"
                     >
                       Withdraw
                     </Button>
@@ -631,7 +645,7 @@ export default function ProfilePage() {
                             </p>
                             <Badge
                               variant={
-                                transaction.status === 'completed' ? 'success' :
+                                (transaction.status === 'completed' || transaction.status === 'success') ? 'success' :
                                 transaction.status === 'pending' ? 'warning' : 'error'
                               }
                               size="sm"

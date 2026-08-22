@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Buyer;
 use App\Http\Controllers\Controller;
 use App\Helpers\ResponseHelper;
 use App\Services\Escrow\EscrowService;
+use App\Services\Order\OrderService;
 use App\Mail\OrderPaidMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,12 +13,10 @@ use Illuminate\Support\Facades\Mail;
 
 class BuyerOrderController extends Controller
 {
-    protected $escrowService;
-
-    public function __construct(EscrowService $escrowService)
-    {
-        $this->escrowService = $escrowService;
-    }
+    public function __construct(
+        protected EscrowService $escrowService,
+        protected OrderService $orderService
+    ) {}
 
     /**
      * Get all orders for buyer.
@@ -27,7 +26,7 @@ class BuyerOrderController extends Controller
         $user = Auth::user();
         
         $orders = \App\Models\Order::where('user_id', $user->id)
-            ->with(['storeOrders.store', 'storeOrders.items.product'])
+            ->with(['storeOrders.store', 'storeOrders.items.product', 'storeOrders.items.variant'])
             ->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 15));
 
@@ -42,7 +41,7 @@ class BuyerOrderController extends Controller
         $user = Auth::user();
         
         $order = \App\Models\Order::where('user_id', $user->id)
-            ->with(['storeOrders.store', 'storeOrders.items.product', 'storeOrders.escrow'])
+            ->with(['storeOrders.store', 'storeOrders.items.product', 'storeOrders.items.variant', 'storeOrders.escrow'])
             ->findOrFail($id);
 
         return ResponseHelper::success($order, 'Order retrieved successfully');
@@ -58,7 +57,7 @@ class BuyerOrderController extends Controller
         $storeOrders = \App\Models\StoreOrder::whereHas('order', function ($query) use ($user) {
             $query->where('user_id', $user->id);
         })
-        ->with(['store', 'items.product', 'escrow', 'order'])
+        ->with(['store', 'items.product', 'items.variant', 'escrow', 'order'])
         ->orderBy('created_at', 'desc')
         ->paginate($request->get('per_page', 15));
 
@@ -75,7 +74,7 @@ class BuyerOrderController extends Controller
         $storeOrder = \App\Models\StoreOrder::whereHas('order', function ($query) use ($user) {
             $query->where('user_id', $user->id);
         })
-        ->with(['store', 'items.product', 'escrow', 'order', 'deliveryAddress'])
+        ->with(['store', 'items.product', 'items.variant', 'escrow', 'order', 'deliveryAddress'])
         ->findOrFail($id);
 
         return ResponseHelper::success($storeOrder, 'Store order retrieved successfully');
@@ -168,13 +167,13 @@ class BuyerOrderController extends Controller
             $query->where('user_id', $user->id);
         })->findOrFail($storeOrderId);
 
-        if (!in_array($storeOrder->status, ['pending', 'accepted'])) {
-            return ResponseHelper::error('Order cannot be cancelled at this stage', null, 400);
+        try {
+            $updated = $this->orderService->cancelStoreOrderByBuyer($storeOrder);
+
+            return ResponseHelper::success($updated, 'Order cancelled successfully');
+        } catch (\RuntimeException $e) {
+            return ResponseHelper::error($e->getMessage(), null, 400);
         }
-
-        $storeOrder->update(['status' => 'cancelled']);
-
-        return ResponseHelper::success($storeOrder, 'Order cancelled successfully');
     }
 
     /**

@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 // Layout components are now handled by app/template.tsx
-import { orderService, type StoreOrder } from '@/services/order-service';
+import { orderService, type StoreOrder, type OrderItem } from '@/services/order-service';
+import OrderLineSelections from '@/components/orders/OrderLineSelections';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -79,6 +80,12 @@ export default function StoreOrderDetailsPage() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const resolvedStoreOrderTotal = (() => {
+    const rawTotal = Number(storeOrder.total ?? 0);
+    if (rawTotal > 0) return rawTotal;
+    return Number(storeOrder.subtotal ?? 0) + Number(storeOrder.delivery_fee ?? 0);
+  })();
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 w-full">
         <div className="mb-6">
@@ -132,7 +139,7 @@ export default function StoreOrderDetailsPage() {
               <div className="flex items-center justify-between mb-4">
                 <span className="text-gray-700">Total Amount:</span>
                 <span className="text-2xl font-bold text-[#0066CC]">
-                  €{Number(storeOrder.total || 0).toFixed(2)}
+                  €{resolvedStoreOrderTotal.toFixed(2)}
                 </span>
               </div>
               <Button onClick={handlePay} className="w-full" size="lg">
@@ -142,29 +149,27 @@ export default function StoreOrderDetailsPage() {
           )}
 
           {/* Delivery Information */}
-          {storeOrder.estimated_delivery_date && (
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h3 className="font-semibold text-gray-900 mb-2">Delivery Information</h3>
-              <p className="text-sm text-gray-600">
-                <strong>Estimated Delivery:</strong>{' '}
-                {new Date(storeOrder.estimated_delivery_date).toLocaleDateString()}
-              </p>
-              {storeOrder.delivery_method && (
-                <p className="text-sm text-gray-600">
-                  <strong>Method:</strong> {storeOrder.delivery_method}
-                </p>
-              )}
-              {storeOrder.delivery_notes && (
-                <p className="text-sm text-gray-600 mt-2">{storeOrder.delivery_notes}</p>
-              )}
-            </div>
-          )}
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-gray-900 mb-2">Delivery Information</h3>
+            <p className="text-sm text-gray-600">
+              <strong>Estimated Delivery:</strong>{' '}
+              {storeOrder.estimated_delivery_date
+                ? new Date(storeOrder.estimated_delivery_date).toLocaleDateString()
+                : 'Not scheduled yet'}
+            </p>
+            <p className="text-sm text-gray-600">
+              <strong>Method:</strong> {storeOrder.delivery_method || 'Standard'}
+            </p>
+            {storeOrder.delivery_notes && (
+              <p className="text-sm text-gray-600 mt-2">{storeOrder.delivery_notes}</p>
+            )}
+          </div>
 
           {/* Order Items */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h3>
             <div className="space-y-4">
-              {storeOrder.items.map((item) => (
+              {storeOrder.items.map((item: OrderItem) => (
                 <div key={item.id} className="flex gap-4 border-b pb-4">
                   <div className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                     {getFullImageUrl(item.product_images?.[0]) !== '/file.svg' && (
@@ -184,6 +189,7 @@ export default function StoreOrderDetailsPage() {
                     <p className="text-lg font-bold text-[#0066CC]">
                       €{Number(item.line_total || 0).toFixed(2)}
                     </p>
+                    <OrderLineSelections line={item} className="mt-2 pt-2 border-t border-gray-200" />
                   </div>
                 </div>
               ))}
@@ -205,7 +211,7 @@ export default function StoreOrderDetailsPage() {
               <div className="flex justify-between border-t pt-2 mt-2">
                 <span className="text-lg font-bold">Total:</span>
                 <span className="text-lg font-bold text-[#0066CC]">
-                  €{Number(storeOrder.total || 0).toFixed(2)}
+                  €{resolvedStoreOrderTotal.toFixed(2)}
                 </span>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { CSSProperties, ReactNode } from 'react';
 
 interface CardProps {
   children: ReactNode;
@@ -6,6 +6,7 @@ interface CardProps {
   hover?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';
   onClick?: () => void;
+  style?: CSSProperties;
 }
 
 export default function Card({
@@ -14,6 +15,7 @@ export default function Card({
   hover = false,
   padding = 'md',
   onClick,
+  style,
 }: CardProps) {
   const paddingClasses = {
     none: '',
@@ -32,6 +34,7 @@ export default function Card({
     <div
       className={`${baseClasses} ${paddingClasses[padding]} ${hoverClasses} ${clickableClasses} ${className}`}
       onClick={onClick}
+      style={style}
     >
       {children}
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { AuthService } from '@/services/auth-service';
 import type { User, LoginData, RegisterData } from '@/types/auth';
 
@@ -11,6 +11,8 @@ interface AuthContextType {
   login: (data: LoginData) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
+  /** Sync session after profile API updates (unlocks dashboard without re-login). */
+  updateSessionUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,6 +61,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateSessionUser = useCallback((next: User) => {
+    setUser((prev) => {
+      const merged = { ...(prev ?? {}), ...next } as User;
+      const token = AuthService.getToken();
+      if (token) {
+        AuthService.setAuth(token, merged);
+      }
+      return merged;
+    });
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -68,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        updateSessionUser,
       }}
     >
       {children}

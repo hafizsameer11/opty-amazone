@@ -13,6 +13,7 @@ class PrescriptionDropdownValue extends Model
     protected $fillable = [
         'store_id',
         'category_id',
+        'product_id',
         'field_type',
         'value',
         'label',
@@ -41,6 +42,18 @@ class PrescriptionDropdownValue extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function scopeForProduct($query, ?int $productId)
+    {
+        return $productId
+            ? $query->where('product_id', $productId)
+            : $query->whereNull('product_id');
     }
 
     /**

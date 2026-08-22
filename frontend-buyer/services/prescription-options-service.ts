@@ -2,6 +2,11 @@ import apiClient from '@/lib/api-client';
 
 export interface PrescriptionOptions {
   pd: string[];
+  pwr: {
+    left: string[];
+    right: string[];
+    both: string[];
+  };
   sph: {
     left: string[];
     right: string[];
@@ -34,11 +39,12 @@ export async function getPrescriptionOptions(productId: number): Promise<Prescri
       `/prescription-options/product/${productId}`
     );
     return response.data.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to fetch prescription options:', error);
     // Return empty structure if API fails
     return {
       pd: [],
+      pwr: { left: [], right: [], both: [] },
       sph: { left: [], right: [], both: [] },
       cyl: { left: [], right: [], both: [] },
       axis: { left: [], right: [], both: [] },

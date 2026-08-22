@@ -10,7 +10,7 @@ export interface Order {
 }
 
 export const orderService = {
-  async getAll(params?: any) {
+  async getAll(params?: Record<string, unknown>) {
     const res = await apiClient.get('/admin/orders', { params });
     return res.data.data;
   },
@@ -20,8 +20,15 @@ export const orderService = {
     return res.data.data;
   },
 
-  async updateStatus(id: number, status: string) {
-    const res = await apiClient.put(`/admin/orders/${id}/status`, { status });
+  /** Updates checkout/payment state on the parent order */
+  async updatePaymentStatus(id: number, payment_status: string) {
+    const res = await apiClient.put(`/admin/orders/${id}/status`, { payment_status });
+    return res.data.data;
+  },
+
+  /** Updates per-store fulfillment (seller pipeline) */
+  async updateStoreOrderStatus(storeOrderId: number, status: string) {
+    const res = await apiClient.put(`/admin/store-orders/${storeOrderId}/status`, { status });
     return res.data.data;
   },
 };

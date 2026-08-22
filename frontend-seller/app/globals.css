@@ -118,3 +118,22 @@ body {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+
+/* Google Translate — hide chrome, keep combo usable */
+.goog-te-banner-frame.skiptranslate,
+.goog-te-banner-frame,
+iframe.goog-te-banner-frame,
+.goog-te-balloon-frame,
+#goog-gt-tt,
+.goog-te-spinner-pos {
+  display: none !important;
+}
+body {
+  top: 0 !important;
+}
+/* Hide top banner iframe only; keep .goog-te-combo for the language API */
+.skiptranslate > iframe {
+  display: none !important;
+  height: 0 !important;
+}
+

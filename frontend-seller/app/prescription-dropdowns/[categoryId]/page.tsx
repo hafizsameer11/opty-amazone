@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button';
 import Alert from '@/components/ui/Alert';
 import Loader from '@/components/ui/Loader';
 import Input from '@/components/ui/Input';
+import SectionBackLink from '@/components/ui/SectionBackLink';
 import {
   getCategoryConfig,
   updateCategoryConfig,
@@ -259,12 +260,9 @@ export default function CategoryPrescriptionConfigPage() {
         <main className="flex-1 p-6">
           <div className="max-w-7xl mx-auto">
             <div className="mb-6">
-              <Button
-                onClick={() => router.push('/prescription-dropdowns')}
-                className="mb-4 bg-gray-600 hover:bg-gray-700 text-white"
-              >
-                ← Back to Categories
-              </Button>
+              <SectionBackLink href="/prescription-dropdowns" className="mb-3">
+                Back to Categories
+              </SectionBackLink>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Prescription Options: {config.category.name}
               </h1>

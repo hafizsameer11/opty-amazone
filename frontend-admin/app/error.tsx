@@ -22,8 +22,8 @@ export default function Error({
     <AdminLayout>
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold text-white mb-4">Something went wrong!</h2>
-          <p className="text-white/70 mb-8">{error.message || 'An unexpected error occurred'}</p>
+          <h2 className="text-2xl font-semibold text-slate-900 mb-4">Something went wrong!</h2>
+          <p className="text-slate-500 mb-8">{error.message || 'An unexpected error occurred'}</p>
           <div className="flex gap-4 justify-center">
             <Button onClick={reset}>Try Again</Button>
             <Button variant="outline" onClick={() => router.push('/dashboard')}>

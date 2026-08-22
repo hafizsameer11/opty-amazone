@@ -6,10 +6,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
+import { AuthService } from '@/services/auth-service';
+import { isSellerProfileComplete } from '@/lib/seller-profile-gate';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -37,7 +40,12 @@ export default function LoginPage() {
       setIsLoading(true);
       setError('');
       await login(data);
-      router.push('/');
+      const u = AuthService.getUser();
+      if (u && !isSellerProfileComplete(u)) {
+        router.push('/profile?setup=1');
+      } else {
+        router.push('/');
+      }
     } catch (err: any) {
       // Prioritize field-specific errors over general message
       const errorMessage = 
@@ -56,7 +64,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-[#0066CC] mb-2">OpticalMarket</h1>
+          <Image src="/vistaexpress-logo.png" alt="VistaExpress" width={300} height={150} className="mx-auto mb-2 h-20 w-auto object-contain" priority />
           <p className="text-gray-600">Seller Dashboard</p>
         </div>
 

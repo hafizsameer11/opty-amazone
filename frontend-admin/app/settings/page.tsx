@@ -46,7 +46,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="text-center text-white/70 py-12">Loading settings...</div>
+        <div className="text-center text-slate-500 py-12">Loading settings...</div>
       </AdminLayout>
     );
   }
@@ -55,13 +55,13 @@ export default function SettingsPage() {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
-          <p className="text-white/70">Platform configuration</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Settings</h1>
+          <p className="text-slate-500">Platform configuration</p>
         </div>
 
         <GlassCard>
           <form onSubmit={handleSave} className="space-y-6">
-            <h2 className="text-xl font-bold text-white mb-4">General Settings</h2>
+            <h2 className="text-xl font-bold text-slate-900 mb-4">General Settings</h2>
             <Input
               label="Platform Name"
               value={settings.platform_name || ''}
@@ -79,7 +79,7 @@ export default function SettingsPage() {
               onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
             />
 
-            <h2 className="text-xl font-bold text-white mt-8 mb-4">Points System</h2>
+            <h2 className="text-xl font-bold text-slate-900 mt-8 mb-4">Points System</h2>
             <div className="flex items-center gap-2 mb-4">
               <input
                 type="checkbox"
@@ -88,7 +88,7 @@ export default function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, points_enabled: e.target.checked })}
                 className="w-4 h-4"
               />
-              <label htmlFor="points_enabled" className="text-sm text-white/90">Enable Points System</label>
+              <label htmlFor="points_enabled" className="text-sm text-slate-700">Enable Points System</label>
             </div>
             <Input
               label="Points Per Euro"

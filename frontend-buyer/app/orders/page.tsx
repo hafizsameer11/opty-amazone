@@ -86,6 +86,13 @@ export default function OrdersPage() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const isNewOrder = (createdAt: string) => {
+    const createdAtMs = new Date(createdAt).getTime();
+    if (!Number.isFinite(createdAtMs)) return false;
+    const hoursSinceCreated = (Date.now() - createdAtMs) / (1000 * 60 * 60);
+    return hoursSinceCreated >= 0 && hoursSinceCreated <= 24;
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 w-full">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">My Orders</h1>
@@ -112,8 +119,15 @@ export default function OrdersPage() {
               <div key={order.id} className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                       Order #{order.order_no}
+                      {isNewOrder(order.created_at) && (
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full bg-[#ef4444] animate-pulse"
+                          title="New order"
+                          aria-label="New order"
+                        />
+                      )}
                     </h2>
                     <p className="text-sm text-gray-600">
                       {new Date(order.created_at).toLocaleDateString()}

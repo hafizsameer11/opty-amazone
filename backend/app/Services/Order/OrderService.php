@@ -10,6 +10,7 @@ use App\Models\CartItem;
 use App\Models\User;
 use App\Models\UserAddress;
 use App\Services\Coupon\CouponService;
+use App\Services\Inventory\InventoryService;
 use App\Services\Points\PointService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -18,7 +19,8 @@ class OrderService
 {
     public function __construct(
         private CouponService $couponService,
-        private PointService $pointService
+        private PointService $pointService,
+        private InventoryService $inventoryService
     ) {}
 
     /**
@@ -39,7 +41,14 @@ class OrderService
             $deliveryAddress = UserAddress::findOrFail($deliveryAddressId);
             
             // Group cart items by store
-            $itemsByStore = $cart->items()->with('product', 'store')->get()->groupBy('store_id');
+            $itemsByStore = $cart->items()
+                ->with([
+                    'product' => fn ($q) => $q->withTrashed(),
+                    'store' => fn ($q) => $q->withTrashed(),
+                    'variant',
+                ])
+                ->get()
+                ->groupBy('store_id');
             
             // Create parent order
             $order = Order::create([
@@ -104,10 +113,20 @@ class OrderService
                 }
             }
 
+            // Reserve / decrement inventory (row locks; throws if oversold vs current stock)
+            foreach ($itemsByStore as $items) {
+                foreach ($items as $cartItem) {
+                    $this->inventoryService->decrementForCartLine($cartItem);
+                }
+            }
+
             // Create StoreOrder for each store
             foreach ($itemsByStore as $storeId => $items) {
-                $store = $items->first()->store;
-                
+                $store = $items->first()?->store;
+                if (!$store) {
+                    throw new \Exception('Cart contains items from a store that is no longer available.');
+                }
+
                 // Calculate subtotal for this store
                 $subtotal = $items->sum(function ($item) {
                     return $item->price * $item->quantity;
@@ -135,11 +154,19 @@ class OrderService
                     
                     // Use variant images if available, otherwise product images
                     $images = $variant && $variant->images ? $variant->images : $product->images;
+                    $pv = $cartItem->product_variant;
+                    if (is_array($pv) && !empty($pv['eye_hygiene']['image_url'])) {
+                        $ehImg = $pv['eye_hygiene']['image_url'];
+                        $baseImages = is_array($images) ? $images : (array) ($images ?? []);
+                        $images = array_values(array_unique(array_merge([$ehImg], $baseImages)));
+                    }
                     
                     OrderItem::create([
                         'store_order_id' => $storeOrder->id,
                         'product_id' => $product->id,
                         'variant_id' => $cartItem->variant_id,
+                        'product_size_volume_id' => $cartItem->product_size_volume_id,
+                        'eye_hygiene_variant_id' => $cartItem->eye_hygiene_variant_id,
                         'quantity' => $cartItem->quantity,
                         'price' => $cartItem->price,
                         'line_total' => $cartItem->price * $cartItem->quantity,
@@ -156,6 +183,7 @@ class OrderService
                         'lens_type' => $cartItem->lens_type,
                         'lens_thickness_material_id' => $cartItem->lens_thickness_material_id,
                         'lens_thickness_option_id' => $cartItem->lens_thickness_option_id,
+                        'lens_color_id' => $cartItem->lens_color_id,
                         'treatment_ids' => $cartItem->treatment_ids,
                         'lens_coatings' => $cartItem->lens_coatings,
                         'photochromic_color_id' => $cartItem->photochromic_color_id,
@@ -174,6 +202,7 @@ class OrderService
                         'contact_lens_right_qty' => $cartItem->contact_lens_right_qty,
                         'contact_lens_right_cylinder' => $cartItem->contact_lens_right_cylinder,
                         'contact_lens_right_axis' => $cartItem->contact_lens_right_axis,
+                        'contact_lens_pack_quantity' => $cartItem->contact_lens_pack_quantity,
                     ]);
                 }
 
@@ -224,7 +253,11 @@ class OrderService
             DB::commit();
 
             return [
-                'order' => $order->load('storeOrders.store', 'storeOrders.items'),
+                'order' => $order->load([
+                    'storeOrders.store',
+                    'storeOrders.items.product',
+                    'storeOrders.items.variant',
+                ]),
                 'store_orders' => $storeOrders,
             ];
         } catch (\Exception $e) {
@@ -269,12 +302,54 @@ class OrderService
      */
     public function rejectStoreOrder(StoreOrder $storeOrder, string $reason): StoreOrder
     {
-        $storeOrder->update([
-            'status' => 'rejected',
-            'rejection_reason' => $reason,
-        ]);
+        DB::beginTransaction();
 
-        return $storeOrder->fresh();
+        try {
+            $storeOrder->load('items');
+            foreach ($storeOrder->items as $orderItem) {
+                $this->inventoryService->restoreForOrderLine($orderItem);
+            }
+
+            $storeOrder->update([
+                'status' => 'rejected',
+                'rejection_reason' => $reason,
+            ]);
+
+            DB::commit();
+
+            return $storeOrder->fresh();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Buyer cancels a store order (pending / accepted) and inventory is put back.
+     */
+    public function cancelStoreOrderByBuyer(StoreOrder $storeOrder): StoreOrder
+    {
+        if (!in_array($storeOrder->status, ['pending', 'accepted'], true)) {
+            throw new \RuntimeException('Order cannot be cancelled at this stage');
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $storeOrder->load('items');
+            foreach ($storeOrder->items as $orderItem) {
+                $this->inventoryService->restoreForOrderLine($orderItem);
+            }
+
+            $storeOrder->update(['status' => 'cancelled']);
+
+            DB::commit();
+
+            return $storeOrder->fresh();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 
     /**

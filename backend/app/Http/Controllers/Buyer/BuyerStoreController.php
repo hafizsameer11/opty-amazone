@@ -35,6 +35,23 @@ class BuyerStoreController extends Controller
     }
 
     /**
+     * Whether the authenticated user follows this store (buyers only).
+     */
+    public function followStatus(int $id, Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user->isBuyer()) {
+            return ResponseHelper::success([
+                'is_following' => false,
+            ]);
+        }
+
+        return ResponseHelper::success([
+            'is_following' => $this->followerService->isFollowing($user, $id),
+        ]);
+    }
+
+    /**
      * Follow a store.
      */
     public function followStore(int $id, Request $request): JsonResponse

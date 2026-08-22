@@ -64,14 +64,14 @@ export default function Modal({
         onClick={(e) => e.stopPropagation()}
       >
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-6 border-b border-white/20">
+          <div className="flex items-center justify-between p-6 border-b border-slate-200">
             {title && (
-              <h2 className="text-2xl font-bold text-white">{title}</h2>
+              <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
             )}
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="text-white/80 hover:text-white transition-colors text-2xl leading-none"
+                className="text-slate-600 hover:text-slate-900 transition-colors text-2xl leading-none"
                 aria-label="Close"
               >
                 ×

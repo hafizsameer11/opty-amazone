@@ -14,6 +14,7 @@ class Category extends Model
 
     protected $fillable = [
         'name',
+        'name_it',
         'slug',
         'description',
         'image',
@@ -39,7 +40,15 @@ class Category extends Model
      */
     public function children(): HasMany
     {
-        return $this->hasMany(Category::class, 'parent_id');
+        return $this->hasMany(Category::class, 'parent_id')->orderBy('sort_order')->orderBy('name');
+    }
+
+    /**
+     * Alias relation name used by some admin code paths (same as children).
+     */
+    public function subcategories(): HasMany
+    {
+        return $this->hasMany(Category::class, 'parent_id')->orderBy('sort_order')->orderBy('name');
     }
 
     /**

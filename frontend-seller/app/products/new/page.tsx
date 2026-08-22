@@ -9,6 +9,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import Sidebar from '@/components/layout/Sidebar';
 import { productService, type Category } from '@/services/product-service';
 import Button from '@/components/ui/Button';
+import SectionBackLink from '@/components/ui/SectionBackLink';
 
 const categoryRoutes: Record<string, string> = {
   'eye-glasses': '/products/new/eye-glasses',
@@ -84,12 +85,9 @@ export default function NewProductPage() {
             <div className="py-6">
               <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-6">
-                  <button
-                    onClick={() => router.back()}
-                    className="text-[#0066CC] hover:underline mb-4"
-                  >
-                    ← Back to Products
-                  </button>
+                  <SectionBackLink href="/products" className="mb-3">
+                    Back to Products
+                  </SectionBackLink>
                   <h1 className="text-3xl font-bold text-gray-900">Create New Product</h1>
                   <p className="text-gray-600 mt-2">Select a category to create a product</p>
                 </div>

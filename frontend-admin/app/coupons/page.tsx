@@ -15,6 +15,7 @@ export default function CouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   useEffect(() => {
     loadCoupons();
@@ -39,6 +40,33 @@ export default function CouponsPage() {
     loadCoupons();
   };
 
+  const handleToggle = async (coupon: Coupon) => {
+    try {
+      setBusyId(coupon.id);
+      await couponService.toggleStatus(coupon.id);
+      showToast('success', coupon.is_active ? 'Coupon deactivated' : 'Coupon activated');
+      await loadCoupons();
+    } catch (error: any) {
+      showToast('error', error.response?.data?.message || 'Failed to update coupon');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDelete = async (coupon: Coupon) => {
+    if (!confirm(`Delete coupon ${coupon.code}?`)) return;
+    try {
+      setBusyId(coupon.id);
+      await couponService.destroy(coupon.id);
+      showToast('success', 'Coupon deleted');
+      await loadCoupons();
+    } catch (error: any) {
+      showToast('error', error.response?.data?.message || 'Failed to delete coupon');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const getDiscountDisplay = (coupon: Coupon) => {
     if (coupon.discount_type === 'percentage') {
       return `${coupon.discount_value}% OFF`;
@@ -53,17 +81,17 @@ export default function CouponsPage() {
     {
       key: 'store',
       header: 'Store',
-      render: (coupon: Coupon) => <span className="text-white">{coupon.store?.name || 'N/A'}</span>,
+      render: (coupon: Coupon) => <span className="text-slate-900">{coupon.store?.name || 'N/A'}</span>,
     },
     {
       key: 'discount',
       header: 'Discount',
-      render: (coupon: Coupon) => <span className="text-white font-semibold">{getDiscountDisplay(coupon)}</span>,
+      render: (coupon: Coupon) => <span className="text-slate-900 font-semibold">{getDiscountDisplay(coupon)}</span>,
     },
     {
       key: 'usages_count',
       header: 'Usages',
-      render: (coupon: Coupon) => <span className="text-white">{coupon.usages_count || 0}</span>,
+      render: (coupon: Coupon) => <span className="text-slate-900">{coupon.usages_count || 0}</span>,
     },
     {
       key: 'is_active',
@@ -74,14 +102,38 @@ export default function CouponsPage() {
         </Badge>
       ),
     },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (coupon: Coupon) => (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busyId === coupon.id}
+            onClick={() => void handleToggle(coupon)}
+          >
+            {coupon.is_active ? 'Deactivate' : 'Activate'}
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            disabled={busyId === coupon.id}
+            onClick={() => void handleDelete(coupon)}
+          >
+            Delete
+          </Button>
+        </div>
+      ),
+    },
   ];
 
   return (
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Coupons</h1>
-          <p className="text-white/70">View all seller coupons</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Coupons</h1>
+          <p className="text-slate-500">View and control seller coupons</p>
         </div>
 
         <GlassCard>

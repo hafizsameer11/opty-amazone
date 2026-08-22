@@ -5,10 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
-import { orderService, type StoreOrder } from '@/services/order-service';
+import { orderService, type StoreOrder, type OrderItem } from '@/services/order-service';
+import OrderLineSelections from '@/components/orders/OrderLineSelections';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
+import SectionBackLink from '@/components/ui/SectionBackLink';
 
 export default function SellerOrderDetailsPage() {
   const params = useParams();
@@ -136,12 +138,9 @@ export default function SellerOrderDetailsPage() {
       <Header />
       <main className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
         <div className="mb-6">
-          <button
-            onClick={() => router.back()}
-            className="text-[#0066CC] hover:underline mb-4"
-          >
-            ← Back to Orders
-          </button>
+          <SectionBackLink href="/orders" className="mb-3">
+            Back to Orders
+          </SectionBackLink>
           <h1 className="text-3xl font-bold text-gray-900">Order Details</h1>
           <p className="text-gray-600 mt-1">Order #{storeOrder.order.order_no}</p>
         </div>
@@ -189,15 +188,19 @@ export default function SellerOrderDetailsPage() {
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h3>
             <div className="space-y-3">
-              {storeOrder.items.map((item) => (
-                <div key={item.id} className="flex justify-between border-b pb-3">
-                  <div>
-                    <p className="font-semibold text-gray-900">{item.product_name}</p>
-                    <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+              {storeOrder.items.map((item: OrderItem) => (
+                <div key={item.id} className="border-b pb-4 last:border-0">
+                  <div className="flex justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-gray-900">{item.product_name}</p>
+                      <p className="text-sm text-gray-600">SKU: {item.product_sku}</p>
+                      <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+                      <OrderLineSelections line={item} className="mt-2" />
+                    </div>
+                    <p className="text-sm font-semibold text-[#0066CC] shrink-0">
+                      €{Number(item.line_total || 0).toFixed(2)}
+                    </p>
                   </div>
-                  <p className="text-sm font-semibold text-[#0066CC]">
-                    €{Number(item.line_total || 0).toFixed(2)}
-                  </p>
                 </div>
               ))}
             </div>

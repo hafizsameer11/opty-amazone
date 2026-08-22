@@ -4,7 +4,7 @@ export interface PrescriptionDropdownValue {
   id: number;
   store_id: number;
   category_id: number;
-  field_type: 'sph' | 'cyl' | 'axis' | 'pd' | 'h' | 'year_of_birth' | 'add' | 'base_curve' | 'diameter';
+  field_type: 'pwr' | 'sph' | 'cyl' | 'axis' | 'pd' | 'h' | 'year_of_birth' | 'add' | 'base_curve' | 'diameter';
   value: string;
   label?: string;
   eye_type?: 'left' | 'right' | 'both';
@@ -43,6 +43,7 @@ export interface CategoryPrescriptionConfigDetail {
     slug: string;
   };
   values: {
+    pwr: PrescriptionDropdownValue[];
     sph: PrescriptionDropdownValue[];
     cyl: PrescriptionDropdownValue[];
     axis: PrescriptionDropdownValue[];
@@ -102,5 +103,39 @@ export async function updateCategoryConfig(
  */
 export async function deleteValue(id: number): Promise<void> {
   await apiClient.delete(`/seller/prescription-dropdowns/${id}`);
+}
+
+/** Contact lens Rx matrix: stored per product (not category sidebar). */
+export interface ProductPrescriptionConfigDetail {
+  product: {
+    id: number;
+    name: string;
+    sku: string;
+    category_id: number;
+  };
+  /** True only for toric/astigmatism under Contact lenses; spherical SKUs use PWR only (no SPH tab). */
+  show_sph_tab?: boolean;
+  /** @deprecated Prefer show_sph_tab; old APIs only. */
+  is_spherical_contact_lens?: boolean;
+  values: Pick<
+    CategoryPrescriptionConfigDetail['values'],
+    'pwr' | 'sph' | 'cyl' | 'axis' | 'base_curve' | 'diameter'
+  >;
+}
+
+export async function getProductPrescriptionConfig(
+  productId: number
+): Promise<ProductPrescriptionConfigDetail> {
+  const response = await apiClient.get<{ success: boolean; data: ProductPrescriptionConfigDetail }>(
+    `/seller/products/${productId}/prescription-dropdowns`
+  );
+  return response.data.data;
+}
+
+export async function updateProductPrescriptionConfig(
+  productId: number,
+  data: UpdatePrescriptionConfigData
+): Promise<void> {
+  await apiClient.post(`/seller/products/${productId}/prescription-dropdowns`, data);
 }
 

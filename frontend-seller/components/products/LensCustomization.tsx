@@ -5,6 +5,7 @@ import { CreateProductData } from '@/services/product-service';
 interface LensCustomizationProps {
   formData: CreateProductData;
   setFormData: (data: CreateProductData | ((prev: CreateProductData) => CreateProductData)) => void;
+  compact?: boolean;
 }
 
 const LENS_INDEX_OPTIONS = [
@@ -25,7 +26,7 @@ const TREATMENT_OPTIONS = [
   { value: 'hydrophobic', label: 'Hydrophobic (Water Repellent)' },
 ];
 
-export default function LensCustomization({ formData, setFormData }: LensCustomizationProps) {
+export default function LensCustomization({ formData, setFormData, compact = false }: LensCustomizationProps) {
   const lensIndexOptions = Array.isArray(formData.lens_index_options) 
     ? formData.lens_index_options 
     : (formData.lens_index_options ? [formData.lens_index_options] : []);
@@ -50,25 +51,29 @@ export default function LensCustomization({ formData, setFormData }: LensCustomi
     setFormData({ ...formData, treatment_options: newOptions });
   };
 
+  const box = compact ? 'p-3 space-y-3' : 'p-6 space-y-6';
+  const title = compact ? 'text-sm font-semibold text-gray-900' : 'text-lg font-semibold text-gray-900';
+  const chip = compact ? 'p-2 gap-2 text-xs' : 'p-3 gap-3 text-sm';
+  const grid = compact ? 'grid-cols-2 sm:grid-cols-3 gap-2' : 'grid-cols-2 md:grid-cols-3 gap-3';
+
   return (
-    <div className="space-y-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
+    <div className={`${box} bg-slate-50 rounded-lg border border-gray-200`}>
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Lens Customization Options</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Select which lens options customers can choose when customizing their glasses
+        <h3 className={`${title} mb-0.5`}>Lens options for buyers</h3>
+        <p className={compact ? 'text-[11px] text-gray-500' : 'text-sm text-gray-600'}>
+          Index and treatments available when they customize lenses (if enabled for your category).
         </p>
       </div>
 
-      {/* Lens Index Options */}
       <div>
-        <label className="block text-sm font-semibold text-gray-800 mb-3">
-          Available Lens Index (Thickness Options)
+        <label className={`block ${compact ? 'text-xs' : 'text-sm'} font-semibold text-gray-700 mb-2`}>
+          Lens index (thickness)
         </label>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className={`grid ${grid}`}>
           {LENS_INDEX_OPTIONS.map((option) => (
             <label
               key={option.value}
-              className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+              className={`flex items-center rounded-md border cursor-pointer transition-all ${chip} ${
                 lensIndexOptions.includes(option.value)
                   ? 'border-[#0066CC] bg-blue-50'
                   : 'border-gray-200 hover:border-gray-300 bg-white'
@@ -78,27 +83,23 @@ export default function LensCustomization({ formData, setFormData }: LensCustomi
                 type="checkbox"
                 checked={lensIndexOptions.includes(option.value)}
                 onChange={() => toggleLensIndex(option.value)}
-                className="w-4 h-4 text-[#0066CC] border-gray-300 rounded focus:ring-[#0066CC] mr-3"
+                className="w-3.5 h-3.5 text-[#0066CC] border-gray-300 rounded shrink-0"
               />
-              <span className="text-sm font-medium text-gray-700">{option.label}</span>
+              <span className="font-medium text-gray-700 leading-tight">{option.label}</span>
             </label>
           ))}
         </div>
-        {lensIndexOptions.length === 0 && (
-          <p className="text-xs text-gray-500 mt-2">No lens index options selected</p>
-        )}
       </div>
 
-      {/* Treatment Options */}
       <div>
-        <label className="block text-sm font-semibold text-gray-800 mb-3">
-          Available Lens Treatments
+        <label className={`block ${compact ? 'text-xs' : 'text-sm'} font-semibold text-gray-700 mb-2`}>
+          Lens treatments
         </label>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className={`grid ${grid}`}>
           {TREATMENT_OPTIONS.map((option) => (
             <label
               key={option.value}
-              className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+              className={`flex items-center rounded-md border cursor-pointer transition-all ${chip} ${
                 treatmentOptions.includes(option.value)
                   ? 'border-[#0066CC] bg-blue-50'
                   : 'border-gray-200 hover:border-gray-300 bg-white'
@@ -108,30 +109,27 @@ export default function LensCustomization({ formData, setFormData }: LensCustomi
                 type="checkbox"
                 checked={treatmentOptions.includes(option.value)}
                 onChange={() => toggleTreatment(option.value)}
-                className="w-4 h-4 text-[#0066CC] border-gray-300 rounded focus:ring-[#0066CC] mr-3"
+                className="w-3.5 h-3.5 text-[#0066CC] border-gray-300 rounded shrink-0"
               />
-              <span className="text-sm font-medium text-gray-700">{option.label}</span>
+              <span className="font-medium text-gray-700 leading-tight">{option.label}</span>
             </label>
           ))}
         </div>
-        {treatmentOptions.length === 0 && (
-          <p className="text-xs text-gray-500 mt-2">No treatment options selected</p>
-        )}
       </div>
 
-      {/* Lens Type (Optional) */}
       <div>
-        <label className="block text-sm font-semibold text-gray-800 mb-2">
-          Lens Type Description (Optional)
+        <label className={`block ${compact ? 'text-xs' : 'text-sm'} font-semibold text-gray-700 mb-1`}>
+          Lens type note (optional)
         </label>
         <textarea
           value={formData.lens_type || ''}
           onChange={(e) => setFormData({ ...formData, lens_type: e.target.value })}
-          className="w-full px-4 py-3 border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
-          rows={2}
-          placeholder="e.g., Single Vision, Progressive, Bifocal"
+          className={`w-full border border-gray-300 rounded-md focus:ring-1 focus:ring-[#0066CC] focus:border-[#0066CC] ${
+            compact ? 'px-2 py-1.5 text-sm' : 'px-4 py-3 border-2'
+          }`}
+          rows={compact ? 2 : 2}
+          placeholder="e.g. Single vision, progressive"
         />
-        <p className="text-xs text-gray-500 mt-1">Describe the type of lenses available for this frame</p>
       </div>
     </div>
   );

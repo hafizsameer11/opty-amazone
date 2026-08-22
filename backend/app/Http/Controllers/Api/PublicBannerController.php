@@ -21,9 +21,10 @@ class PublicBannerController extends Controller
 
         $bannersQuery = StoreBanner::query()
             ->where('is_active', true)
+            ->where('is_approved', true)
+            ->where('is_home_boosted', true)
             ->whereHas('store', function ($query) {
-                $query->where('status', 'active')
-                    ->where('is_active', true);
+                $query->where('is_active', true);
             })
             ->with(['store:id,name,slug']);
 
@@ -45,6 +46,7 @@ class PublicBannerController extends Controller
                     'sort_order' => $banner->sort_order,
                     'image' => $banner->image,
                     'image_url' => $banner->image ? Storage::url($banner->image) : null,
+                    'is_home_boosted' => (bool) $banner->is_home_boosted,
                     'store' => $banner->store ? [
                         'id' => $banner->store->id,
                         'name' => $banner->store->name,

@@ -40,7 +40,7 @@ class SellerOrderController extends Controller
                     $query->with('user');
                 },
                 'items' => function ($query) {
-                    $query->with('product');
+                    $query->with(['product', 'variant']);
                 }
             ]);
 
@@ -73,7 +73,7 @@ class SellerOrderController extends Controller
                     $query->with('user');
                 },
                 'items' => function ($query) {
-                    $query->with('product');
+                    $query->with(['product', 'variant']);
                 },
                 'deliveryAddress',
                 'escrow'
@@ -102,7 +102,7 @@ class SellerOrderController extends Controller
                     $query->with('user');
                 },
                 'items' => function ($query) {
-                    $query->with('product');
+                    $query->with(['product', 'variant']);
                 },
                 'deliveryAddress'
             ])
@@ -141,7 +141,7 @@ class SellerOrderController extends Controller
             // Send email notification
             Mail::to($storeOrder->order->user->email)->send(new OrderAcceptedMail($storeOrder));
 
-            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product']), 'Order accepted successfully');
+            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product', 'items.variant']), 'Order accepted successfully');
         } catch (\Exception $e) {
             return ResponseHelper::error($e->getMessage());
         }
@@ -173,7 +173,7 @@ class SellerOrderController extends Controller
             // Send email notification
             Mail::to($storeOrder->order->user->email)->send(new OrderRejectedMail($storeOrder));
 
-            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product']), 'Order rejected');
+            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product', 'items.variant']), 'Order rejected');
         } catch (\Exception $e) {
             return ResponseHelper::error($e->getMessage());
         }
@@ -201,7 +201,7 @@ class SellerOrderController extends Controller
             // Send email notification
             Mail::to($storeOrder->order->user->email)->send(new OrderOutForDeliveryMail($storeOrder));
 
-            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product']), 'Order marked as out for delivery');
+            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product', 'items.variant']), 'Order marked as out for delivery');
         } catch (\Exception $e) {
             return ResponseHelper::error($e->getMessage());
         }
@@ -233,7 +233,7 @@ class SellerOrderController extends Controller
             // Send email notification
             Mail::to($storeOrder->order->user->email)->send(new OrderDeliveredMail($storeOrder));
 
-            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product', 'escrow']), 'Order marked as delivered');
+            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product', 'items.variant', 'escrow']), 'Order marked as delivered');
         } catch (\Exception $e) {
             return ResponseHelper::error($e->getMessage());
         }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { orderService, type StoreOrder } from '@/services/order-service';
+import { orderService, type StoreOrder, type OrderItem } from '@/services/order-service';
+import OrderLineSelections from '@/components/orders/OrderLineSelections';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
@@ -183,18 +184,22 @@ export default function OrderDetailsModal({
             <div className="mb-6">
               <h4 className="text-base font-semibold text-gray-900 mb-4">Order Items</h4>
               <div className="space-y-3">
-                {storeOrder.items.map((item) => (
+                {storeOrder.items.map((item: OrderItem) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
+                    className="py-3 border-b border-gray-100 last:border-0"
                   >
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">{item.product_name}</p>
-                      <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900">{item.product_name}</p>
+                        <p className="text-sm text-gray-600">SKU: {item.product_sku}</p>
+                        <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                        <OrderLineSelections line={item} className="mt-2" />
+                      </div>
+                      <p className="text-base font-bold text-[#0066CC] shrink-0">
+                        €{Number(item.line_total || 0).toFixed(2)}
+                      </p>
                     </div>
-                    <p className="text-base font-bold text-[#0066CC]">
-                      €{Number(item.line_total || 0).toFixed(2)}
-                    </p>
                   </div>
                 ))}
               </div>

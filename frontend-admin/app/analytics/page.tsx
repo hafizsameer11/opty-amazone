@@ -1,23 +1,85 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import GlassCard from '@/components/ui/GlassCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import Button from '@/components/ui/Button';
 import { adminService } from '@/services/admin-service';
+
+type Period = 'day' | 'week' | 'month' | 'year';
+
+function formatLabel(row: Record<string, unknown>, period: Period): string {
+  if (period === 'year' && row.year != null) return String(row.year);
+  if (period === 'month' && row.month != null) {
+    const month = Number(row.month);
+    const year = row.year != null ? String(row.year) : '';
+    const name = Number.isFinite(month)
+      ? new Date(2000, month - 1, 1).toLocaleString('en', { month: 'short' })
+      : String(row.month);
+    return year ? `${name} ${year}` : name;
+  }
+  if (period === 'week' && row.week != null) return `Week ${row.week}`;
+  if (row.date != null) return String(row.date);
+  return '—';
+}
+
+function BarList({
+  items,
+  valueKey,
+  maxHint,
+}: {
+  items: Array<Record<string, unknown>>;
+  valueKey: string;
+  maxHint?: number;
+}) {
+  const max = Math.max(
+    maxHint || 0,
+    ...items.map((i) => Number(i[valueKey] || 0)),
+    1
+  );
+
+  if (items.length === 0) {
+    return <p className="text-slate-500 text-center py-8">No data for this period</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((row, idx) => {
+        const value = Number(row[valueKey] || 0);
+        const pct = Math.max(2, Math.round((value / max) * 100));
+        const label = String(row._label || row.date || row.year || `#${idx + 1}`);
+        return (
+          <div key={`${label}-${idx}`}>
+            <div className="flex items-center justify-between text-sm mb-1">
+              <span className="text-slate-700 truncate pr-3">{label}</span>
+              <span className="text-slate-900 font-semibold shrink-0">
+                {valueKey === 'revenue' ? `€${value.toFixed(2)}` : value}
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full rounded-full bg-[#60a5fa]" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<Period>('month');
 
   useEffect(() => {
     loadAnalytics();
-  }, []);
+  }, [period]);
 
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      const data = await adminService.getAnalytics();
+      const data = await adminService.getAnalytics(period);
       setAnalytics(data);
     } catch (error) {
       console.error('Failed to load analytics:', error);
@@ -26,7 +88,38 @@ export default function AnalyticsPage() {
     }
   };
 
-  if (loading) {
+  const revenueRows = useMemo(() => {
+    const rows = (analytics?.revenue || []) as Array<Record<string, unknown>>;
+    return rows.map((r) => ({
+      ...r,
+      _label: formatLabel(r, period),
+      revenue: Number(r.revenue || 0),
+    }));
+  }, [analytics, period]);
+
+  const growthRows = useMemo(() => {
+    const rows = (analytics?.user_growth || []) as Array<Record<string, unknown>>;
+    return rows.slice(-30).map((r) => ({
+      ...r,
+      _label: String(r.date || ''),
+      count: Number(r.count || 0),
+    }));
+  }, [analytics]);
+
+  const salesRows = useMemo(() => {
+    const rows = (analytics?.sales_trends || []) as Array<Record<string, unknown>>;
+    return rows.slice(-30).map((r) => ({
+      ...r,
+      _label: String(r.date || ''),
+      count: Number(r.count || 0),
+    }));
+  }, [analytics]);
+
+  const totalRevenue = revenueRows.reduce((sum, r) => sum + Number(r.revenue || 0), 0);
+  const totalOrders = salesRows.reduce((sum, r) => sum + Number(r.count || 0), 0);
+  const totalNewUsers = growthRows.reduce((sum, r) => sum + Number(r.count || 0), 0);
+
+  if (loading && !analytics) {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -39,39 +132,74 @@ export default function AnalyticsPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Analytics</h1>
-          <p className="text-white/70">Platform analytics and insights</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">Analytics</h1>
+            <p className="text-slate-500">Platform analytics and insights</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(['day', 'week', 'month', 'year'] as Period[]).map((p) => (
+              <Button
+                key={p}
+                type="button"
+                variant={period === p ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => setPeriod(p)}
+              >
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <GlassCard>
+            <p className="text-slate-500 text-sm">Revenue ({period})</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">€{totalRevenue.toFixed(2)}</p>
+          </GlassCard>
+          <GlassCard>
+            <p className="text-slate-500 text-sm">Paid orders (recent)</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{totalOrders}</p>
+          </GlassCard>
+          <GlassCard>
+            <p className="text-slate-500 text-sm">New users (recent)</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{totalNewUsers}</p>
+          </GlassCard>
         </div>
 
         <GlassCard>
-          <h2 className="text-xl font-bold text-white mb-4">Revenue Analytics</h2>
-          <p className="text-white/70">Analytics data will be displayed here with charts</p>
+          <h2 className="text-xl font-bold text-slate-900 mb-4">Revenue</h2>
+          {loading ? <LoadingSpinner /> : <BarList items={revenueRows} valueKey="revenue" />}
         </GlassCard>
 
         <GlassCard>
-          <h2 className="text-xl font-bold text-white mb-4">User Growth</h2>
-          <p className="text-white/70">User growth charts will be displayed here</p>
+          <h2 className="text-xl font-bold text-slate-900 mb-4">User growth</h2>
+          {loading ? <LoadingSpinner /> : <BarList items={growthRows} valueKey="count" />}
         </GlassCard>
 
         <GlassCard>
-          <h2 className="text-xl font-bold text-white mb-4">Top Products</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-4">Sales trends (orders / day)</h2>
+          {loading ? <LoadingSpinner /> : <BarList items={salesRows} valueKey="count" />}
+        </GlassCard>
+
+        <GlassCard>
+          <h2 className="text-xl font-bold text-slate-900 mb-4">Top products (by views)</h2>
           {analytics?.top_products && analytics.top_products.length > 0 ? (
             <div className="space-y-3">
               {analytics.top_products.map((product: any) => (
                 <div key={product.id} className="glass rounded-lg p-4 flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-white">{product.name}</p>
-                    <p className="text-sm text-white/70">{product.store?.name}</p>
+                    <p className="font-semibold text-slate-900">{product.name}</p>
+                    <p className="text-sm text-slate-500">{product.store?.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-white font-semibold">{product.view_count || 0} views</p>
+                    <p className="text-slate-900 font-semibold">{product.view_count || 0} views</p>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-white/70 text-center py-8">No product data available</p>
+            <p className="text-slate-500 text-center py-8">No product data available</p>
           )}
         </GlassCard>
       </div>

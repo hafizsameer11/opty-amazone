@@ -155,21 +155,21 @@ export default function CouponsPage() {
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                       <div className="text-sm text-gray-600">Discount Given</div>
-                      <div className="text-2xl font-bold text-purple-600 mt-1">€{statistics.total_discount_given.toFixed(2)}</div>
+                      <div className="text-2xl font-bold text-purple-600 mt-1">€{Number(statistics.total_discount_given ?? 0).toFixed(2)}</div>
                     </div>
                   </div>
                 )}
 
                 {/* Alerts */}
                 {error && (
-                  <Alert variant="error" className="mb-4" onClose={() => setError('')}>
-                    {error}
-                  </Alert>
+                  <div className="mb-4">
+                    <Alert type="error" message={error} onClose={() => setError('')} />
+                  </div>
                 )}
                 {success && (
-                  <Alert variant="success" className="mb-4" onClose={() => setSuccess('')}>
-                    {success}
-                  </Alert>
+                  <div className="mb-4">
+                    <Alert type="success" message={success} onClose={() => setSuccess('')} />
+                  </div>
                 )}
 
                 {/* Filters */}

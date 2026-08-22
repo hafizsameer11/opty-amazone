@@ -32,28 +32,31 @@ class PrescriptionDropdownController extends Controller
             ->orderBy('name')
             ->get();
 
-        $result = $categories->map(function ($category) use ($store) {
-            // Count configured values per field type
-            $fieldTypes = ['sph', 'cyl', 'axis', 'pd', 'h', 'year_of_birth', 'add', 'base_curve', 'diameter'];
-            $configStatus = [];
-            
-            foreach ($fieldTypes as $fieldType) {
-                $count = PrescriptionDropdownValue::where('store_id', $store->id)
-                    ->where('category_id', $category->id)
-                    ->where('field_type', $fieldType)
-                    ->where('is_active', true)
-                    ->count();
-                $configStatus[$fieldType] = $count > 0;
-            }
+        $result = $categories
+            ->filter(fn ($category) => $category->slug !== 'contact-lenses')
+            ->map(function ($category) use ($store) {
+                $fieldTypes = ['sph', 'cyl', 'axis', 'pd', 'h', 'year_of_birth', 'add', 'base_curve', 'diameter'];
+                $configStatus = [];
 
-            return [
-                'id' => $category->id,
-                'name' => $category->name,
-                'slug' => $category->slug,
-                'has_config' => in_array(true, $configStatus),
-                'config_status' => $configStatus,
-            ];
-        });
+                foreach ($fieldTypes as $fieldType) {
+                    $count = PrescriptionDropdownValue::where('store_id', $store->id)
+                        ->where('category_id', $category->id)
+                        ->whereNull('product_id')
+                        ->where('field_type', $fieldType)
+                        ->where('is_active', true)
+                        ->count();
+                    $configStatus[$fieldType] = $count > 0;
+                }
+
+                return [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'slug' => $category->slug,
+                    'has_config' => in_array(true, $configStatus),
+                    'config_status' => $configStatus,
+                ];
+            })
+            ->values();
 
         return ResponseHelper::success($result, 'Prescription dropdown configurations retrieved successfully');
     }
@@ -87,9 +90,18 @@ class PrescriptionDropdownController extends Controller
             }
         }
 
-        // Get all dropdown values for this category, grouped by field_type
+        if ($category->slug === 'contact-lenses') {
+            return ResponseHelper::error(
+                'Contact lens prescription options are configured on each contact lens product, not per category.',
+                null,
+                422
+            );
+        }
+
+        // Category-level values only (not tied to a specific product)
         $values = PrescriptionDropdownValue::where('store_id', $store->id)
             ->where('category_id', $categoryId)
+            ->whereNull('product_id')
             ->orderBy('field_type')
             ->orderBy('sort_order')
             ->orderBy('value')
@@ -140,6 +152,14 @@ class PrescriptionDropdownController extends Controller
             );
         }
 
+        if ($category->slug === 'contact-lenses') {
+            return ResponseHelper::error(
+                'Contact lens prescription options are saved on each contact lens product.',
+                null,
+                422
+            );
+        }
+
         $validated = $request->validate([
             'values' => 'required|array',
             'values.*.field_type' => 'required|in:sph,cyl,axis,pd,h,year_of_birth,add,base_curve,diameter',
@@ -153,9 +173,10 @@ class PrescriptionDropdownController extends Controller
 
         DB::beginTransaction();
         try {
-            // Delete existing values for this store/category combination
+            // Replace category-level values only (preserve product-scoped rows)
             PrescriptionDropdownValue::where('store_id', $store->id)
                 ->where('category_id', $categoryId)
+                ->whereNull('product_id')
                 ->delete();
 
             // Insert new values
@@ -164,6 +185,7 @@ class PrescriptionDropdownController extends Controller
                 $insertData[] = [
                     'store_id' => $store->id,
                     'category_id' => $categoryId,
+                    'product_id' => null,
                     'field_type' => $value['field_type'],
                     'value' => $value['value'],
                     'label' => $value['label'] ?? null,

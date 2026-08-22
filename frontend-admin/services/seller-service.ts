@@ -3,6 +3,9 @@ import apiClient from '@/lib/api-client';
 export interface Seller {
   id: number;
   name: string;
+  status?: string;
+  onboarding_status?: string;
+  is_active?: boolean;
   user: {
     id: number;
     name: string;
@@ -13,7 +16,7 @@ export interface Seller {
 }
 
 export const sellerService = {
-  async getAll(params?: any) {
+  async getAll(params?: Record<string, unknown>) {
     const res = await apiClient.get('/admin/sellers', { params });
     return res.data.data;
   },
@@ -30,6 +33,26 @@ export const sellerService = {
 
   async reject(id: number, reason: string) {
     const res = await apiClient.post(`/admin/sellers/${id}/reject`, { reason });
+    return res.data.data;
+  },
+
+  async suspend(id: number) {
+    const res = await apiClient.post(`/admin/sellers/${id}/suspend`);
+    return res.data.data;
+  },
+
+  async warn(id: number, reason: string) {
+    const res = await apiClient.post(`/admin/sellers/${id}/warn`, { reason });
+    return res.data.data;
+  },
+
+  async block(id: number) {
+    const res = await apiClient.post(`/admin/sellers/${id}/block`);
+    return res.data.data;
+  },
+
+  async activate(id: number) {
+    const res = await apiClient.post(`/admin/sellers/${id}/activate`);
     return res.data.data;
   },
 };

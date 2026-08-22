@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Button from '@/components/ui/Button';
-import apiClient from '@/lib/api-client';
+import apiClient, { getApiOrigin } from '@/lib/api-client';
 
 interface ImageItem {
   id: string;
@@ -26,9 +26,7 @@ const getFullImageUrl = (url: string): string => {
   }
   // If it's a relative path starting with /storage, convert to full URL
   if (url.startsWith('/storage')) {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-    const backendBaseUrl = apiBaseUrl.replace('/api', '');
-    return `${backendBaseUrl}${url}`;
+    return `${getApiOrigin()}${url}`;
   }
   return url;
 };

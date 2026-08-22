@@ -1,7 +1,19 @@
+/**
+ * Admin API client.
+ *
+ * Production: set NEXT_PUBLIC_API_URL to your API base including `/api`, e.g.
+ *   https://api.example.com/api
+ * If the value omits `/api`, it is appended from getApiOrigin().
+ */
 import axios from 'axios';
 
+function getApiOrigin(): string {
+  const raw = process.env.NEXT_PUBLIC_API_URL || 'https://api.vistaexpress.it/api';
+  return raw.replace(/\/api\/?$/, '') || 'https://api.vistaexpress.it';
+}
+
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api',
+  baseURL: `${getApiOrigin()}/api`,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

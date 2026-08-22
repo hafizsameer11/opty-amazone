@@ -9,6 +9,8 @@ interface CategoryProductFormProps {
   setFormData: (data: CreateProductData | ((prev: CreateProductData) => CreateProductData)) => void;
   enabledFields: string[];
   productType: string;
+  /** When true, skip frame/lens core (handled by SimplifiedProductOptions); still show visual assets & extras. */
+  omitFrameSunglassesCore?: boolean;
 }
 
 export default function CategoryProductForm({
@@ -16,6 +18,7 @@ export default function CategoryProductForm({
   setFormData,
   enabledFields,
   productType,
+  omitFrameSunglassesCore = false,
 }: CategoryProductFormProps) {
   const isFieldEnabled = (field: string) => enabledFields.includes(field);
 
@@ -37,7 +40,7 @@ export default function CategoryProductForm({
       <div className="p-8">
       
       {/* Frame/Sunglasses Fields */}
-      {(productType === 'frame' || productType === 'sunglasses') && (
+      {(productType === 'frame' || productType === 'sunglasses') && !omitFrameSunglassesCore && (
         <div className="space-y-6">
           <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl p-6 border-2 border-blue-200 shadow-sm">
             <h3 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">

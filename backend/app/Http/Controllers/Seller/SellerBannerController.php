@@ -30,12 +30,18 @@ class SellerBannerController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge([
+            'is_active' => $request->has('is_active') ? $request->boolean('is_active') : null,
+            'is_home_boosted' => $request->has('is_home_boosted') ? $request->boolean('is_home_boosted') : null,
+        ]);
+
         $request->validate([
             'image' => 'required|image|max:5120',
             'title' => 'nullable|string|max:255',
             'link' => 'nullable|url',
             'position' => 'required|in:top,middle,bottom,sidebar',
             'is_active' => 'boolean',
+            'is_home_boosted' => 'boolean',
         ]);
 
         $user = Auth::user();
@@ -57,6 +63,9 @@ class SellerBannerController extends Controller
             'link' => $request->link,
             'position' => $request->position,
             'is_active' => $request->is_active ?? true,
+            'is_home_boosted' => $request->is_home_boosted ?? false,
+            'is_approved' => false,
+            'rejection_reason' => null,
             'sort_order' => StoreBanner::where('store_id', $store->id)->max('sort_order') + 1,
         ]);
 
@@ -65,12 +74,19 @@ class SellerBannerController extends Controller
 
     public function update(Request $request, $id)
     {
+        if ($request->has('is_active')) {
+            $request->merge(['is_active' => $request->boolean('is_active')]);
+        }
+        if ($request->has('is_home_boosted')) {
+            $request->merge(['is_home_boosted' => $request->boolean('is_home_boosted')]);
+        }
+
         $user = Auth::user();
         $store = $user->store;
 
         $banner = StoreBanner::where('store_id', $store->id)->findOrFail($id);
 
-        $data = $request->only(['title', 'link', 'position', 'is_active']);
+        $data = $request->only(['title', 'link', 'position', 'is_active', 'is_home_boosted']);
 
         if ($request->hasFile('image')) {
             Storage::disk('public')->delete($banner->image);

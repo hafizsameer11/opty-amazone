@@ -10,6 +10,7 @@ use App\Http\Controllers\Buyer\BuyerCheckoutController;
 use App\Http\Controllers\Buyer\BuyerOrderController;
 use App\Http\Controllers\Buyer\BuyerWalletController;
 use App\Http\Controllers\Buyer\BuyerCouponController;
+use App\Http\Controllers\Buyer\BuyerStoreChatController;
 use App\Http\Controllers\Buyer\PrescriptionController;
 use Illuminate\Support\Facades\Route;
 
@@ -54,22 +55,34 @@ Route::middleware('auth:sanctum')->prefix('addresses')->group(function () {
 
 Route::middleware('auth:sanctum')->prefix('stores')->group(function () {
     Route::get('/followed', [BuyerStoreController::class, 'getFollowedStores']);
+    Route::get('/{id}/follow-status', [BuyerStoreController::class, 'followStatus']);
     Route::post('/{id}/follow', [BuyerStoreController::class, 'followStore']);
     Route::post('/{id}/unfollow', [BuyerStoreController::class, 'unfollowStore']);
     Route::get('/{id}/reviews', [BuyerStoreController::class, 'getStoreReviews']);
     Route::post('/{id}/reviews', [BuyerStoreController::class, 'createReview']);
+    Route::post('/{id}/report', [\App\Http\Controllers\Buyer\BuyerStoreReportController::class, 'store']);
+    Route::get('/{id}/chat', [BuyerStoreChatController::class, 'show']);
+    Route::get('/{id}/chat/messages', [BuyerStoreChatController::class, 'messages']);
+    Route::post('/{id}/chat/messages', [BuyerStoreChatController::class, 'storeMessage']);
 });
 
 // Product routes (public - no authentication required)
 Route::prefix('product')->group(function () {
     Route::get('/get-all', [BuyerProductController::class, 'getAll']);
+    Route::get('/flash-offers', [BuyerProductController::class, 'flashOffers']);
     Route::get('/product-details/{id}', [BuyerProductController::class, 'getDetails']);
     Route::get('/categories/{categorySlug}/products', [BuyerProductController::class, 'getByCategory']);
+    Route::get('/{id}/reviews', [BuyerProductController::class, 'getReviews']);
+});
+
+Route::middleware('auth:sanctum')->prefix('product')->group(function () {
+    Route::post('/{id}/reviews', [BuyerProductController::class, 'createReview']);
 });
 
 // Cart routes
 Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
     Route::get('/', [BuyerCartController::class, 'index']);
+    Route::get('/items', [BuyerCartController::class, 'index']);
     Route::post('/items', [BuyerCartController::class, 'addItem']);
     Route::put('/items/{id}', [BuyerCartController::class, 'updateItem']);
     Route::delete('/items/{id}', [BuyerCartController::class, 'removeItem']);

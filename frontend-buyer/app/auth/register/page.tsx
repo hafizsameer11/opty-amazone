@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const registerSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters'),
@@ -68,8 +69,8 @@ export default function RegisterPage() {
       <div className="max-w-md w-full">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-[#0066CC] mb-2">OpticalMarket</h1>
-          <p className="text-gray-600">Your trusted optical marketplace</p>
+          <Image src="/vistaexpress-logo.png" alt="VistaExpress" width={300} height={150} className="mx-auto mb-2 h-20 w-auto object-contain" priority />
+          <p className="text-gray-600">Your trusted VistaExpress marketplace</p>
         </div>
 
         {/* Card */}

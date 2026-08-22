@@ -14,29 +14,41 @@ export default function DiscountCalculator({
   compareAtPrice,
   onCompareAtPriceChange,
 }: DiscountCalculatorProps) {
+  const priceN = Number(price);
+  const safePrice = Number.isFinite(priceN) ? priceN : 0;
+  const compareN =
+    compareAtPrice === undefined || compareAtPrice === null
+      ? NaN
+      : Number(compareAtPrice);
+  const safeCompare = Number.isFinite(compareN) ? compareN : undefined;
+
   const [discountPercent, setDiscountPercent] = useState<string>('');
   const [discountAmount, setDiscountAmount] = useState<string>('');
 
   // Calculate discount percentage from compare_at_price
   useEffect(() => {
-    if (compareAtPrice && price > 0 && compareAtPrice > price) {
-      const percent = ((compareAtPrice - price) / compareAtPrice) * 100;
+    if (
+      safeCompare != null &&
+      safePrice > 0 &&
+      safeCompare > safePrice
+    ) {
+      const percent = ((safeCompare - safePrice) / safeCompare) * 100;
       setDiscountPercent(percent.toFixed(1));
-      setDiscountAmount((compareAtPrice - price).toFixed(2));
+      setDiscountAmount((safeCompare - safePrice).toFixed(2));
     } else {
       setDiscountPercent('');
       setDiscountAmount('');
     }
-  }, [compareAtPrice, price]);
+  }, [safeCompare, safePrice]);
 
   const handleDiscountPercentChange = (value: string) => {
     setDiscountPercent(value);
-    if (value && price > 0) {
+    if (value && safePrice > 0) {
       const percent = parseFloat(value);
       if (!isNaN(percent) && percent > 0 && percent < 100) {
-        const calculatedPrice = price / (1 - percent / 100);
+        const calculatedPrice = safePrice / (1 - percent / 100);
         onCompareAtPriceChange(calculatedPrice);
-        setDiscountAmount((calculatedPrice - price).toFixed(2));
+        setDiscountAmount((calculatedPrice - safePrice).toFixed(2));
       } else if (percent === 0 || value === '') {
         onCompareAtPriceChange(undefined);
         setDiscountAmount('');
@@ -46,10 +58,10 @@ export default function DiscountCalculator({
 
   const handleDiscountAmountChange = (value: string) => {
     setDiscountAmount(value);
-    if (value && price > 0) {
+    if (value && safePrice > 0) {
       const amount = parseFloat(value);
       if (!isNaN(amount) && amount > 0) {
-        const calculatedPrice = price + amount;
+        const calculatedPrice = safePrice + amount;
         onCompareAtPriceChange(calculatedPrice);
         const percent = (amount / calculatedPrice) * 100;
         setDiscountPercent(percent.toFixed(1));
@@ -60,9 +72,10 @@ export default function DiscountCalculator({
     }
   };
 
-  const discountPercentage = compareAtPrice && price > 0 && compareAtPrice > price
-    ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
-    : 0;
+  const discountPercentage =
+    safeCompare != null && safePrice > 0 && safeCompare > safePrice
+      ? Math.round(((safeCompare - safePrice) / safeCompare) * 100)
+      : 0;
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
@@ -114,19 +127,25 @@ export default function DiscountCalculator({
         </div>
       </div>
 
-      {compareAtPrice && price > 0 && compareAtPrice > price && (
+      {safeCompare != null &&
+        safePrice > 0 &&
+        safeCompare > safePrice && (
         <div className="mt-3 pt-3 border-t border-blue-200">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">Original Price:</span>
-            <span className="text-gray-400 line-through">€{compareAtPrice.toFixed(2)}</span>
+            <span className="text-gray-400 line-through">
+              €{safeCompare.toFixed(2)}
+            </span>
           </div>
           <div className="flex items-center justify-between text-sm mt-1">
             <span className="text-gray-600">Sale Price:</span>
-            <span className="text-[#0066CC] font-bold">€{price.toFixed(2)}</span>
+            <span className="text-[#0066CC] font-bold">€{safePrice.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between text-sm mt-1">
             <span className="text-gray-600">You Save:</span>
-            <span className="text-green-600 font-semibold">€{(compareAtPrice - price).toFixed(2)}</span>
+            <span className="text-green-600 font-semibold">
+              €{(safeCompare - safePrice).toFixed(2)}
+            </span>
           </div>
         </div>
       )}

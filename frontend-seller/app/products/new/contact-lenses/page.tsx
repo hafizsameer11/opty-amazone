@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
@@ -23,7 +23,7 @@ export default function ContactLensesProductPage() {
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [successToast, setSuccessToast] = useState('');
 
   const [formData, setFormData] = useState<CreateProductData>({
     name: '',
@@ -43,6 +43,21 @@ export default function ContactLensesProductPage() {
     is_active: true,
   });
 
+  const subCategoryOptions = useMemo(() => {
+    const selectedCategory = categories.find((c) => c.id === categoryId);
+    const subCategories = selectedCategory?.children || [];
+    const options: Array<{ id: number; name: string }> = [];
+    for (const sub of subCategories) {
+      options.push({ id: sub.id, name: sub.name });
+      if (Array.isArray(sub.children)) {
+        for (const subSub of sub.children) {
+          options.push({ id: subSub.id, name: `${sub.name} -> ${subSub.name}` });
+        }
+      }
+    }
+    return options;
+  }, [categories, categoryId]);
+
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/auth/login');
@@ -54,6 +69,12 @@ export default function ContactLensesProductPage() {
       loadCategories();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!successToast) return;
+    const timer = setTimeout(() => setSuccessToast(''), 3200);
+    return () => clearTimeout(timer);
+  }, [successToast]);
 
   const loadCategories = async () => {
     try {
@@ -88,15 +109,15 @@ export default function ContactLensesProductPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
+    setSuccessToast('');
     setSaving(true);
 
     try {
-      const product = await productService.create(formData);
-      setSuccess('Product created successfully');
+      await productService.create(formData);
+      setSuccessToast('Product created successfully');
       setTimeout(() => {
         router.push('/products');
-      }, 1500);
+      }, 700);
     } catch (error: any) {
       const errorMessage = 
         error.response?.data?.errors?.name?.[0] ||
@@ -131,10 +152,8 @@ export default function ContactLensesProductPage() {
     return null;
   }
 
-  const selectedCategory = categories.find(c => c.id === categoryId);
-  const subCategories = selectedCategory?.children || [];
-
   return (
+    <>
     <div className="min-h-screen bg-gray-50">
       <div className="flex">
         <Sidebar />
@@ -159,12 +178,6 @@ export default function ContactLensesProductPage() {
                   </div>
                 )}
 
-                {success && (
-                  <div className="mb-4">
-                    <Alert type="success" message={success} onClose={() => setSuccess('')} />
-                  </div>
-                )}
-
                 <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
@@ -185,7 +198,7 @@ export default function ContactLensesProductPage() {
                           className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
                         >
                           <option value="">Select Sub Category</option>
-                          {subCategories.map((cat) => (
+                          {subCategoryOptions.map((cat) => (
                             <option key={cat.id} value={cat.id}>
                               {cat.name}
                             </option>
@@ -337,5 +350,11 @@ export default function ContactLensesProductPage() {
       </div>
       <BottomNav />
     </div>
+      {successToast && (
+        <div className="fixed bottom-5 right-5 z-[100] max-w-sm">
+          <Alert type="success" message={successToast} onClose={() => setSuccessToast('')} className="shadow-2xl" />
+        </div>
+      )}
+    </>
   );
 }

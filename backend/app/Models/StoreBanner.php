@@ -18,10 +18,15 @@ class StoreBanner extends Model
         'position',
         'sort_order',
         'is_active',
+        'is_home_boosted',
+        'is_approved',
+        'rejection_reason',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_home_boosted' => 'boolean',
+        'is_approved' => 'boolean',
     ];
 
     /**

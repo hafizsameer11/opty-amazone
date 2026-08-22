@@ -10,6 +10,7 @@ import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
+import SectionBackLink from '@/components/ui/SectionBackLink';
 
 export default function StoreSettingsPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -36,7 +37,10 @@ export default function StoreSettingsPage() {
     try {
       setLoadingSettings(true);
       const response = await StoreService.getPhoneVisibility();
-      setPhoneVisibility(response.data.phone_visibility);
+      const v = response.data.phone_visibility;
+      if (v === 'public' || v === 'request' || v === 'hidden') {
+        setPhoneVisibility(v);
+      }
     } catch (error) {
       console.error('Failed to load settings:', error);
     } finally {
@@ -86,6 +90,9 @@ export default function StoreSettingsPage() {
               <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Page Header */}
                 <div className="mb-6">
+                  <SectionBackLink href="/store" className="mb-3">
+                    Back to Store
+                  </SectionBackLink>
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">Store Settings</h1>
                   <p className="text-gray-600">Configure your store preferences and privacy settings</p>
                 </div>

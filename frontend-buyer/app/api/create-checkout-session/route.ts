@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getApiOrigin } from '@/lib/api-client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call backend to create Stripe checkout session
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const backendUrl = getApiOrigin();
     const response = await fetch(`${backendUrl}/api/buyer/wallet/create-checkout-session`, {
       method: 'POST',
       headers: {

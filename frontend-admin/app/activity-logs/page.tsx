@@ -22,8 +22,10 @@ export default function ActivityLogsPage() {
   const loadLogs = async () => {
     try {
       setLoading(true);
-      const data = await adminService.getActivityLogs();
-      setLogs(data.data || []);
+      const data = await adminService.getActivityLogs({ per_page: 50 });
+      // API: { success, message, data: LengthAwarePaginator }
+      const page = data?.data;
+      setLogs(Array.isArray(page?.data) ? page.data : Array.isArray(page) ? page : []);
     } catch (error) {
       showToast('error', 'Failed to load activity logs');
     } finally {
@@ -36,14 +38,14 @@ export default function ActivityLogsPage() {
       key: 'created_at',
       header: 'Date',
       render: (log: any) => (
-        <span className="text-white">{new Date(log.created_at).toLocaleString()}</span>
+        <span className="text-slate-900">{new Date(log.created_at).toLocaleString()}</span>
       ),
     },
     {
       key: 'admin',
       header: 'Admin',
       render: (log: any) => (
-        <span className="text-white">{log.admin?.name || 'System'}</span>
+        <span className="text-slate-900">{log.admin?.name || 'System'}</span>
       ),
     },
     { key: 'action', header: 'Action', sortable: true },
@@ -51,7 +53,7 @@ export default function ActivityLogsPage() {
       key: 'resource_type',
       header: 'Resource',
       render: (log: any) => (
-        <span className="text-white">{log.resource_type || 'N/A'}</span>
+        <span className="text-slate-900">{log.resource_type || 'N/A'}</span>
       ),
     },
     {
@@ -69,8 +71,8 @@ export default function ActivityLogsPage() {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Activity Logs</h1>
-          <p className="text-white/70">View all admin activities</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Activity Logs</h1>
+          <p className="text-slate-500">View all admin activities</p>
         </div>
 
         <GlassCard>

@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import Image from 'next/image';
+import { getApiOrigin } from '@/lib/api-client';
 
 export default function BannersPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -27,6 +28,7 @@ export default function BannersPage() {
     link: '',
     position: 'top' as 'top' | 'middle' | 'bottom' | 'sidebar',
     is_active: true,
+    is_home_boosted: false,
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -73,19 +75,38 @@ export default function BannersPage() {
     setSuccess('');
 
     try {
-      const formDataToSend = new FormData();
-      if (formData.image) {
-        formDataToSend.append('image', formData.image);
-      }
-      formDataToSend.append('title', formData.title);
-      formDataToSend.append('link', formData.link);
-      formDataToSend.append('position', formData.position);
-      formDataToSend.append('is_active', formData.is_active.toString());
-
       if (editingBanner) {
-        await bannerService.update(editingBanner.id, formDataToSend);
+        if (formData.image) {
+          const formDataToSend = new FormData();
+          formDataToSend.append('image', formData.image);
+          formDataToSend.append('title', formData.title);
+          formDataToSend.append('link', formData.link);
+          formDataToSend.append('position', formData.position);
+          // Laravel boolean validation accepts 1/0 reliably for multipart form data.
+          formDataToSend.append('is_active', formData.is_active ? '1' : '0');
+          formDataToSend.append('is_home_boosted', formData.is_home_boosted ? '1' : '0');
+          await bannerService.update(editingBanner.id, formDataToSend);
+        } else {
+          await bannerService.update(editingBanner.id, {
+            title: formData.title,
+            link: formData.link,
+            position: formData.position,
+            is_active: formData.is_active,
+            is_home_boosted: formData.is_home_boosted,
+          });
+        }
         setSuccess('Banner updated successfully');
       } else {
+        const formDataToSend = new FormData();
+        if (formData.image) {
+          formDataToSend.append('image', formData.image);
+        }
+        formDataToSend.append('title', formData.title);
+        formDataToSend.append('link', formData.link);
+        formDataToSend.append('position', formData.position);
+        // Laravel boolean validation accepts 1/0 reliably for multipart form data.
+        formDataToSend.append('is_active', formData.is_active ? '1' : '0');
+        formDataToSend.append('is_home_boosted', formData.is_home_boosted ? '1' : '0');
         await bannerService.create(formDataToSend);
         setSuccess('Banner created successfully');
       }
@@ -105,8 +126,9 @@ export default function BannersPage() {
       link: banner.link || '',
       position: banner.position,
       is_active: banner.is_active,
+      is_home_boosted: !!banner.is_home_boosted,
     });
-    setImagePreview(banner.image ? `${process.env.NEXT_PUBLIC_API_URL}/storage/${banner.image}` : null);
+    setImagePreview(banner.image ? `${getApiOrigin()}/storage/${banner.image}` : null);
     setShowForm(true);
   };
 
@@ -140,6 +162,7 @@ export default function BannersPage() {
       link: '',
       position: 'top',
       is_active: true,
+      is_home_boosted: false,
     });
     setImagePreview(null);
     setEditingBanner(null);
@@ -264,6 +287,19 @@ export default function BannersPage() {
                         </label>
                       </div>
 
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="is_home_boosted"
+                          checked={formData.is_home_boosted}
+                          onChange={(e) => setFormData({ ...formData, is_home_boosted: e.target.checked })}
+                          className="mr-2"
+                        />
+                        <label htmlFor="is_home_boosted" className="text-sm font-medium text-gray-700">
+                          Boost to home page
+                        </label>
+                      </div>
+
                       <div className="flex gap-4">
                         <Button type="submit" className="flex-1">
                           {editingBanner ? 'Update Banner' : 'Create Banner'}
@@ -293,45 +329,70 @@ export default function BannersPage() {
                       <div key={banner.id} className="bg-white rounded-lg shadow overflow-hidden">
                         <div className="relative h-48 bg-gray-100">
                           <img
-                            src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${banner.image}`}
+                            src={`${getApiOrigin()}/storage/${banner.image}`}
                             alt={banner.title || 'Banner'}
                             className="w-full h-full object-cover"
                           />
                           <div className="absolute top-2 right-2">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              banner.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {banner.is_active ? 'Active' : 'Inactive'}
-                            </span>
+                            <div className="flex flex-wrap gap-1.5 justify-end">
+                              {banner.is_approved === false && (
+                                <span className="px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-900">
+                                  Pending admin
+                                </span>
+                              )}
+                              {banner.is_home_boosted && (
+                                <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800">
+                                  Home Boost
+                                </span>
+                              )}
+                              <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                banner.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {banner.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <div className="p-4">
                           <h3 className="font-semibold text-gray-900 mb-1">{banner.title || 'Untitled Banner'}</h3>
                           <p className="text-sm text-gray-600 mb-2">Position: {banner.position}</p>
                           {banner.link && (
-                            <p className="text-xs text-blue-600 truncate mb-4">{banner.link}</p>
+                            <p className="text-xs text-blue-600 truncate mb-2">{banner.link}</p>
                           )}
-                          <div className="flex gap-2">
+                          {banner.is_approved === false && banner.rejection_reason && (
+                            <p className="text-xs text-red-600 mb-4 line-clamp-2">{banner.rejection_reason}</p>
+                          )}
+                          <div className="flex items-center justify-end gap-2">
                             <Button
                               variant="outline"
                               onClick={() => handleEdit(banner)}
-                              className="flex-1 text-sm"
+                              className="h-9 w-9 p-0 inline-flex items-center justify-center"
+                              title="Edit banner"
+                              aria-label="Edit banner"
                             >
-                              Edit
+                              <span className="text-base leading-none" aria-hidden="true">✏️</span>
                             </Button>
                             <Button
                               variant="outline"
                               onClick={() => handleToggle(banner.id)}
-                              className="flex-1 text-sm"
+                              className={`h-9 w-9 p-0 inline-flex items-center justify-center ${
+                                banner.is_active ? 'text-amber-700 hover:text-amber-800' : 'text-green-700 hover:text-green-800'
+                              }`}
+                              title={banner.is_active ? 'Deactivate banner' : 'Activate banner'}
+                              aria-label={banner.is_active ? 'Deactivate banner' : 'Activate banner'}
                             >
-                              {banner.is_active ? 'Deactivate' : 'Activate'}
+                              <span className="text-base leading-none" aria-hidden="true">
+                                {banner.is_active ? '⏸️' : '▶️'}
+                              </span>
                             </Button>
                             <Button
                               variant="outline"
                               onClick={() => handleDelete(banner.id)}
-                              className="text-red-600 hover:text-red-700 text-sm"
+                              className="h-9 w-9 p-0 inline-flex items-center justify-center text-red-600 hover:text-red-700"
+                              title="Delete banner"
+                              aria-label="Delete banner"
                             >
-                              Delete
+                              <span className="text-base leading-none" aria-hidden="true">🗑️</span>
                             </Button>
                           </div>
                         </div>

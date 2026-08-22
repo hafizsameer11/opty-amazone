@@ -26,9 +26,20 @@ class FrameSizeController extends Controller
 
         $product = Product::where('store_id', $store->id)->findOrFail($productId);
 
-        $frameSizes = $product->frameSizes()->orderBy('lens_width')->orderBy('bridge_width')->get();
+        $frameSizes = $product->frameSizes()->orderBy('lens_width')->orderBy('bridge_width');
 
-        return ResponseHelper::success($frameSizes, 'Frame sizes retrieved successfully');
+        if ($request->has('variant_id')) {
+            $variantId = $request->query('variant_id');
+            if ($variantId === '' || $variantId === 'null') {
+                $frameSizes->whereNull('product_variant_id');
+            } else {
+                $variantId = (int) $variantId;
+                $product->variants()->whereKey($variantId)->firstOrFail();
+                $frameSizes->where('product_variant_id', $variantId);
+            }
+        }
+
+        return ResponseHelper::success($frameSizes->get(), 'Frame sizes retrieved successfully');
     }
 
     /**
@@ -46,15 +57,22 @@ class FrameSizeController extends Controller
         $product = Product::where('store_id', $store->id)->findOrFail($productId);
 
         $validated = $request->validate([
+            'product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'lens_width' => 'required|numeric|min:0|max:999.99',
             'bridge_width' => 'required|numeric|min:0|max:999.99',
             'temple_length' => 'required|numeric|min:0|max:999.99',
             'frame_width' => 'nullable|numeric|min:0|max:999.99',
             'frame_height' => 'nullable|numeric|min:0|max:999.99',
             'size_label' => 'nullable|string|max:50',
+            'price' => 'nullable|numeric|min:0',
+            'image' => 'nullable|string|max:2048',
             'stock_quantity' => 'required|integer|min:0',
             'stock_status' => 'required|in:in_stock,out_of_stock,backorder',
         ]);
+
+        if (!empty($validated['product_variant_id'])) {
+            $product->variants()->whereKey($validated['product_variant_id'])->firstOrFail();
+        }
 
         try {
             $frameSize = $product->frameSizes()->create($validated);
@@ -82,15 +100,22 @@ class FrameSizeController extends Controller
         })->findOrFail($id);
 
         $validated = $request->validate([
+            'product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'lens_width' => 'sometimes|numeric|min:0|max:999.99',
             'bridge_width' => 'sometimes|numeric|min:0|max:999.99',
             'temple_length' => 'sometimes|numeric|min:0|max:999.99',
             'frame_width' => 'nullable|numeric|min:0|max:999.99',
             'frame_height' => 'nullable|numeric|min:0|max:999.99',
             'size_label' => 'nullable|string|max:50',
+            'price' => 'nullable|numeric|min:0',
+            'image' => 'nullable|string|max:2048',
             'stock_quantity' => 'sometimes|integer|min:0',
             'stock_status' => 'sometimes|in:in_stock,out_of_stock,backorder',
         ]);
+
+        if (!empty($validated['product_variant_id'])) {
+            $frameSize->product->variants()->whereKey($validated['product_variant_id'])->firstOrFail();
+        }
 
         try {
             $frameSize->update($validated);

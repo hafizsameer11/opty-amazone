@@ -42,7 +42,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
-          <p>&copy; {new Date().getFullYear()} OpticalMarket. {t('allRightsReserved')}</p>
+          <p>&copy; {new Date().getFullYear()} {t('brandName')}. {t('allRightsReserved')}</p>
         </div>
       </div>
     </footer>

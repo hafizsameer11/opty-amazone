@@ -205,6 +205,7 @@ export class StoreService {
       pending_orders: number;
       paid_orders: number;
       total_followers: number;
+      total_reviews?: number;
       total_revenue: number;
       recent_orders: Array<{
         id: number;

@@ -1,4 +1,4 @@
-// Product types for optical marketplace
+// Product types for VistaExpress marketplace
 
 export type ProductType = "frame" | "sunglasses" | "contact_lens" | "eye_hygiene" | "accessory";
 export type StockStatus = "in_stock" | "out_of_stock" | "backorder";
@@ -12,6 +12,8 @@ export interface FrameSize {
   temple_length: number;
   frame_width: number;
   frame_height: number;
+  price?: number | null;
+  image?: string | null;
   stock_quantity: number;
 }
 

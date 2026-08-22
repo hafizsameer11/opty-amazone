@@ -2,22 +2,38 @@
 
 import { useLanguage } from '@/contexts/LanguageContext';
 
-export default function LanguageSwitcher() {
+export default function LanguageSwitcher({
+  variant = 'header',
+}: {
+  variant?: 'header' | 'dock';
+}) {
   const { language, setLanguage } = useLanguage();
 
+  const shell =
+    variant === 'dock'
+      ? 'inline-flex items-center rounded-lg border border-gray-200 bg-white p-1 shadow-sm'
+      : 'inline-flex items-center rounded-lg border border-slate-300 bg-slate-100 p-1';
+
+  const active =
+    variant === 'dock' ? 'bg-[#0066CC] text-white' : 'bg-[#0066CC] text-white';
+  const idle =
+    variant === 'dock' ? 'text-gray-600 hover:bg-gray-100' : 'text-slate-600 hover:bg-slate-100';
+
   return (
-    <div className="inline-flex items-center rounded-lg border border-white/30 bg-white/10 p-1">
+    <div className={`${shell} notranslate`} role="group" aria-label="Language">
       <button
         type="button"
         onClick={() => setLanguage('en')}
-        className={`px-2 py-1 text-xs font-semibold rounded ${language === 'en' ? 'bg-white text-[#111827]' : 'text-white hover:bg-white/20'}`}
+        className={`px-2.5 py-1 text-xs font-semibold rounded ${language === 'en' ? active : idle}`}
+        aria-pressed={language === 'en'}
       >
         EN
       </button>
       <button
         type="button"
         onClick={() => setLanguage('it')}
-        className={`px-2 py-1 text-xs font-semibold rounded ${language === 'it' ? 'bg-white text-[#111827]' : 'text-white hover:bg-white/20'}`}
+        className={`px-2.5 py-1 text-xs font-semibold rounded ${language === 'it' ? active : idle}`}
+        aria-pressed={language === 'it'}
       >
         IT
       </button>

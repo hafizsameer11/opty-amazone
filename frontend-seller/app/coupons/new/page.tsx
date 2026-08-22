@@ -9,6 +9,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { couponService, type CreateCouponData } from '@/services/coupon-service';
 import CouponForm from '@/components/coupons/CouponForm';
 import Alert from '@/components/ui/Alert';
+import SectionBackLink from '@/components/ui/SectionBackLink';
 
 export default function NewCouponPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -57,14 +58,17 @@ export default function NewCouponPage() {
           <main className="p-4 lg:p-8">
             <div className="max-w-4xl mx-auto">
               <div className="mb-6">
+                <SectionBackLink href="/coupons" className="mb-3">
+                  Back to Coupons
+                </SectionBackLink>
                 <h1 className="text-3xl font-bold text-gray-900">Create New Coupon</h1>
                 <p className="text-gray-600 mt-1">Create a discount coupon for your customers</p>
               </div>
 
               {error && (
-                <Alert variant="error" className="mb-6" onClose={() => setError('')}>
-                  {error}
-                </Alert>
+                <div className="mb-6">
+                  <Alert type="error" message={error} onClose={() => setError('')} />
+                </div>
               )}
 
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

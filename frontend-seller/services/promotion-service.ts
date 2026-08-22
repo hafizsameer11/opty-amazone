@@ -23,7 +23,10 @@ export interface Promotion {
 export const promotionService = {
   async getAll(params?: { per_page?: number; page?: number }) {
     const res = await apiClient.get('/seller/promotions', { params });
-    return res.data.data;
+    const raw = res.data?.data;
+    if (Array.isArray(raw)) return raw;
+    if (raw && Array.isArray(raw.data)) return raw.data;
+    return [];
   },
 
   async create(data: {
@@ -32,7 +35,9 @@ export const promotionService = {
     discount_type: 'budget' | 'percentage' | 'fixed';
     discount_value?: number;
     applies_to_price?: boolean;
-    duration_days: number;
+    /** ISO date (YYYY-MM-DD) or datetime — backend stores end of day */
+    end_date: string;
+    duration_days?: number;
     target_audience?: any;
   }) {
     const res = await apiClient.post('/seller/promotions', data);

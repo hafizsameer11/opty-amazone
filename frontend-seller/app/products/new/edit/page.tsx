@@ -7,6 +7,7 @@ import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
 import Sidebar from '@/components/layout/Sidebar';
 import UnifiedProductForm from '@/components/products/UnifiedProductForm';
+import SectionBackLink from '@/components/ui/SectionBackLink';
 
 // This page is specifically for creating new products
 // It uses the unified form component
@@ -46,15 +47,9 @@ export default function NewProductEditPage() {
               <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header Section with Gradient */}
                 <div className="mb-8">
-                  <button
-                    onClick={() => router.back()}
-                    className="inline-flex items-center gap-2 text-[#0066CC] hover:text-[#0052A3] font-medium mb-4 transition-colors group"
-                  >
-                    <svg className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
+                  <SectionBackLink href="/products" className="mb-4">
                     Back to Products
-                  </button>
+                  </SectionBackLink>
                   <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-xl p-8 text-white">
                     <div className="flex items-center gap-4">
                       <div className="p-4 bg-white/20 rounded-xl backdrop-blur-sm">

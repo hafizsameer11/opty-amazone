@@ -17,6 +17,9 @@ use App\Http\Controllers\Seller\SellerSubscriptionController;
 use App\Http\Controllers\Seller\CategoryLensConfigController;
 use App\Http\Controllers\Seller\CategoryFieldConfigController;
 use App\Http\Controllers\Seller\PrescriptionDropdownController;
+use App\Http\Controllers\Seller\SellerStoreChatController;
+use App\Http\Controllers\Seller\SellerAdminChatController;
+use App\Http\Controllers\Seller\SellerNotificationBadgeController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -201,3 +204,21 @@ Route::middleware('auth:sanctum')->prefix('prescription-dropdowns')->group(funct
     Route::post('/{categoryId}', [PrescriptionDropdownController::class, 'store']);
     Route::delete('/{id}', [PrescriptionDropdownController::class, 'destroy']);
 });
+
+// Buyer–store chat (seller inbox)
+Route::middleware('auth:sanctum')->prefix('chat')->group(function () {
+    Route::get('/conversations', [SellerStoreChatController::class, 'index']);
+    Route::get('/conversations/{id}', [SellerStoreChatController::class, 'show']);
+    Route::get('/conversations/{id}/messages', [SellerStoreChatController::class, 'messages']);
+    Route::post('/conversations/{id}/messages', [SellerStoreChatController::class, 'storeMessage']);
+});
+
+// Seller ↔ Vista Express Admin chat
+Route::middleware('auth:sanctum')->prefix('admin-chat')->group(function () {
+    Route::get('/', [SellerAdminChatController::class, 'show']);
+    Route::get('/messages', [SellerAdminChatController::class, 'messages']);
+    Route::post('/messages', [SellerAdminChatController::class, 'storeMessage']);
+});
+
+// Sidebar notification badges (messages + pending orders)
+Route::middleware('auth:sanctum')->get('/notifications/unread', [SellerNotificationBadgeController::class, 'unread']);

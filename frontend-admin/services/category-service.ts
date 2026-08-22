@@ -3,27 +3,41 @@ import apiClient from '@/lib/api-client';
 export interface Category {
   id: number;
   name: string;
+  name_it?: string | null;
   slug: string;
   description?: string;
   image?: string;
+  parent_id?: number | null;
   sort_order: number;
   is_active: boolean;
+  children?: Category[];
   subcategories?: Category[];
 }
 
-export interface CreateCategoryData {
-  name: string;
-  slug: string;
+/** Allowed fields when updating (English name/slug are locked server-side). */
+export interface UpdateCategoryPayload {
+  name_it?: string | null;
   description?: string;
   image?: string;
   sort_order?: number;
   is_active?: boolean;
 }
 
+export interface CreateCategoryData {
+  name: string;
+  slug: string;
+  name_it?: string;
+  description?: string;
+  image?: string;
+  parent_id?: number | null;
+  sort_order?: number;
+  is_active?: boolean;
+}
+
 export const categoryService = {
-  async getAll() {
-    const res = await apiClient.get('/admin/categories');
-    return res.data.data;
+  async getAll(params?: { search?: string }) {
+    const res = await apiClient.get('/admin/categories', { params });
+    return res.data.data as Category[];
   },
 
   async getOne(id: number): Promise<Category> {
@@ -36,12 +50,12 @@ export const categoryService = {
     return res.data.data;
   },
 
-  async update(id: number, data: Partial<CreateCategoryData>): Promise<Category> {
+  async update(id: number, data: UpdateCategoryPayload): Promise<Category> {
     const res = await apiClient.put(`/admin/categories/${id}`, data);
     return res.data.data;
   },
 
-  async delete(id: number): Promise<void> {
-    await apiClient.delete(`/admin/categories/${id}`);
+  async delete(_id: number): Promise<void> {
+    await apiClient.delete(`/admin/categories/${_id}`);
   },
 };

@@ -134,7 +134,7 @@ export default function PointsPage() {
       key: 'points',
       header: 'Points',
       render: (rule: PointRule) => (
-        <span className="text-white">
+        <span className="text-slate-900">
           {rule.points_per_euro
             ? `${rule.points_per_euro} per €`
             : rule.fixed_points
@@ -147,7 +147,7 @@ export default function PointsPage() {
       key: 'redemption',
       header: 'Redemption',
       render: (rule: PointRule) => (
-        <span className="text-white">
+        <span className="text-slate-900">
           {rule.redemption_rate ? `€1 = ${rule.redemption_rate} pts` : 'N/A'}
         </span>
       ),
@@ -182,7 +182,7 @@ export default function PointsPage() {
       key: 'user',
       header: 'User',
       render: (tx: PointTransaction) => (
-        <span className="text-white">
+        <span className="text-slate-900">
           {tx.user?.name || `User #${tx.user_id}`}
         </span>
       ),
@@ -207,21 +207,21 @@ export default function PointsPage() {
       key: 'balance_after',
       header: 'Balance After',
       render: (tx: PointTransaction) => (
-        <span className="text-white">{tx.balance_after}</span>
+        <span className="text-slate-900">{tx.balance_after}</span>
       ),
     },
     {
       key: 'description',
       header: 'Description',
       render: (tx: PointTransaction) => (
-        <span className="text-white/70 text-sm">{tx.description || 'N/A'}</span>
+        <span className="text-slate-500 text-sm">{tx.description || 'N/A'}</span>
       ),
     },
     {
       key: 'created_at',
       header: 'Date',
       render: (tx: PointTransaction) => (
-        <span className="text-white/70 text-sm">
+        <span className="text-slate-500 text-sm">
           {new Date(tx.created_at).toLocaleDateString()}
         </span>
       ),
@@ -242,18 +242,18 @@ export default function PointsPage() {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Points Management</h1>
-          <p className="text-white/70">Manage point rules and view transactions</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Points Management</h1>
+          <p className="text-slate-500">Manage point rules and view transactions</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 border-b border-white/20">
+        <div className="flex gap-4 border-b border-slate-200">
           <button
             onClick={() => setActiveTab('rules')}
             className={`px-4 py-2 font-medium transition-colors ${
               activeTab === 'rules'
-                ? 'text-white border-b-2 border-white'
-                : 'text-white/60 hover:text-white'
+                ? 'text-slate-900 border-b-2 border-white'
+                : 'text-slate-400 hover:text-slate-900'
             }`}
           >
             Point Rules
@@ -262,8 +262,8 @@ export default function PointsPage() {
             onClick={() => setActiveTab('transactions')}
             className={`px-4 py-2 font-medium transition-colors ${
               activeTab === 'transactions'
-                ? 'text-white border-b-2 border-white'
-                : 'text-white/60 hover:text-white'
+                ? 'text-slate-900 border-b-2 border-white'
+                : 'text-slate-400 hover:text-slate-900'
             }`}
           >
             Transactions
@@ -273,13 +273,13 @@ export default function PointsPage() {
         {activeTab === 'rules' && (
           <GlassCard>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-white">Point Rules</h2>
+              <h2 className="text-xl font-bold text-slate-900">Point Rules</h2>
               <Button onClick={handleNewRule}>Create New Rule</Button>
             </div>
 
             {showRuleForm && (
-              <div className="mb-6 p-6 bg-white/5 rounded-lg border border-white/10">
-                <h3 className="text-lg font-semibold text-white mb-4">
+              <div className="mb-6 p-6 bg-white/5 rounded-lg border border-slate-100">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">
                   {editingRule ? 'Edit Rule' : 'Create New Rule'}
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -289,11 +289,11 @@ export default function PointsPage() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                   <div>
-                    <label className="block text-sm font-medium text-white/80 mb-2">Type</label>
+                    <label className="block text-sm font-medium text-slate-600 mb-2">Type</label>
                     <select
                       value={formData.type || 'purchase'}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+                      className="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0066CC]/30"
                     >
                       <option value="purchase">Purchase</option>
                       <option value="referral">Referral</option>
@@ -357,7 +357,7 @@ export default function PointsPage() {
                       onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                       className="h-4 w-4"
                     />
-                    <label htmlFor="is_active" className="text-white/80">
+                    <label htmlFor="is_active" className="text-slate-600">
                       Active
                     </label>
                   </div>
@@ -391,7 +391,7 @@ export default function PointsPage() {
 
         {activeTab === 'transactions' && (
           <GlassCard>
-            <h2 className="text-xl font-bold text-white mb-6">Point Transactions</h2>
+            <h2 className="text-xl font-bold text-slate-900 mb-6">Point Transactions</h2>
             <DataTable
               data={transactions}
               columns={transactionColumns}

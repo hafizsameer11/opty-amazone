@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
@@ -41,7 +41,24 @@ export default function EyeHygieneProductPage() {
     images: [],
     is_featured: false,
     is_active: true,
+    size_volume_variants: [],
+    eye_hygiene_variants: [],
   });
+
+  const subCategoryOptions = useMemo(() => {
+    const selectedCategory = categories.find((c) => c.id === categoryId);
+    const subCategories = selectedCategory?.children || [];
+    const options: Array<{ id: number; name: string }> = [];
+    for (const sub of subCategories) {
+      options.push({ id: sub.id, name: sub.name });
+      if (Array.isArray(sub.children)) {
+        for (const subSub of sub.children) {
+          options.push({ id: subSub.id, name: `${sub.name} → ${subSub.name}` });
+        }
+      }
+    }
+    return options;
+  }, [categories, categoryId]);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -59,15 +76,15 @@ export default function EyeHygieneProductPage() {
     try {
       const data = await productService.getCategories();
       setCategories(data);
-      
-      const eyeHygieneCategory = data.find(cat => cat.slug === 'eye-hygiene');
+
+      const eyeHygieneCategory = data.find((cat) => cat.slug === 'eye-hygiene');
       if (eyeHygieneCategory) {
         setCategoryId(eyeHygieneCategory.id);
-        setFormData(prev => ({ ...prev, category_id: eyeHygieneCategory.id }));
+        setFormData((prev) => ({ ...prev, category_id: eyeHygieneCategory.id }));
         await loadFieldConfig(eyeHygieneCategory.id);
       }
-    } catch (error) {
-      console.error('Failed to load categories:', error);
+    } catch (err) {
+      console.error('Failed to load categories:', err);
       setLoadingConfig(false);
     }
   };
@@ -77,8 +94,8 @@ export default function EyeHygieneProductPage() {
       setLoadingConfig(true);
       const config = await categoryFieldConfigService.getFieldsForCategory(catId);
       setEnabledFields(config.enabled_fields);
-    } catch (error) {
-      console.error('Failed to load field config:', error);
+    } catch (err) {
+      console.error('Failed to load field config:', err);
       setEnabledFields([]);
     } finally {
       setLoadingConfig(false);
@@ -92,16 +109,13 @@ export default function EyeHygieneProductPage() {
     setSaving(true);
 
     try {
-      const product = await productService.create(formData);
-      setSuccess('Product created successfully');
-      setTimeout(() => {
-        router.push('/products');
-      }, 1500);
-    } catch (error: any) {
-      const errorMessage = 
-        error.response?.data?.errors?.name?.[0] ||
-        error.response?.data?.errors?.sku?.[0] ||
-        error.response?.data?.message ||
+      await productService.create(formData);
+      router.push('/products');
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.errors?.name?.[0] ||
+        err.response?.data?.errors?.sku?.[0] ||
+        err.response?.data?.message ||
         'Failed to save product';
       setError(errorMessage);
     } finally {
@@ -172,6 +186,33 @@ export default function EyeHygieneProductPage() {
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         required
                       />
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-800 mb-2">
+                          Sub Category
+                        </label>
+                        <select
+                          value={formData.sub_category_id || ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              sub_category_id: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
+                        >
+                          <option value="">Select Sub Category</option>
+                          {subCategoryOptions.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                        {subCategoryOptions.length === 0 && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            No eye hygiene subcategories found. Ask an admin to seed the category tree.
+                          </p>
+                        )}
+                      </div>
                       <Input
                         label="SKU *"
                         value={formData.sku}
@@ -192,7 +233,9 @@ export default function EyeHygieneProductPage() {
                       <Input
                         label="Short Description"
                         value={formData.short_description}
-                        onChange={(e) => setFormData({ ...formData, short_description: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, short_description: e.target.value })
+                        }
                         maxLength={500}
                       />
                     </div>
@@ -207,7 +250,9 @@ export default function EyeHygieneProductPage() {
                         step="0.01"
                         min="0"
                         value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })
+                        }
                         required
                       />
                       <Input
@@ -216,7 +261,12 @@ export default function EyeHygieneProductPage() {
                         step="0.01"
                         min="0"
                         value={formData.compare_at_price || ''}
-                        onChange={(e) => setFormData({ ...formData, compare_at_price: e.target.value ? parseFloat(e.target.value) : undefined })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            compare_at_price: e.target.value ? parseFloat(e.target.value) : undefined,
+                          })
+                        }
                       />
                       <Input
                         label="Cost Price"
@@ -224,7 +274,12 @@ export default function EyeHygieneProductPage() {
                         step="0.01"
                         min="0"
                         value={formData.cost_price || ''}
-                        onChange={(e) => setFormData({ ...formData, cost_price: e.target.value ? parseFloat(e.target.value) : undefined })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            cost_price: e.target.value ? parseFloat(e.target.value) : undefined,
+                          })
+                        }
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4 mt-4">
@@ -233,7 +288,12 @@ export default function EyeHygieneProductPage() {
                         type="number"
                         min="0"
                         value={formData.stock_quantity}
-                        onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            stock_quantity: parseInt(e.target.value, 10) || 0,
+                          })
+                        }
                         required
                       />
                       <div>
@@ -242,7 +302,12 @@ export default function EyeHygieneProductPage() {
                         </label>
                         <select
                           value={formData.stock_status}
-                          onChange={(e) => setFormData({ ...formData, stock_status: e.target.value as any })}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              stock_status: e.target.value as CreateProductData['stock_status'],
+                            })
+                          }
                           className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
                           required
                         >
@@ -263,7 +328,6 @@ export default function EyeHygieneProductPage() {
                     />
                   </div>
 
-                  {/* Product Options */}
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Options</h2>
                     <SimplifiedProductOptions
@@ -289,7 +353,9 @@ export default function EyeHygieneProductPage() {
                         <input
                           type="checkbox"
                           checked={formData.is_featured}
-                          onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
+                          onChange={(e) =>
+                            setFormData({ ...formData, is_featured: e.target.checked })
+                          }
                           className="mr-2"
                         />
                         <span>Featured</span>
@@ -301,11 +367,7 @@ export default function EyeHygieneProductPage() {
                     <Button type="submit" isLoading={saving} className="flex-1">
                       Create Product
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => router.push('/products')}
-                    >
+                    <Button type="button" variant="outline" onClick={() => router.push('/products')}>
                       Cancel
                     </Button>
                   </div>

@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Loader from '@/components/ui/Loader';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
+import ProductCardCategoryLine from '@/components/products/ProductCardCategoryLine';
 
 function ProductCard({ product }: { product: Product }) {
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
@@ -56,6 +57,11 @@ function ProductCard({ product }: { product: Product }) {
       className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 overflow-hidden group relative flex flex-col h-full"
     >
       <div className="relative w-full h-48 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-100">
+        {product.is_boosted && (
+          <span className="absolute top-2 left-2 z-10 inline-flex items-center rounded-full bg-amber-500 text-white text-[10px] font-bold px-2 py-1 tracking-wide">
+            VIP
+          </span>
+        )}
         <div className="absolute inset-0 flex items-center justify-center">
           <Image
             src={displayImageUrl}
@@ -68,6 +74,7 @@ function ProductCard({ product }: { product: Product }) {
         </div>
       </div>
       <div className="p-4 flex-1 flex flex-col">
+        <ProductCardCategoryLine product={product} className="mb-1.5" />
         <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-[#0066CC] transition-colors text-sm sm:text-base">
           {product.name}
         </h3>

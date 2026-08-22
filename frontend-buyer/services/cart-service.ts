@@ -1,15 +1,12 @@
 import apiClient from '@/lib/api-client';
+import type { OrderLineSelections } from '@/types/order-line';
 
-export interface CartItem {
+export interface CartItem extends OrderLineSelections {
   id: number;
   product_id: number;
-  variant_id?: number;
   store_id: number;
   quantity: number;
   price: number;
-  product_variant?: any;
-  lens_configuration?: any;
-  prescription_data?: any;
   product: {
     id: number;
     name: string;
@@ -73,6 +70,12 @@ export interface AddToCartData {
   contact_lens_right_qty?: number;
   contact_lens_right_cylinder?: number;
   contact_lens_right_axis?: number;
+  /** Lenses per box when using seller pack units */
+  contact_lens_pack_quantity?: number;
+  /** Eye hygiene / size-volume variant selection */
+  product_size_volume_id?: number;
+  eye_hygiene_variant_id?: number;
+  selected_variant_id?: string;
 }
 
 export const cartService = {

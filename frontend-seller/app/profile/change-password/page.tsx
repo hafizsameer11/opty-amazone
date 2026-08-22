@@ -11,6 +11,7 @@ import {
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
+import SectionBackLink from "@/components/ui/SectionBackLink";
 
 const schema = z
   .object({
@@ -66,6 +67,9 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="max-w-xl mx-auto mt-8 space-y-4">
+      <SectionBackLink href="/profile" className="mb-2">
+        Back to Your Account
+      </SectionBackLink>
       <h1 className="text-2xl font-semibold">Change Password</h1>
       {error && <Alert type="error" message={error} />}
       {success && <Alert type="success" message={success} />}

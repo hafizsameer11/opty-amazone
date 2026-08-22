@@ -1,17 +1,158 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Product } from '@/services/product-service';
 import { getPrescriptionOptions, type PrescriptionOptions } from '@/services/prescription-options-service';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import { getFullImageUrl } from '@/lib/image-utils';
+
+export type ContactLensPackSelection =
+  | { mode: 'pack'; quantity: number }
+  | { mode: 'variant'; variantId: number }
+  | { mode: 'none' };
+
+export type ContactLensGalleryChange = {
+  /** Thumbnail strip URLs (empty for spherical pack-only products). */
+  sidebarUrls: string[];
+  /** Main hero image(s) for the selected pack/colour. */
+  mainUrls: string[] | null;
+  /** When true, PDP hides the left thumbnail column (spherical CL). */
+  hideSidebar?: boolean;
+};
+
+type ContactLensUnitConfigParsed = {
+  packs: Array<{
+    quantity: number;
+    price: number | null;
+    images: string[];
+    available_variant_ids: number[];
+  }>;
+  qty_options: number[];
+  colour_stock: Array<{ pack_quantity: number; variant_id: number; stock_quantity: number }>;
+};
+
+export function parseContactLensUnitConfig(product: Product): ContactLensUnitConfigParsed {
+  const raw = (product as Product & { contact_lens_unit_config?: unknown }).contact_lens_unit_config;
+  if (!raw || typeof raw !== 'object') {
+    return { packs: [], qty_options: [], colour_stock: [] };
+  }
+  const obj = raw as {
+    packs?: unknown;
+    qty_options?: unknown;
+    colour_stock?: unknown;
+  };
+  const packs = Array.isArray(obj.packs)
+    ? obj.packs
+        .filter((p): p is Record<string, unknown> => p != null && typeof p === 'object')
+        .filter((p) => Number.isFinite(Number(p.quantity)) && Number(p.quantity) > 0)
+        .map((p) => ({
+          quantity: Number(p.quantity),
+          price: p.price != null && p.price !== '' ? Number(p.price) : null,
+          images: Array.isArray(p.images) ? p.images.map(String).filter(Boolean) : [],
+          available_variant_ids: Array.isArray(p.available_variant_ids)
+            ? p.available_variant_ids.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+            : [],
+        }))
+        .sort((a, b) => a.quantity - b.quantity)
+    : [];
+
+  const qty_options = Array.isArray(obj.qty_options)
+    ? [
+        ...new Set(
+          obj.qty_options
+            .map((n) => Math.floor(Number(n)))
+            .filter((n) => Number.isFinite(n) && n >= 1)
+        ),
+      ].sort((a, b) => a - b)
+    : [];
+
+  const colour_stock = Array.isArray(obj.colour_stock)
+    ? obj.colour_stock
+        .filter((r): r is Record<string, unknown> => r != null && typeof r === 'object')
+        .map((r) => ({
+          pack_quantity: Math.floor(Number(r.pack_quantity)),
+          variant_id: Math.floor(Number(r.variant_id)),
+          stock_quantity: Math.floor(Number(r.stock_quantity ?? 0)),
+        }))
+        .filter(
+          (r) =>
+            Number.isFinite(r.pack_quantity) &&
+            r.pack_quantity > 0 &&
+            Number.isFinite(r.variant_id) &&
+            r.variant_id > 0
+        )
+    : [];
+
+  return { packs, qty_options, colour_stock };
+}
+
+/** Format diopter-style values as 14.00 / -2.25 (preserve two decimals). */
+function formatDiopterDisplay(raw: string): string {
+  const n = parseFloat(String(raw).replace(',', '.'));
+  if (!Number.isFinite(n)) return String(raw);
+  const body = Math.abs(n).toFixed(2);
+  if (n > 0) return `+${body}`;
+  if (n < 0) return `-${body}`;
+  return body;
+}
+
+/** Format millimetre values as 14.50. */
+function formatMmDisplay(raw: string): string {
+  const n = parseFloat(String(raw).replace(',', '.'));
+  if (!Number.isFinite(n)) return String(raw);
+  return n.toFixed(2);
+}
+
+function sortNumericStrings(values: string[]): string[] {
+  return [...values].sort((a, b) => {
+    const na = parseFloat(String(a).replace(',', '.'));
+    const nb = parseFloat(String(b).replace(',', '.'));
+    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+    return String(a).localeCompare(String(b), undefined, { numeric: true });
+  });
+}
+
+function mergeEyeOptionArrays(opts: PrescriptionOptions | null, field: 'cyl' | 'axis'): string[] {
+  if (!opts) return [];
+  const b = opts[field];
+  return sortNumericStrings([...new Set([...b.left, ...b.right, ...b.both].map(String))]);
+}
+
+/** Merge left/right with shared `both` values (seller often saves PWR as eye_type=both). */
+function powerOptionsForSide(
+  opts: PrescriptionOptions | null,
+  side: 'left' | 'right'
+): string[] {
+  if (!opts) return [];
+  const fromPwr = [...(opts.pwr?.[side] || []), ...(opts.pwr?.both || [])];
+  if (fromPwr.length > 0) return sortNumericStrings([...new Set(fromPwr.map(String))]);
+  const fromSph = [...(opts.sph?.[side] || []), ...(opts.sph?.both || [])];
+  return sortNumericStrings([...new Set(fromSph.map(String))]);
+}
+
+function sideOptionsForField(
+  opts: PrescriptionOptions | null,
+  field: 'cyl' | 'axis',
+  side: 'left' | 'right'
+): string[] {
+  if (!opts) return [];
+  const block = opts[field];
+  return sortNumericStrings([...new Set([...(block?.[side] || []), ...(block?.both || [])].map(String))]);
+}
+
+const selectBoxClass =
+  'w-full px-2 py-2.5 text-sm font-medium border-2 rounded-lg focus:ring-2 transition-all appearance-none pr-8 bg-white';
 
 interface ContactLensConfigurationProps {
   product: Product;
+  onPackGalleryChange?: (change: ContactLensGalleryChange) => void;
+  onDisplayPriceChange?: (price: number | null) => void;
+  onSelectedPackQuantityChange?: (quantity: number | null) => void;
   onAddToCart: (config: {
     product_id: number;
     variant_id?: number;
     quantity: number;
+    contact_lens_pack_quantity?: number;
     contact_lens_right_base_curve?: number;
     contact_lens_right_diameter?: number;
     contact_lens_right_power?: number;
@@ -24,6 +165,7 @@ interface ContactLensConfigurationProps {
     contact_lens_left_qty?: number;
     contact_lens_left_cylinder?: number;
     contact_lens_left_axis?: number;
+    product_variant?: { color_name?: string; color_code?: string };
   }) => Promise<void>;
   addingToCart?: boolean;
 }
@@ -38,40 +180,110 @@ interface EyeConfiguration {
   enabled: boolean;
 }
 
-
-// TABO to International conversion: INT = 180 - TABO
-const taboToInt = (taboValue: number): number => {
-  if (isNaN(taboValue)) return 0;
-  const normalized = taboValue % 180;
-  return 180 - normalized;
-};
-
-// International to TABO conversion: TABO = 180 - INT
-const intToTabo = (intValue: number): number => {
-  if (isNaN(intValue)) return 0;
-  const normalized = intValue % 180;
-  return 180 - normalized;
-};
+function bumpQty(current: number, delta: number, min: number, max: number): number {
+  const n = Number(current);
+  const base = Number.isFinite(n) ? n : min;
+  return Math.min(max, Math.max(min, base + delta));
+}
 
 export default function ContactLensConfiguration({
   product,
+  onPackGalleryChange,
+  onDisplayPriceChange,
+  onSelectedPackQuantityChange,
   onAddToCart,
   addingToCart = false,
 }: ContactLensConfigurationProps) {
-  const [selectedPackSize, setSelectedPackSize] = useState<string>('unit');
-  
-  // Check if this is an astigmatism contact lens
-  const isAstigmatism = product.name?.toLowerCase().includes('astigmatism') || 
-                        product.category?.name?.toLowerCase().includes('astigmatism') ||
-                        product.category?.slug?.toLowerCase().includes('astigmatism');
-  
+  const unitConfig = useMemo(() => parseContactLensUnitConfig(product), [product]);
+  const configuredPacks = unitConfig.packs;
+  const hasConfiguredPacks = configuredPacks.length > 0;
+  const qtyOptions = unitConfig.qty_options;
+  const hasQtyOptions = qtyOptions.length > 0;
+  const qtyMin = hasQtyOptions ? qtyOptions[0] : 1;
+  const qtyMax = hasQtyOptions ? qtyOptions[qtyOptions.length - 1] : 99;
+
+  const colourVariants = useMemo(() => {
+    if (!product.variants?.length) return [];
+    return product.variants.filter((v) => Boolean(v.color_name) || (v.images && v.images.length > 0));
+  }, [product.variants]);
+
+  const isColouredLens = useMemo(() => {
+    const slug = (product.category?.slug || '').toLowerCase();
+    const name = (product.category?.name || '').toLowerCase();
+    const subSlug = (product.sub_category?.slug || '').toLowerCase();
+    const subName = (product.sub_category?.name || '').toLowerCase();
+    const isColourCategory = (value: string) =>
+      /\bcolou?rs?\b/.test(value.replace(/-/g, ' ')) ||
+      value.includes('coloured') ||
+      value.includes('colored');
+    return (
+      isColourCategory(slug) ||
+      isColourCategory(name) ||
+      isColourCategory(subSlug) ||
+      isColourCategory(subName) ||
+      Boolean(product.contact_lens_color) ||
+      (hasConfiguredPacks && colourVariants.length > 0)
+    );
+  }, [product.category, product.sub_category, product.contact_lens_color, hasConfiguredPacks, colourVariants.length]);
+
+  /** Use variants as pack alternatives only when no seller packs AND not colour-lens mode. */
+  const useVariantsAsPacks = !hasConfiguredPacks && !isColouredLens && Boolean(product.variants?.length);
+
+  const initialPackSelection = useMemo((): ContactLensPackSelection => {
+    if (configuredPacks.length > 0) {
+      return { mode: 'pack', quantity: configuredPacks[0].quantity };
+    }
+    if (!isColouredLens && product.variants?.length) {
+      return { mode: 'variant', variantId: product.variants[0].id };
+    }
+    return { mode: 'none' };
+  }, [configuredPacks, isColouredLens, product.variants]);
+
+  const [packSelection, setPackSelection] = useState<ContactLensPackSelection>(initialPackSelection);
+
+  const [selectedColourVariantId, setSelectedColourVariantId] = useState<number | null>(null);
+
+  useEffect(() => {
+    setPackSelection(initialPackSelection);
+  }, [product.id, initialPackSelection]);
+
+  const coloursForSelectedPack = useMemo(() => {
+    if (!colourVariants.length) return [];
+    if (packSelection.mode !== 'pack') return colourVariants;
+    const pack = configuredPacks.find((p) => p.quantity === packSelection.quantity);
+    if (!pack || !pack.available_variant_ids.length) return colourVariants;
+    const allowed = new Set(pack.available_variant_ids);
+    return colourVariants.filter((v) => allowed.has(v.id));
+  }, [colourVariants, packSelection, configuredPacks]);
+
+  useEffect(() => {
+    if (coloursForSelectedPack.length === 0) {
+      setSelectedColourVariantId(null);
+      return;
+    }
+    setSelectedColourVariantId((prev) =>
+      prev != null && coloursForSelectedPack.some((v) => v.id === prev)
+        ? prev
+        : coloursForSelectedPack[0].id
+    );
+  }, [coloursForSelectedPack]);
+
+  const isAstigmatism =
+    product.name?.toLowerCase().includes('astigmatism') ||
+    product.category?.name?.toLowerCase().includes('astigmatism') ||
+    product.category?.slug?.toLowerCase().includes('astigmatism') ||
+    product.sub_category?.name?.toLowerCase().includes('astigmatism') ||
+    product.sub_category?.slug?.toLowerCase().includes('astigmatism');
+
+  const defaultQty = hasQtyOptions ? qtyOptions[0] : 1;
+
   const [rightEye, setRightEye] = useState<EyeConfiguration>({
     base_curve: '',
     diameter: '',
     sph: '--',
     cyl: '--',
     axis: '--',
-    quantity: 1,
+    quantity: defaultQty,
     enabled: true,
   });
 
@@ -81,17 +293,13 @@ export default function ContactLensConfiguration({
     sph: '--',
     cyl: '--',
     axis: '--',
-    quantity: 1,
+    quantity: defaultQty,
     enabled: true,
   });
 
-  const [showAxisGuide, setShowAxisGuide] = useState(false);
-  const [rightAxisAngle, setRightAxisAngle] = useState(0);
-  const [leftAxisAngle, setLeftAxisAngle] = useState(0);
   const [prescriptionOptions, setPrescriptionOptions] = useState<PrescriptionOptions | null>(null);
   const [loadingOptions, setLoadingOptions] = useState(true);
 
-  // Fetch prescription options on mount
   useEffect(() => {
     const loadPrescriptionOptions = async () => {
       try {
@@ -105,51 +313,208 @@ export default function ContactLensConfiguration({
         setLoadingOptions(false);
       }
     };
-    
+
     loadPrescriptionOptions();
   }, [product.id]);
 
-  // Use API options if available, otherwise empty arrays
-  const rightSphOptions = prescriptionOptions?.sph?.right || prescriptionOptions?.sph?.both || [];
-  const leftSphOptions = prescriptionOptions?.sph?.left || prescriptionOptions?.sph?.both || [];
-  const rightCylOptions = prescriptionOptions?.cyl?.right || prescriptionOptions?.cyl?.both || [];
-  const leftCylOptions = prescriptionOptions?.cyl?.left || prescriptionOptions?.cyl?.both || [];
-  const rightAxisOptions = prescriptionOptions?.axis?.right || prescriptionOptions?.axis?.both || [];
-  const leftAxisOptions = prescriptionOptions?.axis?.left || prescriptionOptions?.axis?.both || [];
+  // When backend qty options load/change, clamp eye quantities into the allowed set.
+  useEffect(() => {
+    if (!hasQtyOptions) return;
+    const clamp = (q: number) => (qtyOptions.includes(q) ? q : qtyOptions[0]);
+    setRightEye((prev) => ({ ...prev, quantity: clamp(Number(prev.quantity)) }));
+    setLeftEye((prev) => ({ ...prev, quantity: clamp(Number(prev.quantity)) }));
+  }, [hasQtyOptions, qtyOptions]);
 
-  const handleRightEyeChange = (field: keyof EyeConfiguration, value: string | number | boolean) => {
-    const updated = { ...rightEye, [field]: value };
-    setRightEye(updated);
-    
-    // Update axis angle when axis changes
-    if (field === 'axis' && typeof value === 'string' && value !== '--') {
-      setRightAxisAngle(parseInt(value) || 0);
+  const baseCurveOptions = useMemo(() => {
+    const api = prescriptionOptions?.base_curve || [];
+    if (api.length) return sortNumericStrings(api.map(String));
+    return sortNumericStrings((product.base_curve_options || []).map(String));
+  }, [prescriptionOptions, product.base_curve_options]);
+
+  const diameterOptionsList = useMemo(() => {
+    const api = prescriptionOptions?.diameter || [];
+    if (api.length) return sortNumericStrings(api.map(String));
+    return sortNumericStrings((product.diameter_options || []).map(String));
+  }, [prescriptionOptions, product.diameter_options]);
+
+  const showCylAxisFields = useMemo(() => {
+    if (isAstigmatism) return true;
+    if (!prescriptionOptions) return false;
+    return (
+      mergeEyeOptionArrays(prescriptionOptions, 'cyl').length > 0 ||
+      mergeEyeOptionArrays(prescriptionOptions, 'axis').length > 0
+    );
+  }, [isAstigmatism, prescriptionOptions]);
+
+  const powerFieldLabel = showCylAxisFields ? 'SPH' : 'PWR';
+
+  const rightSphOptions = powerOptionsForSide(prescriptionOptions, 'right');
+  const leftSphOptions = powerOptionsForSide(prescriptionOptions, 'left');
+  const rightCylOptions = sideOptionsForField(prescriptionOptions, 'cyl', 'right');
+  const leftCylOptions = sideOptionsForField(prescriptionOptions, 'cyl', 'left');
+  const rightAxisOptions = sideOptionsForField(prescriptionOptions, 'axis', 'right');
+  const leftAxisOptions = sideOptionsForField(prescriptionOptions, 'axis', 'left');
+  const hasAnySphOptions = rightSphOptions.length > 0 || leftSphOptions.length > 0;
+
+  const selectedPackPrice = useMemo(() => {
+    if (packSelection.mode === 'pack') {
+      const row = configuredPacks.find((p) => p.quantity === packSelection.quantity);
+      if (row?.price != null && Number.isFinite(Number(row.price))) return Number(row.price);
+    }
+    if (packSelection.mode === 'variant') {
+      const v = product.variants?.find((x) => x.id === packSelection.variantId);
+      return Number(v?.price ?? product.price) || 0;
+    }
+    if (hasConfiguredPacks && configuredPacks[0]?.price != null) {
+      return Number(configuredPacks[0].price);
+    }
+    if (hasConfiguredPacks) return 0;
+    return Number(product.price) || 0;
+  }, [packSelection, configuredPacks, hasConfiguredPacks, product.price, product.variants]);
+
+  useEffect(() => {
+    if (!onSelectedPackQuantityChange) return;
+    if (packSelection.mode === 'pack') {
+      onSelectedPackQuantityChange(packSelection.quantity);
+    } else {
+      onSelectedPackQuantityChange(null);
+    }
+  }, [packSelection, onSelectedPackQuantityChange]);
+
+  useEffect(() => {
+    if (!onDisplayPriceChange) return;
+    onDisplayPriceChange(selectedPackPrice);
+  }, [selectedPackPrice, onDisplayPriceChange, product.id]);
+
+  const packColourStock = useMemo(() => {
+    if (packSelection.mode !== 'pack' || selectedColourVariantId == null) return null;
+    const row = unitConfig.colour_stock.find(
+      (r) => r.pack_quantity === packSelection.quantity && r.variant_id === selectedColourVariantId
+    );
+    return row ?? null;
+  }, [packSelection, selectedColourVariantId, unitConfig.colour_stock]);
+
+  const lastGallerySigRef = useRef<string>('');
+
+  useEffect(() => {
+    if (!onPackGalleryChange) return;
+
+    const sphericalPackOnly = hasConfiguredPacks && !isColouredLens;
+    let mainUrls: string[] | null = null;
+
+    if ((hasConfiguredPacks || isColouredLens) && selectedColourVariantId != null) {
+      const colour = coloursForSelectedPack.find((v) => v.id === selectedColourVariantId);
+      if (colour?.images?.length) {
+        mainUrls = colour.images.map((u) => getFullImageUrl(u));
+      }
+    }
+
+    if (!mainUrls && packSelection.mode === 'pack') {
+      const row = configuredPacks.find((p) => p.quantity === packSelection.quantity);
+      if (row?.images?.length) {
+        mainUrls = row.images.map((u) => getFullImageUrl(u));
+      }
+    } else if (!mainUrls && packSelection.mode === 'variant') {
+      const v = product.variants?.find((x) => x.id === packSelection.variantId);
+      if (v?.images?.length) {
+        mainUrls = v.images.map((u) => getFullImageUrl(u));
+      }
+    } else if (!mainUrls && hasConfiguredPacks) {
+      const first = configuredPacks[0];
+      if (first?.images?.length) {
+        mainUrls = first.images.map((u) => getFullImageUrl(u));
+      }
+    }
+
+    const sidebarUrls: string[] = [];
+    if (!sphericalPackOnly) {
+      const seen = new Set<string>();
+      configuredPacks.forEach((p) =>
+        p.images.forEach((url) => {
+          const full = getFullImageUrl(url);
+          if (full && !seen.has(full)) {
+            seen.add(full);
+            sidebarUrls.push(full);
+          }
+        })
+      );
+      (mainUrls || []).forEach((url) => {
+        if (url && !seen.has(url)) {
+          seen.add(url);
+          sidebarUrls.push(url);
+        }
+      });
+    }
+
+    const sig = `${product.id}\n${sphericalPackOnly}\n${sidebarUrls.join('\u0001')}\n${mainUrls?.join('\u0001') ?? ''}`;
+    if (lastGallerySigRef.current === sig) return;
+    lastGallerySigRef.current = sig;
+    onPackGalleryChange({ sidebarUrls, mainUrls, hideSidebar: sphericalPackOnly });
+  }, [
+    onPackGalleryChange,
+    packSelection,
+    configuredPacks,
+    product.id,
+    product.variants,
+    hasConfiguredPacks,
+    isColouredLens,
+    selectedColourVariantId,
+    coloursForSelectedPack,
+  ]);
+
+  const selectPack = (quantity: number) => {
+    setPackSelection({ mode: 'pack', quantity });
+    onSelectedPackQuantityChange?.(quantity);
+    const row = configuredPacks.find((p) => p.quantity === quantity);
+    if (onDisplayPriceChange) {
+      const next =
+        row?.price != null && Number.isFinite(Number(row.price))
+          ? Number(row.price)
+          : hasConfiguredPacks
+            ? 0
+            : Number(product.price) || 0;
+      onDisplayPriceChange(next);
     }
   };
 
+  const selectVariantPack = (variantId: number) => {
+    setPackSelection({ mode: 'variant', variantId });
+  };
+
+  const handleRightEyeChange = (field: keyof EyeConfiguration, value: string | number | boolean) => {
+    setRightEye({ ...rightEye, [field]: value });
+  };
+
   const handleLeftEyeChange = (field: keyof EyeConfiguration, value: string | number | boolean) => {
-    const updated = { ...leftEye, [field]: value };
-    setLeftEye(updated);
-    
-    // Update axis angle when axis changes
-    if (field === 'axis' && typeof value === 'string' && value !== '--') {
-      setLeftAxisAngle(parseInt(value) || 0);
-    }
+    setLeftEye({ ...leftEye, [field]: value });
   };
 
   const handleCopyRightToLeft = () => {
     setLeftEye({
       ...rightEye,
-      quantity: leftEye.quantity, // Keep left eye quantity
+      quantity: leftEye.quantity,
     });
-    setLeftAxisAngle(rightAxisAngle);
   };
 
   const handleAddToCart = async () => {
-    // Validate required fields - only check if product has those options
-    const hasBaseCurveOptions = product.base_curve_options && product.base_curve_options.length > 0;
-    const hasDiameterOptions = product.diameter_options && product.diameter_options.length > 0;
-    
+    const hasBaseCurveOptions = baseCurveOptions.length > 0;
+    const hasDiameterOptions = diameterOptionsList.length > 0;
+
+    if (hasConfiguredPacks && packSelection.mode !== 'pack') {
+      alert('Please select a pack size.');
+      return;
+    }
+
+    if ((hasConfiguredPacks || isColouredLens) && coloursForSelectedPack.length > 0 && selectedColourVariantId == null) {
+      alert('Please select a lens colour.');
+      return;
+    }
+
+    if (packColourStock != null && packColourStock.stock_quantity < 1) {
+      alert('Selected pack and colour combination is out of stock.');
+      return;
+    }
+
     if (rightEye.enabled) {
       if (hasBaseCurveOptions && !rightEye.base_curve) {
         alert('Please fill in Base Curve for right eye.');
@@ -177,9 +542,7 @@ export default function ContactLensConfiguration({
       return;
     }
 
-    // For astigmatism, validate CYL and AXIS
-    if (isAstigmatism) {
-      // For astigmatism, if CYL is provided, both CYL and AXIS are required
+    if (showCylAxisFields) {
       if (rightEye.enabled && rightEye.cyl !== '--') {
         if (rightEye.axis === '--') {
           alert('Please enter AXIS for right eye when CYL is specified.');
@@ -192,163 +555,333 @@ export default function ContactLensConfiguration({
           return;
         }
       }
-    } else {
-      // For non-astigmatism (spherical), SPH is required
-      if (rightEye.enabled && rightEye.sph === '--') {
+      if (hasAnySphOptions && rightEye.enabled && rightEye.cyl === '--' && rightEye.sph === '--') {
         alert('Please fill in SPH (Power) for right eye.');
         return;
       }
-      if (leftEye.enabled && leftEye.sph === '--') {
+      if (hasAnySphOptions && leftEye.enabled && leftEye.cyl === '--' && leftEye.sph === '--') {
+        alert('Please fill in SPH (Power) for left eye.');
+        return;
+      }
+    } else {
+      if (hasAnySphOptions && rightEye.enabled && rightEye.sph === '--') {
+        alert('Please fill in SPH (Power) for right eye.');
+        return;
+      }
+      if (hasAnySphOptions && leftEye.enabled && leftEye.sph === '--') {
         alert('Please fill in SPH (Power) for left eye.');
         return;
       }
     }
 
-    const config: any = {
+    const config: Record<string, unknown> = {
       product_id: product.id,
-      quantity: (rightEye.enabled ? rightEye.quantity : 0) + (leftEye.enabled ? leftEye.quantity : 0),
+      quantity: (rightEye.enabled ? Number(rightEye.quantity) : 0) + (leftEye.enabled ? Number(leftEye.quantity) : 0),
     };
 
+    if (packSelection.mode === 'pack') {
+      config.contact_lens_pack_quantity = packSelection.quantity;
+    }
+    if (packSelection.mode === 'variant') {
+      config.variant_id = packSelection.variantId;
+    } else if ((hasConfiguredPacks || isColouredLens) && selectedColourVariantId != null) {
+      config.variant_id = selectedColourVariantId;
+      const colour = coloursForSelectedPack.find((v) => v.id === selectedColourVariantId);
+      if (colour) {
+        config.product_variant = {
+          color_name: colour.color_name,
+          color_code: colour.color_code,
+        };
+      }
+    }
+
     if (rightEye.enabled) {
-      // Only include base_curve and diameter if they are provided
       if (rightEye.base_curve && rightEye.base_curve !== '') {
         config.contact_lens_right_base_curve = parseFloat(rightEye.base_curve);
       }
       if (rightEye.diameter && rightEye.diameter !== '') {
         config.contact_lens_right_diameter = parseFloat(rightEye.diameter);
       }
-      // For astigmatism, if SPH is '--' but CYL is provided, default to 0.00
-      const rightSph = rightEye.sph === '--' && isAstigmatism && rightEye.cyl !== '--' ? '0.00' : rightEye.sph;
+      const rightSph =
+        rightEye.sph === '--' && showCylAxisFields && rightEye.cyl !== '--' ? '0.00' : rightEye.sph;
       if (rightSph !== '--') {
         config.contact_lens_right_power = parseFloat(rightSph);
       }
-      config.contact_lens_right_qty = rightEye.quantity;
-      if (isAstigmatism && rightEye.cyl !== '--') {
+      config.contact_lens_right_qty = Number(rightEye.quantity);
+      if (showCylAxisFields && rightEye.cyl !== '--') {
         config.contact_lens_right_cylinder = parseFloat(rightEye.cyl);
       }
-      if (isAstigmatism && rightEye.axis !== '--') {
-        config.contact_lens_right_axis = parseInt(rightEye.axis);
+      if (showCylAxisFields && rightEye.axis !== '--') {
+        config.contact_lens_right_axis = parseInt(rightEye.axis, 10);
       }
     }
 
     if (leftEye.enabled) {
-      // Only include base_curve and diameter if they are provided
       if (leftEye.base_curve && leftEye.base_curve !== '') {
         config.contact_lens_left_base_curve = parseFloat(leftEye.base_curve);
       }
       if (leftEye.diameter && leftEye.diameter !== '') {
         config.contact_lens_left_diameter = parseFloat(leftEye.diameter);
       }
-      // For astigmatism, if SPH is '--' but CYL is provided, default to 0.00
-      const leftSph = leftEye.sph === '--' && isAstigmatism && leftEye.cyl !== '--' ? '0.00' : leftEye.sph;
+      const leftSph =
+        leftEye.sph === '--' && showCylAxisFields && leftEye.cyl !== '--' ? '0.00' : leftEye.sph;
       if (leftSph !== '--') {
         config.contact_lens_left_power = parseFloat(leftSph);
       }
-      config.contact_lens_left_qty = leftEye.quantity;
-      if (isAstigmatism && leftEye.cyl !== '--') {
+      config.contact_lens_left_qty = Number(leftEye.quantity);
+      if (showCylAxisFields && leftEye.cyl !== '--') {
         config.contact_lens_left_cylinder = parseFloat(leftEye.cyl);
       }
-      if (isAstigmatism && leftEye.axis !== '--') {
-        config.contact_lens_left_axis = parseInt(leftEye.axis);
+      if (showCylAxisFields && leftEye.axis !== '--') {
+        config.contact_lens_left_axis = parseInt(leftEye.axis, 10);
       }
     }
 
-    await onAddToCart(config);
+    await onAddToCart(config as Parameters<ContactLensConfigurationProps['onAddToCart']>[0]);
   };
 
-  // Validation for canAddToCart button
   const canAddToCart = (() => {
-    // Check if at least one eye is enabled
     if (!rightEye.enabled && !leftEye.enabled) return false;
-    
-    // Check stock status
     if (product.stock_status !== 'in_stock') return false;
-    
-    // Check required fields for enabled eyes
-    const hasBaseCurveOptions = product.base_curve_options && product.base_curve_options.length > 0;
-    const hasDiameterOptions = product.diameter_options && product.diameter_options.length > 0;
-    
+    if (hasConfiguredPacks && packSelection.mode !== 'pack') return false;
+    if ((hasConfiguredPacks || isColouredLens) && coloursForSelectedPack.length > 0 && selectedColourVariantId == null) {
+      return false;
+    }
+    if (packColourStock != null && packColourStock.stock_quantity < 1) return false;
+
+    const hasBaseCurveOptions = baseCurveOptions.length > 0;
+    const hasDiameterOptions = diameterOptionsList.length > 0;
+
     if (rightEye.enabled) {
-      // Base Curve and Diameter are only required if the product has those options
       if (hasBaseCurveOptions && (!rightEye.base_curve || rightEye.base_curve === '')) return false;
       if (hasDiameterOptions && (!rightEye.diameter || rightEye.diameter === '')) return false;
-      
-      // For astigmatism: if CYL is provided, AXIS must be provided (SPH can be defaulted to 0.00)
-      // OR if SPH is provided, that's also valid
-      if (isAstigmatism) {
+      if (showCylAxisFields) {
         if (rightEye.cyl !== '--' && rightEye.axis === '--') return false;
-        // If CYL is not provided, SPH must be provided
-        if (rightEye.cyl === '--' && rightEye.sph === '--') return false;
-      } else {
-        // For non-astigmatism, SPH is required
-        if (rightEye.sph === '--') return false;
+        if (hasAnySphOptions && rightEye.cyl === '--' && rightEye.sph === '--') return false;
+      } else if (hasAnySphOptions && rightEye.sph === '--') {
+        return false;
       }
     }
-    
+
     if (leftEye.enabled) {
-      // Base Curve and Diameter are only required if the product has those options
       if (hasBaseCurveOptions && (!leftEye.base_curve || leftEye.base_curve === '')) return false;
       if (hasDiameterOptions && (!leftEye.diameter || leftEye.diameter === '')) return false;
-      
-      // For astigmatism: if CYL is provided, AXIS must be provided (SPH can be defaulted to 0.00)
-      // OR if SPH is provided, that's also valid
-      if (isAstigmatism) {
+      if (showCylAxisFields) {
         if (leftEye.cyl !== '--' && leftEye.axis === '--') return false;
-        // If CYL is not provided, SPH must be provided
-        if (leftEye.cyl === '--' && leftEye.sph === '--') return false;
-      } else {
-        // For non-astigmatism, SPH is required
-        if (leftEye.sph === '--') return false;
+        if (hasAnySphOptions && leftEye.cyl === '--' && leftEye.sph === '--') return false;
+      } else if (hasAnySphOptions && leftEye.sph === '--') {
+        return false;
       }
     }
-    
+
     return true;
   })();
 
-  // Pack size options - using product variants or default
-  const packSizes = product.variants && product.variants.length > 0
-    ? product.variants.map((v, index) => ({
-        id: v.id,
-        name: `Unit ${v.id}`,
-        price: v.price || product.price,
-      }))
-    : [{ id: 1, name: 'Unit', price: product.price }];
+  const renderQtyControl = (
+    eye: EyeConfiguration,
+    onChange: (field: keyof EyeConfiguration, value: string | number | boolean) => void,
+    enabled: boolean
+  ) => {
+    if (hasQtyOptions) {
+      return (
+        <select
+          value={eye.quantity}
+          onChange={(e) => onChange('quantity', parseInt(e.target.value, 10) || qtyMin)}
+          disabled={!enabled}
+          className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white font-medium"
+        >
+          {qtyOptions.map((q) => (
+            <option key={q} value={q}>
+              {q}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-2" dir="ltr">
+        <button
+          type="button"
+          aria-label="Decrease quantity"
+          onClick={() => onChange('quantity', bumpQty(eye.quantity, -1, qtyMin, qtyMax))}
+          disabled={!enabled || Number(eye.quantity) <= qtyMin}
+          className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold text-gray-700"
+        >
+          −
+        </button>
+        <span className="w-16 text-center text-base font-medium text-gray-900 tabular-nums">
+          {Number(eye.quantity) || qtyMin}
+        </span>
+        <button
+          type="button"
+          aria-label="Increase quantity"
+          onClick={() => onChange('quantity', bumpQty(eye.quantity, 1, qtyMin, qtyMax))}
+          disabled={!enabled || Number(eye.quantity) >= qtyMax}
+          className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold text-gray-700"
+        >
+          +
+        </button>
+      </div>
+    );
+  };
+
+  const powerSelectClass = (selected: boolean, accent: 'blue' | 'purple') =>
+    `${selectBoxClass} ${
+      selected
+        ? accent === 'blue'
+          ? 'border-blue-500 bg-blue-50 text-blue-900 focus:ring-blue-500 focus:border-blue-500'
+          : 'border-purple-500 bg-purple-50 text-purple-900 focus:ring-purple-500 focus:border-purple-500'
+        : 'border-gray-200 hover:border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500'
+    }`;
 
   return (
     <div className="space-y-6">
-      {/* Title Section */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Select the parameters</h2>
         <p className="text-lg text-gray-700">{product.name}</p>
+        {loadingOptions ? (
+          <p className="text-xs text-gray-500 mt-1">Loading prescription options…</p>
+        ) : null}
       </div>
 
-      {/* Pack Size Selection */}
       <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-3">
-          Select Pack Size (Units)
-        </label>
+        <label className="block text-sm font-semibold text-gray-900 mb-3">Pack size (lenses per box)</label>
         <div className="flex flex-wrap gap-3">
-          {packSizes.map((pack) => (
-            <button
-              key={pack.id}
-              type="button"
-              onClick={() => setSelectedPackSize(pack.id.toString())}
-              className={`w-20 h-20 rounded-full border-2 flex flex-col items-center justify-center transition-all ${
-                selectedPackSize === pack.id.toString()
-                  ? 'border-[#0066CC] bg-[#0066CC]/5 shadow-md'
-                  : 'border-gray-300 hover:border-gray-400 bg-white'
-              }`}
-            >
-              <span className="text-sm font-semibold text-gray-900">{pack.name}</span>
-              <span className="text-xs text-gray-600">€{Number(pack.price).toFixed(2)}</span>
-            </button>
-          ))}
+          {hasConfiguredPacks
+            ? configuredPacks.map((pack) => {
+                const selected = packSelection.mode === 'pack' && packSelection.quantity === pack.quantity;
+                const thumb = pack.images[0];
+                return (
+                  <button
+                    key={`pack-${pack.quantity}`}
+                    type="button"
+                    onClick={() => selectPack(pack.quantity)}
+                    aria-pressed={selected}
+                    className={`flex flex-col items-center rounded-xl border-2 p-2 w-[5.5rem] transition-all ${
+                      selected
+                        ? 'border-[#0066CC] bg-[#0066CC]/5 shadow-md'
+                        : 'border-gray-300 hover:border-gray-400 bg-white'
+                    }`}
+                  >
+                    <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden mb-1 flex items-center justify-center">
+                      {thumb ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={getFullImageUrl(thumb)}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-400 text-center px-1">×{pack.quantity}</span>
+                      )}
+                    </div>
+                    <span className="text-xs font-bold text-gray-900">×{pack.quantity}</span>
+                    <span className="text-[10px] text-gray-600">
+                      €{Number(pack.price != null ? pack.price : 0).toFixed(2)}
+                    </span>
+                  </button>
+                );
+              })
+            : useVariantsAsPacks && product.variants
+              ? product.variants.map((v) => {
+                  const selected = packSelection.mode === 'variant' && packSelection.variantId === v.id;
+                  const thumb = v.images?.[0];
+                  return (
+                    <button
+                      key={`var-${v.id}`}
+                      type="button"
+                      onClick={() => selectVariantPack(v.id)}
+                      aria-pressed={selected}
+                      className={`flex flex-col items-center rounded-xl border-2 p-2 w-[5.5rem] transition-all ${
+                        selected
+                          ? 'border-[#0066CC] bg-[#0066CC]/5 shadow-md'
+                          : 'border-gray-300 hover:border-gray-400 bg-white'
+                      }`}
+                    >
+                      <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden mb-1 flex items-center justify-center">
+                        {thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={getFullImageUrl(thumb)} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[10px] text-gray-500 text-center px-0.5">{v.color_name || '—'}</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-semibold text-gray-900 text-center leading-tight">
+                        {v.color_name || `Opt ${v.id}`}
+                      </span>
+                      <span className="text-[10px] text-gray-600">€{Number(v.price ?? product.price).toFixed(2)}</span>
+                    </button>
+                  );
+                })
+              : (
+                  <div className="text-sm text-gray-600 rounded-lg border border-gray-200 px-4 py-3 bg-gray-50">
+                    Standard pack — €{Number(selectedPackPrice).toFixed(2)}
+                  </div>
+                )}
         </div>
+        {hasConfiguredPacks && (
+          <p className="text-xs text-gray-500 mt-2">
+            {isColouredLens
+              ? 'Select a pack for price; choose a colour to update the product image.'
+              : 'Select a pack to update the product image and price. The first pack is selected by default.'}
+          </p>
+        )}
       </div>
 
-      {/* Eyes Configuration Grid */}
+      {(hasConfiguredPacks || isColouredLens) && coloursForSelectedPack.length > 0 && (
+        <div>
+          <label className="block text-sm font-semibold text-gray-900 mb-3">Lens colour</label>
+          <div className="flex flex-wrap gap-3">
+            {coloursForSelectedPack.map((v) => {
+              const selected = selectedColourVariantId === v.id;
+              const thumb = v.images?.[0];
+              const stockRow =
+                packSelection.mode === 'pack'
+                  ? unitConfig.colour_stock.find(
+                      (r) => r.pack_quantity === packSelection.quantity && r.variant_id === v.id
+                    )
+                  : null;
+              return (
+                <button
+                  key={`colour-${v.id}`}
+                  type="button"
+                  onClick={() => setSelectedColourVariantId(v.id)}
+                  className={`flex flex-col items-center rounded-xl border-2 p-2 w-[5.5rem] transition-all ${
+                    selected
+                      ? 'border-[#0066CC] bg-[#0066CC]/5 shadow-md'
+                      : 'border-gray-300 hover:border-gray-400 bg-white'
+                  }`}
+                >
+                  <div
+                    className="w-14 h-14 rounded-lg overflow-hidden mb-1 flex items-center justify-center border border-gray-100"
+                    style={{ backgroundColor: v.color_code || '#f3f4f6' }}
+                  >
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={getFullImageUrl(thumb)} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[10px] text-gray-600 text-center px-0.5">{v.color_name || '—'}</span>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-semibold text-gray-900 text-center leading-tight">
+                    {v.color_name || `Colour ${v.id}`}
+                  </span>
+                  <span className="text-[10px] text-gray-500">
+                    {stockRow != null ? `${stockRow.stock_quantity} left` : 'Same pack price'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Colour changes the product image only. Price stays tied to pack quantity (€
+            {Number(selectedPackPrice).toFixed(2)}).
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Right Eye (OD) */}
         <div className="bg-gradient-to-br from-blue-50 via-blue-50/50 to-white border-2 border-blue-200 rounded-xl p-5 shadow-md">
           <div className="flex items-center gap-3 mb-4">
             <input
@@ -365,158 +898,106 @@ export default function ContactLensConfiguration({
           </div>
 
           <div className="space-y-4">
-            {/* Quantity */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quantity (Qty)
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleRightEyeChange('quantity', Math.max(1, rightEye.quantity - 1))}
-                  disabled={!rightEye.enabled}
-                  className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold text-gray-700"
-                >
-                  −
-                </button>
-                <Input
-                  type="number"
-                  value={rightEye.quantity}
-                  onChange={(e) => handleRightEyeChange('quantity', parseInt(e.target.value) || 1)}
-                  disabled={!rightEye.enabled}
-                  className="w-20 text-center"
-                  min="1"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRightEyeChange('quantity', rightEye.quantity + 1)}
-                  disabled={!rightEye.enabled}
-                  className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold text-gray-700"
-                >
-                  +
-                </button>
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Quantity (Qty)</label>
+              {renderQtyControl(rightEye, handleRightEyeChange, rightEye.enabled)}
             </div>
 
-            {/* Base Curve */}
-            {product.base_curve_options && product.base_curve_options.length > 0 && (
+            {baseCurveOptions.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Base Curve (B.C)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Base Curve (B.C) mm</label>
                 <select
                   value={rightEye.base_curve}
                   onChange={(e) => handleRightEyeChange('base_curve', e.target.value)}
                   disabled={!rightEye.enabled}
-                  className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                  className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white font-medium"
                 >
                   <option value="">--</option>
-                  {product.base_curve_options.map((bc) => (
+                  {baseCurveOptions.map((bc) => (
                     <option key={bc} value={bc}>
-                      {bc}
+                      {formatMmDisplay(bc)}
                     </option>
                   ))}
                 </select>
               </div>
             )}
 
-            {/* Diameter */}
-            {product.diameter_options && product.diameter_options.length > 0 && (
+            {diameterOptionsList.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Diameter (DIA)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Diameter (DIA) mm</label>
                 <select
                   value={rightEye.diameter}
                   onChange={(e) => handleRightEyeChange('diameter', e.target.value)}
                   disabled={!rightEye.enabled}
-                  className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                  className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white font-medium"
                 >
                   <option value="">--</option>
-                  {product.diameter_options.map((dia) => (
+                  {diameterOptionsList.map((dia) => (
                     <option key={dia} value={dia}>
-                      {dia}
+                      {formatMmDisplay(dia)}
                     </option>
                   ))}
                 </select>
               </div>
             )}
 
-            {/* SPH, CYL, AXIS Grid */}
             <div className="grid grid-cols-3 gap-3">
-              {/* SPH */}
-              <div className="relative">
-                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">SPH</label>
-                <select
-                  value={rightEye.sph}
-                  onChange={(e) => handleRightEyeChange('sph', e.target.value)}
-                  disabled={!rightEye.enabled}
-                  className={`w-full px-2 py-2.5 text-sm border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none pr-8 bg-white ${
-                    rightEye.sph !== "--"
-                      ? "border-blue-500 bg-blue-100 font-bold text-blue-900"
-                      : "border-gray-200 hover:border-gray-300 text-gray-900"
-                  }`}
-                >
-                  <option value="--">--</option>
-                  {rightSphOptions.length > 0 ? (
-                    rightSphOptions.map((sph) => (
-                      <option key={sph} value={sph}>
-                        {sph}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled>No options configured</option>
-                  )}
-                </select>
-              </div>
-
-              {/* CYL - Only for astigmatism */}
-              {isAstigmatism && (
+              {rightSphOptions.length > 0 && (
                 <div className="relative">
-                  <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">CYL</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">
+                    {powerFieldLabel}
+                  </label>
+                  <select
+                    value={rightEye.sph}
+                    onChange={(e) => handleRightEyeChange('sph', e.target.value)}
+                    disabled={!rightEye.enabled}
+                    className={powerSelectClass(rightEye.sph !== '--', 'blue')}
+                  >
+                    <option value="--">--</option>
+                    {rightSphOptions.map((sph) => (
+                      <option key={sph} value={sph}>
+                        {formatDiopterDisplay(sph)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {showCylAxisFields && (
+                <div className="relative">
+                  <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">CYL</label>
                   <select
                     value={rightEye.cyl}
                     onChange={(e) => handleRightEyeChange('cyl', e.target.value)}
                     disabled={!rightEye.enabled}
-                    className={`w-full px-2 py-2.5 text-sm border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none pr-8 bg-white ${
-                      rightEye.cyl !== "--"
-                        ? "border-blue-500 bg-blue-100 font-bold text-blue-900"
-                        : "border-gray-200 hover:border-gray-300 text-gray-900"
-                    }`}
+                    className={powerSelectClass(rightEye.cyl !== '--', 'blue')}
                   >
+                    <option value="--">--</option>
                     {rightCylOptions.length > 0 ? (
                       rightCylOptions.map((cyl) => (
                         <option key={cyl} value={cyl}>
-                          {cyl}
+                          {formatDiopterDisplay(cyl)}
                         </option>
                       ))
                     ) : (
-                      <option value="" disabled>No options configured</option>
+                      <option value="" disabled>
+                        No options
+                      </option>
                     )}
                   </select>
                 </div>
               )}
 
-              {/* AXIS - Only for astigmatism */}
-              {isAstigmatism && (
+              {showCylAxisFields && (
                 <div className="relative">
-                  <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">AXIS</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">AXIS</label>
                   <select
                     value={rightEye.axis}
-                    onChange={(e) => {
-                      const newAxis = e.target.value;
-                      handleRightEyeChange('axis', newAxis);
-                      if (newAxis !== "--") {
-                        setRightAxisAngle(parseInt(newAxis) || 0);
-                      }
-                    }}
+                    onChange={(e) => handleRightEyeChange('axis', e.target.value)}
                     disabled={!rightEye.enabled}
-                    className={`w-full px-2 py-2.5 text-sm border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none pr-8 bg-white ${
-                      rightEye.axis !== "--"
-                        ? "border-blue-500 bg-blue-100 font-bold text-blue-900"
-                        : "border-gray-200 hover:border-gray-300 text-gray-900"
-                    }`}
+                    className={powerSelectClass(rightEye.axis !== '--', 'blue')}
                   >
+                    <option value="--">--</option>
                     {rightAxisOptions.length > 0 ? (
                       rightAxisOptions.map((axis) => (
                         <option key={axis} value={axis}>
@@ -524,7 +1005,9 @@ export default function ContactLensConfiguration({
                         </option>
                       ))
                     ) : (
-                      <option value="" disabled>No options configured</option>
+                      <option value="" disabled>
+                        No options
+                      </option>
                     )}
                   </select>
                 </div>
@@ -533,7 +1016,6 @@ export default function ContactLensConfiguration({
           </div>
         </div>
 
-        {/* Left Eye (OS) */}
         <div className="bg-gradient-to-br from-purple-50 via-purple-50/50 to-white border-2 border-purple-200 rounded-xl p-5 shadow-md">
           <div className="flex items-center gap-3 mb-4">
             <input
@@ -550,158 +1032,106 @@ export default function ContactLensConfiguration({
           </div>
 
           <div className="space-y-4">
-            {/* Quantity */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quantity (Qty)
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleLeftEyeChange('quantity', Math.max(1, leftEye.quantity - 1))}
-                  disabled={!leftEye.enabled}
-                  className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold text-gray-700"
-                >
-                  −
-                </button>
-                <Input
-                  type="number"
-                  value={leftEye.quantity}
-                  onChange={(e) => handleLeftEyeChange('quantity', parseInt(e.target.value) || 1)}
-                  disabled={!leftEye.enabled}
-                  className="w-20 text-center"
-                  min="1"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleLeftEyeChange('quantity', leftEye.quantity + 1)}
-                  disabled={!leftEye.enabled}
-                  className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold text-gray-700"
-                >
-                  +
-                </button>
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Quantity (Qty)</label>
+              {renderQtyControl(leftEye, handleLeftEyeChange, leftEye.enabled)}
             </div>
 
-            {/* Base Curve */}
-            {product.base_curve_options && product.base_curve_options.length > 0 && (
+            {baseCurveOptions.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Base Curve (B.C)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Base Curve (B.C) mm</label>
                 <select
                   value={leftEye.base_curve}
                   onChange={(e) => handleLeftEyeChange('base_curve', e.target.value)}
                   disabled={!leftEye.enabled}
-                  className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                  className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white font-medium"
                 >
                   <option value="">--</option>
-                  {product.base_curve_options.map((bc) => (
+                  {baseCurveOptions.map((bc) => (
                     <option key={bc} value={bc}>
-                      {bc}
+                      {formatMmDisplay(bc)}
                     </option>
                   ))}
                 </select>
               </div>
             )}
 
-            {/* Diameter */}
-            {product.diameter_options && product.diameter_options.length > 0 && (
+            {diameterOptionsList.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Diameter (DIA)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Diameter (DIA) mm</label>
                 <select
                   value={leftEye.diameter}
                   onChange={(e) => handleLeftEyeChange('diameter', e.target.value)}
                   disabled={!leftEye.enabled}
-                  className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                  className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white font-medium"
                 >
                   <option value="">--</option>
-                  {product.diameter_options.map((dia) => (
+                  {diameterOptionsList.map((dia) => (
                     <option key={dia} value={dia}>
-                      {dia}
+                      {formatMmDisplay(dia)}
                     </option>
                   ))}
                 </select>
               </div>
             )}
 
-            {/* SPH, CYL, AXIS Grid */}
             <div className="grid grid-cols-3 gap-3">
-              {/* SPH */}
-              <div className="relative">
-                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">SPH</label>
-                <select
-                  value={leftEye.sph}
-                  onChange={(e) => handleLeftEyeChange('sph', e.target.value)}
-                  disabled={!leftEye.enabled}
-                  className={`w-full px-2 py-2.5 text-sm border-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all appearance-none pr-8 bg-white ${
-                    leftEye.sph !== "--"
-                      ? "border-purple-500 bg-purple-100 font-bold text-purple-900"
-                      : "border-gray-200 hover:border-gray-300 text-gray-900"
-                  }`}
-                >
-                  <option value="--">--</option>
-                  {leftSphOptions.length > 0 ? (
-                    leftSphOptions.map((sph) => (
-                      <option key={sph} value={sph}>
-                        {sph}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled>No options configured</option>
-                  )}
-                </select>
-              </div>
-
-              {/* CYL - Only for astigmatism */}
-              {isAstigmatism && (
+              {leftSphOptions.length > 0 && (
                 <div className="relative">
-                  <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">CYL</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">
+                    {powerFieldLabel}
+                  </label>
+                  <select
+                    value={leftEye.sph}
+                    onChange={(e) => handleLeftEyeChange('sph', e.target.value)}
+                    disabled={!leftEye.enabled}
+                    className={powerSelectClass(leftEye.sph !== '--', 'purple')}
+                  >
+                    <option value="--">--</option>
+                    {leftSphOptions.map((sph) => (
+                      <option key={sph} value={sph}>
+                        {formatDiopterDisplay(sph)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {showCylAxisFields && (
+                <div className="relative">
+                  <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">CYL</label>
                   <select
                     value={leftEye.cyl}
                     onChange={(e) => handleLeftEyeChange('cyl', e.target.value)}
                     disabled={!leftEye.enabled}
-                    className={`w-full px-2 py-2.5 text-sm border-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all appearance-none pr-8 bg-white ${
-                      leftEye.cyl !== "--"
-                        ? "border-purple-500 bg-purple-100 font-bold text-purple-900"
-                        : "border-gray-200 hover:border-gray-300 text-gray-900"
-                    }`}
+                    className={powerSelectClass(leftEye.cyl !== '--', 'purple')}
                   >
+                    <option value="--">--</option>
                     {leftCylOptions.length > 0 ? (
                       leftCylOptions.map((cyl) => (
                         <option key={cyl} value={cyl}>
-                          {cyl}
+                          {formatDiopterDisplay(cyl)}
                         </option>
                       ))
                     ) : (
-                      <option value="" disabled>No options configured</option>
+                      <option value="" disabled>
+                        No options
+                      </option>
                     )}
                   </select>
                 </div>
               )}
 
-              {/* AXIS - Only for astigmatism */}
-              {isAstigmatism && (
+              {showCylAxisFields && (
                 <div className="relative">
-                  <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">AXIS</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">AXIS</label>
                   <select
                     value={leftEye.axis}
-                    onChange={(e) => {
-                      const newAxis = e.target.value;
-                      handleLeftEyeChange('axis', newAxis);
-                      if (newAxis !== "--") {
-                        setLeftAxisAngle(parseInt(newAxis) || 0);
-                      }
-                    }}
+                    onChange={(e) => handleLeftEyeChange('axis', e.target.value)}
                     disabled={!leftEye.enabled}
-                    className={`w-full px-2 py-2.5 text-sm border-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all appearance-none pr-8 bg-white ${
-                      leftEye.axis !== "--"
-                        ? "border-purple-500 bg-purple-100 font-bold text-purple-900"
-                        : "border-gray-200 hover:border-gray-300 text-gray-900"
-                    }`}
+                    className={powerSelectClass(leftEye.axis !== '--', 'purple')}
                   >
+                    <option value="--">--</option>
                     {leftAxisOptions.length > 0 ? (
                       leftAxisOptions.map((axis) => (
                         <option key={axis} value={axis}>
@@ -709,7 +1139,9 @@ export default function ContactLensConfiguration({
                         </option>
                       ))
                     ) : (
-                      <option value="" disabled>No options configured</option>
+                      <option value="" disabled>
+                        No options
+                      </option>
                     )}
                   </select>
                 </div>
@@ -719,7 +1151,6 @@ export default function ContactLensConfiguration({
         </div>
       </div>
 
-      {/* Copy Right to Left Button */}
       <div className="flex justify-center">
         <button
           type="button"
@@ -727,270 +1158,17 @@ export default function ContactLensConfiguration({
           className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+            />
           </svg>
           Copy Right to Left
         </button>
       </div>
 
-      {/* Show Axis Diagram Button - Only for astigmatism */}
-      {isAstigmatism && (
-        <div className="mb-6 mt-6">
-          <button
-            type="button"
-            onClick={() => setShowAxisGuide(!showAxisGuide)}
-            className="w-full px-6 py-3.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3 transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-            <span>{showAxisGuide ? 'Hide Axis Diagram' : 'Show Axis Diagram'}</span>
-          </button>
-        </div>
-      )}
-
-      {/* Axis Diagrams - Only for astigmatism */}
-      {isAstigmatism && showAxisGuide && (
-        <div className="mt-4">
-          <div className="bg-white p-4 rounded-lg border border-gray-200" style={{ overflow: 'visible', width: '100%' }}>
-            <div className="text-center mb-3">
-              <h3 className="text-base font-semibold text-gray-800 mb-2">Axis Measurements</h3>
-              <div className="flex justify-center items-center gap-6">
-                <div className="text-center">
-                  <div className="text-xs font-medium text-blue-600 mb-1">Right Eye (OD)</div>
-                  <div className="text-lg font-bold text-gray-800">{rightEye.axis !== "--" ? rightEye.axis : "0"}°</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs font-medium text-purple-600 mb-1">Left Eye (OS)</div>
-                  <div className="text-lg font-bold text-gray-800">{leftEye.axis !== "--" ? intToTabo(parseInt(leftEye.axis)) : "0"}°</div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="w-full overflow-x-auto">
-              <div className="flex flex-col gap-4 justify-center items-center mb-6" style={{ overflow: 'visible', width: '100%' }}>
-                {/* Right Eye Diagram */}
-                <div className="text-center w-full" style={{ overflow: 'visible', minWidth: '400px' }}>
-                  <div className="font-bold text-lg mb-4 text-blue-700">Right Eye</div>
-                  <div className="flex justify-center items-center" style={{ overflow: 'visible', minHeight: '380px' }}>
-                    <div className="relative w-[400px] h-[400px] bg-white rounded-full shadow-2xl border-2 border-gray-300">
-                      <svg width="800" height="500" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style={{ cursor: 'pointer', userSelect: 'none', display: 'block', width: '100%', maxWidth: '100%', height: 'auto', overflow: 'visible', margin: '0px auto' }}>
-                        <defs>
-                          <marker id="arrowhead-right-cl" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto">
-                            <polygon points="0 0, 14 7, 0 14" fill="#2563eb" />
-                          </marker>
-                        </defs>
-                        <rect width="800" height="500" fill="white" />
-                        {/* Semi-circle arc at the bottom: 0° on right, 180° on left */}
-                        <path d="M 620 420 A 220 220 0 0 0 180 420" fill="none" stroke="#000" strokeWidth="3" />
-                        
-                        {/* Minor tick marks (every degree) */}
-                        {Array.from({ length: 181 }, (_, i) => i).map((deg) => {
-                          if (deg % 10 === 0) return null;
-                          // 0° is on the right (0 radians), 180° is on the left (π radians)
-                          // Arc is at bottom, so angle goes from 0 (right) to π (left)
-                          const angle = deg * (Math.PI / 180);
-                          const x1 = 400 + 210 * Math.cos(angle);
-                          const y1 = 420 + 210 * Math.sin(angle);
-                          const x2 = 400 + 220 * Math.cos(angle);
-                          const y2 = 420 + 220 * Math.sin(angle);
-                          return (
-                            <line key={`minor-right-cl-${deg}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#ccc" strokeWidth="0.8" />
-                          );
-                        })}
-                        
-                        {/* Major tick marks and labels */}
-                        {Array.from({ length: 181 }, (_, i) => i).map((deg) => {
-                          if (deg % 10 !== 0) return null;
-                          // 0° is on the right (0 radians), 180° is on the left (π radians)
-                          const angle = deg * (Math.PI / 180);
-                          const x = 400 + 220 * Math.cos(angle);
-                          const y = 420 + 220 * Math.sin(angle);
-                          // Position text above the arc (smaller radius) to align with the curve
-                          const textX = 400 + 180 * Math.cos(angle);
-                          const textY = 420 + 180 * Math.sin(angle);
-                          // Keep labels horizontal around the arc for readability.
-                          return (
-                            <g key={`right-cl-${deg}`}>
-                              <line x1={400 + 200 * Math.cos(angle)} y1={420 + 200 * Math.sin(angle)} x2={x} y2={y} stroke="#000" strokeWidth={deg % 30 === 0 ? "3.5" : "1.8"} />
-                              <text 
-                                x={textX} 
-                                y={textY} 
-                                textAnchor="middle" 
-                                dominantBaseline="middle" 
-                                fontSize={deg % 30 === 0 ? "22" : "18"} 
-                                fill="#000" 
-                                fontWeight={deg % 30 === 0 ? "bold" : "600"} 
-                                fontFamily="Arial, sans-serif"
-                              >
-                                {deg}
-                              </text>
-                            </g>
-                          );
-                        })}
-                        {/* Arrow for right eye - 0° points right, 180° points left */}
-                        <line 
-                          x1="400" 
-                          y1="420" 
-                          x2={400 + 220 * Math.cos(rightAxisAngle * (Math.PI / 180))} 
-                          y2={420 + 220 * Math.sin(rightAxisAngle * (Math.PI / 180))} 
-                          stroke="#2563eb" 
-                          strokeWidth="6" 
-                          markerEnd="url(#arrowhead-right-cl)" 
-                          style={{ pointerEvents: 'none' }} 
-                        />
-                        <circle cx="400" cy="420" r="6" fill="#000" stroke="#fff" strokeWidth="2" />
-                        <text x="400" y="465" textAnchor="middle" dominantBaseline="middle" fontSize="22" fill="#333" fontFamily="Arial, sans-serif" fontWeight="600">{rightAxisAngle}°</text>
-                        <text x="290" y="220" fontSize="26" fill="#22c55e" fontWeight="bold" fontFamily="Arial, sans-serif">R</text>
-                        <text x="290" y="255" fontSize="26" fill="#22c55e" fontWeight="bold" fontFamily="Arial, sans-serif">I</text>
-                      </svg>
-                      {/* Interactive area for right eye */}
-                      <div
-                        className="absolute inset-0 cursor-grab active:cursor-grabbing rounded-full"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          const handleMouseMove = (moveEvent: MouseEvent) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            const centerX = rect.left + rect.width / 2;
-                            const centerY = rect.top + rect.height / 2;
-                            const x = moveEvent.clientX - centerX;
-                            const y = moveEvent.clientY - centerY;
-                            // Calculate angle: 0° is right (x positive), 180° is left (x negative)
-                            // Arc is at bottom, so we use atan2 with positive y
-                            let angle = Math.atan2(y, x) * (180 / Math.PI);
-                            if (angle < 0) angle += 360;
-                            // Convert to 0-180 range: 0° stays 0°, 180° stays 180°
-                            if (angle > 180) angle = 360 - angle;
-                            angle = Math.round(angle);
-                            setRightAxisAngle(angle);
-                            handleRightEyeChange('axis', angle.toString());
-                          };
-                          const handleMouseUp = () => {
-                            document.removeEventListener("mousemove", handleMouseMove);
-                            document.removeEventListener("mouseup", handleMouseUp);
-                          };
-                          document.addEventListener("mousemove", handleMouseMove);
-                          document.addEventListener("mouseup", handleMouseUp);
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Left Eye Diagram with TABO */}
-                <div className="text-center w-full" style={{ overflow: 'visible', minWidth: '400px' }}>
-                  <div className="font-bold text-lg mb-4 text-blue-700">Left Eye</div>
-                  <div className="flex justify-center items-center" style={{ overflow: 'visible', minHeight: '380px' }}>
-                    <div className="relative w-[400px] h-[400px] bg-white rounded-full shadow-2xl border-2 border-gray-300">
-                      <svg width="800" height="500" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style={{ cursor: 'pointer', userSelect: 'none', display: 'block', width: '100%', maxWidth: '100%', height: 'auto', overflow: 'visible', margin: '0px auto' }}>
-                        <defs>
-                          <marker id="arrowhead-left-cl" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto">
-                            <polygon points="0 0, 14 7, 0 14" fill="#2563eb" />
-                          </marker>
-                        </defs>
-                        <rect width="800" height="500" fill="white" />
-                        {/* Semi-circle arc at the bottom: 0° on right, 180° on left */}
-                        <path d="M 620 420 A 220 220 0 0 0 180 420" fill="none" stroke="#000" strokeWidth="3" />
-                        
-                        {/* Minor tick marks */}
-                        {Array.from({ length: 181 }, (_, i) => i).map((deg) => {
-                          if (deg % 10 === 0) return null;
-                          const angle = deg * (Math.PI / 180);
-                          const x1 = 400 + 210 * Math.cos(angle);
-                          const y1 = 420 + 210 * Math.sin(angle);
-                          const x2 = 400 + 220 * Math.cos(angle);
-                          const y2 = 420 + 220 * Math.sin(angle);
-                          return (
-                            <line key={`minor-left-cl-${deg}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#ccc" strokeWidth="0.8" />
-                          );
-                        })}
-                        
-                        {/* Major tick marks with TABO notation */}
-                        {Array.from({ length: 181 }, (_, i) => i).map((deg) => {
-                          if (deg % 10 !== 0) return null;
-                          const angle = deg * (Math.PI / 180);
-                          const taboValue = intToTabo(deg);
-                          const x = 400 + 220 * Math.cos(angle);
-                          const y = 420 + 220 * Math.sin(angle);
-                          // Position text above the arc (smaller radius) to align with the curve
-                          const textX = 400 + 180 * Math.cos(angle);
-                          const textY = 420 + 180 * Math.sin(angle);
-                          // Keep labels horizontal around the arc for readability.
-                          return (
-                            <g key={`left-cl-${deg}`}>
-                              <line x1={400 + 200 * Math.cos(angle)} y1={420 + 200 * Math.sin(angle)} x2={x} y2={y} stroke="#000" strokeWidth={deg % 30 === 0 ? "3.5" : "1.8"} />
-                              <text 
-                                x={textX} 
-                                y={textY} 
-                                textAnchor="middle" 
-                                dominantBaseline="middle" 
-                                fontSize={deg % 30 === 0 ? "22" : "18"} 
-                                fill="#000" 
-                                fontWeight={deg % 30 === 0 ? "bold" : "600"} 
-                                fontFamily="Arial, sans-serif"
-                              >
-                                {deg}
-                              </text>
-                            </g>
-                          );
-                        })}
-                        {/* Arrow for left eye - 0° points right, 180° points left */}
-                        <line 
-                          x1="400" 
-                          y1="420" 
-                          x2={400 + 220 * Math.cos(leftAxisAngle * (Math.PI / 180))} 
-                          y2={420 + 220 * Math.sin(leftAxisAngle * (Math.PI / 180))} 
-                          stroke="#2563eb" 
-                          strokeWidth="6" 
-                          markerEnd="url(#arrowhead-left-cl)" 
-                          style={{ pointerEvents: 'none' }} 
-                        />
-                        <circle cx="400" cy="420" r="6" fill="#000" stroke="#fff" strokeWidth="2" />
-                        <text x="400" y="465" textAnchor="middle" dominantBaseline="middle" fontSize="22" fill="#333" fontFamily="Arial, sans-serif" fontWeight="600">0°</text>
-                        <text x="230" y="465" fontSize="22" fill="#000" fontWeight="700" fontFamily="Arial, sans-serif" textAnchor="middle">TABO 0</text>
-                        <text x="650" y="435" fontSize="22" fill="#000" fontWeight="700" fontFamily="Arial, sans-serif" textAnchor="start">INT.</text>
-                        <text x="400" y="115" fontSize="24" fill="#2563eb" fontWeight="bold" fontFamily="Arial, sans-serif" textAnchor="middle">TABO: {intToTabo(leftAxisAngle)}°</text>
-                      </svg>
-                      <div className="mt-3 text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full inline-block">Uses TABO system</div>
-                      {/* Interactive area for left eye */}
-                      <div
-                        className="absolute inset-0 cursor-grab active:cursor-grabbing rounded-full"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          const handleMouseMove = (moveEvent: MouseEvent) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            const centerX = rect.left + rect.width / 2;
-                            const centerY = rect.top + rect.height / 2;
-                            const x = moveEvent.clientX - centerX;
-                            const y = moveEvent.clientY - centerY;
-                            // Calculate angle: 0° is right (x positive), 180° is left (x negative)
-                            // Arc is at bottom, so we use atan2 with positive y
-                            let angle = Math.atan2(y, x) * (180 / Math.PI);
-                            if (angle < 0) angle += 360;
-                            // Convert to 0-180 range
-                            if (angle > 180) angle = 360 - angle;
-                            angle = Math.round(angle);
-                            setLeftAxisAngle(angle);
-                            handleLeftEyeChange('axis', angle.toString());
-                          };
-                          const handleMouseUp = () => {
-                            document.removeEventListener("mousemove", handleMouseMove);
-                            document.removeEventListener("mouseup", handleMouseUp);
-                          };
-                          document.addEventListener("mousemove", handleMouseMove);
-                          document.addEventListener("mouseup", handleMouseUp);
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add to Cart Button */}
       <Button
         onClick={handleAddToCart}
         disabled={!canAddToCart || addingToCart}
@@ -1007,7 +1185,12 @@ export default function ContactLensConfiguration({
         ) : (
           <span className="flex items-center justify-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+              />
             </svg>
             Add to Cart
           </span>
