@@ -71,7 +71,7 @@ export default function ColorVariationsManager({ productId, categoryId, productT
   const isEyeProduct =
     productType === 'frame' ||
     productType === 'sunglasses' ||
-    (categoryId != null && [23, 28, 29].includes(categoryId));
+    (categoryId != null && [1, 4, 23, 28, 29].includes(categoryId));
 
   const autoStock = useMemo(
     () => draftSizes.reduce((sum, row) => sum + Math.max(0, Number(row.stock_quantity) || 0), 0),
@@ -647,25 +647,20 @@ export default function ColorVariationsManager({ productId, categoryId, productT
       )}
 
       {variants.length === 0 && !showForm && (
-        <div className="space-y-4 border-t border-gray-200 pt-6">
-          <FrameSizesEditor
-            productId={productId}
-            productVariantId={null}
-            title="Frame sizes"
-            description="Add sizes when this product has no color variants yet. Prefer adding colors first, then sizes per color."
-          />
-          <div className="text-center py-4">
-            <p className="text-gray-600 mb-4">No color variations added yet</p>
-            <Button
-              onClick={() => {
-                resetForm();
-                setShowForm(true);
-              }}
-              size="sm"
-            >
-              Add First Color Variation
-            </Button>
-          </div>
+        <div className="border-t border-gray-200 pt-6 text-center py-6">
+          <p className="text-gray-600 mb-2">No color variations added yet</p>
+          <p className="text-sm text-gray-500 mb-4">
+            Add a color first, then set sizes and stock inside that color (for eyeglasses and sunglasses).
+          </p>
+          <Button
+            onClick={() => {
+              resetForm();
+              setShowForm(true);
+            }}
+            size="sm"
+          >
+            Add First Color Variation
+          </Button>
         </div>
       )}
     </div>
