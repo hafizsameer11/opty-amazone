@@ -86,7 +86,13 @@ export default function ProductCheckoutModal({
   // Shipping
   const [selectedShipping, setSelectedShipping] = useState<string>('standard');
   const [couponCode, setCouponCode] = useState<string>('');
-  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount_amount: number;
+    message?: string;
+  } | null>(null);
+  const [couponError, setCouponError] = useState<string>('');
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   // Order summary
   const [orderSummary, setOrderSummary] = useState<OrderSummaryItem[]>([]);
@@ -408,10 +414,37 @@ export default function ProductCheckoutModal({
       .filter(item => item.type !== 'shipping')
       .reduce((sum, item) => sum + item.price, 0);
     const ship = orderSummary.find(item => item.type === 'shipping')?.price || 0;
-    const disc = appliedCoupon ? (sub * (appliedCoupon.discount_percent / 100)) : 0;
-    const tot = sub + ship - disc;
+    const disc = appliedCoupon ? Number(appliedCoupon.discount_amount || 0) : 0;
+    const tot = Math.max(0, sub + ship - disc);
     return { subtotal: sub, shipping: ship, discount: disc, total: tot };
   }, [orderSummary, appliedCoupon]);
+
+  const handleApplyCoupon = async () => {
+    const code = couponCode.trim();
+    if (!code) return;
+    setCouponError('');
+    setApplyingCoupon(true);
+    try {
+      const { couponService } = await import('@/services/coupon-service');
+      const result = await couponService.validate(code, subtotal);
+      if (!result.valid || result.discount_amount == null) {
+        setAppliedCoupon(null);
+        setCouponError(result.message || 'Invalid coupon code');
+        return;
+      }
+      setAppliedCoupon({
+        code: result.coupon?.code || code,
+        discount_amount: Number(result.discount_amount),
+        message: result.message,
+      });
+      setCouponError('');
+    } catch {
+      setAppliedCoupon(null);
+      setCouponError('Could not validate coupon. Please try again.');
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
 
   // Handle lens type selection
   const handleLensTypeSelect = async (lensType: LensType) => {
@@ -634,22 +667,41 @@ export default function ProductCheckoutModal({
                     <input
                       type="text"
                       value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value);
+                        setCouponError('');
+                      }}
                       placeholder="Enter coupon code"
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
                     />
                     <button
                       type="button"
-                      onClick={() => {
-                        // TODO: Implement coupon validation
-                        alert('Coupon functionality coming soon');
-                      }}
-                      disabled={!couponCode}
+                      onClick={() => void handleApplyCoupon()}
+                      disabled={!couponCode.trim() || applyingCoupon}
                       className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold"
                     >
-                      Apply
+                      {applyingCoupon ? 'Applying…' : 'Apply'}
                     </button>
                   </div>
+                  {couponError && (
+                    <p className="mt-2 text-xs text-red-600">{couponError}</p>
+                  )}
+                  {appliedCoupon && !couponError && (
+                    <p className="mt-2 text-xs text-green-600">
+                      {appliedCoupon.message || `Coupon ${appliedCoupon.code} applied`}
+                      {' · '}
+                      <button
+                        type="button"
+                        className="underline"
+                        onClick={() => {
+                          setAppliedCoupon(null);
+                          setCouponCode('');
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </p>
+                  )}
                 </div>
 
                 {/* Totals */}

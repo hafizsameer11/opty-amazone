@@ -46,11 +46,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="glass-card rounded-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100">
+      <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Admin Panel</h1>
-          <p className="text-white/80">Sign in to your account</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Admin Panel</h1>
+          <p className="text-slate-500">Sign in to your account</p>
         </div>
 
         {error && (
@@ -67,7 +67,6 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="bg-white/20 border-white/30 text-white placeholder:text-white/60"
             />
           </div>
 
@@ -78,14 +77,13 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="bg-white/20 border-white/30 text-white placeholder:text-white/60"
             />
           </div>
 
           <Button
             type="submit"
             disabled={loggingIn}
-            className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30"
+            className="w-full"
           >
             {loggingIn ? 'Signing in...' : 'Sign In'}
           </Button>

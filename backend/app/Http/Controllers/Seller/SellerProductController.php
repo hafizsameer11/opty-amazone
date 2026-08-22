@@ -332,6 +332,13 @@ class SellerProductController extends Controller
                 $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(6);
             }
 
+            // Auto-publish: no admin approval gate for new listings
+            $validated['is_approved'] = true;
+            $validated['rejection_reason'] = null;
+            if (!array_key_exists('is_active', $validated)) {
+                $validated['is_active'] = true;
+            }
+
             $product = Product::create($validated);
 
             $this->persistEyeHygieneVariants($product, array_filter($variantPayload, fn ($v) => $v !== null));
@@ -500,6 +507,173 @@ class SellerProductController extends Controller
         } catch (\Exception $e) {
             return ResponseHelper::error('Failed to update product status: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Boost a product (wallet or checkout stub pending payment).
+     */
+    public function boost(Request $request, $id)
+    {
+        $user = Auth::user();
+        $store = $user->store;
+
+        if (!$store) {
+            return ResponseHelper::error('Store not found', null, 404);
+        }
+
+        $product = Product::where('store_id', $store->id)->findOrFail($id);
+
+        $validated = $request->validate([
+            'location' => 'required|string|max:100',
+            'budget' => 'required|numeric|min:0.01',
+            'start_at' => 'nullable|date',
+            'end_at' => 'nullable|date|after_or_equal:start_at',
+            'pay_method' => 'required|in:wallet,checkout_stub',
+        ]);
+
+        $budget = (float) $validated['budget'];
+        $product->boost_location = $validated['location'];
+        $product->boost_budget = $budget;
+        $product->boost_start_at = $validated['start_at'] ?? now();
+        $product->boost_end_at = $validated['end_at'] ?? null;
+
+        if ($validated['pay_method'] === 'wallet') {
+            $wallet = \App\Models\Wallet::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'shopping_balance' => 0,
+                    'reward_balance' => 0,
+                    'referral_balance' => 0,
+                    'loyality_points' => 0,
+                    'ad_credit' => 0,
+                ]
+            );
+
+            $available = (float) $wallet->ad_credit + (float) $wallet->shopping_balance;
+            if ($available < $budget) {
+                $product->is_boosted = false;
+                $product->boost_payment_status = 'pending_payment';
+                $product->boosted_at = null;
+                $product->save();
+
+                return ResponseHelper::success(
+                    [
+                        'product' => $product->fresh()->load(['category', 'subCategory']),
+                        'message' => 'Insufficient wallet balance. Boost is pending payment.',
+                    ],
+                    'Boost pending payment'
+                );
+            }
+
+            $remaining = $budget;
+            $fromAd = min((float) $wallet->ad_credit, $remaining);
+            $wallet->ad_credit = (float) $wallet->ad_credit - $fromAd;
+            $remaining -= $fromAd;
+            if ($remaining > 0) {
+                $wallet->shopping_balance = (float) $wallet->shopping_balance - $remaining;
+            }
+            $wallet->save();
+
+            $product->is_boosted = true;
+            $product->boosted_at = now();
+            $product->boost_payment_status = 'paid';
+            $product->save();
+
+            return ResponseHelper::success(
+                [
+                    'product' => $product->fresh()->load(['category', 'subCategory']),
+                    'message' => 'Product boosted successfully (wallet charged).',
+                ],
+                'Product boosted successfully'
+            );
+        }
+
+        // checkout_stub: mark pending until completeBoostPayment or admin approve
+        $product->is_boosted = false;
+        $product->boosted_at = null;
+        $product->boost_payment_status = 'pending_payment';
+        $product->save();
+
+        return ResponseHelper::success(
+            [
+                'product' => $product->fresh()->load(['category', 'subCategory']),
+                'message' => 'Boost created with checkout stub. Complete payment to activate.',
+            ],
+            'Boost pending payment'
+        );
+    }
+
+    /**
+     * Complete pending boost payment (checkout stub).
+     */
+    public function completeBoostPayment($id)
+    {
+        $user = Auth::user();
+        $store = $user->store;
+
+        if (!$store) {
+            return ResponseHelper::error('Store not found', null, 404);
+        }
+
+        $product = Product::where('store_id', $store->id)->findOrFail($id);
+
+        if ($product->boost_payment_status !== 'pending_payment') {
+            return ResponseHelper::error('No pending boost payment for this product', null, 400);
+        }
+
+        $product->is_boosted = true;
+        $product->boosted_at = now();
+        $product->boost_payment_status = 'paid';
+        $product->save();
+
+        return ResponseHelper::success(
+            [
+                'product' => $product->fresh()->load(['category', 'subCategory']),
+                'message' => 'Boost payment completed. Product is now boosted.',
+            ],
+            'Boost payment completed'
+        );
+    }
+
+    /**
+     * Toggle / remove product boost.
+     */
+    public function toggleBoost($id)
+    {
+        $user = Auth::user();
+        $store = $user->store;
+
+        if (!$store) {
+            return ResponseHelper::error('Store not found', null, 404);
+        }
+
+        $product = Product::where('store_id', $store->id)->findOrFail($id);
+
+        if ($product->is_boosted) {
+            $product->is_boosted = false;
+            $product->boosted_at = null;
+            $product->boost_payment_status = null;
+            $product->boost_location = null;
+            $product->boost_budget = null;
+            $product->boost_start_at = null;
+            $product->boost_end_at = null;
+            $product->save();
+
+            return ResponseHelper::success(
+                $product->fresh()->load(['category', 'subCategory']),
+                'Boost removed'
+            );
+        }
+
+        $product->is_boosted = true;
+        $product->boosted_at = now();
+        $product->boost_payment_status = 'paid';
+        $product->save();
+
+        return ResponseHelper::success(
+            $product->fresh()->load(['category', 'subCategory']),
+            'Product boosted'
+        );
     }
 
     /**

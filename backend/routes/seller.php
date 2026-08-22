@@ -95,6 +95,9 @@ Route::middleware('auth:sanctum')->prefix('products')->group(function () {
     Route::post('/upload-image', [SellerProductController::class, 'uploadImage']); // Must be before /{id} route
     Route::post('/{id}/toggle-status', [SellerProductController::class, 'toggleStatus']);
     Route::post('/{id}/toggle-mute', [SellerProductController::class, 'toggleMute']);
+    Route::post('/{id}/boost', [SellerProductController::class, 'boost']);
+    Route::post('/{id}/boost/complete-payment', [SellerProductController::class, 'completeBoostPayment']);
+    Route::post('/{id}/toggle-boost', [SellerProductController::class, 'toggleBoost']);
     Route::get('/{id}', [SellerProductController::class, 'show']);
     Route::put('/{id}', [SellerProductController::class, 'update']);
     Route::delete('/{id}', [SellerProductController::class, 'destroy']);
