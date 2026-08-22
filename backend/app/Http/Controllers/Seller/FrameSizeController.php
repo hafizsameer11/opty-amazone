@@ -74,8 +74,15 @@ class FrameSizeController extends Controller
             $product->variants()->whereKey($validated['product_variant_id'])->firstOrFail();
         }
 
+        if (!empty($validated['image'])) {
+            $validated['image'] = \App\Support\MediaUrl::absolute($validated['image']) ?? $validated['image'];
+        }
+
         try {
             $frameSize = $product->frameSizes()->create($validated);
+            if (!empty($validated['product_variant_id'])) {
+                \App\Models\ProductVariant::find($validated['product_variant_id'])?->syncStockFromSizes();
+            }
 
             return ResponseHelper::success($frameSize, 'Frame size created successfully');
         } catch (\Exception $e) {
@@ -117,10 +124,18 @@ class FrameSizeController extends Controller
             $frameSize->product->variants()->whereKey($validated['product_variant_id'])->firstOrFail();
         }
 
+        if (array_key_exists('image', $validated) && $validated['image']) {
+            $validated['image'] = \App\Support\MediaUrl::absolute($validated['image']) ?? $validated['image'];
+        }
+
         try {
             $frameSize->update($validated);
+            $variantId = $frameSize->product_variant_id;
+            if ($variantId) {
+                \App\Models\ProductVariant::find($variantId)?->syncStockFromSizes();
+            }
 
-            return ResponseHelper::success($frameSize, 'Frame size updated successfully');
+            return ResponseHelper::success($frameSize->fresh(), 'Frame size updated successfully');
         } catch (\Exception $e) {
             return ResponseHelper::error('Failed to update frame size: ' . $e->getMessage());
         }
@@ -143,7 +158,11 @@ class FrameSizeController extends Controller
         })->findOrFail($id);
 
         try {
+            $variantId = $frameSize->product_variant_id;
             $frameSize->delete();
+            if ($variantId) {
+                \App\Models\ProductVariant::find($variantId)?->syncStockFromSizes();
+            }
 
             return ResponseHelper::success(null, 'Frame size deleted successfully');
         } catch (\Exception $e) {

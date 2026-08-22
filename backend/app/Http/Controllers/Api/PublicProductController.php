@@ -47,7 +47,15 @@ class PublicProductController extends Controller
      */
     public function show($id)
     {
-        $product = Product::with(['store', 'category', 'subCategory', 'sizeVolumeVariants', 'eyeHygieneVariants'])
+        $product = Product::with([
+            'store',
+            'category',
+            'subCategory',
+            'variants',
+            'frameSizes',
+            'sizeVolumeVariants',
+            'eyeHygieneVariants',
+        ])
             ->visibleToBuyers()
             ->findOrFail($id);
 

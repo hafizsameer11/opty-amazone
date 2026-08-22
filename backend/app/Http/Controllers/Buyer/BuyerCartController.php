@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\ProductSizeVolume;
 use App\Models\EyeHygieneVariant;
+use App\Models\FrameSize;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -159,6 +160,25 @@ class BuyerCartController extends Controller
             $price = $namedVariant->price ?? $product->price;
             $stockQuantity = $product->stock_quantity;
             $stockStatus = $product->stock_status;
+        }
+
+        // Prefer size-level stock when a frame size is selected (Color → Size → Stock)
+        if ($request->frame_size_id) {
+            $frameSize = FrameSize::where('product_id', $product->id)
+                ->where('id', $request->frame_size_id)
+                ->firstOrFail();
+
+            if ($request->variant_id && (int) $frameSize->product_variant_id !== (int) $request->variant_id) {
+                return ResponseHelper::error('Selected size does not belong to this color', null, 422);
+            }
+
+            $price = $frameSize->price ?? $price;
+            $stockQuantity = (int) $frameSize->stock_quantity;
+            $stockStatus = $frameSize->stock_status ?? $stockStatus;
+
+            if ($stockStatus === 'out_of_stock' || $stockQuantity <= 0) {
+                return ResponseHelper::error('This size is out of stock', null, 400);
+            }
         }
 
         if ($stockQuantity < $request->quantity) {

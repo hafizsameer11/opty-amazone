@@ -218,6 +218,14 @@ export interface CreateVariantData {
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
   is_default?: boolean;
   sort_order?: number;
+  sizes?: Array<{
+    lens_width: number;
+    bridge_width: number;
+    temple_length: number;
+    size_label?: string;
+    stock_quantity: number;
+    stock_status?: 'in_stock' | 'out_of_stock' | 'backorder';
+  }>;
 }
 
 export interface Category {

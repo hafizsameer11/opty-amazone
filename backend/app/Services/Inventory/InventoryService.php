@@ -60,6 +60,9 @@ class InventoryService
             $fs->decrement('stock_quantity', $qty);
             $fs->refresh();
             $this->applyOutOfStockIfEmpty($fs);
+            if ($fs->product_variant_id) {
+                ProductVariant::find($fs->product_variant_id)?->syncStockFromSizes();
+            }
 
             return;
         }
@@ -124,6 +127,9 @@ class InventoryService
             $fs->increment('stock_quantity', $qty);
             $fs->refresh();
             $this->applyInStockWhenPositive($fs);
+            if ($fs->product_variant_id) {
+                ProductVariant::find($fs->product_variant_id)?->syncStockFromSizes();
+            }
 
             return;
         }

@@ -175,11 +175,28 @@ export default function ProductDetailPage() {
 
   const availableFrameSizes = (() => {
     const all = product.frame_sizes ?? [];
+    const inStockOnly = (s: FrameSize) =>
+      Number(s.stock_quantity) > 0 && s.stock_status !== 'out_of_stock';
     if (!hasVariants) {
-      return all.filter((s) => !s.product_variant_id);
+      return all.filter((s) => !s.product_variant_id && inStockOnly(s));
     }
     if (!activeVariantId) return [];
-    return all.filter((s) => s.product_variant_id === activeVariantId);
+    return all.filter((s) => s.product_variant_id === activeVariantId && inStockOnly(s));
+  })();
+
+  const availableColorVariants = (() => {
+    const list = product.variants ?? [];
+    if (!list.length) return list;
+    const sizes = product.frame_sizes ?? [];
+    return list.filter((v) => {
+      const colorSizes = sizes.filter((s) => s.product_variant_id === v.id);
+      if (colorSizes.length === 0) {
+        return Number(v.stock_quantity) > 0 && v.stock_status !== 'out_of_stock';
+      }
+      return colorSizes.some(
+        (s) => Number(s.stock_quantity) > 0 && s.stock_status !== 'out_of_stock'
+      );
+    });
   })();
 
   const selectedFrameSize: FrameSize | null =
@@ -390,7 +407,7 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Color Variants */}
-              {showColorSwatches && product.variants && (
+              {showColorSwatches && availableColorVariants.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-semibold text-gray-700">Color:</label>
@@ -401,7 +418,7 @@ export default function ProductDetailPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {product.variants.map((variant) => (
+                    {availableColorVariants.map((variant) => (
                       <button
                         key={variant.id}
                         type="button"

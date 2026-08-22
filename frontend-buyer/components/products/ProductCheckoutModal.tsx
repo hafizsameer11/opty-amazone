@@ -106,12 +106,14 @@ export default function ProductCheckoutModal({
 
   const availableFrameSizes = useMemo(() => {
     const all = product.frame_sizes ?? [];
+    const inStock = (s: { stock_quantity: number; stock_status?: string }) =>
+      Number(s.stock_quantity) > 0 && s.stock_status !== 'out_of_stock';
     const hasVariants = Boolean(product.variants && product.variants.length > 0);
     if (!hasVariants) {
-      return all.filter((s) => !s.product_variant_id);
+      return all.filter((s) => !s.product_variant_id && inStock(s));
     }
     if (!activeVariantId) return [];
-    return all.filter((s) => s.product_variant_id === activeVariantId);
+    return all.filter((s) => s.product_variant_id === activeVariantId && inStock(s));
   }, [product.frame_sizes, product.variants, activeVariantId]);
 
   // Get product images

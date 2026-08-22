@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import apiClient from '@/lib/api-client';
+import { resolveMediaUrl } from '@/lib/media-url';
 
 interface FrameSizesEditorProps {
   productId: number;
@@ -18,6 +19,7 @@ interface FrameSizesEditorProps {
   title?: string;
   description?: string;
   compact?: boolean;
+  onChanged?: () => void;
 }
 
 const emptyForm = (variantId?: number | null): CreateFrameSizeData => ({
@@ -42,6 +44,7 @@ export default function FrameSizesEditor({
   title = 'Frame sizes',
   description = 'Per-size stock quantity. Optional price and image override what buyers see when they pick this size.',
   compact = false,
+  onChanged,
 }: FrameSizesEditorProps) {
   const [sizes, setSizes] = useState<FrameSize[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,10 +111,7 @@ export default function FrameSizesEditor({
       });
       const url = res.data?.data?.url;
       if (!url) throw new Error('Upload failed');
-      const full = url.startsWith('http')
-        ? url
-        : `${process.env.NEXT_PUBLIC_API_URL || 'https://api.vistaexpress.it'}${url}`;
-      setForm((prev) => ({ ...prev, image: full }));
+      setForm((prev) => ({ ...prev, image: resolveMediaUrl(url) }));
     } catch {
       setAlert({ type: 'error', message: 'Failed to upload size image' });
     } finally {
@@ -139,6 +139,7 @@ export default function FrameSizesEditor({
       }
       resetForm();
       await loadSizes();
+      onChanged?.();
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -155,6 +156,7 @@ export default function FrameSizesEditor({
       await productService.deleteFrameSize(id);
       if (editingId === id) resetForm();
       await loadSizes();
+      onChanged?.();
     } catch {
       setAlert({ type: 'error', message: 'Failed to delete frame size' });
     }

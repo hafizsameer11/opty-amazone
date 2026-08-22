@@ -753,15 +753,32 @@ class SellerProductController extends Controller
 
         $validated = $request->validate([
             'color_name' => 'required|string|max:255',
-            'color_code' => 'nullable|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
+            'color_code' => ['nullable', 'string', 'max:7', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'images' => 'nullable|array',
-            'images.*' => 'string|url',
+            'images.*' => 'string|max:2048',
             'price' => 'nullable|numeric|min:0',
             'stock_quantity' => 'required|integer|min:0',
             'stock_status' => 'required|in:in_stock,out_of_stock,backorder',
             'is_default' => 'nullable|boolean',
             'sort_order' => 'nullable|integer|min:0',
+            'sizes' => 'nullable|array',
+            'sizes.*.size_label' => 'nullable|string|max:100',
+            'sizes.*.lens_width' => 'required_with:sizes|numeric|min:0',
+            'sizes.*.bridge_width' => 'required_with:sizes|numeric|min:0',
+            'sizes.*.temple_length' => 'required_with:sizes|numeric|min:0',
+            'sizes.*.stock_quantity' => 'required_with:sizes|integer|min:0',
+            'sizes.*.stock_status' => 'nullable|in:in_stock,out_of_stock,backorder',
         ]);
+
+        if (isset($validated['images']) && is_array($validated['images'])) {
+            $validated['images'] = array_values(array_map(
+                fn ($u) => \App\Support\MediaUrl::absolute((string) $u) ?? (string) $u,
+                $validated['images']
+            ));
+        }
+
+        $sizesPayload = $validated['sizes'] ?? null;
+        unset($validated['sizes']);
 
         try {
             DB::beginTransaction();
@@ -771,11 +788,35 @@ class SellerProductController extends Controller
                 $product->variants()->update(['is_default' => false]);
             }
 
+            if (is_array($sizesPayload) && count($sizesPayload) > 0) {
+                $total = array_sum(array_map(fn ($s) => (int) ($s['stock_quantity'] ?? 0), $sizesPayload));
+                $validated['stock_quantity'] = $total;
+                $validated['stock_status'] = $total > 0 ? 'in_stock' : 'out_of_stock';
+            }
+
             $variant = $product->variants()->create($validated);
+
+            if (is_array($sizesPayload)) {
+                foreach ($sizesPayload as $row) {
+                    $qty = (int) ($row['stock_quantity'] ?? 0);
+                    $product->frameSizes()->create([
+                        'product_variant_id' => $variant->id,
+                        'lens_width' => $row['lens_width'],
+                        'bridge_width' => $row['bridge_width'],
+                        'temple_length' => $row['temple_length'],
+                        'size_label' => $row['size_label'] ?? null,
+                        'stock_quantity' => $qty,
+                        'stock_status' => $row['stock_status'] ?? ($qty > 0 ? 'in_stock' : 'out_of_stock'),
+                    ]);
+                }
+            }
 
             DB::commit();
 
-            return ResponseHelper::success($variant, 'Variant created successfully');
+            return ResponseHelper::success(
+                $variant->fresh()->load('frameSizes'),
+                'Variant created successfully'
+            );
         } catch (\Exception $e) {
             DB::rollBack();
             return ResponseHelper::error('Failed to create variant: ' . $e->getMessage());
@@ -800,15 +841,22 @@ class SellerProductController extends Controller
 
         $validated = $request->validate([
             'color_name' => 'sometimes|string|max:255',
-            'color_code' => 'nullable|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
+            'color_code' => ['nullable', 'string', 'max:7', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'images' => 'nullable|array',
-            'images.*' => 'string|url',
+            'images.*' => 'string|max:2048',
             'price' => 'nullable|numeric|min:0',
             'stock_quantity' => 'sometimes|integer|min:0',
             'stock_status' => 'sometimes|in:in_stock,out_of_stock,backorder',
             'is_default' => 'nullable|boolean',
             'sort_order' => 'nullable|integer|min:0',
         ]);
+
+        if (isset($validated['images']) && is_array($validated['images'])) {
+            $validated['images'] = array_values(array_map(
+                fn ($u) => \App\Support\MediaUrl::absolute((string) $u) ?? (string) $u,
+                $validated['images']
+            ));
+        }
 
         try {
             DB::beginTransaction();
@@ -925,8 +973,7 @@ class SellerProductController extends Controller
             // Store image in public disk
             $path = $file->store("products/{$store->id}", 'public');
             
-            // Get the full URL
-            $url = Storage::url($path);
+            $url = \App\Support\MediaUrl::absolute($path);
 
             return ResponseHelper::success([
                 'url' => $url,
