@@ -13,7 +13,7 @@ import EyeHygieneDetails from "@/components/products/EyeHygieneDetails";
 import { productService, type Product, type LensColor, type FrameSize } from "@/services/product-service";
 import { cartService } from "@/services/cart-service";
 import { lensDataService } from "@/services/lens-data-service";
-import { shouldShowLensOptions } from "@/utils/product-utils";
+import { shouldShowLensOptions, isEyeglassesOrSunglassesProduct, requiresLensCustomizationModal } from "@/utils/product-utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/components/ui/Toast";
@@ -44,6 +44,7 @@ export default function ProductDetailPage() {
   const [clHideThumbnailGallery, setClHideThumbnailGallery] = useState(false);
   const [clSelectedPackQty, setClSelectedPackQty] = useState<number | null>(null);
   const [selectedFrameSizeId, setSelectedFrameSizeId] = useState<number | null>(null);
+  const [hasPickedColor, setHasPickedColor] = useState(false);
 
   const handleClDisplayPriceChange = useCallback((price: number | null) => {
     setClDisplayPrice(price);
@@ -70,29 +71,47 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (!product) return;
 
-    const sizes = product.frame_sizes ?? [];
     const defaultVariant =
       product.variants?.find((v) => v.is_default) || product.variants?.[0];
 
     if (product.variants && product.variants.length > 0 && defaultVariant) {
       const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
       const variantParam = urlParams?.get('variant');
+      const sizeParam = urlParams?.get('size');
       const parsed = variantParam ? parseInt(variantParam, 10) : NaN;
+      const parsedSize = sizeParam ? parseInt(sizeParam, 10) : NaN;
       if (!Number.isNaN(parsed) && product.variants.some((v) => v.id === parsed)) {
         setSelectedVariantId(parsed);
+        setHasPickedColor(true);
+        const sizesForVariant = (product.frame_sizes ?? []).filter(
+          (s) => s.product_variant_id === parsed
+        );
+        if (
+          !Number.isNaN(parsedSize) &&
+          sizesForVariant.some((s) => s.id === parsedSize)
+        ) {
+          setSelectedFrameSizeId(parsedSize);
+        } else {
+          setSelectedFrameSizeId(null);
+        }
       } else {
         setSelectedVariantId(defaultVariant.id);
+        setHasPickedColor(false);
+        setSelectedFrameSizeId(null);
       }
-    }
-
-    if (sizes.length > 0) {
-      const hasColorVariants = Boolean(product.variants && product.variants.length > 0);
-      const activeVariant =
-        product.variants?.find((v) => v.id === defaultVariant?.id) || defaultVariant;
-      const initialSizes = hasColorVariants
-        ? sizes.filter((s) => s.product_variant_id === activeVariant?.id)
-        : sizes.filter((s) => !s.product_variant_id);
-      setSelectedFrameSizeId(initialSizes[0]?.id ?? null);
+    } else {
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const sizeParam = urlParams?.get('size');
+      const parsedSize = sizeParam ? parseInt(sizeParam, 10) : NaN;
+      const sizesWithoutVariant = (product.frame_sizes ?? []).filter((s) => !s.product_variant_id);
+      if (
+        !Number.isNaN(parsedSize) &&
+        sizesWithoutVariant.some((s) => s.id === parsedSize)
+      ) {
+        setSelectedFrameSizeId(parsedSize);
+      } else {
+        setSelectedFrameSizeId(null);
+      }
     }
   }, [product]);
 
@@ -106,6 +125,7 @@ export default function ProductDetailPage() {
       setClHideThumbnailGallery(false);
       setClSelectedPackQty(null);
       setSelectedFrameSizeId(null);
+      setHasPickedColor(false);
       
       // Load lens data if it should show lens options
       if (shouldShowLensOptions(data)) {
@@ -141,8 +161,10 @@ export default function ProductDetailPage() {
 
   // Check if product has variants and is an eye product category or frame/sunglasses type
   const isEyeProduct = shouldShowLensOptions(product);
+  const isRetailGlasses = isEyeglassesOrSunglassesProduct(product);
+  const isGlassesProduct = product.product_type === 'frame' || product.product_type === 'sunglasses';
   const hasVariants = product.variants && product.variants.length > 0;
-  const showColorSwatches = isEyeProduct && hasVariants;
+  const showColorSwatches = isGlassesProduct && hasVariants;
   
   // Get selected variant or default variant
   const selectedVariant = selectedVariantId && hasVariants && product.variants
@@ -150,7 +172,6 @@ export default function ProductDetailPage() {
     : (hasVariants && product.variants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
 
   const activeVariantId = selectedVariantId ?? selectedVariant?.id ?? null;
-  const isGlassesProduct = product.product_type === 'frame' || product.product_type === 'sunglasses';
 
   const availableFrameSizes = (() => {
     const all = product.frame_sizes ?? [];
@@ -165,6 +186,23 @@ export default function ProductDetailPage() {
     selectedFrameSizeId != null
       ? availableFrameSizes.find((s) => s.id === selectedFrameSizeId) ?? null
       : null;
+
+  const showSizePicker =
+    isGlassesProduct &&
+    availableFrameSizes.length > 0 &&
+    (!hasVariants || hasPickedColor);
+
+  const formatFrameSizeLabel = (size: FrameSize) => {
+    if (size.size_label?.trim()) {
+      return size.size_label.trim();
+    }
+    return `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)}`;
+  };
+
+  const formatFrameSizeDimensions = (size: FrameSize) =>
+    `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)} mm`;
+
+  const needsSizeSelection = showSizePicker && !selectedFrameSize;
   
   // Determine which images to show
   const clUnitConfig =
@@ -199,13 +237,26 @@ export default function ProductDetailPage() {
         )
       : selectedFrameSize?.price != null
       ? Number(selectedFrameSize.price)
+      : showSizePicker && availableFrameSizes.length > 0
+      ? Number(
+          availableFrameSizes.find((s) => s.price != null)?.price ??
+            selectedVariant?.price ??
+            product.price
+        )
       : selectedVariant?.price ?? product.price;
-  const displayStockStatus =
-    selectedFrameSize?.stock_status ?? selectedVariant?.stock_status ?? product.stock_status;
-  const displayStockQuantity =
-    selectedFrameSize?.stock_quantity ?? selectedVariant?.stock_quantity ?? product.stock_quantity;
+  const displayStockStatus = needsSizeSelection
+    ? 'in_stock'
+    : selectedFrameSize?.stock_status ?? selectedVariant?.stock_status ?? product.stock_status;
+  const displayStockQuantity = needsSizeSelection
+    ? 0
+    : selectedFrameSize?.stock_quantity ?? selectedVariant?.stock_quantity ?? product.stock_quantity;
 
   const handleAddToCart = async () => {
+    if (needsSizeSelection) {
+      showToast('error', 'Please select a frame size');
+      return;
+    }
+
     // Check if user is authenticated before adding to cart
     if (!authLoading && !isAuthenticated) {
       // Redirect to login with return URL
@@ -237,9 +288,9 @@ export default function ProductDetailPage() {
 
   const handleVariantSelect = (variantId: number) => {
     setSelectedVariantId(variantId);
+    setHasPickedColor(true);
+    setSelectedFrameSizeId(null);
     setSelectedImageIndex(0);
-    const sizes = (product?.frame_sizes ?? []).filter((s) => s.product_variant_id === variantId);
-    setSelectedFrameSizeId(sizes[0]?.id ?? null);
   };
 
   return (
@@ -397,16 +448,24 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              {isGlassesProduct && availableFrameSizes.length > 0 && (
+              {showSizePicker && (
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700">Size:</label>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-sm font-semibold text-gray-700">Size:</label>
+                    {selectedFrameSize ? (
+                      <span className="text-xs text-[#0066CC] font-medium">
+                        Selected: {formatFrameSizeLabel(selectedFrameSize)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-500">Choose a size for this color</span>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {availableFrameSizes.map((size) => {
-                      const label =
-                        size.size_label ||
-                        `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)}`;
+                      const label = formatFrameSizeLabel(size);
                       const isSelected = selectedFrameSizeId === size.id;
-                      const outOfStock = size.stock_status === 'out_of_stock' || size.stock_quantity <= 0;
+                      const outOfStock =
+                        size.stock_status === 'out_of_stock' || size.stock_quantity <= 0;
                       return (
                         <button
                           key={size.id}
@@ -417,28 +476,37 @@ export default function ProductDetailPage() {
                             setSelectedImageIndex(0);
                             setQuantity(1);
                           }}
-                          className={`min-w-[7rem] px-3 py-2 rounded-lg border-2 text-left text-sm transition-all ${
+                          className={`min-w-[4.5rem] px-4 py-2.5 rounded-full border-2 text-sm font-semibold transition-all ${
                             isSelected
-                              ? 'border-[#0066CC] bg-[#0066CC]/5 text-[#0066CC] ring-2 ring-[#0066CC]/20'
+                              ? 'border-[#0066CC] bg-[#0066CC] text-white shadow-sm'
                               : outOfStock
-                              ? 'border-gray-200 opacity-50 cursor-not-allowed'
-                              : 'border-gray-300 hover:border-gray-400'
+                              ? 'border-gray-200 text-gray-400 opacity-60 cursor-not-allowed'
+                              : 'border-gray-300 text-gray-800 hover:border-[#0066CC] hover:text-[#0066CC]'
                           }`}
                         >
-                          <span className="font-semibold block">{label}</span>
-                          <span className="text-xs text-gray-500 block">
-                            {Number(size.lens_width)}-{Number(size.bridge_width)}-{Number(size.temple_length)} mm
-                          </span>
-                          {size.price != null && Number.isFinite(Number(size.price)) && (
-                            <span className="text-xs block mt-0.5">€{Number(size.price).toFixed(2)}</span>
-                          )}
-                          {size.stock_quantity != null && (
-                            <span className="text-[10px] block opacity-70">{size.stock_quantity} in stock</span>
-                          )}
+                          {label}
                         </button>
                       );
                     })}
                   </div>
+                  {selectedFrameSize && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
+                      <span>{formatFrameSizeDimensions(selectedFrameSize)}</span>
+                      <span className="text-gray-300">|</span>
+                      <span>
+                        {selectedFrameSize.stock_quantity}{' '}
+                        {selectedFrameSize.stock_quantity === 1 ? 'available' : 'available'}
+                      </span>
+                      {selectedFrameSize.price != null && Number.isFinite(Number(selectedFrameSize.price)) && (
+                        <>
+                          <span className="text-gray-300">|</span>
+                          <span className="font-semibold text-[#0066CC] notranslate">
+                            €{Number(selectedFrameSize.price).toFixed(2)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -518,7 +586,11 @@ export default function ProductDetailPage() {
 
               {/* Stock Status */}
               <div className="flex items-center gap-2">
-                {displayStockStatus === "in_stock" ? (
+                {needsSizeSelection ? (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                    Select a size to see stock
+                  </span>
+                ) : displayStockStatus === "in_stock" ? (
                   <>
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                       ✓ In Stock
@@ -638,24 +710,102 @@ export default function ProductDetailPage() {
                   }}
                   addingToCart={addingToCart}
                 />
-              ) : shouldShowLensOptions(product) ? (
+              ) : requiresLensCustomizationModal(product) ? (
                 <div className="space-y-3">
                   <Button
                     onClick={() => setShowCheckoutModal(true)}
-                    disabled={displayStockStatus !== "in_stock"}
+                    disabled={needsSizeSelection || displayStockStatus !== "in_stock"}
                     className="w-full"
                     size="lg"
                   >
-                    {displayStockStatus !== "in_stock" ? 'Out of Stock' : 'Customize & Add to Cart'}
+                    {needsSizeSelection
+                      ? 'Select a size'
+                      : displayStockStatus !== "in_stock"
+                      ? 'Out of Stock'
+                      : 'Customize & Add to Cart'}
                   </Button>
                   <Button
                     onClick={() => setShowCheckoutModal(true)}
                     variant="outline"
                     className="w-full"
                     size="lg"
-                    disabled={displayStockStatus !== "in_stock"}
+                    disabled={needsSizeSelection || displayStockStatus !== "in_stock"}
                   >
-                    {displayStockStatus !== "in_stock" ? 'Out of Stock' : 'Buy Now'}
+                    {needsSizeSelection
+                      ? 'Select a size'
+                      : displayStockStatus !== "in_stock"
+                      ? 'Out of Stock'
+                      : 'Buy Now'}
+                  </Button>
+                </div>
+              ) : isRetailGlasses ? (
+                <div className="space-y-3">
+                  <Button
+                    onClick={handleAddToCart}
+                    disabled={needsSizeSelection || displayStockStatus !== "in_stock" || addingToCart}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {addingToCart ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Adding to Cart...
+                      </span>
+                    ) : needsSizeSelection ? (
+                      'Select a size'
+                    ) : displayStockStatus !== "in_stock" ? (
+                      'Out of Stock'
+                    ) : (
+                      'Add to Cart'
+                    )}
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (needsSizeSelection) {
+                        showToast('error', 'Please select a frame size');
+                        return;
+                      }
+                      if (!authLoading && !isAuthenticated) {
+                        router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+                        return;
+                      }
+                      setAddingToCart(true);
+                      try {
+                        await cartService.addItem({
+                          product_id: product.id,
+                          variant_id: selectedVariantId || undefined,
+                          frame_size_id: selectedFrameSizeId || undefined,
+                          quantity: quantity,
+                        });
+                        await refreshCart();
+                        showToast('success', 'Product added! Redirecting to checkout...');
+                        setTimeout(() => router.push('/checkout'), 500);
+                      } catch (error: any) {
+                        if (error.response?.status === 401) {
+                          router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${params.id}`)}`);
+                        } else {
+                          showToast('error', error.response?.data?.message || 'Failed to add to cart');
+                        }
+                        setAddingToCart(false);
+                      }
+                    }}
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                    disabled={needsSizeSelection || displayStockStatus !== "in_stock" || addingToCart}
+                  >
+                    {needsSizeSelection ? (
+                      'Select a size'
+                    ) : displayStockStatus !== "in_stock" ? (
+                      'Out of Stock'
+                    ) : addingToCart ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-[#0066CC] border-t-transparent rounded-full animate-spin"></div>
+                        Processing...
+                      </span>
+                    ) : (
+                      'Buy Now'
+                    )}
                   </Button>
                 </div>
               ) : (
@@ -687,6 +837,8 @@ export default function ProductDetailPage() {
                       try {
                         await cartService.addItem({
                           product_id: product.id,
+                          variant_id: selectedVariantId || undefined,
+                          frame_size_id: selectedFrameSizeId || undefined,
                           quantity: quantity,
                         });
                         await refreshCart();

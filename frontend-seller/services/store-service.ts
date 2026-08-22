@@ -227,4 +227,9 @@ export class StoreService {
     const response = await apiClient.get('/seller/store/dashboard');
     return response.data;
   }
+
+  static async completeStoreSetup(): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.post('/seller/verification/complete-store-setup');
+    return response.data;
+  }
 }

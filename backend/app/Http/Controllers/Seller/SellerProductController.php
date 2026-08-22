@@ -9,6 +9,7 @@ use App\Models\ProductVariant;
 use App\Models\Category;
 use App\Models\StoreCategoryFieldConfig;
 use App\Http\Requests\Seller\Store\UploadImageRequest;
+use App\Services\Product\EyeHygieneVariantService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,65 @@ use Illuminate\Support\Str;
 
 class SellerProductController extends Controller
 {
+    public function __construct(private EyeHygieneVariantService $eyeHygieneVariantService)
+    {
+    }
+
+    /** @return array<string, mixed> */
+    private function eyeHygieneVariantRules(): array
+    {
+        return [
+            'size_volume_variants' => 'nullable|array',
+            'size_volume_variants.*.id' => 'nullable|integer',
+            'size_volume_variants.*.size_volume' => 'required_with:size_volume_variants|string|max:50',
+            'size_volume_variants.*.pack_type' => 'nullable|string|max:50',
+            'size_volume_variants.*.price' => 'nullable|numeric|min:0',
+            'size_volume_variants.*.compare_at_price' => 'nullable|numeric|min:0',
+            'size_volume_variants.*.cost_price' => 'nullable|numeric|min:0',
+            'size_volume_variants.*.stock_quantity' => 'nullable|integer|min:0',
+            'size_volume_variants.*.stock_status' => 'nullable|in:in_stock,out_of_stock,backorder',
+            'size_volume_variants.*.sku' => 'nullable|string|max:255',
+            'size_volume_variants.*.expiry_date' => 'nullable|date',
+            'size_volume_variants.*.image_url' => 'nullable|string|max:2048',
+            'size_volume_variants.*.is_active' => 'nullable|boolean',
+            'size_volume_variants.*.sort_order' => 'nullable|integer|min:0',
+            'eye_hygiene_variants' => 'nullable|array',
+            'eye_hygiene_variants.*.id' => 'nullable|integer',
+            'eye_hygiene_variants.*.name' => 'required_with:eye_hygiene_variants|string|max:255',
+            'eye_hygiene_variants.*.description' => 'nullable|string',
+            'eye_hygiene_variants.*.price' => 'nullable|numeric|min:0',
+            'eye_hygiene_variants.*.image_url' => 'nullable|string|max:2048',
+            'eye_hygiene_variants.*.is_active' => 'nullable|boolean',
+            'eye_hygiene_variants.*.sort_order' => 'nullable|integer|min:0',
+        ];
+    }
+
+    /** @param array<string, mixed> $validated */
+    private function persistEyeHygieneVariants(Product $product, array $validated): void
+    {
+        if ($product->product_type !== 'eye_hygiene') {
+            return;
+        }
+
+        if (array_key_exists('size_volume_variants', $validated)) {
+            $this->eyeHygieneVariantService->syncSizeVolumeVariants(
+                $product,
+                $validated['size_volume_variants'] ?? []
+            );
+        }
+
+        if (array_key_exists('eye_hygiene_variants', $validated)) {
+            $this->eyeHygieneVariantService->syncEyeHygieneVariants(
+                $product,
+                $validated['eye_hygiene_variants'] ?? []
+            );
+        }
+    }
+
+    private function productDetailRelations(): array
+    {
+        return ['category', 'subCategory', 'frameSizes', 'sizeVolumeVariants', 'eyeHygieneVariants'];
+    }
     /**
      * Get all products for the authenticated seller's store.
      */
@@ -109,7 +169,7 @@ class SellerProductController extends Controller
         }
 
         $product = Product::where('store_id', $store->id)
-            ->with(['category', 'subCategory', 'frameSizes'])
+            ->with($this->productDetailRelations())
             ->findOrFail($id);
 
         return ResponseHelper::success($product, 'Product retrieved successfully');
@@ -156,7 +216,7 @@ class SellerProductController extends Controller
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
             'sub_category_id' => 'nullable|exists:categories,id',
-            'sku' => 'required|string|max:255|unique:products,sku',
+            'sku' => 'nullable|string|max:255|unique:products,sku',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string|max:500',
             'product_type' => 'required|in:frame,sunglasses,contact_lens,eye_hygiene,accessory',
@@ -171,6 +231,8 @@ class SellerProductController extends Controller
             'images.*' => 'string|url',
             'is_featured' => 'nullable|boolean',
             'is_active' => 'nullable|boolean',
+            'shipping_type' => 'nullable|in:free,fixed',
+            'shipping_fee' => 'nullable|numeric|min:0',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:500',
             'meta_keywords' => 'nullable|string|max:255',
@@ -213,10 +275,15 @@ class SellerProductController extends Controller
             'color_images' => 'nullable|array',
             'color_images.*' => 'string|url',
             'mm_calibers' => 'nullable|array',
+            'lens_colors' => 'nullable|array',
+            'lens_colors.*.id' => 'nullable|integer',
+            'lens_colors.*.name' => 'required_with:lens_colors|string|max:100',
+            'lens_colors.*.color_code' => 'nullable|string|max:20',
+            'lens_colors.*.description' => 'nullable|string|max:255',
         ];
 
         // Build validation rules: include base rules + only enabled fields
-        $validationRules = $baseRules;
+        $validationRules = array_merge($baseRules, $this->eyeHygieneVariantRules());
         
         if (empty($enabledFields)) {
             // If no config exists, allow all fields (backward compatibility)
@@ -236,16 +303,28 @@ class SellerProductController extends Controller
         if (!empty($enabledFields)) {
             $filteredValidated = [];
             foreach ($validated as $key => $value) {
-                // Keep base fields and enabled fields
-                if (in_array($key, array_keys($baseRules)) || in_array($key, $enabledFields)) {
+                // Keep base fields, enabled fields, and eye hygiene variant arrays
+                if (
+                    in_array($key, array_keys($baseRules))
+                    || in_array($key, $enabledFields)
+                    || in_array($key, ['size_volume_variants', 'eye_hygiene_variants'], true)
+                ) {
                     $filteredValidated[$key] = $value;
                 }
             }
             $validated = $filteredValidated;
         }
 
+        $variantPayload = [
+            'size_volume_variants' => $validated['size_volume_variants'] ?? null,
+            'eye_hygiene_variants' => $validated['eye_hygiene_variants'] ?? null,
+        ];
+        unset($validated['size_volume_variants'], $validated['eye_hygiene_variants']);
+
         try {
             $validated['store_id'] = $store->id;
+            $sku = trim((string) ($validated['sku'] ?? ''));
+            $validated['sku'] = $sku !== '' ? $sku : $this->generateUniqueSku($store->id);
             $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(6);
             
             // Ensure slug is unique
@@ -255,8 +334,10 @@ class SellerProductController extends Controller
 
             $product = Product::create($validated);
 
+            $this->persistEyeHygieneVariants($product, array_filter($variantPayload, fn ($v) => $v !== null));
+
             return ResponseHelper::success(
-                $product->load(['category', 'subCategory']),
+                $product->load($this->productDetailRelations()),
                 'Product created successfully'
             );
         } catch (\Exception $e) {
@@ -278,7 +359,7 @@ class SellerProductController extends Controller
 
         $product = Product::where('store_id', $store->id)->findOrFail($id);
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'name' => 'sometimes|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
             'sub_category_id' => 'nullable|exists:categories,id',
@@ -304,6 +385,8 @@ class SellerProductController extends Controller
             'treatment_options' => 'nullable|array',
             'is_featured' => 'nullable|boolean',
             'is_active' => 'nullable|boolean',
+            'shipping_type' => 'nullable|in:free,fixed',
+            'shipping_fee' => 'nullable|numeric|min:0',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:500',
             'meta_keywords' => 'nullable|string|max:255',
@@ -332,7 +415,20 @@ class SellerProductController extends Controller
             'color_images' => 'nullable|array',
             'color_images.*' => 'string|url',
             'mm_calibers' => 'nullable|array',
-        ]);
+            'lens_colors' => 'nullable|array',
+            'lens_colors.*.id' => 'nullable|integer',
+            'lens_colors.*.name' => 'required_with:lens_colors|string|max:100',
+            'lens_colors.*.color_code' => 'nullable|string|max:20',
+            'lens_colors.*.description' => 'nullable|string|max:255',
+            'shipping_type' => 'nullable|in:free,fixed',
+            'shipping_fee' => 'nullable|numeric|min:0',
+        ], $this->eyeHygieneVariantRules()));
+
+        $variantPayload = [
+            'size_volume_variants' => $validated['size_volume_variants'] ?? null,
+            'eye_hygiene_variants' => $validated['eye_hygiene_variants'] ?? null,
+        ];
+        unset($validated['size_volume_variants'], $validated['eye_hygiene_variants']);
 
         try {
             // Update slug if name changed
@@ -345,8 +441,10 @@ class SellerProductController extends Controller
 
             $product->update($validated);
 
+            $this->persistEyeHygieneVariants($product, array_filter($variantPayload, fn ($v) => $v !== null));
+
             return ResponseHelper::success(
-                $product->load(['category', 'subCategory']),
+                $product->load($this->productDetailRelations()),
                 'Product updated successfully'
             );
         } catch (\Exception $e) {
@@ -401,6 +499,33 @@ class SellerProductController extends Controller
             );
         } catch (\Exception $e) {
             return ResponseHelper::error('Failed to update product status: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Toggle product muted status (hidden from buyers, still visible to seller).
+     */
+    public function toggleMute($id)
+    {
+        $user = Auth::user();
+        $store = $user->store;
+
+        if (!$store) {
+            return ResponseHelper::error('Store not found', null, 404);
+        }
+
+        $product = Product::where('store_id', $store->id)->findOrFail($id);
+
+        try {
+            $product->is_muted = !$product->is_muted;
+            $product->save();
+
+            return ResponseHelper::success(
+                $product->load($this->productDetailRelations()),
+                $product->is_muted ? 'Product muted for buyers' : 'Product unmuted for buyers'
+            );
+        } catch (\Exception $e) {
+            return ResponseHelper::error('Failed to update mute status: ' . $e->getMessage());
         }
     }
 
@@ -591,6 +716,24 @@ class SellerProductController extends Controller
     }
 
     /**
+     * Suggest a unique SKU for a new product (seller can keep or edit before save).
+     */
+    public function suggestSku()
+    {
+        $user = Auth::user();
+        $store = $user->store;
+
+        if (!$store) {
+            return ResponseHelper::error('Store not found', null, 404);
+        }
+
+        return ResponseHelper::success(
+            ['sku' => $this->generateUniqueSku($store->id)],
+            'SKU generated successfully'
+        );
+    }
+
+    /**
      * Upload product image.
      */
     public function uploadImage(UploadImageRequest $request)
@@ -618,6 +761,15 @@ class SellerProductController extends Controller
         } catch (\Exception $e) {
             return ResponseHelper::error('Failed to upload image: ' . $e->getMessage());
         }
+    }
+
+    private function generateUniqueSku(int $storeId): string
+    {
+        do {
+            $sku = sprintf('VX-%d-%s', $storeId, strtoupper(Str::random(8)));
+        } while (Product::where('sku', $sku)->exists());
+
+        return $sku;
     }
 }
 

@@ -41,8 +41,14 @@ class BuyerCheckoutController extends Controller
                 return $item->price * $item->quantity;
             });
 
-            // Calculate shipping (placeholder - should use delivery pricing rules)
-            $shippingFee = 0; // Will be set by seller on accept
+            // Per-product shipping fees (fixed = once per line item in cart)
+            $shippingFee = $items->sum(function ($item) {
+                $product = $item->product;
+                if (!$product || ($product->shipping_type ?? 'free') !== 'fixed') {
+                    return 0;
+                }
+                return (float) ($product->shipping_fee ?? 0);
+            });
 
             $breakdown[] = [
                 'store_id' => $storeId,

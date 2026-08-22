@@ -90,9 +90,11 @@ Route::middleware('auth:sanctum')->prefix('store')->group(function () {
 Route::middleware('auth:sanctum')->prefix('products')->group(function () {
     Route::get('/', [SellerProductController::class, 'index']);
     Route::get('/categories', [SellerProductController::class, 'getCategories']);
+    Route::get('/suggest-sku', [SellerProductController::class, 'suggestSku']);
     Route::post('/', [SellerProductController::class, 'store']);
     Route::post('/upload-image', [SellerProductController::class, 'uploadImage']); // Must be before /{id} route
     Route::post('/{id}/toggle-status', [SellerProductController::class, 'toggleStatus']);
+    Route::post('/{id}/toggle-mute', [SellerProductController::class, 'toggleMute']);
     Route::get('/{id}', [SellerProductController::class, 'show']);
     Route::put('/{id}', [SellerProductController::class, 'update']);
     Route::delete('/{id}', [SellerProductController::class, 'destroy']);
@@ -222,3 +224,12 @@ Route::middleware('auth:sanctum')->prefix('admin-chat')->group(function () {
 
 // Sidebar notification badges (messages + pending orders)
 Route::middleware('auth:sanctum')->get('/notifications/unread', [SellerNotificationBadgeController::class, 'unread']);
+
+Route::middleware('auth:sanctum')->prefix('inventory')->group(function () {
+    Route::get('/low-stock', [App\Http\Controllers\Seller\SellerInventoryController::class, 'lowStock']);
+});
+
+Route::middleware('auth:sanctum')->prefix('verification')->group(function () {
+    Route::post('/submit', [App\Http\Controllers\Seller\SellerVerificationController::class, 'submit']);
+    Route::post('/complete-store-setup', [App\Http\Controllers\Seller\SellerVerificationController::class, 'completeStoreSetup']);
+});

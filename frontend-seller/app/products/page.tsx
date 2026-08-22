@@ -111,6 +111,15 @@ export default function ProductsPage() {
     }
   };
 
+  const handleToggleMute = async (id: number) => {
+    try {
+      await productService.toggleMute(id);
+      loadProducts();
+    } catch (error) {
+      console.error('Failed to toggle product mute:', error);
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this product?')) {
       return;
@@ -557,6 +566,16 @@ export default function ProductsPage() {
                                 <Badge variant={product.is_active ? 'success' : 'default'} size="sm">
                                   {product.is_active ? 'Active' : 'Inactive'}
                                 </Badge>
+                                {product.is_muted && (
+                                  <Badge variant="warning" size="sm" className="ml-1">
+                                    Muted
+                                  </Badge>
+                                )}
+                                {(product.stock_quantity ?? 0) <= 5 && product.is_active && (
+                                  <Badge variant="warning" size="sm" className="ml-1">
+                                    Low stock
+                                  </Badge>
+                                )}
                               </td>
                               <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
                                 <ActionsMenu
@@ -577,6 +596,10 @@ export default function ProductsPage() {
                                     {
                                       label: product.is_active ? 'Deactivate' : 'Activate',
                                       onClick: () => void handleToggleStatus(product.id),
+                                    },
+                                    {
+                                      label: product.is_muted ? 'Unmute for buyers' : 'Mute for buyers',
+                                      onClick: () => void handleToggleMute(product.id),
                                     },
                                     {
                                       label: 'Delete',

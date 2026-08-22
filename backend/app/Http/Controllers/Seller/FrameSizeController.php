@@ -15,7 +15,7 @@ class FrameSizeController extends Controller
     /**
      * Get all frame sizes for a product.
      */
-    public function index($productId)
+    public function index(Request $request, $productId)
     {
         $user = Auth::user();
         $store = $user->store;

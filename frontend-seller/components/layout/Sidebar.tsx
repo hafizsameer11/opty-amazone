@@ -2,22 +2,47 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { notificationService } from '@/services/notification-service';
 
 interface NavItem {
   name: string;
   href: string;
   icon: React.ReactNode;
-  badge?: number;
+  badgeKey?: 'orders' | 'messages';
 }
+
+const POLL_MS = 30000;
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { t } = useLanguage();
+  const [badges, setBadges] = useState({ orders: 0, messages: 0 });
 
-  const navigation: NavItem[] = [
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const load = () => {
+      notificationService
+        .getUnreadCounts()
+        .then((data) => {
+          setBadges({
+            orders: pathname?.startsWith('/orders') ? 0 : data.orders,
+            messages: pathname?.startsWith('/messages') ? 0 : data.messages,
+          });
+        })
+        .catch(() => {});
+    };
+
+    load();
+    const id = window.setInterval(load, POLL_MS);
+    return () => window.clearInterval(id);
+  }, [isAuthenticated, pathname]);
+
+  const navigation: NavItem[] = useMemo(() => [
     {
       name: t('guide'),
       href: '/guide',
@@ -90,7 +115,7 @@ export default function Sidebar() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
         </svg>
       ),
-      badge: 0,
+      badgeKey: 'orders',
     },
     {
       name: t('discountCampaigns'),
@@ -145,9 +170,9 @@ export default function Sidebar() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
       ),
-      badge: 0,
+      badgeKey: 'messages',
     },
-  ];
+  ], [t]);
 
   const isActive = (href: string) => {
     if (href === '/') {
@@ -192,9 +217,9 @@ export default function Sidebar() {
                   {item.icon}
                 </span>
                 {item.name}
-                {item.badge !== undefined && item.badge > 0 && (
+                {item.badgeKey && badges[item.badgeKey] > 0 && (
                   <span className="ml-auto bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
-                    {item.badge}
+                    {badges[item.badgeKey]}
                   </span>
                 )}
               </Link>

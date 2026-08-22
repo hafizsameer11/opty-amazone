@@ -115,6 +115,7 @@ export interface Product {
   can_sleep_with?: boolean;
   water_content?: string;
   is_medical_device?: boolean;
+  is_boosted?: boolean | number;
   // Eye hygiene fields
   size_volume?: string;
   pack_type?: string;
@@ -125,6 +126,11 @@ export interface Product {
     slug: string;
   };
   category?: {
+    id: number;
+    name: string;
+    slug: string;
+  };
+  sub_category?: {
     id: number;
     name: string;
     slug: string;
@@ -156,6 +162,7 @@ export interface Category {
   slug: string;
   description?: string;
   image?: string;
+  image_url?: string;
   parent_id?: number;
   children?: Category[];
   subcategories?: Category[];

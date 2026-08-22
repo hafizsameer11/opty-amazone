@@ -83,7 +83,7 @@ export default function SimplifiedProductOptions({
         <ProductLensColorsEditor
           compact={compact}
           value={formData.lens_colors || []}
-          onChange={(lens_colors) => setFormData({ ...formData, lens_colors })}
+          onChange={(lens_colors) => setFormData((prev) => ({ ...prev, lens_colors }))}
         />
       )}
 

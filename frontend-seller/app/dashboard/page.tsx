@@ -10,6 +10,7 @@ import { StoreService } from '@/services/store-service';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Link from 'next/link';
+import { inventoryService, type LowStockResponse } from '@/services/inventory-service';
 
 interface DashboardData {
   total_products: number;
@@ -40,6 +41,7 @@ export default function SellerDashboardPage() {
   const router = useRouter();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loadingData, setLoadingData] = useState(true);
+  const [lowStock, setLowStock] = useState<LowStockResponse | null>(null);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -60,6 +62,8 @@ export default function SellerDashboardPage() {
       if (response.success && response.data) {
         setDashboardData(response.data);
       }
+      const low = await inventoryService.getLowStock();
+      setLowStock(low);
     } catch (error) {
       console.error('Failed to load dashboard:', error);
     } finally {
@@ -121,6 +125,28 @@ export default function SellerDashboardPage() {
             </h1>
             <p className="text-gray-600">Here's what's happening with your store today.</p>
           </div>
+
+          {lowStock && lowStock.count > 0 && (
+            <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-5">
+              <div className="flex items-center justify-between gap-4 mb-3">
+                <h2 className="text-lg font-semibold text-amber-900">Low stock alert</h2>
+                <Link href="/products" className="text-sm font-medium text-[#0066CC] hover:underline">
+                  View products
+                </Link>
+              </div>
+              <p className="text-sm text-amber-800 mb-3">
+                {lowStock.count} product{lowStock.count === 1 ? '' : 's'} at or below {lowStock.threshold} units.
+              </p>
+              <ul className="text-sm space-y-1">
+                {lowStock.products.slice(0, 5).map((p) => (
+                  <li key={p.id} className="flex justify-between text-gray-800">
+                    <span>{p.name}</span>
+                    <span className="font-medium">{p.stock_quantity} left</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

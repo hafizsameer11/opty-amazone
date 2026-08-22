@@ -3,6 +3,8 @@ export interface User {
   name: string;
   email: string;
   phone?: string;
+  city?: string;
+  profile_image_url?: string | null;
   role: 'buyer' | 'seller' | 'admin';
   email_verified_at?: string;
   created_at: string;

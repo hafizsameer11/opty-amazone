@@ -9,7 +9,6 @@ import { cartService, type Cart, type CartItem } from '@/services/cart-service';
 import OrderLineSelections from '@/components/orders/OrderLineSelections';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
-import ProductDetailsModal from '@/components/products/ProductDetailsModal';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
@@ -22,8 +21,15 @@ export default function CartPage() {
   const [loadingCart, setLoadingCart] = useState(true);
   const [updatingItem, setUpdatingItem] = useState<number | null>(null);
   const [removingItem, setRemovingItem] = useState<number | null>(null);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const productPageHref = (item: CartItem) => {
+    const params = new URLSearchParams();
+    const variantId = item.variant_id ?? item.variant?.id;
+    if (variantId) params.set('variant', String(variantId));
+    if (item.frame_size_id) params.set('size', String(item.frame_size_id));
+    const query = params.toString();
+    return `/products/${item.product_id}${query ? `?${query}` : ''}`;
+  };
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -76,18 +82,6 @@ export default function CartPage() {
     }
   };
 
-  const handleProductClick = (productId: number, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setSelectedProductId(productId);
-    setIsModalOpen(true);
-  };
-
-  const handleModalClose = () => {
-    setIsModalOpen(false);
-    setSelectedProductId(null);
-  };
-
   if (loading || loadingCart) {
     return <Loader fullScreen text="Loading your cart..." />;
   }
@@ -121,10 +115,10 @@ export default function CartPage() {
                   <div className="space-y-4">
                     {store.items.map((item: CartItem) => (
                       <div key={item.id} className="flex gap-4 border-b border-gray-200 pb-4 last:border-0 hover:bg-gray-50/50 -mx-2 px-2 py-2 rounded-lg transition-colors">
-                        <button
-                          onClick={(e) => handleProductClick(item.product_id, e)}
-                          className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-[#0066CC]/50 hover:shadow-md transition-all group cursor-pointer"
-                          title="Click to view product details"
+                        <Link
+                          href={productPageHref(item)}
+                          className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-[#0066CC]/50 hover:shadow-md transition-all group cursor-pointer block"
+                          title="View product page"
                         >
                           {getFullImageUrl(
                             item.product_variant?.eye_hygiene?.image_url ||
@@ -156,12 +150,12 @@ export default function CartPage() {
                             </div>
                           )}
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors rounded-lg"></div>
-                        </button>
+                        </Link>
                         <div className="flex-1 min-w-0">
-                          <button
-                            onClick={(e) => handleProductClick(item.product_id, e)}
-                            className="font-semibold text-gray-900 hover:text-[#0066CC] transition-colors text-left w-full group/item cursor-pointer"
-                            title="Click to view product details"
+                          <Link
+                            href={productPageHref(item)}
+                            className="font-semibold text-gray-900 hover:text-[#0066CC] transition-colors text-left w-full group/item cursor-pointer block"
+                            title="View product page"
                           >
                             <span className="flex items-center gap-2">
                               {item.product.name}
@@ -170,7 +164,7 @@ export default function CartPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                               </svg>
                             </span>
-                          </button>
+                          </Link>
                           <OrderLineSelections line={item} className="mt-1" />
                           <p className="text-sm text-gray-600 mt-1">
                             €{Number(item.price || 0).toFixed(2)} each
@@ -263,15 +257,6 @@ export default function CartPage() {
               </div>
             </div>
           </div>
-        )}
-
-        {/* Product Details Modal */}
-        {selectedProductId && (
-          <ProductDetailsModal
-            isOpen={isModalOpen}
-            onClose={handleModalClose}
-            productId={selectedProductId}
-          />
         )}
     </div>
   );

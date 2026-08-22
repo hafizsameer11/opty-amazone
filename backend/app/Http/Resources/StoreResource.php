@@ -44,6 +44,14 @@ class StoreResource extends JsonResource
             'onboarding_status' => $this->onboarding_status,
             'onboarding_level' => $this->onboarding_level,
             'onboarding_percent' => $this->onboarding_percent,
+            'verification_submitted_at' => $this->verification_submitted_at?->toISOString(),
+            'store_setup_completed_at' => $this->store_setup_completed_at?->toISOString(),
+            'can_sell' => $this->onboarding_status === 'approved'
+                && $this->store_setup_completed_at !== null
+                && $this->status === 'active',
+            'low_stock_threshold' => (int) ($this->low_stock_threshold ?? 5),
+            'bank_account_holder' => $this->bank_account_holder,
+            'bank_name' => $this->bank_name,
             'meta' => $this->meta,
             'products_count' => $productsCount,
             'followers_count' => $followersCount,

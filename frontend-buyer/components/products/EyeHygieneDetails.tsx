@@ -157,8 +157,13 @@ export default function EyeHygieneDetails({
     await onAddToCart(base);
   };
 
+  const showStaticInfo =
+    sizeList.length === 0 &&
+    Boolean(product.size_volume || product.pack_type || product.expiry_date);
+
   return (
     <div className="space-y-6">
+      {showStaticInfo && (
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
         <h3 className="font-semibold text-gray-900 mb-3">Product information</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -182,6 +187,7 @@ export default function EyeHygieneDetails({
           )}
         </div>
       </div>
+      )}
 
       {sizeList.length > 0 && (
         <div>

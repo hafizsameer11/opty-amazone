@@ -83,7 +83,7 @@ export default function SellerDetailsPage() {
             <p className="text-white/70">Store Details</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="success" onClick={handleApprove}>Approve</Button>
+            <Button variant="primary" onClick={handleApprove}>Approve</Button>
             <Button variant="danger" onClick={handleReject}>Reject</Button>
           </div>
         </div>

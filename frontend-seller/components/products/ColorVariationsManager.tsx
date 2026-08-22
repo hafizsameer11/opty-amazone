@@ -230,7 +230,7 @@ export default function ColorVariationsManager({ productId, categoryId, productT
         <div>
           <h3 className="text-lg font-semibold text-gray-900">Color Variations</h3>
           <p className="text-sm text-gray-600 mt-1">
-            Add different color options for this product with separate images, prices, and stock
+            Add different color options with images, stock, and sizes per color. Price stays the same for all colors.
           </p>
         </div>
         {!showForm && (
@@ -246,27 +246,30 @@ export default function ColorVariationsManager({ productId, categoryId, productT
             <Input
               label="Color Name"
               value={formData.color_name}
-              onChange={(e) => setFormData({ ...formData, color_name: e.target.value })}
+              onChange={(e) => setFormData((prev) => ({ ...prev, color_name: e.target.value }))}
               required
             />
-            <Input
-              label="Color Code (Hex)"
-              value={formData.color_code}
-              onChange={(e) => setFormData({ ...formData, color_code: e.target.value })}
-              placeholder="#000000"
-              pattern="^#[0-9A-Fa-f]{6}$"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Color Code (Hex)</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={/^#[0-9A-Fa-f]{6}$/.test(formData.color_code || '') ? formData.color_code : '#000000'}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, color_code: e.target.value }))}
+                  className="h-11 w-14 rounded border border-gray-300 cursor-pointer"
+                  aria-label="Pick color"
+                />
+                <Input
+                  value={formData.color_code || ''}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, color_code: e.target.value }))}
+                  placeholder="#000000"
+                  className="flex-1"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Price (optional, uses product price if empty)"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.price || ''}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value ? parseFloat(e.target.value) : undefined })}
-            />
             <Input
               label="Stock Quantity"
               type="number"
@@ -275,21 +278,20 @@ export default function ColorVariationsManager({ productId, categoryId, productT
               onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
               required
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Stock Status
-            </label>
-            <select
-              value={formData.stock_status}
-              onChange={(e) => setFormData({ ...formData, stock_status: e.target.value as any })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
-            >
-              <option value="in_stock">In Stock</option>
-              <option value="out_of_stock">Out of Stock</option>
-              <option value="backorder">Backorder</option>
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Stock Status
+              </label>
+              <select
+                value={formData.stock_status}
+                onChange={(e) => setFormData({ ...formData, stock_status: e.target.value as any })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
+              >
+                <option value="in_stock">In Stock</option>
+                <option value="out_of_stock">Out of Stock</option>
+                <option value="backorder">Backorder</option>
+              </select>
+            </div>
           </div>
 
           <div>

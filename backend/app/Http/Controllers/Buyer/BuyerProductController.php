@@ -6,10 +6,39 @@ use App\Http\Controllers\Controller;
 use App\Helpers\ResponseHelper;
 use App\Models\Product;
 use App\Models\Category;
+use App\Services\Product\EyeHygieneVariantService;
 use Illuminate\Http\Request;
 
 class BuyerProductController extends Controller
 {
+    public function __construct(private EyeHygieneVariantService $eyeHygieneVariantService)
+    {
+    }
+
+    private function productDetailRelations(): array
+    {
+        return [
+            'store',
+            'category',
+            'subCategory',
+            'variants',
+            'frameSizes',
+            'lensTypes',
+            'lensCoatings',
+            'sizeVolumeVariants',
+            'eyeHygieneVariants',
+        ];
+    }
+
+    private function prepareProductDetails(Product $product): Product
+    {
+        if ($product->product_type === 'eye_hygiene') {
+            $this->eyeHygieneVariantService->ensureLegacySizeVolumes($product);
+            $product->load(['sizeVolumeVariants', 'eyeHygieneVariants']);
+        }
+
+        return $product;
+    }
     /**
      * Get all products with filters.
      */
@@ -23,7 +52,7 @@ class BuyerProductController extends Controller
         }
         
         $query = Product::with($withRelations)
-            ->where('is_active', true);
+            ->visibleToBuyers();
 
         // Filter by store
         if ($request->has('store_id')) {
@@ -103,17 +132,11 @@ class BuyerProductController extends Controller
      */
     public function getDetails($id)
     {
-        $product = Product::with([
-            'store', 
-            'category', 
-            'subCategory', 
-            'variants',
-            'frameSizes',
-            'lensTypes',
-            'lensCoatings'
-        ])
-            ->where('is_active', true)
+        $product = Product::with($this->productDetailRelations())
+            ->visibleToBuyers()
             ->findOrFail($id);
+
+        $this->prepareProductDetails($product);
 
         // Increment view count
         $product->increment('view_count');
@@ -131,7 +154,7 @@ class BuyerProductController extends Controller
             ->firstOrFail();
 
         $query = Product::with(['store', 'category', 'subCategory', 'variants'])
-            ->where('is_active', true)
+            ->visibleToBuyers()
             ->where(function ($q) use ($category) {
                 $q->where('category_id', $category->id)
                   ->orWhere('sub_category_id', $category->id);

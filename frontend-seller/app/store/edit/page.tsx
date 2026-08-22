@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { StoreService } from '@/services/store-service';
 import type { Store } from '@/types/store';
@@ -13,8 +13,24 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 
 export default function EditStorePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <p className="text-gray-500">Loading store settings…</p>
+        </div>
+      }
+    >
+      <EditStorePageContent />
+    </Suspense>
+  );
+}
+
+function EditStorePageContent() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isSetupWizard = searchParams.get('setup') === '1';
   const [store, setStore] = useState<Store | null>(null);
   const [loadingStore, setLoadingStore] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -139,7 +155,10 @@ export default function EditStorePage() {
 
     try {
       await StoreService.updateStore(formData);
-      setSuccess('Store updated successfully');
+      if (isSetupWizard) {
+        await StoreService.completeStoreSetup();
+      }
+      setSuccess(isSetupWizard ? 'Store setup complete!' : 'Store updated successfully');
       setTimeout(() => {
         router.push('/store');
       }, 1500);

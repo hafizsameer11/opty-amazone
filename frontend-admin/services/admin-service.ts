@@ -36,8 +36,8 @@ export const adminService = {
     return res.data.data;
   },
 
-  async getAnalytics() {
-    const res = await apiClient.get('/admin/analytics');
+  async getAnalytics(period: 'day' | 'week' | 'month' | 'year' = 'month') {
+    const res = await apiClient.get('/admin/analytics', { params: { period } });
     return res.data.data;
   },
 

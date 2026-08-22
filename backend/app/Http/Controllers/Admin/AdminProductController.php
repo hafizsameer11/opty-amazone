@@ -93,6 +93,69 @@ class AdminProductController extends Controller
     }
 
     /**
+     * Toggle active visibility.
+     */
+    public function toggleActive($id): JsonResponse
+    {
+        $product = Product::findOrFail($id);
+        $product->is_active = !$product->is_active;
+        $product->save();
+
+        return ResponseHelper::success(
+            $product->fresh(),
+            $product->is_active ? 'Product activated' : 'Product deactivated'
+        );
+    }
+
+    /**
+     * Toggle muted status (hidden from buyers).
+     */
+    public function toggleMute($id): JsonResponse
+    {
+        $product = Product::findOrFail($id);
+        $product->is_muted = !$product->is_muted;
+        $product->save();
+
+        return ResponseHelper::success(
+            $product->fresh(),
+            $product->is_muted ? 'Product muted' : 'Product unmuted'
+        );
+    }
+
+    /**
+     * Toggle boosted status.
+     */
+    public function toggleBoost($id): JsonResponse
+    {
+        $product = Product::findOrFail($id);
+        $product->is_boosted = !$product->is_boosted;
+        $product->boosted_at = $product->is_boosted ? now() : null;
+        if (!$product->is_boosted) {
+            $product->boost_payment_status = null;
+        }
+        $product->save();
+
+        return ResponseHelper::success(
+            $product->fresh(),
+            $product->is_boosted ? 'Product boosted' : 'Boost removed'
+        );
+    }
+
+    /**
+     * Approve pending boost payment.
+     */
+    public function approveBoost($id): JsonResponse
+    {
+        $product = Product::findOrFail($id);
+        $product->is_boosted = true;
+        $product->boosted_at = now();
+        $product->boost_payment_status = 'paid';
+        $product->save();
+
+        return ResponseHelper::success($product->fresh(), 'Boost approved');
+    }
+
+    /**
      * Delete product.
      */
     public function destroy($id): JsonResponse

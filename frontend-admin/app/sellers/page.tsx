@@ -87,7 +87,7 @@ export default function SellersPage() {
       header: 'Actions',
       render: (seller: Seller) => (
         <div className="flex gap-2">
-          <Button size="sm" variant="success" onClick={() => handleApprove(seller.id)}>Approve</Button>
+          <Button size="sm" variant="primary" onClick={() => handleApprove(seller.id)}>Approve</Button>
           <Button size="sm" variant="danger" onClick={() => {
             const reason = prompt('Rejection reason:');
             if (reason) handleReject(seller.id, reason);

@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { productService, type Product } from '@/services/product-service';
-import { isEyeProductCategory } from '@/utils/product-utils';
+import { productService, type Product, type FrameSize } from '@/services/product-service';
+import { isEyeglassesOrSunglassesProduct, requiresLensCustomizationModal } from '@/utils/product-utils';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -29,6 +29,8 @@ export default function ProductDetailsModal({
   const [error, setError] = useState('');
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  const [selectedFrameSizeId, setSelectedFrameSizeId] = useState<number | null>(null);
+  const [hasPickedColor, setHasPickedColor] = useState(false);
   const [selectedFrameSize, setSelectedFrameSize] = useState<any>(null);
   const [selectedLensType, setSelectedLensType] = useState<any>(null);
   const [selectedLensIndex, setSelectedLensIndex] = useState<any>(null);
@@ -47,12 +49,14 @@ export default function ProductDetailsModal({
       setError('');
       setSelectedImageIndex(0);
       setSelectedVariantId(null);
+      setSelectedFrameSizeId(null);
+      setHasPickedColor(false);
       const data = await productService.getDetails(productId);
       setProduct(data);
-      // Set default variant if available
       if (data.variants && data.variants.length > 0) {
         const defaultVariant = data.variants.find(v => v.is_default) || data.variants[0];
         setSelectedVariantId(defaultVariant.id);
+        setHasPickedColor(false);
       }
     } catch (error) {
       console.error('Failed to load product:', error);
@@ -67,30 +71,74 @@ export default function ProductDetailsModal({
     router.push(`/products/${productId}`);
   };
 
-  // Check if product has variants and is an eye product category
-  const isEyeProduct = product ? isEyeProductCategory(product) : false;
+  const isRetailGlasses = product ? isEyeglassesOrSunglassesProduct(product) : false;
+  const isGlassesProduct =
+    product?.product_type === 'frame' || product?.product_type === 'sunglasses';
   const hasVariants = product?.variants && product.variants.length > 0;
-  const showColorSwatches = isEyeProduct && hasVariants;
+  const showColorSwatches = isGlassesProduct && hasVariants;
   
   // Get selected variant or default variant
-  const selectedVariant = selectedVariantId && hasVariants && product.variants
+  const selectedVariant = selectedVariantId && hasVariants && product?.variants
     ? product.variants.find(v => v.id === selectedVariantId)
-    : (hasVariants && product.variants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
+    : (hasVariants && product?.variants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
+
+  const activeVariantId = selectedVariantId ?? selectedVariant?.id ?? null;
+
+  const availableFrameSizes = (() => {
+    const all = product?.frame_sizes ?? [];
+    if (!hasVariants) {
+      return all.filter((s) => !s.product_variant_id);
+    }
+    if (!activeVariantId) return [];
+    return all.filter((s) => s.product_variant_id === activeVariantId);
+  })();
+
+  const selectedFrameSizeRow: FrameSize | null =
+    selectedFrameSizeId != null
+      ? availableFrameSizes.find((s) => s.id === selectedFrameSizeId) ?? null
+      : null;
+
+  const showSizePicker =
+    isGlassesProduct &&
+    availableFrameSizes.length > 0 &&
+    (!hasVariants || hasPickedColor);
+
+  const formatFrameSizeLabel = (size: FrameSize) => {
+    if (size.size_label?.trim()) return size.size_label.trim();
+    return `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)}`;
+  };
+
+  const formatFrameSizeDimensions = (size: FrameSize) =>
+    `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)} mm`;
   
   // Determine which images to show
-  const images = selectedVariant && selectedVariant.images && selectedVariant.images.length > 0
-    ? selectedVariant.images
-    : (product?.images || []);
+  const variantImages =
+    selectedVariant && selectedVariant.images && selectedVariant.images.length > 0
+      ? selectedVariant.images
+      : (product?.images || []);
+  const images =
+    selectedFrameSizeRow?.image?.trim()
+      ? [selectedFrameSizeRow.image]
+      : variantImages;
   const firstImage = images[0] || '/file.svg';
   
   // Determine which price to show
-  const displayPrice = selectedVariant?.price ?? product?.price ?? 0;
-  const displayStockStatus = selectedVariant?.stock_status ?? product?.stock_status;
-  const displayStockQuantity = selectedVariant?.stock_quantity ?? product?.stock_quantity;
+  const displayPrice =
+    selectedFrameSizeRow?.price != null
+      ? Number(selectedFrameSizeRow.price)
+      : selectedVariant?.price ?? product?.price ?? 0;
+  const displayStockStatus =
+    selectedFrameSizeRow?.stock_status ?? selectedVariant?.stock_status ?? product?.stock_status;
+  const displayStockQuantity =
+    selectedFrameSizeRow?.stock_quantity ?? selectedVariant?.stock_quantity ?? product?.stock_quantity;
+  const needsSizeSelection = showSizePicker && !selectedFrameSizeRow;
 
   const handleVariantSelect = (variantId: number) => {
     setSelectedVariantId(variantId);
-    setSelectedImageIndex(0); // Reset to first image when variant changes
+    setHasPickedColor(true);
+    setSelectedFrameSizeId(null);
+    setSelectedFrameSize(null);
+    setSelectedImageIndex(0);
   };
 
   return (
@@ -240,6 +288,57 @@ export default function ProductDetailsModal({
                 </div>
               )}
 
+              {showSizePicker && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-sm font-semibold text-gray-700">Size:</label>
+                    {selectedFrameSizeRow ? (
+                      <span className="text-xs text-[#0066CC] font-medium">
+                        Selected: {formatFrameSizeLabel(selectedFrameSizeRow)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-500">Choose a size for this color</span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {availableFrameSizes.map((size) => {
+                      const label = formatFrameSizeLabel(size);
+                      const isSelected = selectedFrameSizeId === size.id;
+                      const outOfStock =
+                        size.stock_status === 'out_of_stock' || size.stock_quantity <= 0;
+                      return (
+                        <button
+                          key={size.id}
+                          type="button"
+                          disabled={outOfStock}
+                          onClick={() => {
+                            setSelectedFrameSizeId(size.id);
+                            setSelectedFrameSize(size);
+                            setSelectedImageIndex(0);
+                            setQuantity(1);
+                          }}
+                          className={`min-w-[4.5rem] px-4 py-2.5 rounded-full border-2 text-sm font-semibold transition-all ${
+                            isSelected
+                              ? 'border-[#0066CC] bg-[#0066CC] text-white shadow-sm'
+                              : outOfStock
+                              ? 'border-gray-200 text-gray-400 opacity-60 cursor-not-allowed'
+                              : 'border-gray-300 text-gray-800 hover:border-[#0066CC] hover:text-[#0066CC]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedFrameSizeRow && (
+                    <p className="text-sm text-gray-600">
+                      {formatFrameSizeDimensions(selectedFrameSizeRow)} ·{' '}
+                      {selectedFrameSizeRow.stock_quantity} available
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Price */}
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl font-bold text-[#0066CC]">
@@ -263,7 +362,9 @@ export default function ProductDetailsModal({
 
               {/* Stock Status */}
               <div className="flex items-center gap-2">
-                {displayStockStatus === 'in_stock' ? (
+                {needsSizeSelection ? (
+                  <Badge variant="warning" size="sm">Select a size to see stock</Badge>
+                ) : displayStockStatus === 'in_stock' ? (
                   <>
                     <Badge variant="success" size="sm">In Stock</Badge>
                     <span className="text-sm text-gray-600">
@@ -280,49 +381,82 @@ export default function ProductDetailsModal({
                 <p className="text-gray-700 leading-relaxed">{product.short_description}</p>
               )}
 
-              {/* Product Options - Category Specific */}
-              <div className="pt-4 border-t border-gray-200">
-                <ProductOptions
-                  product={product as any}
-                  selectedColor={selectedVariant?.color_name}
-                  onColorChange={(color) => {
-                    const variant = product.variants?.find(v => v.color_name === color);
-                    if (variant) handleVariantSelect(variant.id);
-                  }}
-                  selectedSize={selectedFrameSize}
-                  onSizeChange={setSelectedFrameSize}
-                  selectedLensType={selectedLensType}
-                  onLensTypeChange={setSelectedLensType}
-                  selectedLensIndex={selectedLensIndex}
-                  onLensIndexChange={setSelectedLensIndex}
-                  selectedTreatments={selectedTreatments}
-                  onTreatmentToggle={(treatmentId) => {
-                    setSelectedTreatments(prev =>
-                      prev.includes(treatmentId)
-                        ? prev.filter(id => id !== treatmentId)
-                        : [...prev, treatmentId]
-                    );
-                  }}
-                  quantity={quantity}
-                  onQuantityChange={setQuantity}
-                />
-              </div>
+              {/* Product Options - prescription / lens flow for opty-kids only */}
+              {!isRetailGlasses && requiresLensCustomizationModal(product) && (
+                <div className="pt-4 border-t border-gray-200">
+                  <ProductOptions
+                    product={product as any}
+                    selectedColor={selectedVariant?.color_name}
+                    onColorChange={(color) => {
+                      const variant = product.variants?.find(v => v.color_name === color);
+                      if (variant) handleVariantSelect(variant.id);
+                    }}
+                    selectedSize={selectedFrameSize}
+                    onSizeChange={setSelectedFrameSize}
+                    selectedLensType={selectedLensType}
+                    onLensTypeChange={setSelectedLensType}
+                    selectedLensIndex={selectedLensIndex}
+                    onLensIndexChange={setSelectedLensIndex}
+                    selectedTreatments={selectedTreatments}
+                    onTreatmentToggle={(treatmentId) => {
+                      setSelectedTreatments(prev =>
+                        prev.includes(treatmentId)
+                          ? prev.filter(id => id !== treatmentId)
+                          : [...prev, treatmentId]
+                      );
+                    }}
+                    quantity={quantity}
+                    onQuantityChange={setQuantity}
+                    selectedVariantId={activeVariantId}
+                  />
+                </div>
+              )}
+
+              {isRetailGlasses && (
+                <div className="pt-4 border-t border-gray-200">
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Quantity</label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="w-10 h-10 rounded-lg border-2 border-gray-200 hover:border-gray-300 flex items-center justify-center font-semibold"
+                    >
+                      −
+                    </button>
+                    <span className="text-lg font-semibold w-12 text-center">{quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setQuantity(Math.min(displayStockQuantity || 1, quantity + 1))
+                      }
+                      className="w-10 h-10 rounded-lg border-2 border-gray-200 hover:border-gray-300 flex items-center justify-center font-semibold"
+                      disabled={needsSizeSelection || (displayStockQuantity ?? 0) <= 0}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Quick Actions */}
               <div className="flex gap-3 pt-2">
                 <Button onClick={handleViewFullPage} className="flex-1">
                   View Full Page
                 </Button>
-                <Link 
-                  href={`/products/${product.id}${selectedVariantId ? `?variant=${selectedVariantId}` : ''}`} 
+                <Link
+                  href={`/products/${product.id}${selectedVariantId ? `?variant=${selectedVariantId}` : ''}${selectedFrameSizeId ? `${selectedVariantId ? '&' : '?'}size=${selectedFrameSizeId}` : ''}`}
                   className="flex-1"
                 >
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
-                    disabled={displayStockStatus !== 'in_stock'}
+                    disabled={needsSizeSelection || displayStockStatus !== 'in_stock'}
                   >
-                    {displayStockStatus !== 'in_stock' ? 'Out of Stock' : 'Add to Cart'}
+                    {needsSizeSelection
+                      ? 'Select a size'
+                      : displayStockStatus !== 'in_stock'
+                      ? 'Out of Stock'
+                      : 'Add to Cart'}
                   </Button>
                 </Link>
               </div>

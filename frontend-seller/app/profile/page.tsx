@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { userService, type ProfileResponse } from "@/services/user-service";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,7 +34,7 @@ const ACCOUNT_SHORTCUT_TABS: AccountTab[] = [
   "store-settings",
 ];
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -571,5 +571,19 @@ export default function ProfilePage() {
       </div>
       <BottomNav />
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <p className="text-gray-500">Loading profile…</p>
+        </div>
+      }
+    >
+      <ProfilePageContent />
+    </Suspense>
   );
 }

@@ -32,6 +32,11 @@ class Store extends Model
         'onboarding_status',
         'onboarding_level',
         'onboarding_percent',
+        'low_stock_threshold',
+        'bank_account_holder',
+        'bank_name',
+        'verification_submitted_at',
+        'store_setup_completed_at',
         'meta',
     ];
 
@@ -39,6 +44,9 @@ class Store extends Model
         'is_active' => 'boolean',
         'onboarding_level' => 'integer',
         'onboarding_percent' => 'integer',
+        'low_stock_threshold' => 'integer',
+        'verification_submitted_at' => 'datetime',
+        'store_setup_completed_at' => 'datetime',
         'meta' => 'array',
     ];
 

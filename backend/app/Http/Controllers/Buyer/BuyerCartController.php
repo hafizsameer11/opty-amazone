@@ -8,6 +8,8 @@ use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\ProductSizeVolume;
+use App\Models\EyeHygieneVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -92,6 +94,8 @@ class BuyerCartController extends Controller
             'contact_lens_right_cylinder' => 'nullable|numeric|min:-10|max:10',
             'contact_lens_right_axis' => 'nullable|integer|min:0|max:180',
             'contact_lens_pack_quantity' => 'nullable|integer|min:1',
+            'product_size_volume_id' => 'nullable|exists:product_size_volumes,id',
+            'eye_hygiene_variant_id' => 'nullable|exists:eye_hygiene_variants,id',
         ]);
 
         $user = Auth::user();
@@ -131,6 +135,32 @@ class BuyerCartController extends Controller
             $price = $packPrice;
         }
 
+        if ($request->product_size_volume_id) {
+            $sizeVolume = ProductSizeVolume::where('product_id', $product->id)
+                ->where('id', $request->product_size_volume_id)
+                ->where('is_active', true)
+                ->firstOrFail();
+
+            $price = $sizeVolume->price ?? $product->price;
+            $stockQuantity = (int) $sizeVolume->stock_quantity;
+            $stockStatus = $sizeVolume->stock_status ?? $product->stock_status;
+
+            if ($stockStatus === 'out_of_stock') {
+                return ResponseHelper::error('This size/volume option is out of stock', null, 400);
+            }
+        }
+
+        if ($request->eye_hygiene_variant_id) {
+            $namedVariant = EyeHygieneVariant::where('product_id', $product->id)
+                ->where('id', $request->eye_hygiene_variant_id)
+                ->where('is_active', true)
+                ->firstOrFail();
+
+            $price = $namedVariant->price ?? $product->price;
+            $stockQuantity = $product->stock_quantity;
+            $stockStatus = $product->stock_status;
+        }
+
         if ($stockQuantity < $request->quantity) {
             return ResponseHelper::error('Insufficient stock', null, 400);
         }
@@ -152,7 +182,9 @@ class BuyerCartController extends Controller
                 ->where('lens_thickness_material_id', $request->lens_thickness_material_id ?? null)
                 ->where('lens_thickness_option_id', $request->lens_thickness_option_id ?? null)
                 ->where('lens_color_id', $request->lens_color_id ?? null)
-                ->where('contact_lens_pack_quantity', $request->contact_lens_pack_quantity ?? null);
+                ->where('contact_lens_pack_quantity', $request->contact_lens_pack_quantity ?? null)
+                ->where('product_size_volume_id', $request->product_size_volume_id ?? null)
+                ->where('eye_hygiene_variant_id', $request->eye_hygiene_variant_id ?? null);
 
             $existingItem = $existingItemQuery->first();
 
@@ -200,6 +232,8 @@ class BuyerCartController extends Controller
                     'contact_lens_right_cylinder' => $request->contact_lens_right_cylinder,
                     'contact_lens_right_axis' => $request->contact_lens_right_axis,
                     'contact_lens_pack_quantity' => $request->contact_lens_pack_quantity,
+                    'product_size_volume_id' => $request->product_size_volume_id,
+                    'eye_hygiene_variant_id' => $request->eye_hygiene_variant_id,
                 ];
 
                 $item = CartItem::create($itemData);

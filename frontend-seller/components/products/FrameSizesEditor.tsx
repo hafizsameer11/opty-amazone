@@ -168,7 +168,7 @@ export default function FrameSizesEditor({
       </div>
 
       <div className="p-4 space-y-4">
-        {alert && <Alert type={alert.type}>{alert.message}</Alert>}
+        {alert && <Alert type={alert.type} message={alert.message} onClose={() => setAlert(null)} />}
 
         {loading ? (
           <p className="text-sm text-gray-500">Loading sizes…</p>

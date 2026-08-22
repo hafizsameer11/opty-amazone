@@ -1,7 +1,7 @@
 "use client";
 
 import { Product } from "@/types/product";
-import { shouldShowLensOptions } from "@/utils/product-utils";
+import { shouldShowLensOptions, isEyeglassesOrSunglassesProduct } from "@/utils/product-utils";
 
 interface ProductOptionsProps {
   product: Product;
@@ -19,6 +19,7 @@ interface ProductOptionsProps {
   onTreatmentToggle?: (treatmentId: number) => void;
   quantity: number;
   onQuantityChange: (qty: number) => void;
+  selectedVariantId?: number | null;
 }
 
 export default function ProductOptions({
@@ -37,13 +38,55 @@ export default function ProductOptions({
   onTreatmentToggle,
   quantity,
   onQuantityChange,
+  selectedVariantId,
 }: ProductOptionsProps) {
   // Render frame/sunglasses options
   if (shouldShowLensOptions(product as any)) {
     const frameProduct = product as any;
+    const isRetailGlasses = isEyeglassesOrSunglassesProduct(product as any);
+    const hasVariants = Boolean(frameProduct.variants?.length);
+    const activeVariantId = selectedVariantId ?? null;
+    const availableSizes = (frameProduct.frame_sizes ?? []).filter((size: any) => {
+      if (!hasVariants) return !size.product_variant_id;
+      if (!activeVariantId) return false;
+      return size.product_variant_id === activeVariantId;
+    });
     
     return (
       <>
+        {/* Frame sizes for eyeglasses / sunglasses (per color) */}
+        {isRetailGlasses && availableSizes.length > 0 && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              Frame Size
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {availableSizes.map((size: any) => (
+                <button
+                  key={size.id}
+                  type="button"
+                  onClick={() => onSizeChange?.(size)}
+                  className={`px-4 py-2.5 rounded-full border-2 text-sm font-semibold transition-all ${
+                    selectedSize?.id === size.id
+                      ? "border-[#0066CC] bg-[#0066CC] text-white"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  {size.size_label ||
+                    `${size.lens_width}-${size.bridge_width}-${size.temple_length}`}
+                </button>
+              ))}
+            </div>
+            {selectedSize && (
+              <p className="mt-2 text-sm text-gray-600">
+                {selectedSize.stock_quantity} available
+              </p>
+            )}
+          </div>
+        )}
+
+        {!isRetailGlasses && (
+          <>
         {/* Frame Color Selection */}
         {frameProduct.frame_colors && frameProduct.frame_colors.length > 0 && (
           <div>
@@ -71,8 +114,8 @@ export default function ProductOptions({
 
         {/* Lens colour UI hidden for glasses buyers — default still used in cart via parent selection. */}
 
-        {/* Frame Size Selection */}
-        {frameProduct.frame_sizes && frameProduct.frame_sizes.length > 0 && (
+        {/* Frame Size Selection (legacy — non-variant products) */}
+        {!isRetailGlasses && frameProduct.frame_sizes && frameProduct.frame_sizes.length > 0 && (
           <div>
             <label className="block text-sm font-semibold text-gray-900 mb-2">
               Frame Size
@@ -268,6 +311,8 @@ export default function ProductOptions({
               )}
             </div>
           </div>
+        )}
+          </>
         )}
       </>
     );

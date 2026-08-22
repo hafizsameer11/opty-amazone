@@ -46,13 +46,16 @@ export default function RegisterPage() {
       router.push('/');
     } catch (err: any) {
       // Prioritize field-specific errors over general message
-      const errors = err.response?.data?.errors;
-      const errorMessage = 
-        errors?.email?.[0] ||
-        errors?.password?.[0] ||
-        errors?.name?.[0] ||
-        errors?.phone?.[0] ||
-        Object.values(errors || {})[0]?.[0] || // Get first error from any field
+      const apiErrors = err.response?.data?.errors as Record<string, string[]> | undefined;
+      const firstFieldError = apiErrors
+        ? Object.values(apiErrors).find((v) => Array.isArray(v) && v.length)?.[0]
+        : undefined;
+      const errorMessage =
+        apiErrors?.email?.[0] ||
+        apiErrors?.password?.[0] ||
+        apiErrors?.name?.[0] ||
+        apiErrors?.phone?.[0] ||
+        firstFieldError ||
         err.response?.data?.message ||
         'Registration failed. Please try again.';
       setError(errorMessage);
@@ -77,6 +80,11 @@ export default function RegisterPage() {
               Create seller account
             </h2>
             <p className="text-sm text-gray-600">
+              Want to shop instead?{' '}
+              <a href="https://buyer.vistaexpress.it/auth/choose" className="font-semibold text-[#0066CC] hover:text-[#0052a3] transition-colors">
+                Register as buyer
+              </a>
+              {' · '}
               Already have an account?{' '}
               <Link href="/auth/login" className="font-semibold text-[#0066CC] hover:text-[#0052a3] transition-colors">
                 Sign in

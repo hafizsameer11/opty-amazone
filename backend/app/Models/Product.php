@@ -44,6 +44,16 @@ class Product extends Model
         'is_featured',
         'is_active',
         'is_approved',
+        'is_muted',
+        'is_boosted',
+        'boosted_at',
+        'boost_location',
+        'boost_budget',
+        'boost_start_at',
+        'boost_end_at',
+        'boost_payment_status',
+        'shipping_type',
+        'shipping_fee',
         'rejection_reason',
         'meta_title',
         'meta_description',
@@ -93,6 +103,13 @@ class Product extends Model
         'is_featured' => 'boolean',
         'is_active' => 'boolean',
         'is_approved' => 'boolean',
+        'is_muted' => 'boolean',
+        'is_boosted' => 'boolean',
+        'boosted_at' => 'datetime',
+        'boost_start_at' => 'datetime',
+        'boost_end_at' => 'datetime',
+        'boost_budget' => 'decimal:2',
+        'shipping_fee' => 'decimal:2',
         'has_uv_filter' => 'boolean',
         'can_sleep_with' => 'boolean',
         'is_medical_device' => 'boolean',
@@ -158,6 +175,22 @@ class Product extends Model
     }
 
     /**
+     * Eye hygiene size / ML / pack options.
+     */
+    public function sizeVolumeVariants(): HasMany
+    {
+        return $this->hasMany(ProductSizeVolume::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Eye hygiene named options (e.g. multi-pack labels).
+     */
+    public function eyeHygieneVariants(): HasMany
+    {
+        return $this->hasMany(EyeHygieneVariant::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
      * Get the lens types available for this product.
      */
     public function lensTypes(): BelongsToMany
@@ -171,6 +204,15 @@ class Product extends Model
     public function lensCoatings(): BelongsToMany
     {
         return $this->belongsToMany(LensCoating::class, 'product_lens_coatings');
+    }
+
+    /** Products buyers can see in catalog and PDP. */
+    public function scopeVisibleToBuyers($query)
+    {
+        return $query
+            ->where('is_active', true)
+            ->where('is_approved', true)
+            ->where('is_muted', false);
     }
 }
 

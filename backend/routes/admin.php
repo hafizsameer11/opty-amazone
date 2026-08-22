@@ -41,6 +41,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}', [\App\Http\Controllers\Admin\AdminProductController::class, 'show']);
         Route::post('/{id}/approve', [\App\Http\Controllers\Admin\AdminProductController::class, 'approve']);
         Route::post('/{id}/reject', [\App\Http\Controllers\Admin\AdminProductController::class, 'reject']);
+        Route::post('/{id}/toggle-active', [\App\Http\Controllers\Admin\AdminProductController::class, 'toggleActive']);
+        Route::post('/{id}/toggle-mute', [\App\Http\Controllers\Admin\AdminProductController::class, 'toggleMute']);
+        Route::post('/{id}/toggle-boost', [\App\Http\Controllers\Admin\AdminProductController::class, 'toggleBoost']);
+        Route::post('/{id}/approve-boost', [\App\Http\Controllers\Admin\AdminProductController::class, 'approveBoost']);
         Route::delete('/{id}', [\App\Http\Controllers\Admin\AdminProductController::class, 'destroy']);
     });
 

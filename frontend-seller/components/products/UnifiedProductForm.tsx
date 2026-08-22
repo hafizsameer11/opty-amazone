@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { productService, type Category, type CreateProductData, type Product } from '@/services/product-service';
+import { productService, type Category, type CreateProductData, type Product, productToEditFormData } from '@/services/product-service';
 import { categoryFieldConfigService } from '@/services/category-field-config-service';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -12,13 +12,18 @@ import ProductImageUpload from '@/components/products/ProductImageUpload';
 import CategoryProductForm from '@/components/products/CategoryProductForm';
 import DiscountCalculator from '@/components/products/DiscountCalculator';
 import ColorVariationsManager from '@/components/products/ColorVariationsManager';
+import { useSuggestedProductSku } from '@/lib/use-suggested-product-sku';
 
 interface UnifiedProductFormProps {
-  productId?: number; // If provided, it's edit mode; otherwise, create mode
+  productId?: number;
   onSuccess?: () => void;
+  eyewearOnly?: {
+    productType: 'frame' | 'sunglasses';
+    defaultCategorySlug: string;
+  };
 }
 
-export default function UnifiedProductForm({ productId, onSuccess }: UnifiedProductFormProps) {
+export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }: UnifiedProductFormProps) {
   const router = useRouter();
   const isNew = !productId;
   
@@ -54,6 +59,8 @@ export default function UnifiedProductForm({ productId, onSuccess }: UnifiedProd
     treatment_options: [],
     is_featured: false,
     is_active: true,
+    shipping_type: 'free',
+    shipping_fee: 0,
     base_curve_options: [],
     diameter_options: [],
     powers_range: '',
@@ -77,6 +84,12 @@ export default function UnifiedProductForm({ productId, onSuccess }: UnifiedProd
 
   const selectedCategory = categories.find(cat => cat.id === formData.category_id);
 
+  const applySuggestedSku = useCallback((sku: string) => {
+    setFormData((prev) => (prev.sku.trim() ? prev : { ...prev, sku }));
+  }, []);
+
+  useSuggestedProductSku(isNew, formData.sku, applySuggestedSku);
+
   useEffect(() => {
     loadCategories();
     if (!isNew) {
@@ -98,6 +111,16 @@ export default function UnifiedProductForm({ productId, onSuccess }: UnifiedProd
     try {
       const data = await productService.getCategories();
       setCategories(data);
+      if (isNew && eyewearOnly) {
+        const cat = data.find((c) => c.slug === eyewearOnly.defaultCategorySlug);
+        if (cat) {
+          setFormData((prev) => ({
+            ...prev,
+            product_type: eyewearOnly.productType,
+            category_id: cat.id,
+          }));
+        }
+      }
     } catch (error) {
       console.error('Failed to load categories:', error);
     }
@@ -107,10 +130,11 @@ export default function UnifiedProductForm({ productId, onSuccess }: UnifiedProd
     if (!formData.category_id) return;
     try {
       const data = await productService.getCategories();
-      const subs = data.filter(cat => cat.parent_id === formData.category_id);
-      setSubCategories(subs);
+      const parent = data.find((cat) => cat.id === formData.category_id);
+      setSubCategories(parent?.children ?? []);
     } catch (error) {
       console.error('Failed to load sub categories:', error);
+      setSubCategories([]);
     }
   };
 
@@ -131,51 +155,7 @@ export default function UnifiedProductForm({ productId, onSuccess }: UnifiedProd
       setLoadingProduct(true);
       const data = await productService.getOne(productId);
       setProduct(data);
-      setFormData({
-        name: data.name,
-        category_id: data.category_id || undefined,
-        sub_category_id: data.sub_category_id || undefined,
-        sku: data.sku,
-        description: data.description || '',
-        short_description: data.short_description || '',
-        product_type: data.product_type,
-        price: data.price,
-        compare_at_price: data.compare_at_price || undefined,
-        sale_start_date: data.sale_start_date || undefined,
-        sale_end_date: data.sale_end_date || undefined,
-        cost_price: data.cost_price || undefined,
-        stock_quantity: data.stock_quantity,
-        stock_status: data.stock_status,
-        images: data.images || [],
-        frame_shape: data.frame_shape || '',
-        frame_material: data.frame_material || '',
-        frame_color: data.frame_color || '',
-        gender: data.gender || 'unisex',
-        lens_type: data.lens_type || '',
-        lens_index_options: data.lens_index_options || [],
-        treatment_options: data.treatment_options || [],
-        is_featured: data.is_featured,
-        is_active: data.is_active,
-        base_curve_options: data.base_curve_options || [],
-        diameter_options: data.diameter_options || [],
-        powers_range: data.powers_range || '',
-        replacement_frequency: data.replacement_frequency || '',
-        contact_lens_brand: data.contact_lens_brand || '',
-        contact_lens_color: data.contact_lens_color || '',
-        contact_lens_material: data.contact_lens_material || '',
-        contact_lens_type: data.contact_lens_type || '',
-        has_uv_filter: data.has_uv_filter || false,
-        can_sleep_with: data.can_sleep_with || false,
-        water_content: data.water_content || '',
-        is_medical_device: data.is_medical_device !== false,
-        size_volume: data.size_volume || '',
-        pack_type: data.pack_type || '',
-        expiry_date: data.expiry_date || '',
-        model_3d_url: data.model_3d_url || '',
-        try_on_image: data.try_on_image || '',
-        color_images: data.color_images || [],
-        mm_calibers: data.mm_calibers || null,
-      });
+      setFormData(productToEditFormData(data));
     } catch (error: any) {
       setError(error.response?.data?.message || 'Failed to load product');
     } finally {
@@ -328,14 +308,18 @@ export default function UnifiedProductForm({ productId, onSuccess }: UnifiedProd
             
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-100">
               <Input
-                label="SKU *"
+                label="SKU"
                 value={formData.sku}
                 onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                required
                 disabled={!isNew}
                 className="bg-white"
-                placeholder="e.g., PROD-001"
+                placeholder="Auto-generated when you open this form"
               />
+              {isNew && (
+                <p className="mt-2 text-xs text-amber-700">
+                  SKU is generated automatically. Edit it only if you need a custom code.
+                </p>
+              )}
             </div>
             
             <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-100">
@@ -355,6 +339,41 @@ export default function UnifiedProductForm({ productId, onSuccess }: UnifiedProd
                 <option value="eye_hygiene">Eye Hygiene</option>
                 <option value="accessory">Accessory</option>
               </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-100">
+                <label className="block text-sm font-bold text-gray-800 mb-3">Shipping</label>
+                <select
+                  value={formData.shipping_type || 'free'}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      shipping_type: e.target.value as 'free' | 'fixed',
+                      shipping_fee: e.target.value === 'free' ? 0 : formData.shipping_fee,
+                    })
+                  }
+                  className="w-full px-4 py-3.5 bg-white border-2 border-orange-200 rounded-xl"
+                >
+                  <option value="free">Free shipping</option>
+                  <option value="fixed">Fixed fee per item</option>
+                </select>
+              </div>
+              {(formData.shipping_type || 'free') === 'fixed' && (
+                <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-100">
+                  <Input
+                    label="Shipping fee (€)"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.shipping_fee ?? 0}
+                    onChange={(e) =>
+                      setFormData({ ...formData, shipping_fee: parseFloat(e.target.value) || 0 })
+                    }
+                    className="bg-white"
+                  />
+                </div>
+              )}
             </div>
             
             <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-xl p-6 border border-slate-200">

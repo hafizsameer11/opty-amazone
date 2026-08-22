@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
@@ -13,6 +13,7 @@ import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import ProductImageUpload from '@/components/products/ProductImageUpload';
 import SimplifiedProductOptions from '@/components/products/SimplifiedProductOptions';
+import { useSuggestedProductSku } from '@/lib/use-suggested-product-sku';
 
 export default function ContactLensesProductPage() {
   const router = useRouter();
@@ -42,6 +43,12 @@ export default function ContactLensesProductPage() {
     is_featured: false,
     is_active: true,
   });
+
+  const applySuggestedSku = useCallback((sku: string) => {
+    setFormData((prev) => (prev.sku.trim() ? prev : { ...prev, sku }));
+  }, []);
+
+  useSuggestedProductSku(true, formData.sku, applySuggestedSku);
 
   const subCategoryOptions = useMemo(() => {
     const selectedCategory = categories.find((c) => c.id === categoryId);
@@ -206,11 +213,14 @@ export default function ContactLensesProductPage() {
                         </select>
                       </div>
                       <Input
-                        label="SKU *"
+                        label="SKU"
                         value={formData.sku}
                         onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                        required
+                        placeholder="Auto-generated when you open this form"
                       />
+                      <p className="text-xs text-gray-500">
+                        SKU is generated automatically. Edit it only if you need a custom code.
+                      </p>
                       <div>
                         <label className="block text-sm font-semibold text-gray-800 mb-2">
                           Description

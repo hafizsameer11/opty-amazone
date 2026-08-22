@@ -6,17 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Helpers\ResponseHelper;
 use App\Models\Product;
 use App\Models\Category;
+use App\Services\Product\EyeHygieneVariantService;
 use Illuminate\Http\Request;
 
 class PublicProductController extends Controller
 {
+    public function __construct(private EyeHygieneVariantService $eyeHygieneVariantService)
+    {
+    }
     /**
      * Get all products (public).
      */
     public function index(Request $request)
     {
         $query = Product::with(['store', 'category'])
-            ->where('is_active', true);
+            ->visibleToBuyers();
 
         // Filter by category
         if ($request->has('category_id')) {
@@ -43,9 +47,14 @@ class PublicProductController extends Controller
      */
     public function show($id)
     {
-        $product = Product::with(['store', 'category', 'subCategory'])
-            ->where('is_active', true)
+        $product = Product::with(['store', 'category', 'subCategory', 'sizeVolumeVariants', 'eyeHygieneVariants'])
+            ->visibleToBuyers()
             ->findOrFail($id);
+
+        if ($product->product_type === 'eye_hygiene') {
+            $this->eyeHygieneVariantService->ensureLegacySizeVolumes($product);
+            $product->load(['sizeVolumeVariants', 'eyeHygieneVariants']);
+        }
 
         $product->increment('view_count');
 

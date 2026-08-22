@@ -114,7 +114,7 @@ export default function ProductsPage() {
       header: 'Actions',
       render: (product: Product) => (
         <div className="flex gap-2">
-          <Button size="sm" variant="success" onClick={() => handleApprove(product.id)}>Approve</Button>
+          <Button size="sm" variant="primary" onClick={() => handleApprove(product.id)}>Approve</Button>
           <Button size="sm" variant="danger" onClick={() => handleReject(product.id)}>Reject</Button>
           <Button size="sm" variant="danger" onClick={() => handleDelete(product.id)}>Delete</Button>
         </div>
