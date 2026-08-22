@@ -64,6 +64,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('coupons')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\AdminCouponController::class, 'index']);
+        Route::post('/{id}/toggle-status', [\App\Http\Controllers\Admin\AdminCouponController::class, 'toggleStatus']);
+        Route::delete('/{id}', [\App\Http\Controllers\Admin\AdminCouponController::class, 'destroy']);
     });
 
     Route::prefix('analytics')->group(function () {
@@ -99,5 +101,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'index']);
         Route::get('/{id}', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'show']);
         Route::post('/{id}/status', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'updateStatus']);
+    });
+
+    Route::prefix('store-banners')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\AdminStoreBannerController::class, 'index']);
+        Route::get('/{id}', [\App\Http\Controllers\Admin\AdminStoreBannerController::class, 'show']);
+        Route::post('/{id}/approve', [\App\Http\Controllers\Admin\AdminStoreBannerController::class, 'approve']);
+        Route::post('/{id}/reject', [\App\Http\Controllers\Admin\AdminStoreBannerController::class, 'reject']);
+        Route::post('/{id}/toggle-active', [\App\Http\Controllers\Admin\AdminStoreBannerController::class, 'toggleActive']);
+        Route::delete('/{id}', [\App\Http\Controllers\Admin\AdminStoreBannerController::class, 'destroy']);
     });
 });

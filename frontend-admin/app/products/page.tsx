@@ -79,17 +79,17 @@ export default function ProductsPage() {
     {
       key: 'store',
       header: 'Store',
-      render: (product: Product) => <span className="text-white">{product.store?.name || 'N/A'}</span>,
+      render: (product: Product) => <span className="text-slate-900">{product.store?.name || 'N/A'}</span>,
     },
     {
       key: 'category',
       header: 'Category',
-      render: (product: Product) => <span className="text-white">{product.category?.name || 'N/A'}</span>,
+      render: (product: Product) => <span className="text-slate-900">{product.category?.name || 'N/A'}</span>,
     },
     {
       key: 'price',
       header: 'Price',
-      render: (product: Product) => <span className="text-white">€{product.price?.toFixed(2) || '0.00'}</span>,
+      render: (product: Product) => <span className="text-slate-900">€{Number(product.price ?? 0).toFixed(2)}</span>,
     },
     {
       key: 'is_active',
@@ -126,8 +126,8 @@ export default function ProductsPage() {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Products</h1>
-          <p className="text-white/70">Manage all products</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Products</h1>
+          <p className="text-slate-500">Manage all products</p>
         </div>
 
         <GlassCard>

@@ -114,7 +114,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-500 mb-1">Total Revenue</p>
-                <p className="text-3xl font-bold text-slate-900">€{stats?.total_revenue?.toFixed(2) || '0.00'}</p>
+                <p className="text-3xl font-bold text-slate-900">€{Number(stats?.total_revenue ?? 0).toFixed(2)}</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-success/30 flex items-center justify-center">
                 <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">

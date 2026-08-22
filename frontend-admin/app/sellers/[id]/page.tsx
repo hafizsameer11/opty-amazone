@@ -69,7 +69,7 @@ export default function SellerDetailsPage() {
   if (!seller) {
     return (
       <AdminLayout>
-        <div className="text-center text-white/70 py-12">Seller not found</div>
+        <div className="text-center text-slate-500 py-12">Seller not found</div>
       </AdminLayout>
     );
   }
@@ -79,8 +79,8 @@ export default function SellerDetailsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">{seller.name}</h1>
-            <p className="text-white/70">Store Details</p>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">{seller.name}</h1>
+            <p className="text-slate-500">Store Details</p>
           </div>
           <div className="flex gap-3">
             <Button variant="primary" onClick={handleApprove}>Approve</Button>
@@ -91,18 +91,18 @@ export default function SellerDetailsPage() {
         <GlassCard>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-white/70 mb-1">Owner</p>
-              <p className="text-white">{seller.user?.name}</p>
-              <p className="text-sm text-white/70">{seller.user?.email}</p>
+              <p className="text-sm text-slate-500 mb-1">Owner</p>
+              <p className="text-slate-900">{seller.user?.name}</p>
+              <p className="text-sm text-slate-500">{seller.user?.email}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-white/70 mb-1">Products</p>
-                <p className="text-white font-bold text-xl">{seller.products_count || 0}</p>
+                <p className="text-sm text-slate-500 mb-1">Products</p>
+                <p className="text-slate-900 font-bold text-xl">{seller.products_count || 0}</p>
               </div>
               <div>
-                <p className="text-sm text-white/70 mb-1">Orders</p>
-                <p className="text-white font-bold text-xl">{seller.orders_count || 0}</p>
+                <p className="text-sm text-slate-500 mb-1">Orders</p>
+                <p className="text-slate-900 font-bold text-xl">{seller.orders_count || 0}</p>
               </div>
             </div>
           </div>

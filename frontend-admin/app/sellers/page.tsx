@@ -67,20 +67,20 @@ export default function SellersPage() {
       header: 'Store Name',
       render: (seller: Seller) => (
         <div>
-          <p className="font-semibold text-white">{seller.name}</p>
-          <p className="text-xs text-white/70">{seller.user?.email}</p>
+          <p className="font-semibold text-slate-900">{seller.name}</p>
+          <p className="text-xs text-slate-500">{seller.user?.email}</p>
         </div>
       ),
     },
     {
       key: 'products_count',
       header: 'Products',
-      render: (seller: Seller) => <span className="text-white">{seller.products_count || 0}</span>,
+      render: (seller: Seller) => <span className="text-slate-900">{seller.products_count || 0}</span>,
     },
     {
       key: 'orders_count',
       header: 'Orders',
-      render: (seller: Seller) => <span className="text-white">{seller.orders_count || 0}</span>,
+      render: (seller: Seller) => <span className="text-slate-900">{seller.orders_count || 0}</span>,
     },
     {
       key: 'actions',
@@ -101,8 +101,8 @@ export default function SellersPage() {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Sellers</h1>
-          <p className="text-white/70">Manage sellers and stores</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Sellers</h1>
+          <p className="text-slate-500">Manage sellers and stores</p>
         </div>
 
         <GlassCard>
