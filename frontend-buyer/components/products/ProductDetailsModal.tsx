@@ -88,10 +88,7 @@ export default function ProductDetailsModal({
     const all = product?.frame_sizes ?? [];
     const inStock = (s: FrameSize) =>
       Number(s.stock_quantity) > 0 && s.stock_status !== 'out_of_stock';
-    if (!hasVariants) {
-      return all.filter((s) => !s.product_variant_id && inStock(s));
-    }
-    if (!activeVariantId) return [];
+    if (!hasVariants || !activeVariantId) return [];
     return all.filter((s) => s.product_variant_id === activeVariantId && inStock(s));
   })();
 
@@ -109,6 +106,9 @@ export default function ProductDetailsModal({
     if (size.size_label?.trim()) return size.size_label.trim();
     return `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)}`;
   };
+
+  const hasFrameSizeDimensions = (size: FrameSize) =>
+    Number(size.lens_width) > 0 || Number(size.bridge_width) > 0 || Number(size.temple_length) > 0;
 
   const formatFrameSizeDimensions = (size: FrameSize) =>
     `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)} mm`;
@@ -312,14 +312,16 @@ export default function ProductDetailsModal({
                     {availableFrameSizes.map((size) => (
                       <option key={size.id} value={size.id}>
                         {formatFrameSizeLabel(size)}
-                        {` (${formatFrameSizeDimensions(size)})`}
+                        {hasFrameSizeDimensions(size) ? ` (${formatFrameSizeDimensions(size)})` : ''}
                         {` — ${size.stock_quantity} available`}
                       </option>
                     ))}
                   </select>
                   {selectedFrameSizeRow && (
                     <p className="text-sm text-gray-600">
-                      {formatFrameSizeDimensions(selectedFrameSizeRow)} ·{' '}
+                      {hasFrameSizeDimensions(selectedFrameSizeRow)
+                        ? `${formatFrameSizeDimensions(selectedFrameSizeRow)} · `
+                        : ''}
                       {selectedFrameSizeRow.stock_quantity} available
                     </p>
                   )}

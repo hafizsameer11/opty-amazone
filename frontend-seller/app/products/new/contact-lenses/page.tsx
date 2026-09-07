@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
@@ -13,6 +13,7 @@ import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import ProductImageUpload from '@/components/products/ProductImageUpload';
 import SimplifiedProductOptions from '@/components/products/SimplifiedProductOptions';
+import ContactLensCategorySelect from '@/components/products/ContactLensCategorySelect';
 import { useSuggestedProductSku } from '@/lib/use-suggested-product-sku';
 
 export default function ContactLensesProductPage() {
@@ -49,21 +50,6 @@ export default function ContactLensesProductPage() {
   }, []);
 
   useSuggestedProductSku(true, formData.sku, applySuggestedSku);
-
-  const subCategoryOptions = useMemo(() => {
-    const selectedCategory = categories.find((c) => c.id === categoryId);
-    const subCategories = selectedCategory?.children || [];
-    const options: Array<{ id: number; name: string }> = [];
-    for (const sub of subCategories) {
-      options.push({ id: sub.id, name: sub.name });
-      if (Array.isArray(sub.children)) {
-        for (const subSub of sub.children) {
-          options.push({ id: subSub.id, name: `${sub.name} -> ${subSub.name}` });
-        }
-      }
-    }
-    return options;
-  }, [categories, categoryId]);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -195,23 +181,14 @@ export default function ContactLensesProductPage() {
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         required
                       />
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-800 mb-2">
-                          Sub Category
-                        </label>
-                        <select
-                          value={formData.sub_category_id || ''}
-                          onChange={(e) => setFormData({ ...formData, sub_category_id: e.target.value ? Number(e.target.value) : undefined })}
-                          className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
-                        >
-                          <option value="">Select Sub Category</option>
-                          {subCategoryOptions.map((cat) => (
-                            <option key={cat.id} value={cat.id}>
-                              {cat.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <ContactLensCategorySelect
+                        categories={categories}
+                        mainCategoryId={categoryId}
+                        value={formData.sub_category_id}
+                        onChange={(subCategoryId) =>
+                          setFormData({ ...formData, sub_category_id: subCategoryId })
+                        }
+                      />
                       <Input
                         label="SKU"
                         value={formData.sku}

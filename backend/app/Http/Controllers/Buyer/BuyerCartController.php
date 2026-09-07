@@ -164,11 +164,16 @@ class BuyerCartController extends Controller
 
         // Prefer size-level stock when a frame size is selected (Color → Size → Stock)
         if ($request->frame_size_id) {
+            if (!$request->variant_id) {
+                return ResponseHelper::error('Select a color before choosing a size', null, 422);
+            }
+
             $frameSize = FrameSize::where('product_id', $product->id)
                 ->where('id', $request->frame_size_id)
+                ->whereNotNull('product_variant_id')
                 ->firstOrFail();
 
-            if ($request->variant_id && (int) $frameSize->product_variant_id !== (int) $request->variant_id) {
+            if ((int) $frameSize->product_variant_id !== (int) $request->variant_id) {
                 return ResponseHelper::error('Selected size does not belong to this color', null, 422);
             }
 

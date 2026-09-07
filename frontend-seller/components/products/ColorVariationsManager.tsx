@@ -26,15 +26,30 @@ interface DraftSizeRow {
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
 }
 
-function parseSizeText(text: string): { lens_width: number; bridge_width: number; temple_length: number; size_label: string } | null {
-  const cleaned = text.trim().replace(/\s+/g, '');
-  const m = cleaned.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/);
-  if (!m) return null;
+/** Free-text size (e.g. "12mm", "Medium", or still "52-18-140"). Dimensions optional. */
+function normalizeSizeRow(text: string): {
+  lens_width: number;
+  bridge_width: number;
+  temple_length: number;
+  size_label: string;
+} | null {
+  const label = text.trim();
+  if (!label) return null;
+  const compact = label.replace(/\s+/g, '');
+  const m = compact.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/);
+  if (m) {
+    return {
+      lens_width: Number(m[1]),
+      bridge_width: Number(m[2]),
+      temple_length: Number(m[3]),
+      size_label: label,
+    };
+  }
   return {
-    lens_width: Number(m[1]),
-    bridge_width: Number(m[2]),
-    temple_length: Number(m[3]),
-    size_label: `${m[1]}-${m[2]}-${m[3]}`,
+    lens_width: 0,
+    bridge_width: 0,
+    temple_length: 0,
+    size_label: label,
   };
 }
 
@@ -167,10 +182,16 @@ export default function ColorVariationsManager({ productId, categoryId, productT
     setDraftSizes([emptyDraftSize()]);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setSaving(true);
     setAlert(null);
+
+    const colorName = formData.color_name.trim();
+    if (!colorName) {
+      setAlert({ type: 'error', message: 'Enter a color name' });
+      setSaving(false);
+      return;
+    }
 
     const colorCode = (formData.color_code || '').trim();
     if (colorCode && !/^#[0-9A-Fa-f]{6}$/.test(colorCode)) {
@@ -191,11 +212,11 @@ export default function ColorVariationsManager({ productId, categoryId, productT
     if (!editingVariant) {
       for (const row of draftSizes) {
         if (!row.size_text.trim() && row.stock_quantity === 0) continue;
-        const parsed = parseSizeText(row.size_text);
+        const parsed = normalizeSizeRow(row.size_text);
         if (!parsed) {
           setAlert({
             type: 'error',
-            message: `Invalid size "${row.size_text || '(empty)'}". Use format 52-18-140`,
+            message: 'Enter a size name (e.g. 12mm, Medium, or 52-18-140).',
           });
           setSaving(false);
           return;
@@ -206,10 +227,18 @@ export default function ColorVariationsManager({ productId, categoryId, productT
           stock_status: row.stock_status,
         });
       }
+      if (parsedSizes.length === 0) {
+        setAlert({
+          type: 'error',
+          message: 'Add at least one size with a name for this color.',
+        });
+        setSaving(false);
+        return;
+      }
     }
 
     const payload: CreateVariantData & { sizes?: typeof parsedSizes } = {
-      color_name: formData.color_name.trim(),
+      color_name: colorName,
       color_code: colorCode || undefined,
       images: (formData.images || []).map((u) => resolveMediaUrl(u)),
       price: formData.price,
@@ -310,13 +339,20 @@ export default function ColorVariationsManager({ productId, categoryId, productT
       </div>
 
       {showForm && (
-        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4 border-t border-gray-200 pt-6">
+        <div
+          className="space-y-4 border-t border-gray-200 pt-6"
+          onKeyDown={(e) => {
+            // Nested inside product <form> — block Enter from submitting the product
+            if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Color Name"
               value={formData.color_name}
               onChange={(e) => setFormData((prev) => ({ ...prev, color_name: e.target.value }))}
-              required
             />
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Color Code (Hex)</label>
@@ -431,7 +467,7 @@ export default function ColorVariationsManager({ productId, categoryId, productT
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900">Sizes &amp; Stock for this Color</h4>
-                  <p className="text-xs text-gray-500">Only sizes with stock &gt; 0 will show on the storefront for this color.</p>
+                  <p className="text-xs text-gray-500">Type any size name (12mm, Medium, etc.). Only sizes with stock &gt; 0 show on the storefront.</p>
                 </div>
                 <Button
                   type="button"
@@ -445,7 +481,7 @@ export default function ColorVariationsManager({ productId, categoryId, productT
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="text-left text-gray-500 border-b">
-                      <th className="py-2 pr-2 font-medium">Size (Example: 52-18-140)</th>
+                      <th className="py-2 pr-2 font-medium">Size (any text, e.g. 12mm)</th>
                       <th className="py-2 pr-2 font-medium">Stock Quantity</th>
                       <th className="py-2 pr-2 font-medium">Status</th>
                       <th className="py-2 font-medium">Action</th>
@@ -462,9 +498,8 @@ export default function ColorVariationsManager({ productId, categoryId, productT
                               next[index] = { ...row, size_text: e.target.value };
                               setDraftSizes(next);
                             }}
-                            placeholder="52-18-140"
+                            placeholder="12mm / Medium / 52-18-140"
                             className="w-full px-2 py-1.5 border border-gray-300 rounded-md"
-                            required={draftSizes.length === 1 || row.stock_quantity > 0}
                           />
                         </td>
                         <td className="py-2 pr-2">
@@ -546,7 +581,7 @@ export default function ColorVariationsManager({ productId, categoryId, productT
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" size="sm" disabled={saving}>
+            <Button type="button" size="sm" disabled={saving} onClick={() => void handleSubmit()}>
               {saving ? 'Saving…' : editingVariant ? 'Update Variation' : 'Create Variation'}
             </Button>
             <Button
@@ -562,7 +597,7 @@ export default function ColorVariationsManager({ productId, categoryId, productT
               Cancel
             </Button>
           </div>
-        </form>
+        </div>
       )}
 
       {variants.length > 0 && (

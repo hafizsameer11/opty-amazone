@@ -47,8 +47,7 @@ export default function ProductOptions({
     const hasVariants = Boolean(frameProduct.variants?.length);
     const activeVariantId = selectedVariantId ?? null;
     const availableSizes = (frameProduct.frame_sizes ?? []).filter((size: any) => {
-      if (!hasVariants) return !size.product_variant_id;
-      if (!activeVariantId) return false;
+      if (!hasVariants || !activeVariantId) return false;
       return size.product_variant_id === activeVariantId;
     });
     
@@ -132,10 +131,17 @@ export default function ProductOptions({
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  <div className="font-semibold">{size.size_label}</div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    {size.lens_width}mm • {size.bridge_width}mm • {size.temple_length}mm
+                  <div className="font-semibold">
+                    {size.size_label ||
+                      `${size.lens_width}-${size.bridge_width}-${size.temple_length}`}
                   </div>
+                  {(Number(size.lens_width) > 0 ||
+                    Number(size.bridge_width) > 0 ||
+                    Number(size.temple_length) > 0) && (
+                    <div className="text-xs text-gray-600 mt-1">
+                      {size.lens_width}mm • {size.bridge_width}mm • {size.temple_length}mm
+                    </div>
+                  )}
                   {size.stock_quantity < 5 && (
                     <div className="text-xs text-orange-600 mt-1">
                       Only {size.stock_quantity} left

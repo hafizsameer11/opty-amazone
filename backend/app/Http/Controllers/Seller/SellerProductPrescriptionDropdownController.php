@@ -22,7 +22,9 @@ class SellerProductPrescriptionDropdownController extends Controller
             return ResponseHelper::error('Store not found', null, 404);
         }
 
-        $product = Product::with(['category.parent.parent.parent'])->where('store_id', $store->id)->find($productId);
+        $product = Product::with(['category.parent.parent.parent', 'subCategory.parent.parent.parent'])
+            ->where('store_id', $store->id)
+            ->find($productId);
         if (!$product) {
             return ResponseHelper::error('Product not found', null, 404);
         }
@@ -217,42 +219,46 @@ class SellerProductPrescriptionDropdownController extends Controller
         return number_format((float) $normalized, 2, '.', '');
     }
 
+    private function walkCategoryChain(?Category $start, callable $predicate): bool
+    {
+        $current = $start;
+        while ($current instanceof Category) {
+            if ($predicate($current)) {
+                return true;
+            }
+            $current = $current->parent;
+        }
+
+        return false;
+    }
+
     private function requiresPowerField(Product $product): bool
     {
         if ($product->product_type !== 'contact_lens') {
             return false;
         }
 
-        $category = $product->category;
-        if (!$category) {
-            return false;
-        }
+        $hasContactLensRoot = $this->walkCategoryChain($product->category, fn (Category $c) => strtolower((string) $c->slug) === 'contact-lenses')
+            || $this->walkCategoryChain($product->subCategory, fn (Category $c) => strtolower((string) $c->slug) === 'contact-lenses');
 
-        $hasSpherical = false;
-        $hasContactLensRoot = false;
-        $current = $category;
+        $hasSpherical = $this->walkCategoryChain($product->subCategory, function (Category $c) {
+            $slug = strtolower((string) $c->slug);
+            $name = strtolower((string) $c->name);
 
-        while ($current instanceof Category) {
-            $slug = strtolower((string) $current->slug);
-            $name = strtolower((string) $current->name);
+            return str_contains($slug, 'spherical') || $name === 'spherical';
+        }) || $this->walkCategoryChain($product->category, function (Category $c) {
+            $slug = strtolower((string) $c->slug);
+            $name = strtolower((string) $c->name);
 
-            if ($slug === 'contact-lenses') {
-                $hasContactLensRoot = true;
-            }
-
-            if (str_contains($slug, 'spherical') || $name === 'spherical') {
-                $hasSpherical = true;
-            }
-
-            $current = $current->parent;
-        }
+            return str_contains($slug, 'spherical') || $name === 'spherical';
+        });
 
         return $hasContactLensRoot && $hasSpherical;
     }
 
     /**
      * True when product sits under Contact lenses and an astigmatism/toric subcategory (slug or name).
-     * Spherical branches (daily/weekly/monthly) do not show SPH in the seller editor — only PWR.
+     * Spherical branches (daily/weekly/monthly) use PWR only — no SPH tab.
      */
     private function isAstigmatismContactLensCategory(Product $product): bool
     {
@@ -260,34 +266,26 @@ class SellerProductPrescriptionDropdownController extends Controller
             return false;
         }
 
-        $category = $product->category;
-        if (!$category) {
-            return false;
-        }
+        $hasContactLensRoot = $this->walkCategoryChain($product->category, fn (Category $c) => strtolower((string) $c->slug) === 'contact-lenses')
+            || $this->walkCategoryChain($product->subCategory, fn (Category $c) => strtolower((string) $c->slug) === 'contact-lenses');
 
-        $hasContactLensRoot = false;
-        $hasAstigmatism = false;
-        $current = $category;
+        $hasAstigmatism = $this->walkCategoryChain($product->subCategory, function (Category $c) {
+            $slug = strtolower((string) $c->slug);
+            $name = strtolower((string) $c->name);
 
-        while ($current instanceof Category) {
-            $slug = strtolower((string) $current->slug);
-            $name = strtolower((string) $current->name);
-
-            if ($slug === 'contact-lenses') {
-                $hasContactLensRoot = true;
-            }
-
-            if (
-                str_contains($slug, 'astigmatism')
+            return str_contains($slug, 'astigmatism')
                 || str_contains($name, 'astigmatism')
                 || str_contains($slug, 'toric')
-                || str_contains($name, 'toric')
-            ) {
-                $hasAstigmatism = true;
-            }
+                || str_contains($name, 'toric');
+        }) || $this->walkCategoryChain($product->category, function (Category $c) {
+            $slug = strtolower((string) $c->slug);
+            $name = strtolower((string) $c->name);
 
-            $current = $current->parent;
-        }
+            return str_contains($slug, 'astigmatism')
+                || str_contains($name, 'astigmatism')
+                || str_contains($slug, 'toric')
+                || str_contains($name, 'toric');
+        });
 
         return $hasContactLensRoot && $hasAstigmatism;
     }

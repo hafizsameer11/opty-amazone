@@ -17,6 +17,7 @@ use App\Http\Controllers\Seller\SellerSubscriptionController;
 use App\Http\Controllers\Seller\CategoryLensConfigController;
 use App\Http\Controllers\Seller\CategoryFieldConfigController;
 use App\Http\Controllers\Seller\PrescriptionDropdownController;
+use App\Http\Controllers\Seller\SellerProductPrescriptionDropdownController;
 use App\Http\Controllers\Seller\SellerStoreChatController;
 use App\Http\Controllers\Seller\SellerAdminChatController;
 use App\Http\Controllers\Seller\SellerNotificationBadgeController;
@@ -105,6 +106,10 @@ Route::middleware('auth:sanctum')->prefix('products')->group(function () {
     // Variant routes
     Route::get('/{id}/variants', [SellerProductController::class, 'getVariants']);
     Route::post('/{id}/variants', [SellerProductController::class, 'createVariant']);
+
+    // Per-product contact lens prescription dropdowns
+    Route::get('/{id}/prescription-dropdowns', [SellerProductPrescriptionDropdownController::class, 'show']);
+    Route::post('/{id}/prescription-dropdowns', [SellerProductPrescriptionDropdownController::class, 'store']);
 });
 
 // Product variant routes

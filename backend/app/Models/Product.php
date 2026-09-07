@@ -82,6 +82,7 @@ class Product extends Model
         'mm_calibers',
         'lens_colors',
         'lens_area_coordinates',
+        'contact_lens_unit_config',
     ];
 
     protected $casts = [
@@ -171,7 +172,8 @@ class Product extends Model
      */
     public function frameSizes(): HasMany
     {
-        return $this->hasMany(FrameSize::class);
+        // Sizes are always tied to a color variation
+        return $this->hasMany(FrameSize::class)->whereNotNull('product_variant_id');
     }
 
     /**

@@ -109,10 +109,7 @@ export default function ProductCheckoutModal({
     const inStock = (s: { stock_quantity: number; stock_status?: string }) =>
       Number(s.stock_quantity) > 0 && s.stock_status !== 'out_of_stock';
     const hasVariants = Boolean(product.variants && product.variants.length > 0);
-    if (!hasVariants) {
-      return all.filter((s) => !s.product_variant_id && inStock(s));
-    }
-    if (!activeVariantId) return [];
+    if (!hasVariants || !activeVariantId) return [];
     return all.filter((s) => s.product_variant_id === activeVariantId && inStock(s));
   }, [product.frame_sizes, product.variants, activeVariantId]);
 
@@ -952,13 +949,24 @@ export default function ProductCheckoutModal({
                         className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC]"
                       >
                         <option value="">Select size</option>
-                        {availableFrameSizes.map((size) => (
-                          <option key={size.id} value={size.id}>
-                            {(size.size_label || `${size.lens_width}-${size.bridge_width}-${size.temple_length}`)}
-                            {` (${size.lens_width}mm-${size.bridge_width}mm-${size.temple_length}mm)`}
-                            {` — ${size.stock_quantity} available`}
-                          </option>
-                        ))}
+                        {availableFrameSizes.map((size) => {
+                          const label =
+                            size.size_label?.trim() ||
+                            `${size.lens_width}-${size.bridge_width}-${size.temple_length}`;
+                          const hasDims =
+                            Number(size.lens_width) > 0 ||
+                            Number(size.bridge_width) > 0 ||
+                            Number(size.temple_length) > 0;
+                          return (
+                            <option key={size.id} value={size.id}>
+                              {label}
+                              {hasDims
+                                ? ` (${size.lens_width}mm-${size.bridge_width}mm-${size.temple_length}mm)`
+                                : ''}
+                              {` — ${size.stock_quantity} available`}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                     <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 flex-shrink-0">

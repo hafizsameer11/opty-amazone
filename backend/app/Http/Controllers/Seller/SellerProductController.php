@@ -51,6 +51,96 @@ class SellerProductController extends Controller
         ];
     }
 
+    /** @return array<string, mixed> */
+    private function contactLensUnitConfigRules(): array
+    {
+        return [
+            'contact_lens_unit_config' => 'nullable|array',
+            'contact_lens_unit_config.packs' => 'nullable|array',
+            'contact_lens_unit_config.packs.*.quantity' => 'required_with:contact_lens_unit_config.packs|integer|min:1',
+            'contact_lens_unit_config.packs.*.price' => 'nullable|numeric|min:0',
+            'contact_lens_unit_config.packs.*.images' => 'nullable|array',
+            'contact_lens_unit_config.packs.*.images.*' => 'string|max:2048',
+            'contact_lens_unit_config.packs.*.available_variant_ids' => 'nullable|array',
+            'contact_lens_unit_config.packs.*.available_variant_ids.*' => 'integer',
+            'contact_lens_unit_config.qty_options' => 'nullable|array',
+            'contact_lens_unit_config.qty_options.*' => 'integer|min:1',
+            'contact_lens_unit_config.colour_stock' => 'nullable|array',
+            'contact_lens_unit_config.colour_stock.*.pack_quantity' => 'required_with:contact_lens_unit_config.colour_stock|integer|min:1',
+            'contact_lens_unit_config.colour_stock.*.variant_id' => 'required_with:contact_lens_unit_config.colour_stock|integer',
+            'contact_lens_unit_config.colour_stock.*.stock_quantity' => 'nullable|integer|min:0',
+        ];
+    }
+
+    /** @param array<string, mixed>|null $config */
+    private function normalizeContactLensUnitConfig(?array $config): ?array
+    {
+        if (!is_array($config)) {
+            return null;
+        }
+
+        $packs = [];
+        foreach ($config['packs'] ?? [] as $pack) {
+            if (!is_array($pack)) {
+                continue;
+            }
+            $qty = (int) ($pack['quantity'] ?? 0);
+            if ($qty <= 0) {
+                continue;
+            }
+            $images = array_values(array_filter(array_map(function ($url) {
+                $absolute = \App\Support\MediaUrl::absolute((string) $url) ?? (string) $url;
+
+                return trim($absolute) !== '' ? $absolute : null;
+            }, is_array($pack['images'] ?? null) ? $pack['images'] : [])));
+
+            $packs[] = [
+                'quantity' => $qty,
+                'price' => array_key_exists('price', $pack) && $pack['price'] !== null && $pack['price'] !== ''
+                    ? (float) $pack['price']
+                    : null,
+                'images' => $images,
+                'available_variant_ids' => array_values(array_map(
+                    'intval',
+                    array_filter(
+                        is_array($pack['available_variant_ids'] ?? null) ? $pack['available_variant_ids'] : [],
+                        fn ($id) => (int) $id > 0
+                    )
+                )),
+            ];
+        }
+        usort($packs, fn ($a, $b) => $a['quantity'] <=> $b['quantity']);
+
+        $qtyOptions = array_values(array_unique(array_filter(array_map(
+            fn ($n) => (int) $n,
+            is_array($config['qty_options'] ?? null) ? $config['qty_options'] : []
+        ), fn ($n) => $n >= 1)));
+        sort($qtyOptions);
+
+        $colourStock = [];
+        foreach ($config['colour_stock'] ?? [] as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $packQty = (int) ($row['pack_quantity'] ?? 0);
+            $variantId = (int) ($row['variant_id'] ?? 0);
+            if ($packQty <= 0 || $variantId <= 0) {
+                continue;
+            }
+            $colourStock[] = [
+                'pack_quantity' => $packQty,
+                'variant_id' => $variantId,
+                'stock_quantity' => max(0, (int) ($row['stock_quantity'] ?? 0)),
+            ];
+        }
+
+        return [
+            'packs' => $packs,
+            'qty_options' => $qtyOptions,
+            'colour_stock' => $colourStock,
+        ];
+    }
+
     /** @param array<string, mixed> $validated */
     private function persistEyeHygieneVariants(Product $product, array $validated): void
     {
@@ -283,7 +373,7 @@ class SellerProductController extends Controller
         ];
 
         // Build validation rules: include base rules + only enabled fields
-        $validationRules = array_merge($baseRules, $this->eyeHygieneVariantRules());
+        $validationRules = array_merge($baseRules, $this->eyeHygieneVariantRules(), $this->contactLensUnitConfigRules());
         
         if (empty($enabledFields)) {
             // If no config exists, allow all fields (backward compatibility)
@@ -307,7 +397,7 @@ class SellerProductController extends Controller
                 if (
                     in_array($key, array_keys($baseRules))
                     || in_array($key, $enabledFields)
-                    || in_array($key, ['size_volume_variants', 'eye_hygiene_variants'], true)
+                    || in_array($key, ['size_volume_variants', 'eye_hygiene_variants', 'contact_lens_unit_config'], true)
                 ) {
                     $filteredValidated[$key] = $value;
                 }
@@ -320,6 +410,12 @@ class SellerProductController extends Controller
             'eye_hygiene_variants' => $validated['eye_hygiene_variants'] ?? null,
         ];
         unset($validated['size_volume_variants'], $validated['eye_hygiene_variants']);
+
+        if (array_key_exists('contact_lens_unit_config', $validated)) {
+            $validated['contact_lens_unit_config'] = $this->normalizeContactLensUnitConfig(
+                $validated['contact_lens_unit_config']
+            );
+        }
 
         try {
             $validated['store_id'] = $store->id;
@@ -429,13 +525,19 @@ class SellerProductController extends Controller
             'lens_colors.*.description' => 'nullable|string|max:255',
             'shipping_type' => 'nullable|in:free,fixed',
             'shipping_fee' => 'nullable|numeric|min:0',
-        ], $this->eyeHygieneVariantRules()));
+        ], $this->eyeHygieneVariantRules(), $this->contactLensUnitConfigRules()));
 
         $variantPayload = [
             'size_volume_variants' => $validated['size_volume_variants'] ?? null,
             'eye_hygiene_variants' => $validated['eye_hygiene_variants'] ?? null,
         ];
         unset($validated['size_volume_variants'], $validated['eye_hygiene_variants']);
+
+        if (array_key_exists('contact_lens_unit_config', $validated)) {
+            $validated['contact_lens_unit_config'] = $this->normalizeContactLensUnitConfig(
+                $validated['contact_lens_unit_config']
+            );
+        }
 
         try {
             // Update slug if name changed
@@ -711,8 +813,17 @@ class SellerProductController extends Controller
         $categories = Category::where('is_active', true)
             ->whereNull('parent_id')
             ->with(['children' => function ($query) {
-                $query->where('is_active', true);
+                $query->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->with(['children' => function ($subQuery) {
+                        $subQuery->where('is_active', true)
+                            ->orderBy('sort_order')
+                            ->orderBy('name');
+                    }]);
             }])
+            ->orderBy('sort_order')
+            ->orderBy('name')
             ->get();
 
         return ResponseHelper::success($categories, 'Categories retrieved successfully');
@@ -762,10 +873,10 @@ class SellerProductController extends Controller
             'is_default' => 'nullable|boolean',
             'sort_order' => 'nullable|integer|min:0',
             'sizes' => 'nullable|array',
-            'sizes.*.size_label' => 'nullable|string|max:100',
-            'sizes.*.lens_width' => 'required_with:sizes|numeric|min:0',
-            'sizes.*.bridge_width' => 'required_with:sizes|numeric|min:0',
-            'sizes.*.temple_length' => 'required_with:sizes|numeric|min:0',
+            'sizes.*.size_label' => 'required_with:sizes|string|max:100',
+            'sizes.*.lens_width' => 'nullable|numeric|min:0',
+            'sizes.*.bridge_width' => 'nullable|numeric|min:0',
+            'sizes.*.temple_length' => 'nullable|numeric|min:0',
             'sizes.*.stock_quantity' => 'required_with:sizes|integer|min:0',
             'sizes.*.stock_status' => 'nullable|in:in_stock,out_of_stock,backorder',
         ]);
@@ -799,12 +910,13 @@ class SellerProductController extends Controller
             if (is_array($sizesPayload)) {
                 foreach ($sizesPayload as $row) {
                     $qty = (int) ($row['stock_quantity'] ?? 0);
+                    $label = trim((string) ($row['size_label'] ?? ''));
                     $product->frameSizes()->create([
                         'product_variant_id' => $variant->id,
-                        'lens_width' => $row['lens_width'],
-                        'bridge_width' => $row['bridge_width'],
-                        'temple_length' => $row['temple_length'],
-                        'size_label' => $row['size_label'] ?? null,
+                        'lens_width' => $row['lens_width'] ?? 0,
+                        'bridge_width' => $row['bridge_width'] ?? 0,
+                        'temple_length' => $row['temple_length'] ?? 0,
+                        'size_label' => $label !== '' ? $label : null,
                         'stock_quantity' => $qty,
                         'stock_status' => $row['stock_status'] ?? ($qty > 0 ? 'in_stock' : 'out_of_stock'),
                     ]);

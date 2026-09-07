@@ -100,18 +100,9 @@ export default function ProductDetailPage() {
         setSelectedFrameSizeId(null);
       }
     } else {
-      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-      const sizeParam = urlParams?.get('size');
-      const parsedSize = sizeParam ? parseInt(sizeParam, 10) : NaN;
-      const sizesWithoutVariant = (product.frame_sizes ?? []).filter((s) => !s.product_variant_id);
-      if (
-        !Number.isNaN(parsedSize) &&
-        sizesWithoutVariant.some((s) => s.id === parsedSize)
-      ) {
-        setSelectedFrameSizeId(parsedSize);
-      } else {
-        setSelectedFrameSizeId(null);
-      }
+      setSelectedVariantId(null);
+      setHasPickedColor(false);
+      setSelectedFrameSizeId(null);
     }
   }, [product]);
 
@@ -177,10 +168,8 @@ export default function ProductDetailPage() {
     const all = product.frame_sizes ?? [];
     const inStockOnly = (s: FrameSize) =>
       Number(s.stock_quantity) > 0 && s.stock_status !== 'out_of_stock';
-    if (!hasVariants) {
-      return all.filter((s) => !s.product_variant_id && inStockOnly(s));
-    }
-    if (!activeVariantId) return [];
+    // Sizes are always tied to a color — never show standalone sizes
+    if (!hasVariants || !activeVariantId) return [];
     return all.filter((s) => s.product_variant_id === activeVariantId && inStockOnly(s));
   })();
 
@@ -215,6 +204,9 @@ export default function ProductDetailPage() {
     }
     return `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)}`;
   };
+
+  const hasFrameSizeDimensions = (size: FrameSize) =>
+    Number(size.lens_width) > 0 || Number(size.bridge_width) > 0 || Number(size.temple_length) > 0;
 
   const formatFrameSizeDimensions = (size: FrameSize) =>
     `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)} mm`;
@@ -485,15 +477,19 @@ export default function ProductDetailPage() {
                     {availableFrameSizes.map((size) => (
                       <option key={size.id} value={size.id}>
                         {formatFrameSizeLabel(size)}
-                        {` (${formatFrameSizeDimensions(size)})`}
+                        {hasFrameSizeDimensions(size) ? ` (${formatFrameSizeDimensions(size)})` : ''}
                         {` — ${size.stock_quantity} available`}
                       </option>
                     ))}
                   </select>
                   {selectedFrameSize && (
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
-                      <span>{formatFrameSizeDimensions(selectedFrameSize)}</span>
-                      <span className="text-gray-300">|</span>
+                      {hasFrameSizeDimensions(selectedFrameSize) && (
+                        <>
+                          <span>{formatFrameSizeDimensions(selectedFrameSize)}</span>
+                          <span className="text-gray-300">|</span>
+                        </>
+                      )}
                       <span>
                         {selectedFrameSize.stock_quantity} available
                       </span>

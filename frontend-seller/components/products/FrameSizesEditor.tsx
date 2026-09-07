@@ -14,19 +14,19 @@ import { resolveMediaUrl } from '@/lib/media-url';
 
 interface FrameSizesEditorProps {
   productId: number;
-  /** When set, sizes are scoped to this frame color variant. */
-  productVariantId?: number | null;
+  /** Required — sizes are always scoped to a color variant. */
+  productVariantId: number;
   title?: string;
   description?: string;
   compact?: boolean;
   onChanged?: () => void;
 }
 
-const emptyForm = (variantId?: number | null): CreateFrameSizeData => ({
-  product_variant_id: variantId ?? null,
-  lens_width: 50,
-  bridge_width: 18,
-  temple_length: 140,
+const emptyForm = (variantId: number): CreateFrameSizeData => ({
+  product_variant_id: variantId,
+  lens_width: 0,
+  bridge_width: 0,
+  temple_length: 0,
   size_label: '',
   price: undefined,
   image: undefined,
@@ -34,15 +34,20 @@ const emptyForm = (variantId?: number | null): CreateFrameSizeData => ({
   stock_status: 'in_stock',
 });
 
-function formatSize(size: FrameSize) {
-  return `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)}`;
+function displaySize(size: FrameSize) {
+  if (size.size_label?.trim()) return size.size_label.trim();
+  const lw = Number(size.lens_width);
+  const bw = Number(size.bridge_width);
+  const tl = Number(size.temple_length);
+  if (lw || bw || tl) return `${lw}-${bw}-${tl}`;
+  return 'Size';
 }
 
 export default function FrameSizesEditor({
   productId,
   productVariantId,
-  title = 'Frame sizes',
-  description = 'Per-size stock quantity. Optional price and image override what buyers see when they pick this size.',
+  title = 'Sizes & stock',
+  description = 'Enter any size name (e.g. 12mm, Medium) and set stock for this color.',
   compact = false,
   onChanged,
 }: FrameSizesEditorProps) {
@@ -50,7 +55,7 @@ export default function FrameSizesEditor({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState<CreateFrameSizeData>(emptyForm(productVariantId));
+  const [form, setForm] = useState<CreateFrameSizeData>(() => emptyForm(productVariantId));
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,6 +75,11 @@ export default function FrameSizesEditor({
     void loadSizes();
   }, [loadSizes]);
 
+  useEffect(() => {
+    setForm(emptyForm(productVariantId));
+    setEditingId(null);
+  }, [productVariantId]);
+
   const resetForm = () => {
     setForm(emptyForm(productVariantId));
     setEditingId(null);
@@ -78,7 +88,7 @@ export default function FrameSizesEditor({
   const handleEdit = (size: FrameSize) => {
     setEditingId(size.id);
     setForm({
-      product_variant_id: size.product_variant_id ?? productVariantId ?? null,
+      product_variant_id: productVariantId,
       lens_width: Number(size.lens_width),
       bridge_width: Number(size.bridge_width),
       temple_length: Number(size.temple_length),
@@ -119,15 +129,23 @@ export default function FrameSizesEditor({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setSaving(true);
     setAlert(null);
     try {
+      const label = form.size_label?.trim() || '';
+      if (!label) {
+        setAlert({ type: 'error', message: 'Enter a size name (e.g. 12mm)' });
+        setSaving(false);
+        return;
+      }
       const payload: CreateFrameSizeData = {
         ...form,
-        product_variant_id: productVariantId ?? form.product_variant_id ?? null,
-        size_label: form.size_label?.trim() || undefined,
+        product_variant_id: productVariantId,
+        size_label: label,
+        lens_width: form.lens_width ?? 0,
+        bridge_width: form.bridge_width ?? 0,
+        temple_length: form.temple_length ?? 0,
         image: form.image?.trim() || undefined,
       };
       if (editingId) {
@@ -182,10 +200,7 @@ export default function FrameSizesEditor({
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"
               >
                 <div>
-                  <span className="font-semibold text-gray-900">
-                    {size.size_label || formatSize(size)}
-                  </span>
-                  <span className="text-gray-500 ml-2">({formatSize(size)} mm)</span>
+                  <span className="font-semibold text-gray-900">{displaySize(size)}</span>
                   <span className="text-gray-500 ml-2">Qty: {size.stock_quantity}</span>
                   {size.price != null && (
                     <span className="text-[#0066CC] ml-2">€{Number(size.price).toFixed(2)}</span>
@@ -206,52 +221,23 @@ export default function FrameSizesEditor({
           <p className="text-sm text-gray-500">No sizes yet for this color.</p>
         )}
 
-        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3 border-t border-gray-100 pt-4">
+        <div
+          className="space-y-3 border-t border-gray-100 pt-4"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+        >
           <p className="text-xs font-semibold text-gray-700">
             {editingId ? 'Edit size' : 'Add size'}
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <Input
-              label="Lens width *"
-              type="number"
-              step="0.01"
-              value={String(form.lens_width)}
-              onChange={(e) => setForm({ ...form, lens_width: Number(e.target.value) || 0 })}
-            />
-            <Input
-              label="Bridge *"
-              type="number"
-              step="0.01"
-              value={String(form.bridge_width)}
-              onChange={(e) => setForm({ ...form, bridge_width: Number(e.target.value) || 0 })}
-            />
-            <Input
-              label="Temple *"
-              type="number"
-              step="0.01"
-              value={String(form.temple_length)}
-              onChange={(e) => setForm({ ...form, temple_length: Number(e.target.value) || 0 })}
-            />
-            <Input
-              label="Label"
-              value={form.size_label || ''}
-              onChange={(e) => setForm({ ...form, size_label: e.target.value })}
-              placeholder="Medium"
-            />
-          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             <Input
-              label="Price override (optional)"
-              type="number"
-              step="0.01"
-              min={0}
-              value={form.price != null ? String(form.price) : ''}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  price: e.target.value === '' ? undefined : Number(e.target.value),
-                })
-              }
+              label="Size *"
+              value={form.size_label || ''}
+              onChange={(e) => setForm({ ...form, size_label: e.target.value })}
+              placeholder="12mm / Medium / 52-18-140"
             />
             <Input
               label="Stock quantity *"
@@ -277,6 +263,21 @@ export default function FrameSizesEditor({
               </select>
             </div>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <Input
+              label="Price override (optional)"
+              type="number"
+              step="0.01"
+              min={0}
+              value={form.price != null ? String(form.price) : ''}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  price: e.target.value === '' ? undefined : Number(e.target.value),
+                })
+              }
+            />
+          </div>
           <div className="flex flex-wrap items-end gap-2">
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => void handleImageUpload(e)} />
             <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
@@ -287,7 +288,7 @@ export default function FrameSizesEditor({
             )}
           </div>
           <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={saving}>
+            <Button type="button" size="sm" disabled={saving} onClick={() => void handleSubmit()}>
               {saving ? 'Saving…' : editingId ? 'Update size' : 'Add size'}
             </Button>
             {editingId && (
@@ -296,7 +297,7 @@ export default function FrameSizesEditor({
               </Button>
             )}
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
