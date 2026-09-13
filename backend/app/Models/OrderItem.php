@@ -11,6 +11,7 @@ class OrderItem extends Model
     use HasFactory;
 
     protected $fillable = [
+        'original_price', 'campaign_discount_amount', 'campaign_pricing',
         'store_order_id',
         'product_id',
         'variant_id',
@@ -55,6 +56,7 @@ class OrderItem extends Model
     ];
 
     protected $casts = [
+        'campaign_pricing' => 'array',
         'price' => 'decimal:2',
         'line_total' => 'decimal:2',
         'product_variant' => 'array',
@@ -97,4 +99,3 @@ class OrderItem extends Model
         return $this->belongsTo(ProductVariant::class);
     }
 }
-

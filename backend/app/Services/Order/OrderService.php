@@ -32,13 +32,14 @@ class OrderService
         DB::beginTransaction();
         
         try {
-            $cart = Cart::where('user_id', $user->id)->first();
+            $cart = Cart::where('user_id', $user->id)->lockForUpdate()->first();
             
             if (!$cart || $cart->items()->count() === 0) {
                 throw new \Exception('Cart is empty');
             }
 
-            $deliveryAddress = UserAddress::findOrFail($deliveryAddressId);
+            $deliveryAddress = UserAddress::where('user_id', $user->id)->findOrFail($deliveryAddressId);
+            app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart, true);
             
             // Group cart items by store
             $itemsByStore = $cart->items()
@@ -169,6 +170,9 @@ class OrderService
                         'eye_hygiene_variant_id' => $cartItem->eye_hygiene_variant_id,
                         'quantity' => $cartItem->quantity,
                         'price' => $cartItem->price,
+                        'original_price' => $cartItem->original_price,
+                        'campaign_discount_amount' => $cartItem->campaign_discount_amount,
+                        'campaign_pricing' => $cartItem->campaign_pricing,
                         'line_total' => $cartItem->price * $cartItem->quantity,
                         'product_name' => $product->name,
                         'product_sku' => $product->sku,
@@ -246,6 +250,8 @@ class OrderService
                         'reference_id' => $order->id,
                     ]);
             }
+
+            app(\App\Services\Campaigns\DiscountPricingService::class)->recordUsage($order);
 
             // Clear cart
             $cart->items()->delete();
@@ -410,4 +416,3 @@ class OrderService
         }
     }
 }
-

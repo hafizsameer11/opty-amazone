@@ -31,6 +31,7 @@ class BuyerCheckoutController extends Controller
             return ResponseHelper::error('Cart is empty');
         }
 
+        app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
         // Group items by store
         $itemsByStore = $cart->items()->get()->groupBy('store_id');
         $breakdown = [];
@@ -108,4 +109,3 @@ class BuyerCheckoutController extends Controller
         }
     }
 }
-

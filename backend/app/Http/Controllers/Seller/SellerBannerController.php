@@ -30,6 +30,7 @@ class SellerBannerController extends Controller
 
     public function store(Request $request)
     {
+        return \App\Helpers\ResponseHelper::error('Legacy banners are read-only. Use banner-campaigns.', null, 410);
         $request->merge([
             'is_active' => $request->has('is_active') ? $request->boolean('is_active') : null,
             'is_home_boosted' => $request->has('is_home_boosted') ? $request->boolean('is_home_boosted') : null,
@@ -74,6 +75,7 @@ class SellerBannerController extends Controller
 
     public function update(Request $request, $id)
     {
+        return \App\Helpers\ResponseHelper::error('Legacy banners are read-only. Use banner-campaigns.', null, 410);
         if ($request->has('is_active')) {
             $request->merge(['is_active' => $request->boolean('is_active')]);
         }
@@ -100,6 +102,7 @@ class SellerBannerController extends Controller
 
     public function destroy($id)
     {
+        return \App\Helpers\ResponseHelper::error('Legacy banners are read-only. Use banner-campaigns.', null, 410);
         $user = Auth::user();
         $store = $user->store;
 
@@ -113,6 +116,7 @@ class SellerBannerController extends Controller
 
     public function toggle($id)
     {
+        return \App\Helpers\ResponseHelper::error('Legacy banners are read-only. Use banner-campaigns.', null, 410);
         $user = Auth::user();
         $store = $user->store;
 
@@ -124,6 +128,7 @@ class SellerBannerController extends Controller
 
     public function reorder(Request $request)
     {
+        return \App\Helpers\ResponseHelper::error('Legacy banners are read-only. Use banner-campaigns.', null, 410);
         $request->validate([
             'banner_ids' => 'required|array',
             'banner_ids.*' => 'exists:store_banners,id',

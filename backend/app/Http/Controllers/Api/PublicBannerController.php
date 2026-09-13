@@ -16,6 +16,7 @@ class PublicBannerController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        return ResponseHelper::error('Use /buyer/campaigns/banners/{placement} for scheduled promotional banners.', null, 410);
         $position = $request->input('position');
         $allowedPositions = ['top', 'middle', 'bottom', 'sidebar'];
 

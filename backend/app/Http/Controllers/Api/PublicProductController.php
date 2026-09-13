@@ -39,7 +39,7 @@ class PublicProductController extends Controller
         $products = $query->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 12));
 
-        return ResponseHelper::success($products, 'Products retrieved successfully');
+        return ResponseHelper::success($products->through(fn ($p) => app(\App\Services\Campaigns\DiscountPricingService::class)->product($p, request()->user('sanctum')?->id)), 'Products retrieved successfully');
     }
 
     /**
@@ -66,7 +66,6 @@ class PublicProductController extends Controller
 
         $product->increment('view_count');
 
-        return ResponseHelper::success($product, 'Product retrieved successfully');
+        return ResponseHelper::success(app(\App\Services\Campaigns\DiscountPricingService::class)->product($product, request()->user('sanctum')?->id), 'Product retrieved successfully');
     }
 }
-

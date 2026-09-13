@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Services\Product\EyeHygieneVariantService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class BuyerProductController extends Controller
 {
@@ -38,6 +39,48 @@ class BuyerProductController extends Controller
         }
 
         return $product;
+    }
+
+    /**
+     * Price range and price sorting are based on the current automatic campaign
+     * quote, not a stale product column. Normal catalog queries stay paginated by
+     * the database; only price-aware requests materialize their filtered result.
+     */
+    private function paginateWithCurrentPrices($query, Request $request, string $sortBy, string $sortOrder)
+    {
+        $perPage = min(100, max(1, (int) $request->get('per_page', 12)));
+        $page = max(1, (int) $request->get('page', 1));
+        $priceAware = $request->has('min_price') || $request->has('max_price') || $sortBy === 'price';
+        $pricing = app(\App\Services\Campaigns\DiscountPricingService::class);
+        $buyerId = $request->user('sanctum')?->id;
+
+        if (!$priceAware) {
+            return $query->orderBy($sortBy, $sortOrder)->paginate($perPage)
+                ->through(fn ($product) => $pricing->product($product, $buyerId));
+        }
+
+        if ($sortBy !== 'price') {
+            $query->orderBy($sortBy, $sortOrder);
+        }
+        $products = $query->get()->map(fn ($product) => $pricing->product($product, $buyerId));
+        if ($request->filled('min_price')) {
+            $products = $products->filter(fn ($product) => (float) $product['price'] >= (float) $request->min_price);
+        }
+        if ($request->filled('max_price')) {
+            $products = $products->filter(fn ($product) => (float) $product['price'] <= (float) $request->max_price);
+        }
+        if ($sortBy === 'price') {
+            $products = $products->sortBy('price', SORT_NUMERIC, $sortOrder === 'desc');
+        }
+        $products = $products->values();
+
+        return new LengthAwarePaginator(
+            $products->forPage($page, $perPage)->values(),
+            $products->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
     }
     /**
      * Get all products with filters.
@@ -72,14 +115,6 @@ class BuyerProductController extends Controller
         // Filter by product type
         if ($request->has('product_type')) {
             $query->where('product_type', $request->product_type);
-        }
-
-        // Filter by price range
-        if ($request->has('min_price')) {
-            $query->where('price', '>=', $request->min_price);
-        }
-        if ($request->has('max_price')) {
-            $query->where('price', '<=', $request->max_price);
         }
 
         // Filter by frame shape
@@ -118,12 +153,9 @@ class BuyerProductController extends Controller
         }
 
         // Sort
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
-        $query->orderBy($sortBy, $sortOrder);
-
-        $products = $query->paginate($request->get('per_page', 12));
-
+        $sortBy = in_array($request->get('sort_by'), ['created_at', 'price', 'rating', 'name'], true) ? $request->get('sort_by') : 'created_at';
+        $sortOrder = $request->get('sort_order') === 'asc' ? 'asc' : 'desc';
+        $products = $this->paginateWithCurrentPrices($query, $request, $sortBy, $sortOrder);
         return ResponseHelper::success($products, 'Products retrieved successfully');
     }
 
@@ -141,7 +173,7 @@ class BuyerProductController extends Controller
         // Increment view count
         $product->increment('view_count');
 
-        return ResponseHelper::success($product, 'Product retrieved successfully');
+        return ResponseHelper::success(app(\App\Services\Campaigns\DiscountPricingService::class)->product($product, request()->user('sanctum')?->id), 'Product retrieved successfully');
     }
 
     /**
@@ -160,14 +192,6 @@ class BuyerProductController extends Controller
                   ->orWhere('sub_category_id', $category->id);
             });
 
-        // Apply filters
-        if ($request->has('min_price')) {
-            $query->where('price', '>=', $request->min_price);
-        }
-        if ($request->has('max_price')) {
-            $query->where('price', '<=', $request->max_price);
-        }
-
         // Search
         if ($request->has('search')) {
             $search = $request->search;
@@ -179,11 +203,9 @@ class BuyerProductController extends Controller
         }
 
         // Sort
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
-        $query->orderBy($sortBy, $sortOrder);
-
-        $products = $query->paginate($request->get('per_page', 12));
+        $sortBy = in_array($request->get('sort_by'), ['created_at', 'price', 'rating', 'name'], true) ? $request->get('sort_by') : 'created_at';
+        $sortOrder = $request->get('sort_order') === 'asc' ? 'asc' : 'desc';
+        $products = $this->paginateWithCurrentPrices($query, $request, $sortBy, $sortOrder);
 
         return ResponseHelper::success([
             'category' => $category,
@@ -191,4 +213,3 @@ class BuyerProductController extends Controller
         ], 'Products retrieved successfully');
     }
 }
-

@@ -68,6 +68,7 @@ class AdminStoreBannerController extends Controller
 
     public function approve(int $id): JsonResponse
     {
+        return \App\Helpers\ResponseHelper::error('Legacy banners are read-only. Use banner-campaigns.', null, 410);
         $banner = StoreBanner::findOrFail($id);
         $banner->update([
             'is_approved' => true,
@@ -80,6 +81,7 @@ class AdminStoreBannerController extends Controller
 
     public function reject(Request $request, int $id): JsonResponse
     {
+        return \App\Helpers\ResponseHelper::error('Legacy banners are read-only. Use banner-campaigns.', null, 410);
         $request->validate([
             'reason' => 'required|string|max:2000',
         ]);
@@ -96,6 +98,7 @@ class AdminStoreBannerController extends Controller
 
     public function toggleActive(int $id): JsonResponse
     {
+        return \App\Helpers\ResponseHelper::error('Legacy banners are read-only. Use banner-campaigns.', null, 410);
         $banner = StoreBanner::findOrFail($id);
         if (!$banner->is_approved) {
             return ResponseHelper::error('Approve this banner before activating it for shoppers.', null, 422);
@@ -111,6 +114,7 @@ class AdminStoreBannerController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
+        return \App\Helpers\ResponseHelper::error('Legacy banners are read-only. Use banner-campaigns.', null, 410);
         $banner = StoreBanner::findOrFail($id);
         if ($banner->image) {
             Storage::disk('public')->delete($banner->image);

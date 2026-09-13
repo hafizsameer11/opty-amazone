@@ -52,6 +52,7 @@ class CartItem extends Model
     ];
 
     protected $casts = [
+        'campaign_pricing' => 'array',
         'product_variant' => 'array',
         'lens_configuration' => 'array',
         'prescription_data' => 'array',
@@ -150,4 +151,3 @@ class CartItem extends Model
         return $this->price * $this->quantity;
     }
 }
-

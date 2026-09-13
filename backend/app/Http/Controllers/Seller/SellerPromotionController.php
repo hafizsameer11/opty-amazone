@@ -87,6 +87,9 @@ class SellerPromotionController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->input('discount_type') !== 'budget') {
+            return ResponseHelper::error('Use /seller/discount-campaigns for automatic price discounts. Legacy product prices are preserved.', null, 410);
+        }
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'discount_type' => 'required|in:budget,percentage,fixed',
@@ -165,6 +168,10 @@ class SellerPromotionController extends Controller
 
         $promotion = ProductPromotion::where('store_id', $store->id)->findOrFail($id);
 
+        if ($promotion->discount_type !== 'budget' || $request->input('discount_type', 'budget') !== 'budget') {
+            return ResponseHelper::error('Legacy price promotions are read-only. Use Discount Campaigns.', null, 410);
+        }
+
         if ($request->filled('end_date')) {
             $end = Carbon::parse($request->input('end_date'))->endOfDay();
             $start = Carbon::parse($promotion->start_date);
@@ -235,4 +242,3 @@ class SellerPromotionController extends Controller
         return ResponseHelper::success($promotion, 'Promotion resumed');
     }
 }
-

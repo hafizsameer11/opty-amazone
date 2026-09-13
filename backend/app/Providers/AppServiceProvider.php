@@ -31,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\DiscountCampaign::class, \App\Policies\DiscountCampaignPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\BannerCampaign::class, \App\Policies\BannerCampaignPolicy::class);
+        \App\Models\StoreOrder::observe(\App\Observers\BannerOrderObserver::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\AdCampaign::class, \App\Policies\AdCampaignPolicy::class);
         \App\Models\StoreOrder::observe(\App\Observers\AdOrderObserver::class);
     }

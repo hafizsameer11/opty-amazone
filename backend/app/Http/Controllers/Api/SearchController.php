@@ -23,7 +23,7 @@ class SearchController extends Controller
 
         // Search products
         $products = Product::with(['store', 'category'])
-            ->where('is_active', true)
+            ->visibleToBuyers()
             ->where(function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")
                   ->orWhere('description', 'like', "%{$query}%")
@@ -43,10 +43,9 @@ class SearchController extends Controller
             ->get();
 
         return ResponseHelper::success([
-            'products' => $products,
+            'products' => $products->map(fn ($p) => app(\App\Services\Campaigns\DiscountPricingService::class)->product($p, request()->user('sanctum')?->id)),
             'stores' => $stores,
             'query' => $query,
         ], 'Search results retrieved successfully');
     }
 }
-

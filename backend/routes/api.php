@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 
 require __DIR__.'/ads.php';
+require __DIR__.'/commerce-campaigns.php';
 
 /*
 |--------------------------------------------------------------------------

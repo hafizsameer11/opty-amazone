@@ -31,6 +31,7 @@ class BuyerCartController extends Controller
             $cart = Cart::create(['user_id' => $user->id]);
         }
 
+        app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
         // Group items by store
         $itemsByStore = $cart->items()->with('product', 'store', 'variant')->get()->groupBy('store_id');
         $breakdown = [];
@@ -65,6 +66,7 @@ class BuyerCartController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'ad_tracking_token' => 'nullable|string|max:4096',
+            'banner_tracking_token' => 'nullable|string|max:8192',
             'variant_id' => 'nullable|exists:product_variants,id',
             'quantity' => 'required|integer|min:1',
             'product_variant' => 'nullable|array',
@@ -76,6 +78,7 @@ class BuyerCartController extends Controller
             // Lens customization
             'lens_index' => 'nullable|numeric|min:0|max:10',
             'lens_type' => 'nullable|string|max:50',
+            'progressive_variant_id' => 'nullable|integer|min:1',
             'lens_thickness_material_id' => 'nullable|exists:lens_thickness_materials,id',
             'lens_thickness_option_id' => 'nullable|exists:lens_thickness_options,id',
             'treatment_ids' => 'nullable|array',
@@ -239,6 +242,7 @@ class BuyerCartController extends Controller
                     'prescription_id' => $request->prescription_id,
                     'lens_index' => $request->lens_index,
                     'lens_type' => $request->lens_type,
+                    'progressive_variant_id' => $request->progressive_variant_id,
                     'lens_thickness_material_id' => $request->lens_thickness_material_id,
                     'lens_thickness_option_id' => $request->lens_thickness_option_id,
                     'treatment_ids' => $request->treatment_ids,
@@ -265,6 +269,9 @@ class BuyerCartController extends Controller
                 $item = CartItem::create($itemData);
             }
 
+            app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
+            $item->refresh();
+            app(\App\Services\Campaigns\BannerDeliveryService::class)->associateClick($request);
             DB::commit();
 
             app(\App\Services\Ads\AdTrackingService::class)->trackCart($request, (int) $product->id);
@@ -295,6 +302,8 @@ class BuyerCartController extends Controller
         }
 
         $item->update(['quantity' => $request->quantity]);
+        app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
+        $item->refresh();
 
         return ResponseHelper::success($item->load('product', 'store'), 'Cart item updated');
     }
