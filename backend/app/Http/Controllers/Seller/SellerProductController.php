@@ -616,166 +616,23 @@ class SellerProductController extends Controller
      */
     public function boost(Request $request, $id)
     {
-        $user = Auth::user();
-        $store = $user->store;
-
-        if (!$store) {
-            return ResponseHelper::error('Store not found', null, 404);
-        }
-
-        $product = Product::where('store_id', $store->id)->findOrFail($id);
-
-        $validated = $request->validate([
-            'location' => 'required|string|max:100',
-            'budget' => 'required|numeric|min:0.01',
-            'start_at' => 'nullable|date',
-            'end_at' => 'nullable|date|after_or_equal:start_at',
-            'pay_method' => 'required|in:wallet,checkout_stub',
-        ]);
-
-        $budget = (float) $validated['budget'];
-        $product->boost_location = $validated['location'];
-        $product->boost_budget = $budget;
-        $product->boost_start_at = $validated['start_at'] ?? now();
-        $product->boost_end_at = $validated['end_at'] ?? null;
-
-        if ($validated['pay_method'] === 'wallet') {
-            $wallet = \App\Models\Wallet::firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'shopping_balance' => 0,
-                    'reward_balance' => 0,
-                    'referral_balance' => 0,
-                    'loyality_points' => 0,
-                    'ad_credit' => 0,
-                ]
-            );
-
-            $available = (float) $wallet->ad_credit + (float) $wallet->shopping_balance;
-            if ($available < $budget) {
-                $product->is_boosted = false;
-                $product->boost_payment_status = 'pending_payment';
-                $product->boosted_at = null;
-                $product->save();
-
-                return ResponseHelper::success(
-                    [
-                        'product' => $product->fresh()->load(['category', 'subCategory']),
-                        'message' => 'Insufficient wallet balance. Boost is pending payment.',
-                    ],
-                    'Boost pending payment'
-                );
-            }
-
-            $remaining = $budget;
-            $fromAd = min((float) $wallet->ad_credit, $remaining);
-            $wallet->ad_credit = (float) $wallet->ad_credit - $fromAd;
-            $remaining -= $fromAd;
-            if ($remaining > 0) {
-                $wallet->shopping_balance = (float) $wallet->shopping_balance - $remaining;
-            }
-            $wallet->save();
-
-            $product->is_boosted = true;
-            $product->boosted_at = now();
-            $product->boost_payment_status = 'paid';
-            $product->save();
-
-            return ResponseHelper::success(
-                [
-                    'product' => $product->fresh()->load(['category', 'subCategory']),
-                    'message' => 'Product boosted successfully (wallet charged).',
-                ],
-                'Product boosted successfully'
-            );
-        }
-
-        // checkout_stub: mark pending until completeBoostPayment or admin approve
-        $product->is_boosted = false;
-        $product->boosted_at = null;
-        $product->boost_payment_status = 'pending_payment';
-        $product->save();
-
-        return ResponseHelper::success(
-            [
-                'product' => $product->fresh()->load(['category', 'subCategory']),
-                'message' => 'Boost created with checkout stub. Complete payment to activate.',
-            ],
-            'Boost pending payment'
-        );
+        abort(410, 'Product-field boosts are retired. Use /seller/ad-campaigns.');
     }
 
     /**
      * Complete pending boost payment (checkout stub).
      */
-    public function completeBoostPayment($id)
+    public function completeBoostPayment(Request $request, $id)
     {
-        $user = Auth::user();
-        $store = $user->store;
-
-        if (!$store) {
-            return ResponseHelper::error('Store not found', null, 404);
-        }
-
-        $product = Product::where('store_id', $store->id)->findOrFail($id);
-
-        if ($product->boost_payment_status !== 'pending_payment') {
-            return ResponseHelper::error('No pending boost payment for this product', null, 400);
-        }
-
-        $product->is_boosted = true;
-        $product->boosted_at = now();
-        $product->boost_payment_status = 'paid';
-        $product->save();
-
-        return ResponseHelper::success(
-            [
-                'product' => $product->fresh()->load(['category', 'subCategory']),
-                'message' => 'Boost payment completed. Product is now boosted.',
-            ],
-            'Boost payment completed'
-        );
+        abort(410, 'Legacy payment confirmation is disabled. Reserve campaign funds from the wallet.');
     }
 
     /**
      * Toggle / remove product boost.
      */
-    public function toggleBoost($id)
+    public function toggleBoost(Request $request, $id)
     {
-        $user = Auth::user();
-        $store = $user->store;
-
-        if (!$store) {
-            return ResponseHelper::error('Store not found', null, 404);
-        }
-
-        $product = Product::where('store_id', $store->id)->findOrFail($id);
-
-        if ($product->is_boosted) {
-            $product->is_boosted = false;
-            $product->boosted_at = null;
-            $product->boost_payment_status = null;
-            $product->boost_location = null;
-            $product->boost_budget = null;
-            $product->boost_start_at = null;
-            $product->boost_end_at = null;
-            $product->save();
-
-            return ResponseHelper::success(
-                $product->fresh()->load(['category', 'subCategory']),
-                'Boost removed'
-            );
-        }
-
-        $product->is_boosted = true;
-        $product->boosted_at = now();
-        $product->boost_payment_status = 'paid';
-        $product->save();
-
-        return ResponseHelper::success(
-            $product->fresh()->load(['category', 'subCategory']),
-            'Product boosted'
-        );
+        abort(410, 'Use campaign pause, resume or cancellation actions.');
     }
 
     /**
@@ -1105,4 +962,3 @@ class SellerProductController extends Controller
         return $sku;
     }
 }
-

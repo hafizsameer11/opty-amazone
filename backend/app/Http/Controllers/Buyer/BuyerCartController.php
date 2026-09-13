@@ -64,6 +64,7 @@ class BuyerCartController extends Controller
     {
         $request->validate([
             'product_id' => 'required|exists:products,id',
+            'ad_tracking_token' => 'nullable|string|max:4096',
             'variant_id' => 'nullable|exists:product_variants,id',
             'quantity' => 'required|integer|min:1',
             'product_variant' => 'nullable|array',
@@ -266,6 +267,7 @@ class BuyerCartController extends Controller
 
             DB::commit();
 
+            app(\App\Services\Ads\AdTrackingService::class)->trackCart($request, (int) $product->id);
             return ResponseHelper::success($item->load('product', 'store', 'variant'), 'Item added to cart');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -347,4 +349,3 @@ class BuyerCartController extends Controller
         return null;
     }
 }
-

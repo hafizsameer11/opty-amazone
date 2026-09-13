@@ -122,7 +122,11 @@ class BuyerOrderController extends Controller
                 }
 
                 // Deduct from wallet
-                $wallet->decrement('shopping_balance', $storeOrder->total);
+                // Atomic balance guard also protects concurrent ad reservations.
+                if (!\App\Models\Wallet::whereKey($wallet->id)->where('shopping_balance', '>=', $storeOrder->total)
+                    ->decrement('shopping_balance', $storeOrder->total)) {
+                    return ResponseHelper::error('Insufficient wallet balance', null, 400);
+                }
 
                 // Create transaction
                 \App\Models\Transaction::create([
@@ -196,4 +200,3 @@ class BuyerOrderController extends Controller
         ], 'Payment info retrieved');
     }
 }
-

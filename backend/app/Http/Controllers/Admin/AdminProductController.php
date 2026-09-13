@@ -127,18 +127,7 @@ class AdminProductController extends Controller
      */
     public function toggleBoost($id): JsonResponse
     {
-        $product = Product::findOrFail($id);
-        $product->is_boosted = !$product->is_boosted;
-        $product->boosted_at = $product->is_boosted ? now() : null;
-        if (!$product->is_boosted) {
-            $product->boost_payment_status = null;
-        }
-        $product->save();
-
-        return ResponseHelper::success(
-            $product->fresh(),
-            $product->is_boosted ? 'Product boosted' : 'Boost removed'
-        );
+        abort(410, 'Use the permission-checked /admin/ad-campaigns review actions.');
     }
 
     /**
@@ -146,13 +135,7 @@ class AdminProductController extends Controller
      */
     public function approveBoost($id): JsonResponse
     {
-        $product = Product::findOrFail($id);
-        $product->is_boosted = true;
-        $product->boosted_at = now();
-        $product->boost_payment_status = 'paid';
-        $product->save();
-
-        return ResponseHelper::success($product->fresh(), 'Boost approved');
+        abort(410, 'Use the permission-checked /admin/ad-campaigns review actions.');
     }
 
     /**

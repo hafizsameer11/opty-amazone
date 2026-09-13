@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'stripe' => [
+        'secret' => env('STRIPE_SECRET_KEY'),
+        'return_origins' => explode(',', env('STRIPE_RETURN_ORIGINS', 'http://localhost:3120,http://localhost:3121,http://127.0.0.1:3120,http://127.0.0.1:3121,https://vistaexpress.it,https://seller.vistaexpress.it')),
+    ],
 
     /*
     |--------------------------------------------------------------------------

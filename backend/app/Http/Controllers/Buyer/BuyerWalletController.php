@@ -11,8 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Stripe\Stripe;
-use Stripe\Checkout\Session;
 
 class BuyerWalletController extends Controller
 {
@@ -45,60 +43,16 @@ class BuyerWalletController extends Controller
      */
     public function createCheckoutSession(Request $request): JsonResponse
     {
-        if (!class_exists(\Stripe\Stripe::class) || !class_exists(\Stripe\Checkout\Session::class)) {
-            return ResponseHelper::error('Stripe is not available on this server', null, 503);
-        }
-
-        $stripeSecret = env('STRIPE_SECRET_KEY');
-        if (empty($stripeSecret)) {
-            return ResponseHelper::error('Stripe is not configured', null, 503);
-        }
-        Stripe::setApiKey($stripeSecret);
-
-        $validator = Validator::make($request->all(), [
-            'amount' => 'required|numeric|min:500', // Minimum €5.00 in cents
-            'currency' => 'required|string|in:eur,usd,gbp',
-            'success_url' => 'required|url',
-            'cancel_url' => 'required|url',
-        ]);
-
-        if ($validator->fails()) {
-            return ResponseHelper::error('Validation failed', $validator->errors(), 422);
-        }
-
-        $user = Auth::user();
-
-        try {
-            $session = Session::create([
-                'payment_method_types' => ['card'],
-                'line_items' => [[
-                    'price_data' => [
-                        'currency' => strtolower($request->currency),
-                        'product_data' => [
-                            'name' => 'Wallet Top-Up',
-                            'description' => 'Add funds to your wallet',
-                        ],
-                        'unit_amount' => (int) $request->amount,
-                    ],
-                    'quantity' => 1,
-                ]],
-                'mode' => 'payment',
-                'success_url' => $request->success_url,
-                'cancel_url' => $request->cancel_url,
-                'customer_email' => $user->email,
-                'metadata' => [
-                    'user_id' => $user->id,
-                    'type' => 'wallet_topup',
-                ],
-            ]);
-
-            return ResponseHelper::success([
-                'id' => $session->id,
-                'url' => $session->url,
-            ], 'Checkout session created successfully');
-        } catch (\Exception $e) {
-            return ResponseHelper::error('Failed to create checkout session: ' . $e->getMessage());
-        }
+        $data = $request->validate(['amount' => 'required|integer|min:500|max:10000000', 'currency' => 'required|in:eur',
+            'success_url' => ['required', 'string', 'max:2048', function ($attribute, $value, $fail) {
+                // Stripe requires this literal placeholder, which the generic URL rule rejects.
+                $url = str_replace('{CHECKOUT_SESSION_ID}', 'session', $value);
+                if (!filter_var($url, FILTER_VALIDATE_URL) || !in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'])) {
+                    $fail('The success URL must be a valid HTTP(S) URL.');
+                }
+            }], 'cancel_url' => 'required|url|max:2048']);
+        $result = app(\App\Services\Ads\WalletFundingService::class)->checkout($request->user(), $data['amount'], $data['success_url'], $data['cancel_url']);
+        return ResponseHelper::success($result, 'Checkout session created');
     }
 
     /**
@@ -123,60 +77,9 @@ class BuyerWalletController extends Controller
      */
     public function topUp(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'amount' => 'required|numeric|min:5',
-        ]);
-
-        if ($validator->fails()) {
-            return ResponseHelper::error('Validation failed', $validator->errors(), 422);
-        }
-
-        $user = Auth::user();
-        $amount = (float) $request->amount;
-
-        try {
-            DB::beginTransaction();
-
-            // Get or create wallet
-            $wallet = Wallet::firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'shopping_balance' => 0,
-                    'reward_balance' => 0,
-                    'referral_balance' => 0,
-                    'loyality_points' => 0,
-                    'ad_credit' => 0,
-                ]
-            );
-
-            // Add to balance
-            $wallet->increment('shopping_balance', $amount);
-
-            // Create transaction
-            $transaction = Transaction::create([
-                'user_id' => $user->id,
-                'type' => 'top_up',
-                'amount' => $amount,
-                'status' => 'success',
-                'description' => "Wallet top-up of €{$amount}",
-                'meta' => [
-                    'payment_method' => $request->filled('stripe_session_id') ? 'stripe' : 'manual',
-                    'stripe_session_id' => $request->get('stripe_session_id'),
-                ],
-            ]);
-
-            DB::commit();
-
-            return ResponseHelper::success([
-                'wallet' => [
-                    'balance' => (float) $wallet->fresh()->shopping_balance,
-                ],
-                'transaction' => $transaction,
-            ], 'Wallet topped up successfully');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return ResponseHelper::error('Failed to top up wallet: ' . $e->getMessage());
-        }
+        $data = $request->validate(['stripe_session_id' => ['required', 'string', 'max:255', 'regex:/^cs_[a-zA-Z0-9_]+$/']]);
+        $result = app(\App\Services\Ads\WalletFundingService::class)->confirm($request->user(), $data['stripe_session_id']);
+        return ResponseHelper::success($result, 'Verified wallet payment');
     }
 
     /**
@@ -202,10 +105,11 @@ class BuyerWalletController extends Controller
             DB::beginTransaction();
 
             // Get wallet
-            $wallet = Wallet::where('user_id', $user->id)->firstOrFail();
+            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
 
             // Check balance
             if ($wallet->shopping_balance < $amount) {
+                DB::rollBack();
                 return ResponseHelper::error('Insufficient balance', null, 400);
             }
 
@@ -240,4 +144,3 @@ class BuyerWalletController extends Controller
         }
     }
 }
-
