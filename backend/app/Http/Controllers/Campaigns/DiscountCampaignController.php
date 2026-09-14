@@ -7,6 +7,7 @@ use App\Http\Requests\Campaigns\DiscountCampaignRequest;
 use App\Helpers\ResponseHelper as R;
 use App\Models\{DiscountCampaign, Product, Category};
 use App\Services\Campaigns\{DiscountCampaignService, DiscountPricingService, CampaignAnalyticsService};
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Gate, DB};
 
@@ -36,7 +37,7 @@ class DiscountCampaignController extends Controller
     }
     public function action(Request $r, DiscountCampaign $campaign, DiscountCampaignService $s)
     {
-        $this->role($r); $d=$r->validate(['action'=>'required|in:publish,pause,resume,cancel,duplicate','reason'=>'nullable|string|max:2000']);
+        $this->role($r); $d=$r->validate(['action'=>'required|in:publish,pause,resume,cancel,delete,duplicate','reason'=>'nullable|string|max:2000']);
         return R::success($s->action($campaign,$r->user(),$d['action'],$d['reason'] ?? null));
     }
     public function analytics(Request $r, DiscountCampaign $campaign, CampaignAnalyticsService $s)
@@ -45,7 +46,14 @@ class DiscountCampaignController extends Controller
     }
     public function audits(Request $r, DiscountCampaign $campaign)
     {
-        $this->role($r); Gate::authorize('view',$campaign); return R::success(DB::table('commerce_campaign_audits')->where('campaign_type','discount')->where('campaign_id',$campaign->id)->latest('id')->paginate(25));
+        $this->role($r); Gate::authorize('view',$campaign);
+        $audits = DB::table('commerce_campaign_audits')->where('campaign_type','discount')->where('campaign_id',$campaign->id)->latest('id')->paginate(25);
+        $audits->getCollection()->transform(function ($audit) {
+            $audit->created_at = CarbonImmutable::parse($audit->created_at, 'UTC')->toISOString();
+            $audit->updated_at = CarbonImmutable::parse($audit->updated_at, 'UTC')->toISOString();
+            return $audit;
+        });
+        return R::success($audits);
     }
     public function preview(DiscountCampaignRequest $r, DiscountPricingService $pricing)
     {

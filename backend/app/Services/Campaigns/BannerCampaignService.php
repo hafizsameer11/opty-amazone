@@ -50,7 +50,7 @@ class BannerCampaignService
         Gate::forUser($user)->authorize('manage',$campaign);
         return DB::transaction(function () use ($campaign,$user,$action,$reason) {
             $c = BannerCampaign::lockForUpdate()->findOrFail($campaign->id);
-            if (!$user->isAdmin() && in_array($action,['approve','reject','terminate','delete'])) { abort(403); }
+            if (!$user->isAdmin() && in_array($action,['approve','reject','terminate'])) { abort(403); }
             if ($action === 'duplicate' && !$user->isAdmin()) {
                 $copy = $c->replicate(['legacy_banner_id','legacy_snapshot']); $copy->name .= ' (copy)'; $copy->status = 'draft';
                 $copy->approval_status = 'pending'; $copy->rejection_reason = null; $copy->revision = 1;
@@ -59,7 +59,7 @@ class BannerCampaignService
                 CampaignAudit::record($copy,'duplicated',$user->id); return $copy->load('creatives');
             }
             if (in_array($c->status,['expired','cancelled','completed']) && $action !== 'delete') { throw ValidationException::withMessages(['status'=>'Campaign is finished.']); }
-            if (in_array($action,['approve','reject','terminate','delete']) && !trim($reason ?? '')) { throw ValidationException::withMessages(['reason'=>'A review reason is required.']); }
+            if ($user->isAdmin() && in_array($action,['reject','terminate']) && !trim($reason ?? '')) { throw ValidationException::withMessages(['reason'=>'A reason is required for rejection or termination.']); }
             if (in_array($action,['approve','submit','resume'])) {
                 if (!$c->ends_at->isFuture() || !$this->destinations->resolve($c,true) || !$c->creatives()->where('is_active',true)->where('alt_text','!=','')->exists()) {
                     throw ValidationException::withMessages(['campaign'=>'Check dates, destination and active creative before submission.']);
@@ -70,7 +70,7 @@ class BannerCampaignService
                     if (!in_array($c->status,['draft','paused'])) { throw ValidationException::withMessages(['status'=>'Campaign already submitted.']); }
                     $c->approval_status='pending'; $c->status='scheduled'; break;
                 case 'approve':
-                    if ($c->status === 'draft' || $c->approval_status !== 'pending') { throw ValidationException::withMessages(['approval_status'=>'Only submitted pending campaigns can be approved.']); }
+                    if ($c->approval_status !== 'pending') { throw ValidationException::withMessages(['approval_status'=>'Only pending campaigns can be approved.']); }
                     $c->approval_status='approved'; $c->rejection_reason=null; $c->status=$c->starts_at->isFuture() ? 'scheduled' : 'active'; break;
                 case 'reject': $c->approval_status='rejected'; $c->rejection_reason=$reason; $c->status='paused'; break;
                 case 'pause':

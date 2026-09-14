@@ -159,37 +159,50 @@ class CommerceCampaignTest extends TestCase
         $this->travel(2)->days(); $this->assertSame([],$this->serve());
     }
 
-    public function test_banner_schedule_keeps_the_seller_timezone_and_activates_at_the_exact_utc_instant(): void
+    public function test_banner_schedule_uses_italy_and_pakistan_creator_timezones_at_the_exact_utc_instant(): void
     {
         $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-13 23:40:00', 'UTC'));
         Sanctum::actingAs($this->seller);
         $id = $this->post('/api/seller/banner-campaigns', $this->bannerData([
-            'starts_at' => '2026-09-14T01:42:00+02:00',
-            'ends_at' => '2026-09-14T02:42:00+02:00',
-            'schedule_timezone' => 'Europe/Berlin',
+            'starts_at' => '2026-09-14T02:37:00+02:00',
+            'ends_at' => '2026-09-14T03:37:00+02:00',
+            'schedule_timezone' => 'Europe/Rome',
         ]), ['Accept' => 'application/json'])->assertCreated()->json('data.id');
 
         $banner = BannerCampaign::findOrFail($id);
         $this->assertSame('scheduled', $banner->status);
         $this->assertSame('pending', $banner->approval_status);
-        $this->assertSame('Europe/Berlin', $banner->schedule_timezone);
-        $this->assertSame('2026-09-13 23:42', $banner->starts_at->utc()->format('Y-m-d H:i'));
-        $this->assertSame('2026-09-14 01:42', $banner->starts_at->setTimezone('Europe/Berlin')->format('Y-m-d H:i'));
+        $this->assertSame('Europe/Rome', $banner->schedule_timezone);
+        $this->assertSame('2026-09-14 00:37', $banner->starts_at->utc()->format('Y-m-d H:i'));
+        $this->assertSame('2026-09-14 02:37', $banner->starts_at->setTimezone('Europe/Rome')->format('Y-m-d H:i'));
 
         Sanctum::actingAs($this->admin);
         $this->postJson('/api/admin/banner-campaigns/'.$id.'/actions', ['action' => 'approve', 'reason' => 'Schedule reviewed'])->assertOk()->assertJsonPath('data.status', 'scheduled');
         $snapshot = json_decode((string) DB::table('commerce_campaign_audits')->where('campaign_type', 'banner')->where('campaign_id', $id)->latest('id')->value('snapshot'), true);
-        $this->assertSame('Europe/Berlin', $snapshot['schedule_timezone']);
+        $this->assertSame('Europe/Rome', $snapshot['schedule_timezone']);
+        $auditTimestamp = $this->getJson('/api/admin/banner-campaigns/'.$id.'/audits')->assertOk()->json('data.data.0.created_at');
+        $this->assertStringEndsWith('Z', $auditTimestamp);
 
-        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-13 23:41:00', 'UTC'));
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-14 00:36:00', 'UTC'));
         app(\App\Jobs\RefreshCommerceCampaigns::class)->handle();
         $this->assertSame('scheduled', $banner->fresh()->status);
-        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-13 23:42:00', 'UTC'));
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-14 00:37:00', 'UTC'));
         app(\App\Jobs\RefreshCommerceCampaigns::class)->handle();
         $this->assertSame('active', $banner->fresh()->status);
-        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-14 00:42:00', 'UTC'));
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-14 01:37:00', 'UTC'));
         app(\App\Jobs\RefreshCommerceCampaigns::class)->handle();
         $this->assertSame('expired', $banner->fresh()->status);
+
+        Sanctum::actingAs($this->seller);
+        $karachiId = $this->post('/api/seller/banner-campaigns', $this->bannerData([
+            'starts_at' => '2026-09-15T02:37:00+05:00',
+            'ends_at' => '2026-09-15T03:37:00+05:00',
+            'schedule_timezone' => 'Asia/Karachi',
+        ]), ['Accept' => 'application/json'])->assertCreated()->json('data.id');
+        $karachi = BannerCampaign::findOrFail($karachiId);
+        $this->assertSame('Asia/Karachi', $karachi->schedule_timezone);
+        $this->assertSame('2026-09-14 21:37', $karachi->starts_at->utc()->format('Y-m-d H:i'));
+        $this->assertSame('2026-09-15 02:37', $karachi->starts_at->setTimezone('Asia/Karachi')->format('Y-m-d H:i'));
     }
     public function test_banner_edits_require_reapproval_and_invalidate_tokens(): void
     {
@@ -200,6 +213,24 @@ class CommerceCampaignTest extends TestCase
         Sanctum::actingAs($this->admin); $this->postJson('/api/admin/banner-campaigns/'.$b->id.'/actions',['action'=>'reject','reason'=>'Please improve contrast'])->assertOk();
         $this->assertEquals('Please improve contrast',$b->fresh()->rejection_reason);
         Sanctum::actingAs($this->seller); $this->postJson('/api/seller/banner-campaigns/'.$b->id.'/actions',['action'=>'resume'])->assertUnprocessable();
+    }
+
+    public function test_seller_and_admin_lifecycle_controls_are_available_before_a_schedule_starts(): void
+    {
+        $future = now()->addDay()->toIso8601String();
+        $banner = $this->banner(['starts_at' => $future]);
+        Sanctum::actingAs($this->seller);
+        $this->postJson('/api/seller/banner-campaigns/'.$banner->id.'/actions', ['action' => 'pause'])->assertOk()->assertJsonPath('data.status', 'paused');
+        $this->postJson('/api/seller/banner-campaigns/'.$banner->id.'/actions', ['action' => 'resume'])->assertOk()->assertJsonPath('data.status', 'scheduled');
+        $this->postJson('/api/seller/banner-campaigns/'.$banner->id.'/actions', ['action' => 'delete'])->assertOk();
+        $this->assertSoftDeleted('banner_campaigns', ['id' => $banner->id]);
+
+        $discount = $this->discount(['starts_at' => $future]);
+        Sanctum::actingAs($this->admin);
+        $this->postJson('/api/admin/discount-campaigns/'.$discount->id.'/actions', ['action' => 'pause'])->assertOk()->assertJsonPath('data.status', 'paused');
+        $this->postJson('/api/admin/discount-campaigns/'.$discount->id.'/actions', ['action' => 'resume'])->assertOk()->assertJsonPath('data.status', 'scheduled');
+        $this->postJson('/api/admin/discount-campaigns/'.$discount->id.'/actions', ['action' => 'delete'])->assertOk();
+        $this->assertSoftDeleted('discount_campaigns', ['id' => $discount->id]);
     }
     public function test_banner_image_url_destination_and_permissions_validation(): void
     {

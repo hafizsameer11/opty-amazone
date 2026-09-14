@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class DiscountCampaign extends Model
 {
+    use \Illuminate\Database\Eloquent\SoftDeletes;
     protected $guarded = ['id'];
     protected $casts = ['starts_at'=>'immutable_datetime','ends_at'=>'immutable_datetime','stacking'=>'boolean','legacy_snapshot'=>'array','discount_value'=>'decimal:2','minimum_order_amount'=>'decimal:2','maximum_discount'=>'decimal:2'];
     public function store() { return $this->belongsTo(Store::class); }

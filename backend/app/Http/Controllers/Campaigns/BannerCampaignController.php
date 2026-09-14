@@ -7,6 +7,7 @@ use App\Http\Requests\Campaigns\BannerCampaignRequest;
 use App\Helpers\ResponseHelper as R;
 use App\Models\BannerCampaign;
 use App\Services\Campaigns\{BannerCampaignService, CampaignAnalyticsService};
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Gate, DB};
 
@@ -43,6 +44,13 @@ class BannerCampaignController extends Controller
     }
     public function audits(Request $r, BannerCampaign $campaign)
     {
-        $this->role($r); Gate::authorize('view',$campaign); return R::success(DB::table('commerce_campaign_audits')->where('campaign_type','banner')->where('campaign_id',$campaign->id)->latest('id')->paginate(25));
+        $this->role($r); Gate::authorize('view',$campaign);
+        $audits = DB::table('commerce_campaign_audits')->where('campaign_type','banner')->where('campaign_id',$campaign->id)->latest('id')->paginate(25);
+        $audits->getCollection()->transform(function ($audit) {
+            $audit->created_at = CarbonImmutable::parse($audit->created_at, 'UTC')->toISOString();
+            $audit->updated_at = CarbonImmutable::parse($audit->updated_at, 'UTC')->toISOString();
+            return $audit;
+        });
+        return R::success($audits);
     }
 }

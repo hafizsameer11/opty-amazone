@@ -42,7 +42,7 @@ class DiscountCampaignService
         Gate::forUser($user)->authorize('manage', $campaign);
         return DB::transaction(function () use ($campaign,$user,$action,$reason) {
             $c = DiscountCampaign::lockForUpdate()->findOrFail($campaign->id);
-            if ($user->isAdmin() && !in_array($action,['pause','cancel'])) { abort(403); }
+            if ($user->isAdmin() && !in_array($action,['pause','resume','cancel','delete'])) { abort(403); }
             if ($action === 'duplicate') {
                 $copy = $c->replicate(['legacy_promotion_id','legacy_snapshot','review_reason']);
                 $copy->name .= ' (copy)'; $copy->status = 'draft'; $copy->usage_count = 0; $copy->creator_id = $user->id;
@@ -50,6 +50,13 @@ class DiscountCampaignService
                 $copy->products()->sync($c->products->modelKeys()); $copy->categories()->sync($c->categories->modelKeys());
                 foreach ($c->variants as $v) { $copy->variants()->create($v->only('product_id','variant_type','variant_id')); }
                 CampaignAudit::record($copy,'duplicated',$user->id); return $copy;
+            }
+            if ($action === 'delete') {
+                $c->status = 'cancelled';
+                $c->save();
+                CampaignAudit::record($c, 'deleted', $user->id, $reason);
+                $c->delete();
+                return $c;
             }
             $allowed = ['pause'=>['active','scheduled'], 'resume'=>['paused'], 'cancel'=>['draft','scheduled','active','paused'], 'publish'=>['draft']];
             if (!in_array($c->status, $allowed[$action] ?? [])) { throw ValidationException::withMessages(['status'=>'Invalid campaign transition.']); }
