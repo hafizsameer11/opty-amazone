@@ -64,7 +64,6 @@ class CommerceCampaignTest extends TestCase
     private function banner(array $overrides=[]): BannerCampaign
     {
         Sanctum::actingAs($this->seller); $id=$this->post('/api/seller/banner-campaigns',$this->bannerData($overrides),['Accept'=>'application/json'])->assertCreated()->json('data.id');
-        $this->postJson('/api/seller/banner-campaigns/'.$id.'/actions',['action'=>'submit'])->assertOk();
         Sanctum::actingAs($this->admin); $this->postJson('/api/admin/banner-campaigns/'.$id.'/actions',['action'=>'approve','reason'=>'Creative and destination reviewed'])->assertOk();
         return BannerCampaign::findOrFail($id);
     }
@@ -158,6 +157,39 @@ class CommerceCampaignTest extends TestCase
         $this->assertSame($served[0]['creative']['desktop_url'],$served[0]['creative']['mobile_url']); $this->assertSame([],$this->serve('homepage_featured'));
         $this->store->update(['is_active'=>false]); $this->assertSame([],$this->serve()); $this->store->update(['is_active'=>true]);
         $this->travel(2)->days(); $this->assertSame([],$this->serve());
+    }
+
+    public function test_banner_schedule_keeps_the_seller_timezone_and_activates_at_the_exact_utc_instant(): void
+    {
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-13 23:40:00', 'UTC'));
+        Sanctum::actingAs($this->seller);
+        $id = $this->post('/api/seller/banner-campaigns', $this->bannerData([
+            'starts_at' => '2026-09-14T01:42:00+02:00',
+            'ends_at' => '2026-09-14T02:42:00+02:00',
+            'schedule_timezone' => 'Europe/Berlin',
+        ]), ['Accept' => 'application/json'])->assertCreated()->json('data.id');
+
+        $banner = BannerCampaign::findOrFail($id);
+        $this->assertSame('scheduled', $banner->status);
+        $this->assertSame('pending', $banner->approval_status);
+        $this->assertSame('Europe/Berlin', $banner->schedule_timezone);
+        $this->assertSame('2026-09-13 23:42', $banner->starts_at->utc()->format('Y-m-d H:i'));
+        $this->assertSame('2026-09-14 01:42', $banner->starts_at->setTimezone('Europe/Berlin')->format('Y-m-d H:i'));
+
+        Sanctum::actingAs($this->admin);
+        $this->postJson('/api/admin/banner-campaigns/'.$id.'/actions', ['action' => 'approve', 'reason' => 'Schedule reviewed'])->assertOk()->assertJsonPath('data.status', 'scheduled');
+        $snapshot = json_decode((string) DB::table('commerce_campaign_audits')->where('campaign_type', 'banner')->where('campaign_id', $id)->latest('id')->value('snapshot'), true);
+        $this->assertSame('Europe/Berlin', $snapshot['schedule_timezone']);
+
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-13 23:41:00', 'UTC'));
+        app(\App\Jobs\RefreshCommerceCampaigns::class)->handle();
+        $this->assertSame('scheduled', $banner->fresh()->status);
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-13 23:42:00', 'UTC'));
+        app(\App\Jobs\RefreshCommerceCampaigns::class)->handle();
+        $this->assertSame('active', $banner->fresh()->status);
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-09-14 00:42:00', 'UTC'));
+        app(\App\Jobs\RefreshCommerceCampaigns::class)->handle();
+        $this->assertSame('expired', $banner->fresh()->status);
     }
     public function test_banner_edits_require_reapproval_and_invalidate_tokens(): void
     {

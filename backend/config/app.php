@@ -65,6 +65,9 @@ return [
     |
     */
 
+    // Campaign timestamps are persisted and evaluated in UTC. `schedule_timezone`
+    // records the seller's IANA zone for display; it must not change the clock used
+    // for database comparisons or scheduler jobs.
     'timezone' => 'UTC',
 
     /*

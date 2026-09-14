@@ -3,6 +3,7 @@
 namespace App\Services\Campaigns;
 
 use App\Models\{BannerCampaign, User};
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\{DB, Gate};
 use Illuminate\Validation\ValidationException;
 
@@ -15,13 +16,20 @@ class BannerCampaignService
         Gate::forUser($user)->authorize($campaign ? 'manage' : 'create', $campaign ?? BannerCampaign::class);
         return DB::transaction(function () use ($user,$data,$campaign) {
             $c = $campaign ? BannerCampaign::lockForUpdate()->findOrFail($campaign->id) : new BannerCampaign(['store_id'=>$user->store->id,'creator_id'=>$user->id,'status'=>'draft']);
+            $isUpdate = $c->exists;
             if ($c->exists && in_array($c->status,['cancelled','expired','completed'])) { throw ValidationException::withMessages(['status'=>'Duplicate a finished campaign to create a new one.']); }
-            $c->fill(collect($data)->only(['name','type','starts_at','ends_at','placement','targeting','destination_type','destination_id','destination_url'])->all());
+            $timezone = $data['schedule_timezone'] ?? $c->schedule_timezone ?? 'UTC';
+            $data['schedule_timezone'] = $timezone;
+            $data['starts_at'] = CarbonImmutable::parse($data['starts_at'], $timezone)->utc();
+            $data['ends_at'] = CarbonImmutable::parse($data['ends_at'], $timezone)->utc();
+            $c->fill(collect($data)->only(['name','type','starts_at','ends_at','schedule_timezone','placement','targeting','destination_type','destination_id','destination_url'])->all());
             if (!$this->destinations->resolve($c,true)) { throw ValidationException::withMessages(['destination_id'=>'Choose an eligible destination belonging to your store, or a safe URL.']); }
             if ($c->placement === 'category_page' && empty($c->targeting['category_id'])) { throw ValidationException::withMessages(['targeting.category_id'=>'Choose the category placement.']); }
             if ($c->placement === 'store_page') { $c->targeting = ['store_id'=>$c->store_id]; }
             if (!empty($c->targeting['store_id']) && (int) $c->targeting['store_id'] !== (int) $c->store_id) { abort(403); }
             // Every edit invalidates old delivery tokens and requires a fresh review.
+            // It must return to a scheduled state until an administrator approves it again.
+            if ($isUpdate) { $c->status = 'scheduled'; }
             $c->approval_status = 'pending'; $c->rejection_reason = null; $c->revision = ($c->revision ?? 0) + 1; $c->save();
             $creative = $c->creatives()->firstOrNew();
             foreach (['desktop_image','mobile_image'] as $field) {

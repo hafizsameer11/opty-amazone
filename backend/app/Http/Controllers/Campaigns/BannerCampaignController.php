@@ -22,7 +22,11 @@ class BannerCampaignController extends Controller
         $p=$q->latest()->paginate(min(100,max(1,(int) $r->input('per_page',20))));
         $p->getCollection()->transform(fn ($c)=>$c->toArray()+['analytics'=>$analytics->metrics($c)]); return R::success($p);
     }
-    public function store(BannerCampaignRequest $r, BannerCampaignService $s) { return R::success($s->save($r->user(),$r->validated()),'Created',201); }
+    public function store(BannerCampaignRequest $r, BannerCampaignService $s)
+    {
+        $campaign = $s->save($r->user(), $r->validated());
+        return R::success($s->action($campaign, $r->user(), 'submit'), 'Request sent to Admin for approval', 201);
+    }
     public function update(BannerCampaignRequest $r, BannerCampaign $campaign, BannerCampaignService $s) { return R::success($s->save($r->user(),$r->validated(),$campaign)); }
     public function show(Request $r, BannerCampaign $campaign, CampaignAnalyticsService $s)
     {

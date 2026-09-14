@@ -9,7 +9,7 @@ class BannerCampaignRequest extends FormRequest
     public function authorize(): bool { return $this->user()?->role === 'seller' && $this->user()->store !== null; }
     public function rules(): array
     {
-        return ['name'=>'required|string|max:255','type'=>'sometimes|in:organic','starts_at'=>'required|date','ends_at'=>'required|date|after:starts_at',
+        return ['name'=>'required|string|max:255','type'=>'sometimes|in:organic','starts_at'=>'required|date','ends_at'=>'required|date|after:starts_at','schedule_timezone'=>'sometimes|string|max:64|timezone',
             'placement'=>'required|in:homepage_hero,homepage_featured,category_page,store_page,sidebar',
             'targeting'=>'nullable|array:category_id,store_id','targeting.category_id'=>'nullable|integer|exists:categories,id','targeting.store_id'=>'nullable|integer|exists:stores,id',
             'destination_type'=>'required|in:product,category,store,discount_campaign,internal_url,external_url',

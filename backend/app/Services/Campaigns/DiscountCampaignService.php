@@ -3,6 +3,7 @@
 namespace App\Services\Campaigns;
 
 use App\Models\{DiscountCampaign, Product, User};
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\{DB, Gate};
 use Illuminate\Validation\ValidationException;
 
@@ -14,6 +15,10 @@ class DiscountCampaignService
         return DB::transaction(function () use ($user, $data, $campaign) {
             $c = $campaign ? DiscountCampaign::lockForUpdate()->findOrFail($campaign->id) : new DiscountCampaign(['store_id'=>$user->store->id,'creator_id'=>$user->id]);
             if ($c->exists && !in_array($c->status, ['draft','scheduled'])) { throw ValidationException::withMessages(['status'=>'Only draft or scheduled campaigns can be edited.']); }
+            $timezone = $data['schedule_timezone'] ?? $c->schedule_timezone ?? 'UTC';
+            $data['schedule_timezone'] = $timezone;
+            $data['starts_at'] = CarbonImmutable::parse($data['starts_at'], $timezone)->utc();
+            $data['ends_at'] = CarbonImmutable::parse($data['ends_at'], $timezone)->utc();
             $variants = [];
             foreach ($data['variants'] ?? [] as $v) {
                 $model = ConfigurationPriceService::VARIANTS[$v['variant_type']]::findOrFail($v['variant_id']);

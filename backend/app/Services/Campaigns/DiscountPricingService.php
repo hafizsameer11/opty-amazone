@@ -28,7 +28,7 @@ class DiscountPricingService
         $storeIds = array_unique(array_map(fn ($l) => $l['product']->store_id, $lines));
         $q = DiscountCampaign::with(['products', 'categories', 'variants'])->whereIn('store_id', $storeIds)
             ->whereIn('status', ['active', 'scheduled'])->whereNull('review_reason')
-            ->where('starts_at', '<=', now())->where('ends_at', '>', now())->orderBy('id');
+            ->where('starts_at', '<=', now('UTC'))->where('ends_at', '>', now('UTC'))->orderBy('id');
         if ($lock) { $q->lockForUpdate(); }
         $campaigns = $q->get()->filter(function ($c) use ($buyerId, $lock) {
             if ($c->usage_limit && $c->usage_count >= $c->usage_limit) { return false; }
