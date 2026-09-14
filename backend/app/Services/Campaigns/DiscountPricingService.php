@@ -22,7 +22,7 @@ class DiscountPricingService
         };
     }
 
-    /** Caps and minimums apply to the eligible store lines, before coupon calculation. */
+    /** Minimums apply to the eligible store lines, before coupon calculation. */
     public function quote(array $lines, ?int $buyerId = null, bool $lock = false): array
     {
         $storeIds = array_unique(array_map(fn ($l) => $l['product']->store_id, $lines));
@@ -39,7 +39,7 @@ class DiscountPricingService
             if ($lock) { $usages->lockForUpdate(); }
             return $usages->get(['id'])->count() < $c->per_buyer_limit;
         });
-        $result = []; $eligible = []; $budgets = [];
+        $result = []; $eligible = [];
         foreach ($lines as $key => $line) {
             $p = $line['product']; $selection = $line['selection'] ?? []; $qty = max(1, (int) ($line['quantity'] ?? 1));
             $original = $this->base->cents($p, $selection);
@@ -49,29 +49,28 @@ class DiscountPricingService
                 if ($this->matches($c, $p, $selection)) { $eligible[$c->id][] = $key; }
             }
         }
-        $campaigns = $campaigns->filter(function ($c) use ($eligible, $result, &$budgets) {
+        $campaigns = $campaigns->filter(function ($c) use ($eligible, $result) {
             $keys = $eligible[$c->id] ?? [];
             $amount = array_sum(array_map(fn ($k) => $result[$k]['final_line_cents'], $keys));
             $qty = array_sum(array_map(fn ($k) => $result[$k]['quantity'], $keys));
-            $budgets[$c->id] = $c->maximum_discount !== null ? (int) round((float) $c->maximum_discount * 100) : PHP_INT_MAX;
             return $amount >= (int) round((float) $c->minimum_order_amount * 100) && $qty >= $c->minimum_quantity;
         });
         foreach ($result as $key => &$r) {
             $remaining = $campaigns->filter(fn ($c) => in_array($key, $eligible[$c->id] ?? [], true));
             while ($remaining->isNotEmpty()) {
-                $ranked = $remaining->map(function ($c) use ($r, $budgets) {
+                $ranked = $remaining->map(function ($c) use ($r) {
                     $discount = $c->discount_type === 'percentage'
                         ? (int) round($r['final_line_cents'] * (float) $c->discount_value / 100)
                         : (int) round((float) $c->discount_value * 100) * $r['quantity'];
                     // Unit prices must be representable in cents, matching existing checkout arithmetic.
-                    $discount = intdiv(min($discount, $budgets[$c->id], $r['final_line_cents']), $r['quantity']) * $r['quantity'];
+                    $discount = intdiv(min($discount, $r['final_line_cents']), $r['quantity']) * $r['quantity'];
                     return ['campaign' => $c, 'discount' => $discount];
                 })->filter(fn ($x) => $x['discount'] > 0)->sort(function ($a, $b) {
                     return ($b['campaign']->priority <=> $a['campaign']->priority) ?: ($b['discount'] <=> $a['discount']) ?: ($a['campaign']->id <=> $b['campaign']->id);
                 });
                 if ($ranked->isEmpty()) { break; }
                 $winner = $ranked->first(); $c = $winner['campaign']; $discount = $winner['discount'];
-                $r['final_line_cents'] -= $discount; $budgets[$c->id] -= $discount;
+                $r['final_line_cents'] -= $discount;
                 $r['campaigns'][] = ['id' => $c->id, 'name' => $c->name, 'discount_amount' => $discount / 100];
                 if (!$c->stacking) { break; }
                 $remaining = $remaining->filter(fn ($other) => $other->id !== $c->id && $other->stacking);

@@ -86,6 +86,18 @@ class CommerceCampaignTest extends TestCase
         Sanctum::actingAs($this->admin); $this->getJson('/api/admin/discount-campaigns/'.$c->id.'/audits')->assertOk();
         $this->postJson('/api/admin/discount-campaigns/'.$c->id.'/actions',['action'=>'pause'])->assertOk();
         $this->assertEquals(100.0,$this->quote()['discounted_price']);
+        Sanctum::actingAs($this->seller);
+        $this->putJson('/api/seller/discount-campaigns/'.$c->id, $this->discountData(['launch_mode'=>'schedule','starts_at'=>now()->addHour()->toIso8601String(),'ends_at'=>now()->addDay()->toIso8601String()]))
+            ->assertOk()->assertJsonPath('data.status','scheduled');
+    }
+
+    public function test_seller_creation_launch_modes_start_or_schedule_without_a_second_publish_action(): void
+    {
+        Sanctum::actingAs($this->seller);
+        $this->postJson('/api/seller/discount-campaigns', $this->discountData(['launch_mode'=>'run_now']))
+            ->assertCreated()->assertJsonPath('data.status','active');
+        $this->postJson('/api/seller/discount-campaigns', $this->discountData(['name'=>'Scheduled sale','launch_mode'=>'schedule','starts_at'=>now()->addHour()->toIso8601String(),'ends_at'=>now()->addDay()->toIso8601String()]))
+            ->assertCreated()->assertJsonPath('data.status','scheduled');
     }
     public function test_category_and_store_scopes_are_store_scoped(): void
     {
@@ -109,7 +121,7 @@ class CommerceCampaignTest extends TestCase
         $this->discount(['scope'=>'store']); $this->assertEquals(24.0,$this->quote(['product_size_volume_id'=>$volume->id])['discounted_price']);
         $this->assertEquals(32.0,$this->quote(['eye_hygiene_variant_id'=>$named->id])['discounted_price']);
     }
-    public function test_priority_ties_stacking_caps_and_minimums(): void
+    public function test_priority_ties_stacking_and_minimums(): void
     {
         $this->discount(['discount_value'=>40,'priority'=>1]); $c=$this->discount(['discount_value'=>10,'priority'=>2,'stacking'=>true]);
         $this->assertEquals(90.0,$this->quote()['discounted_price']);
@@ -117,8 +129,10 @@ class CommerceCampaignTest extends TestCase
         $this->assertEquals(72.0,$this->quote()['discounted_price']); // Fixed 20 then 10%; non-stackable 40% excluded.
         $other->update(['status'=>'paused']); $c->update(['status'=>'paused']);
         DiscountCampaign::query()->update(['status'=>'paused']);
-        $this->discount(['minimum_quantity'=>2,'minimum_order_amount'=>150,'maximum_discount'=>25]);
-        $this->assertEquals(100.0,$this->quote()['discounted_price']); $this->assertEquals(87.5,$this->quote([],2)['discounted_price']);
+        $minimumCampaign = $this->discount(['minimum_quantity'=>2,'minimum_order_amount'=>150]);
+        // Historical maximum_discount values are deliberately ignored.
+        $minimumCampaign->update(['maximum_discount'=>25]);
+        $this->assertEquals(100.0,$this->quote()['discounted_price']); $this->assertEquals(80.0,$this->quote([],2)['discounted_price']);
     }
     public function test_checkout_reprices_and_preserves_order_history_and_limits(): void
     {

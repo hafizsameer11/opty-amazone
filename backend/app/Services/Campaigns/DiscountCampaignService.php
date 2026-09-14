@@ -14,11 +14,22 @@ class DiscountCampaignService
         Gate::forUser($user)->authorize($campaign ? 'manage' : 'create', $campaign ?? DiscountCampaign::class);
         return DB::transaction(function () use ($user, $data, $campaign) {
             $c = $campaign ? DiscountCampaign::lockForUpdate()->findOrFail($campaign->id) : new DiscountCampaign(['store_id'=>$user->store->id,'creator_id'=>$user->id]);
-            if ($c->exists && !in_array($c->status, ['draft','scheduled'])) { throw ValidationException::withMessages(['status'=>'Only draft or scheduled campaigns can be edited.']); }
+            $isExisting = $c->exists;
+            if ($isExisting && !in_array($c->status, ['draft','scheduled','paused'])) { throw ValidationException::withMessages(['status'=>'Pause an active campaign before editing it.']); }
             $timezone = $data['schedule_timezone'] ?? $c->schedule_timezone ?? 'UTC';
             $data['schedule_timezone'] = $timezone;
             $data['starts_at'] = CarbonImmutable::parse($data['starts_at'], $timezone)->utc();
             $data['ends_at'] = CarbonImmutable::parse($data['ends_at'], $timezone)->utc();
+            $launchMode = $data['launch_mode'] ?? null;
+            $now = now('UTC');
+            if ($launchMode === 'run_now') {
+                $data['starts_at'] = $now;
+            } elseif ($launchMode === 'schedule' && $data['starts_at']->lte($now)) {
+                throw ValidationException::withMessages(['starts_at'=>'Choose a future start time when scheduling a campaign.']);
+            }
+            if ($data['ends_at']->lte($now)) {
+                throw ValidationException::withMessages(['ends_at'=>'Choose an end time in the future.']);
+            }
             $variants = [];
             foreach ($data['variants'] ?? [] as $v) {
                 $model = ConfigurationPriceService::VARIANTS[$v['variant_type']]::findOrFail($v['variant_id']);
@@ -26,7 +37,9 @@ class DiscountCampaignService
                 $variants[] = $v + ['product_id'=>$model->product_id];
             }
             foreach ($data['product_ids'] ?? [] as $id) { if (!Product::whereKey($id)->where('store_id', $c->store_id)->exists()) { abort(403); } }
-            $fields = collect($data)->except(['product_ids','category_ids','variants'])->all();
+            $fields = collect($data)->except(['product_ids','category_ids','variants','launch_mode','maximum_discount'])->all();
+            if ($launchMode === 'run_now') { $fields['status'] = 'active'; }
+            if ($launchMode === 'schedule') { $fields['status'] = 'scheduled'; }
             $c->fill($fields); $c->save();
             $c->products()->sync($data['scope'] === 'products' ? $data['product_ids'] : []);
             $c->categories()->sync($data['scope'] === 'categories' ? $data['category_ids'] : []);
