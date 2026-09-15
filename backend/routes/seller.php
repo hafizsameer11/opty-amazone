@@ -34,12 +34,12 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [SellerAuthController::class, 'login']);
     Route::post('/forgot-password', [SellerAuthController::class, 'forgotPassword']);
     
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->group(function () {
         Route::post('/logout', [SellerAuthController::class, 'logout']);
     });
 });
 
-Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('profile')->group(function () {
     Route::get('/', [SellerUserController::class, 'getProfile']);
     Route::put('/', [SellerUserController::class, 'updateProfile']);
     Route::post('/change-password', [SellerUserController::class, 'changePassword']);
@@ -52,7 +52,7 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::delete('/', [SellerUserController::class, 'deleteAccount']);
 });
 
-Route::middleware('auth:sanctum')->prefix('store')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('store')->group(function () {
     Route::get('/', [SellerStoreController::class, 'getStore']);
     Route::put('/', [SellerStoreController::class, 'updateStore']);
     Route::post('/profile-image', [SellerStoreController::class, 'uploadProfileImage']);
@@ -88,7 +88,7 @@ Route::middleware('auth:sanctum')->prefix('store')->group(function () {
 });
 
 // Product routes
-Route::middleware('auth:sanctum')->prefix('products')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('products')->group(function () {
     Route::get('/', [SellerProductController::class, 'index']);
     Route::get('/categories', [SellerProductController::class, 'getCategories']);
     Route::get('/suggest-sku', [SellerProductController::class, 'suggestSku']);
@@ -113,30 +113,30 @@ Route::middleware('auth:sanctum')->prefix('products')->group(function () {
 });
 
 // Product variant routes
-Route::middleware('auth:sanctum')->prefix('product-variant')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('product-variant')->group(function () {
     Route::put('/{id}', [SellerProductController::class, 'updateVariant']);
     Route::delete('/{id}', [SellerProductController::class, 'deleteVariant']);
     Route::post('/{id}/set-default', [SellerProductController::class, 'setDefaultVariant']);
 });
 
 // Frame size routes
-Route::middleware('auth:sanctum')->prefix('products/{productId}/frame-sizes')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('products/{productId}/frame-sizes')->group(function () {
     Route::get('/', [FrameSizeController::class, 'index']);
     Route::post('/', [FrameSizeController::class, 'store']);
 });
-Route::middleware('auth:sanctum')->prefix('frame-sizes')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('frame-sizes')->group(function () {
     Route::put('/{id}', [FrameSizeController::class, 'update']);
     Route::delete('/{id}', [FrameSizeController::class, 'destroy']);
 });
 
 // Order routes
-Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('orders')->group(function () {
     Route::get('/', [SellerOrderController::class, 'index']);
     Route::get('/{id}', [SellerOrderController::class, 'show']);
 });
 
 // Store order routes
-Route::middleware('auth:sanctum')->prefix('store-orders')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('store-orders')->group(function () {
     Route::get('/pending', [SellerOrderController::class, 'pending']);
     Route::post('/{id}/accept', [SellerOrderController::class, 'accept']);
     Route::post('/{id}/reject', [SellerOrderController::class, 'reject']);
@@ -145,7 +145,7 @@ Route::middleware('auth:sanctum')->prefix('store-orders')->group(function () {
 });
 
 // Promotion routes
-Route::middleware('auth:sanctum')->prefix('promotions')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('promotions')->group(function () {
     Route::get('/', [SellerPromotionController::class, 'index']);
     Route::post('/', [SellerPromotionController::class, 'store']);
     Route::put('/{id}', [SellerPromotionController::class, 'update']);
@@ -155,7 +155,7 @@ Route::middleware('auth:sanctum')->prefix('promotions')->group(function () {
 });
 
 // Coupon routes
-Route::middleware('auth:sanctum')->prefix('coupons')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('coupons')->group(function () {
     Route::get('/', [SellerCouponController::class, 'index']);
     Route::post('/', [SellerCouponController::class, 'store']);
     Route::get('/{id}', [SellerCouponController::class, 'show']);
@@ -165,7 +165,7 @@ Route::middleware('auth:sanctum')->prefix('coupons')->group(function () {
 });
 
 // Announcement routes
-Route::middleware('auth:sanctum')->prefix('announcements')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('announcements')->group(function () {
     Route::get('/', [SellerAnnouncementController::class, 'index']);
     Route::post('/', [SellerAnnouncementController::class, 'store']);
     Route::put('/{id}', [SellerAnnouncementController::class, 'update']);
@@ -174,7 +174,7 @@ Route::middleware('auth:sanctum')->prefix('announcements')->group(function () {
 });
 
 // Banner routes
-Route::middleware('auth:sanctum')->prefix('banners')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('banners')->group(function () {
     Route::get('/', [SellerBannerController::class, 'index']);
     Route::post('/', [SellerBannerController::class, 'store']);
     Route::put('/{id}', [SellerBannerController::class, 'update']);
@@ -184,7 +184,7 @@ Route::middleware('auth:sanctum')->prefix('banners')->group(function () {
 });
 
 // Subscription routes
-Route::middleware('auth:sanctum')->prefix('subscription')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('subscription')->group(function () {
     Route::get('/plans', [SellerSubscriptionController::class, 'getPlans']);
     Route::get('/current', [SellerSubscriptionController::class, 'getCurrent']);
     Route::post('/subscribe', [SellerSubscriptionController::class, 'subscribe']);
@@ -193,14 +193,14 @@ Route::middleware('auth:sanctum')->prefix('subscription')->group(function () {
 });
 
 // Category Lens Configuration routes
-Route::middleware('auth:sanctum')->prefix('category-lens-config')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('category-lens-config')->group(function () {
     Route::get('/', [CategoryLensConfigController::class, 'index']);
     Route::get('/{categoryId}', [CategoryLensConfigController::class, 'show']);
     Route::put('/{categoryId}', [CategoryLensConfigController::class, 'update']);
 });
 
 // Category Field Configuration routes
-Route::middleware('auth:sanctum')->prefix('category-field-configs')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('category-field-configs')->group(function () {
     Route::get('/', [CategoryFieldConfigController::class, 'index']);
     Route::get('/{categoryId}', [CategoryFieldConfigController::class, 'show']);
     Route::put('/{categoryId}', [CategoryFieldConfigController::class, 'update']);
@@ -208,7 +208,7 @@ Route::middleware('auth:sanctum')->prefix('category-field-configs')->group(funct
 });
 
 // Prescription Dropdown Configuration routes
-Route::middleware('auth:sanctum')->prefix('prescription-dropdowns')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('prescription-dropdowns')->group(function () {
     Route::get('/', [PrescriptionDropdownController::class, 'index']);
     Route::get('/{categoryId}', [PrescriptionDropdownController::class, 'show']);
     Route::post('/{categoryId}', [PrescriptionDropdownController::class, 'store']);
@@ -216,7 +216,7 @@ Route::middleware('auth:sanctum')->prefix('prescription-dropdowns')->group(funct
 });
 
 // Buyer–store chat (seller inbox)
-Route::middleware('auth:sanctum')->prefix('chat')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('chat')->group(function () {
     Route::get('/conversations', [SellerStoreChatController::class, 'index']);
     Route::get('/conversations/{id}', [SellerStoreChatController::class, 'show']);
     Route::get('/conversations/{id}/messages', [SellerStoreChatController::class, 'messages']);
@@ -224,20 +224,28 @@ Route::middleware('auth:sanctum')->prefix('chat')->group(function () {
 });
 
 // Seller ↔ Vista Express Admin chat
-Route::middleware('auth:sanctum')->prefix('admin-chat')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('admin-chat')->group(function () {
     Route::get('/', [SellerAdminChatController::class, 'show']);
     Route::get('/messages', [SellerAdminChatController::class, 'messages']);
     Route::post('/messages', [SellerAdminChatController::class, 'storeMessage']);
 });
 
 // Sidebar notification badges (messages + pending orders)
-Route::middleware('auth:sanctum')->get('/notifications/unread', [SellerNotificationBadgeController::class, 'unread']);
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->get('/notifications/unread', [SellerNotificationBadgeController::class, 'unread']);
 
-Route::middleware('auth:sanctum')->prefix('inventory')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('inventory')->group(function () {
     Route::get('/low-stock', [App\Http\Controllers\Seller\SellerInventoryController::class, 'lowStock']);
 });
 
-Route::middleware('auth:sanctum')->prefix('verification')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('verification')->group(function () {
     Route::post('/submit', [App\Http\Controllers\Seller\SellerVerificationController::class, 'submit']);
     Route::post('/complete-store-setup', [App\Http\Controllers\Seller\SellerVerificationController::class, 'completeStoreSetup']);
+});
+
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->group(function () {
+    Route::post('/store-orders/{id}/processing', [SellerOrderController::class, 'processing']);
+    Route::get('/wallet', [\App\Http\Controllers\Seller\SellerWalletController::class, 'show']);
+    Route::get('/wallet/transactions', [\App\Http\Controllers\Seller\SellerWalletController::class, 'transactions']);
+    Route::get('/wallet/withdrawals', [\App\Http\Controllers\Seller\SellerWalletController::class, 'withdrawals']);
+    Route::post('/wallet/withdrawals', [\App\Http\Controllers\Seller\SellerWalletController::class, 'withdraw'])->middleware('throttle:20,1');
 });

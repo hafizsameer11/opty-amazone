@@ -25,7 +25,7 @@ class WalletFundingService
             if ($port = parse_url($url, PHP_URL_PORT)) {
                 $origin .= ':'.$port;
             }
-            abort_unless(in_array($origin, config('services.stripe.return_origins'), true), 422, 'Unsupported checkout return origin.');
+            abort_unless(in_array($origin, array_merge(array_map('trim', config('services.stripe.return_origins', [])), app()->environment(['local', 'testing']) ? config('marketplace.development_return_origins', []) : []), true), 422, 'Unsupported checkout return origin.');
         }
         $response = $this->client()->post('https://api.stripe.com/v1/checkout/sessions', [
             'mode' => 'payment', 'payment_method_types' => ['card'], 'customer_email' => $user->email,

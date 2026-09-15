@@ -13,6 +13,7 @@ class Order extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'delivery_address_snapshot', 'rewards_awarded_at',
         'user_id',
         'order_no',
         'payment_method',
@@ -26,6 +27,7 @@ class Order extends Model
     ];
 
     protected $casts = [
+        'delivery_address_snapshot' => 'array', 'rewards_awarded_at' => 'datetime',
         'items_total' => 'decimal:2',
         'shipping_total' => 'decimal:2',
         'platform_fee' => 'decimal:2',
@@ -34,9 +36,15 @@ class Order extends Model
         'meta' => 'array',
     ];
 
-    /**
-     * Get the user that owns the order.
-     */
+    protected static function booted(): void
+    {
+        static::updating(function (self $order) {
+            if ($order->getOriginal('delivery_address_snapshot') && $order->isDirty('delivery_address_snapshot')) {
+                throw new \LogicException('Delivery address snapshots are immutable.');
+            }
+        });
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -58,8 +66,7 @@ class Order extends Model
         $prefix = 'COL';
         $date = now()->format('Ymd');
         $random = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
-        
+
         return "{$prefix}-{$date}-{$random}";
     }
 }
-

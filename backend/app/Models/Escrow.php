@@ -11,6 +11,7 @@ class Escrow extends Model
     use HasFactory;
 
     protected $fillable = [
+        'refunded_at', 'dispute_previous_status',
         'order_id',
         'store_order_id',
         'amount',
@@ -43,4 +44,3 @@ class Escrow extends Model
         return $this->belongsTo(StoreOrder::class);
     }
 }
-

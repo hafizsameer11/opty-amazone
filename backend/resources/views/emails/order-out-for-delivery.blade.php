@@ -22,7 +22,7 @@
         </div>
 
         <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <p><strong>Delivery Code (OTP):</strong> <span style="font-size: 24px; font-weight: bold; color: #0066CC;">{{ $storeOrder->delivery_code }}</span></p>
+<p>After payment, find your delivery code on the buyer order page. Share it only after receiving your order.</p>
             <p style="font-size: 12px; color: #666;">Please have this code ready. The seller will need it to mark your order as delivered.</p>
         </div>
 

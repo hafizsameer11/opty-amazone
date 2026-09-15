@@ -26,12 +26,12 @@ Route::prefix('auth')->group(function () {
     Route::post('/forgot-password', [BuyerAuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [BuyerAuthController::class, 'resetPassword']);
     
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->group(function () {
         Route::post('/logout', [BuyerAuthController::class, 'logout']);
     });
 });
 
-Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('profile')->group(function () {
     Route::get('/', [BuyerUserController::class, 'getProfile']);
     Route::put('/', [BuyerUserController::class, 'updateProfile']);
     Route::post('/change-password', [BuyerUserController::class, 'changePassword']);
@@ -44,7 +44,7 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::delete('/', [BuyerUserController::class, 'deleteAccount']);
 });
 
-Route::middleware('auth:sanctum')->prefix('addresses')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('addresses')->group(function () {
     Route::get('/', [BuyerAddressController::class, 'index']);
     Route::get('/{id}', [BuyerAddressController::class, 'show']);
     Route::post('/', [BuyerAddressController::class, 'store']);
@@ -53,7 +53,7 @@ Route::middleware('auth:sanctum')->prefix('addresses')->group(function () {
     Route::post('/{id}/set-default', [BuyerAddressController::class, 'setDefault']);
 });
 
-Route::middleware('auth:sanctum')->prefix('stores')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('stores')->group(function () {
     Route::get('/followed', [BuyerStoreController::class, 'getFollowedStores']);
     Route::get('/{id}/follow-status', [BuyerStoreController::class, 'followStatus']);
     Route::post('/{id}/follow', [BuyerStoreController::class, 'followStore']);
@@ -75,12 +75,12 @@ Route::prefix('product')->group(function () {
     Route::get('/{id}/reviews', [BuyerProductController::class, 'getReviews']);
 });
 
-Route::middleware('auth:sanctum')->prefix('product')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('product')->group(function () {
     Route::post('/{id}/reviews', [BuyerProductController::class, 'createReview']);
 });
 
 // Cart routes
-Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('cart')->group(function () {
     Route::get('/', [BuyerCartController::class, 'index']);
     Route::get('/items', [BuyerCartController::class, 'index']);
     Route::post('/items', [BuyerCartController::class, 'addItem']);
@@ -90,33 +90,35 @@ Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
 });
 
 // Checkout routes
-Route::middleware('auth:sanctum')->prefix('checkout')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('checkout')->group(function () {
     Route::post('/preview', [BuyerCheckoutController::class, 'preview']);
     Route::post('/place', [BuyerCheckoutController::class, 'place']);
 });
 
 // Coupon routes
-Route::middleware('auth:sanctum')->prefix('coupons')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('coupons')->group(function () {
     Route::post('/validate', [BuyerCouponController::class, 'validate']);
 });
 
 // Order routes
-Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('orders')->group(function () {
     Route::get('/', [BuyerOrderController::class, 'index']);
     Route::get('/{id}', [BuyerOrderController::class, 'show']);
     Route::get('/{orderId}/payment-info', [BuyerOrderController::class, 'paymentInfo']);
 });
 
 // Store order routes
-Route::middleware('auth:sanctum')->prefix('store-orders')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('store-orders')->group(function () {
     Route::get('/', [BuyerOrderController::class, 'storeOrders']);
+    Route::post('/{id}/delivery-code', [BuyerOrderController::class, 'deliveryCode'])->middleware('throttle:5,1');
+    Route::post('/{id}/dispute', [BuyerOrderController::class, 'dispute']);
     Route::get('/{id}', [BuyerOrderController::class, 'showStoreOrder']);
     Route::post('/{storeOrderId}/pay', [BuyerOrderController::class, 'payStoreOrder']);
     Route::post('/{storeOrderId}/cancel', [BuyerOrderController::class, 'cancelStoreOrder']);
 });
 
 // Prescription routes
-Route::middleware('auth:sanctum')->prefix('prescriptions')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('prescriptions')->group(function () {
     Route::get('/', [PrescriptionController::class, 'index']);
     Route::post('/', [PrescriptionController::class, 'store']);
     Route::get('/{id}', [PrescriptionController::class, 'show']);
@@ -125,7 +127,9 @@ Route::middleware('auth:sanctum')->prefix('prescriptions')->group(function () {
 });
 
 // Wallet routes
-Route::middleware('auth:sanctum')->prefix('wallet')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('wallet')->group(function () {
+    Route::get('/capabilities', [BuyerWalletController::class, 'capabilities']);
+    Route::post('/development-top-up', [BuyerWalletController::class, 'developmentTopUp'])->middleware('throttle:20,1');
     Route::get('/balance', [BuyerWalletController::class, 'getBalance']);
     Route::get('/transactions', [BuyerWalletController::class, 'getTransactions']);
     Route::post('/create-checkout-session', [BuyerWalletController::class, 'createCheckoutSession']);
@@ -134,7 +138,7 @@ Route::middleware('auth:sanctum')->prefix('wallet')->group(function () {
 });
 
 // Points routes
-Route::middleware('auth:sanctum')->prefix('points')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('points')->group(function () {
     Route::get('/balance', [\App\Http\Controllers\Buyer\BuyerPointsController::class, 'getBalance']);
     Route::get('/transactions', [\App\Http\Controllers\Buyer\BuyerPointsController::class, 'getTransactions']);
     Route::post('/redeem', [\App\Http\Controllers\Buyer\BuyerPointsController::class, 'redeem']);

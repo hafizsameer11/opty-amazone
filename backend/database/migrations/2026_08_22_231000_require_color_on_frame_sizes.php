@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Some SQL imports supplied this column, but fresh migration installs did not.
+        if (! Schema::hasColumn('frame_sizes', 'product_variant_id')) {
+            Schema::table('frame_sizes', fn (Blueprint $table) => $table->foreignId('product_variant_id')->nullable()->constrained('product_variants')->nullOnDelete());
+        }
         // Sizes must belong to a color variation — drop any leftover standalone rows
         DB::table('frame_sizes')->whereNull('product_variant_id')->delete();
 

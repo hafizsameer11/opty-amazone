@@ -9,18 +9,28 @@ use App\Models\Wallet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 
 class BuyerWalletController extends Controller
 {
+    public function capabilities()
+    {
+        return ResponseHelper::success(app(\App\Services\Marketplace\BuyerWalletService::class)->capabilities());
+    }
+
+    public function developmentTopUp(Request $request)
+    {
+        $data = $request->validate(['amount' => 'required|numeric|min:5|max:100000', 'idempotency_key' => 'required|string|max:100']);
+
+        return ResponseHelper::success(app(\App\Services\Marketplace\BuyerWalletService::class)->developmentTopUp($request->user(), $data['amount'], $data['idempotency_key']));
+    }
+
     /**
      * Get wallet balance.
      */
     public function getBalance(): JsonResponse
     {
         $user = Auth::user();
-        
+
         $wallet = Wallet::firstOrCreate(
             ['user_id' => $user->id],
             [
@@ -47,11 +57,12 @@ class BuyerWalletController extends Controller
             'success_url' => ['required', 'string', 'max:2048', function ($attribute, $value, $fail) {
                 // Stripe requires this literal placeholder, which the generic URL rule rejects.
                 $url = str_replace('{CHECKOUT_SESSION_ID}', 'session', $value);
-                if (!filter_var($url, FILTER_VALIDATE_URL) || !in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'])) {
+                if (! filter_var($url, FILTER_VALIDATE_URL) || ! in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'])) {
                     $fail('The success URL must be a valid HTTP(S) URL.');
                 }
             }], 'cancel_url' => 'required|url|max:2048']);
         $result = app(\App\Services\Ads\WalletFundingService::class)->checkout($request->user(), $data['amount'], $data['success_url'], $data['cancel_url']);
+
         return ResponseHelper::success($result, 'Checkout session created');
     }
 
@@ -61,7 +72,7 @@ class BuyerWalletController extends Controller
     public function getTransactions(Request $request): JsonResponse
     {
         $user = Auth::user();
-        
+
         $perPage = $request->get('per_page', 20);
         $page = $request->get('page', 1);
 
@@ -79,6 +90,7 @@ class BuyerWalletController extends Controller
     {
         $data = $request->validate(['stripe_session_id' => ['required', 'string', 'max:255', 'regex:/^cs_[a-zA-Z0-9_]+$/']]);
         $result = app(\App\Services\Ads\WalletFundingService::class)->confirm($request->user(), $data['stripe_session_id']);
+
         return ResponseHelper::success($result, 'Verified wallet payment');
     }
 
@@ -87,60 +99,9 @@ class BuyerWalletController extends Controller
      */
     public function withdraw(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'amount' => 'required|numeric|min:10',
-            'account_number' => 'required|string',
-            'account_name' => 'required|string',
-            'bank_name' => 'required|string',
-        ]);
+        $data = $request->validate(['amount' => 'required|numeric|min:10|max:100000', 'idempotency_key' => 'required|string|max:100',
+            'account_number' => 'required|string|max:100', 'account_name' => 'required|string|max:255', 'bank_name' => 'required|string|max:255']);
 
-        if ($validator->fails()) {
-            return ResponseHelper::error('Validation failed', $validator->errors(), 422);
-        }
-
-        $user = Auth::user();
-        $amount = (float) $request->amount;
-
-        try {
-            DB::beginTransaction();
-
-            // Get wallet
-            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
-
-            // Check balance
-            if ($wallet->shopping_balance < $amount) {
-                DB::rollBack();
-                return ResponseHelper::error('Insufficient balance', null, 400);
-            }
-
-            // Deduct from balance
-            $wallet->decrement('shopping_balance', $amount);
-
-            // Create transaction
-            $transaction = Transaction::create([
-                'user_id' => $user->id,
-                'type' => 'withdraw',
-                'amount' => -$amount,
-                'status' => 'pending',
-                'description' => "Withdrawal of €{$amount} to {$request->bank_name}",
-                'meta' => [
-                    'account_number' => $request->account_number,
-                    'account_name' => $request->account_name,
-                    'bank_name' => $request->bank_name,
-                ],
-            ]);
-
-            DB::commit();
-
-            return ResponseHelper::success([
-                'wallet' => [
-                    'balance' => (float) $wallet->fresh()->shopping_balance,
-                ],
-                'transaction' => $transaction,
-            ], 'Withdrawal request submitted successfully');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return ResponseHelper::error('Failed to process withdrawal: ' . $e->getMessage());
-        }
+        return ResponseHelper::success(app(\App\Services\Marketplace\BuyerWalletService::class)->withdraw($request->user(), $data), 'Withdrawal request reserved.');
     }
 }

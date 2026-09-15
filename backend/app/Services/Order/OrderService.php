@@ -2,11 +2,10 @@
 
 namespace App\Services\Order;
 
-use App\Models\Order;
-use App\Models\StoreOrder;
-use App\Models\OrderItem;
 use App\Models\Cart;
-use App\Models\CartItem;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\StoreOrder;
 use App\Models\User;
 use App\Models\UserAddress;
 use App\Services\Coupon\CouponService;
@@ -27,20 +26,26 @@ class OrderService
      * Place order from cart.
      * Creates one Order and multiple StoreOrders (one per store).
      */
-    public function placeOrder(User $user, int $deliveryAddressId, string $paymentMethod = null, string $couponCode = null, float $pointsToRedeem = null): array
+    public function placeOrder(User $user, int $deliveryAddressId, ?string $paymentMethod = null, ?string $couponCode = null, ?float $pointsToRedeem = null): array
     {
         DB::beginTransaction();
-        
+
         try {
             $cart = Cart::where('user_id', $user->id)->lockForUpdate()->first();
-            
-            if (!$cart || $cart->items()->count() === 0) {
+
+            if (! $cart || $cart->items()->count() === 0) {
                 throw new \Exception('Cart is empty');
             }
 
-            $deliveryAddress = UserAddress::where('user_id', $user->id)->findOrFail($deliveryAddressId);
+            $deliveryAddress = UserAddress::where('user_id', $user->id)->lockForUpdate()->findOrFail($deliveryAddressId);
+            $snapshot = $deliveryAddress->only(['full_name', 'phone', 'address_line_1', 'address_line_2', 'postal_code', 'country_id', 'state_id', 'city_id']);
+            foreach (['country', 'state', 'city'] as $relation) {
+                $snapshot[$relation] = $deliveryAddress->$relation?->name;
+            }
+            $snapshot['source'] = 'checkout';
+            app(\App\Services\Marketplace\BuyerWalletService::class)->locked($user);
             app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart, true);
-            
+
             // Group cart items by store
             $itemsByStore = $cart->items()
                 ->with([
@@ -50,11 +55,12 @@ class OrderService
                 ])
                 ->get()
                 ->groupBy('store_id');
-            
+
             // Create parent order
             $order = Order::create([
                 'user_id' => $user->id,
                 'order_no' => Order::generateOrderNumber(),
+                'delivery_address_snapshot' => $snapshot,
                 'payment_method' => $paymentMethod,
                 'payment_status' => 'pending',
                 'items_total' => 0,
@@ -99,18 +105,18 @@ class OrderService
                 try {
                     // Calculate order total after coupon discount
                     $orderTotalAfterCoupon = max(0, $totalItems - $couponDiscount);
-                    
+
                     // Redeem points (this will deduct points from wallet)
                     $redeemResult = $this->pointService->redeemPoints($user, $pointsToRedeem, null);
                     $pointsDiscount = $redeemResult['discount_amount'];
                     $pointsUsed = $redeemResult['points_used'];
-                    
+
                     // Ensure points discount doesn't exceed order total
                     if ($pointsDiscount > $orderTotalAfterCoupon) {
                         $pointsDiscount = $orderTotalAfterCoupon;
                     }
                 } catch (\Exception $e) {
-                    throw new \Exception('Points redemption failed: ' . $e->getMessage());
+                    throw new \Exception('Points redemption failed: '.$e->getMessage());
                 }
             }
 
@@ -124,7 +130,7 @@ class OrderService
             // Create StoreOrder for each store
             foreach ($itemsByStore as $storeId => $items) {
                 $store = $items->first()?->store;
-                if (!$store) {
+                if (! $store) {
                     throw new \Exception('Cart contains items from a store that is no longer available.');
                 }
 
@@ -134,7 +140,7 @@ class OrderService
                 });
 
                 // Generate delivery code (OTP)
-                $deliveryCode = StoreOrder::generateDeliveryCode();
+                // Delivery codes are issued only after verified payment.
 
                 // Create StoreOrder (status: pending, delivery fee will be set by seller)
                 $storeOrder = StoreOrder::create([
@@ -144,7 +150,9 @@ class OrderService
                     'subtotal' => $subtotal,
                     'delivery_fee' => 0, // Will be set by seller on accept
                     'total' => $subtotal,
-                    'delivery_code' => $deliveryCode,
+                    'delivery_code' => null,
+                    'payment_status' => 'pending', 'financial_version' => 1,
+                    'delivery_address_snapshot' => $snapshot,
                     'delivery_address_id' => $deliveryAddressId,
                 ]);
 
@@ -152,16 +160,16 @@ class OrderService
                 foreach ($items as $cartItem) {
                     $product = $cartItem->product;
                     $variant = $cartItem->variant;
-                    
+
                     // Use variant images if available, otherwise product images
                     $images = $variant && $variant->images ? $variant->images : $product->images;
                     $pv = $cartItem->product_variant;
-                    if (is_array($pv) && !empty($pv['eye_hygiene']['image_url'])) {
+                    if (is_array($pv) && ! empty($pv['eye_hygiene']['image_url'])) {
                         $ehImg = $pv['eye_hygiene']['image_url'];
                         $baseImages = is_array($images) ? $images : (array) ($images ?? []);
                         $images = array_values(array_unique(array_merge([$ehImg], $baseImages)));
                     }
-                    
+
                     OrderItem::create([
                         'store_order_id' => $storeOrder->id,
                         'product_id' => $product->id,
@@ -251,6 +259,8 @@ class OrderService
                     ]);
             }
 
+            app(\App\Services\Marketplace\OrderTotalsService::class)->allocate($order, $totalDiscount, $pointsUsed);
+            app(\App\Services\Marketplace\OrderTotalsService::class)->sync($order);
             app(\App\Services\Campaigns\DiscountPricingService::class)->recordUsage($order);
 
             // Clear cart
@@ -268,150 +278,7 @@ class OrderService
             ];
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Order placement failed: ' . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    /**
-     * Accept store order (seller sets delivery fee).
-     */
-    public function acceptStoreOrder(StoreOrder $storeOrder, array $data): StoreOrder
-    {
-        DB::beginTransaction();
-        
-        try {
-            $deliveryFee = $data['delivery_fee'] ?? 0;
-            $total = $storeOrder->subtotal + $deliveryFee;
-
-            $storeOrder->update([
-                'status' => 'accepted',
-                'delivery_fee' => $deliveryFee,
-                'total' => $total,
-                'estimated_delivery_date' => $data['estimated_delivery_date'] ?? null,
-                'delivery_method' => $data['delivery_method'] ?? null,
-                'delivery_notes' => $data['delivery_notes'] ?? null,
-                'accepted_at' => now(),
-            ]);
-
-            DB::commit();
-            
-            return $storeOrder->fresh();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * Reject store order.
-     */
-    public function rejectStoreOrder(StoreOrder $storeOrder, string $reason): StoreOrder
-    {
-        DB::beginTransaction();
-
-        try {
-            $storeOrder->load('items');
-            foreach ($storeOrder->items as $orderItem) {
-                $this->inventoryService->restoreForOrderLine($orderItem);
-            }
-
-            $storeOrder->update([
-                'status' => 'rejected',
-                'rejection_reason' => $reason,
-            ]);
-
-            DB::commit();
-
-            return $storeOrder->fresh();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * Buyer cancels a store order (pending / accepted) and inventory is put back.
-     */
-    public function cancelStoreOrderByBuyer(StoreOrder $storeOrder): StoreOrder
-    {
-        if (!in_array($storeOrder->status, ['pending', 'accepted'], true)) {
-            throw new \RuntimeException('Order cannot be cancelled at this stage');
-        }
-
-        DB::beginTransaction();
-
-        try {
-            $storeOrder->load('items');
-            foreach ($storeOrder->items as $orderItem) {
-                $this->inventoryService->restoreForOrderLine($orderItem);
-            }
-
-            $storeOrder->update(['status' => 'cancelled']);
-
-            DB::commit();
-
-            return $storeOrder->fresh();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * Mark store order as out for delivery.
-     */
-    public function markOutForDelivery(StoreOrder $storeOrder): StoreOrder
-    {
-        if ($storeOrder->status !== 'paid') {
-            throw new \Exception('Order must be paid before marking as out for delivery');
-        }
-
-        $storeOrder->update([
-            'status' => 'out_for_delivery',
-            'out_for_delivery_at' => now(),
-        ]);
-
-        return $storeOrder->fresh();
-    }
-
-    /**
-     * Mark store order as delivered (requires OTP verification).
-     */
-    public function markDelivered(StoreOrder $storeOrder, string $otpCode): StoreOrder
-    {
-        if ($storeOrder->status !== 'out_for_delivery') {
-            throw new \Exception('Order must be out for delivery before marking as delivered');
-        }
-
-        if ($storeOrder->delivery_code !== $otpCode) {
-            throw new \Exception('Invalid delivery code');
-        }
-
-        DB::beginTransaction();
-        
-        try {
-            $storeOrder->update([
-                'status' => 'delivered',
-                'delivered_at' => now(),
-            ]);
-
-            // Release escrow (handled by EscrowService)
-            if ($storeOrder->escrow) {
-                app(\App\Services\Escrow\EscrowService::class)->releaseEscrow($storeOrder);
-            }
-
-            // Award points for purchase
-            $order = $storeOrder->order;
-            if ($order && $order->user) {
-                $this->pointService->earnFromPurchase($order);
-            }
-
-            DB::commit();
-            
-            return $storeOrder->fresh();
-        } catch (\Exception $e) {
-            DB::rollBack();
+            Log::error('Order placement failed: '.$e->getMessage());
             throw $e;
         }
     }

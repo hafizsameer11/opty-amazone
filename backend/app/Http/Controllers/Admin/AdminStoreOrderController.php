@@ -2,26 +2,28 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Helpers\ResponseHelper;
+use App\Helpers\ResponseHelper as R;
 use App\Http\Controllers\Controller;
 use App\Models\StoreOrder;
-use Illuminate\Http\JsonResponse;
+use App\Services\Marketplace\DeliveryVerificationService;
+use App\Services\Marketplace\RefundService;
 use Illuminate\Http\Request;
 
 class AdminStoreOrderController extends Controller
 {
-    /**
-     * Override fulfillment status for a store shipment (admin support / disputes).
-     */
-    public function updateStatus(Request $request, int $id): JsonResponse
+    public function updateStatus(Request $r, int $id)
     {
-        $request->validate([
-            'status' => 'required|in:pending,accepted,rejected,paid,processing,out_for_delivery,delivered,cancelled',
-        ]);
+        $data = $r->validate(['status' => 'required|in:processing,out_for_delivery,delivered,cancelled,refunded,disputed,resolve_dispute',
+            'reason' => 'required|string|min:5|max:2000', 'delivery_code' => ['required_if:status,delivered', 'nullable', 'regex:/^\d{6}$/D']]);
+        $so = StoreOrder::findOrFail($id);
+        $result = match ($data['status']) {
+            'cancelled', 'refunded' => app(RefundService::class)->cancel($so, $r->user(), $data['reason']),
+            'disputed' => app(RefundService::class)->dispute($so, $r->user(), $data['reason']),
+            'resolve_dispute' => app(RefundService::class)->resolve($so, $r->user(), $data['reason']),
+            'delivered' => app(DeliveryVerificationService::class)->verify($so, $r->user(), $data['delivery_code']),
+            default => app(DeliveryVerificationService::class)->advance($so, $r->user(), $data['status']),
+        };
 
-        $storeOrder = StoreOrder::with(['order', 'store'])->findOrFail($id);
-        $storeOrder->update(['status' => $request->status]);
-
-        return ResponseHelper::success($storeOrder->fresh(['order', 'store', 'items']), 'Store order status updated');
+        return R::success($result->fresh(['items', 'escrow', 'payment.transaction', 'payment.refundTransaction']));
     }
 }

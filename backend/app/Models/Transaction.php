@@ -11,6 +11,7 @@ class Transaction extends Model
     use HasFactory;
 
     protected $fillable = [
+        'payment_reference',
         'user_id',
         'type',
         'amount',
@@ -32,4 +33,3 @@ class Transaction extends Model
         return $this->belongsTo(User::class);
     }
 }
-

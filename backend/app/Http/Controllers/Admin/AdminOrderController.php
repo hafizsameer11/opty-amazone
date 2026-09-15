@@ -41,7 +41,7 @@ class AdminOrderController extends Controller
             'user',
             'storeOrders.store',
             'storeOrders.items',
-            'storeOrders.deliveryAddress',
+            'storeOrders.escrow', 'storeOrders.payment.transaction', 'storeOrders.payment.refundTransaction',
         ])->findOrFail($id);
 
         return ResponseHelper::success($order, 'Order retrieved successfully');
@@ -49,13 +49,6 @@ class AdminOrderController extends Controller
 
     public function updateStatus(Request $request, $id): JsonResponse
     {
-        $request->validate([
-            'payment_status' => 'required|in:pending,paid,failed,refunded,cancelled',
-        ]);
-
-        $order = Order::findOrFail($id);
-        $order->update(['payment_status' => $request->payment_status]);
-
-        return ResponseHelper::success($order->fresh(['user', 'storeOrders.store']), 'Order payment status updated');
+        abort(422, 'Payment status is derived from verified payments and refunds. Use a shipment action.');
     }
 }

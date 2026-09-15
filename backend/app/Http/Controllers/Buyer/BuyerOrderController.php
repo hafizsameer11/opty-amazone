@@ -2,201 +2,79 @@
 
 namespace App\Http\Controllers\Buyer;
 
+use App\Helpers\ResponseHelper as R;
 use App\Http\Controllers\Controller;
-use App\Helpers\ResponseHelper;
-use App\Services\Escrow\EscrowService;
-use App\Services\Order\OrderService;
-use App\Mail\OrderPaidMail;
+use App\Models\Order;
+use App\Models\StoreOrder;
+use App\Services\Marketplace\DeliveryVerificationService;
+use App\Services\Marketplace\OrderView;
+use App\Services\Marketplace\PaymentService;
+use App\Services\Marketplace\RefundService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 
 class BuyerOrderController extends Controller
 {
-    public function __construct(
-        protected EscrowService $escrowService,
-        protected OrderService $orderService
-    ) {}
-
-    /**
-     * Get all orders for buyer.
-     */
-    public function index(Request $request)
+    private function orders()
     {
-        $user = Auth::user();
-        
-        $orders = \App\Models\Order::where('user_id', $user->id)
-            ->with(['storeOrders.store', 'storeOrders.items.product', 'storeOrders.items.variant'])
-            ->orderBy('created_at', 'desc')
-            ->paginate($request->get('per_page', 15));
-
-        return ResponseHelper::success($orders, 'Orders retrieved successfully');
+        return Order::where('user_id', auth()->id())->with(['storeOrders.store', 'storeOrders.items', 'storeOrders.escrow', 'storeOrders.payment']);
     }
 
-    /**
-     * Get order details.
-     */
+    private function shipments()
+    {
+        return StoreOrder::whereHas('order', fn ($q) => $q->where('user_id', auth()->id()))->with(['store', 'items', 'escrow', 'order', 'payment']);
+    }
+
+    public function index(Request $r)
+    {
+        return R::success($this->orders()->latest()->paginate(min(100, max(1, $r->integer('per_page', 15)))));
+    }
+
     public function show($id)
     {
-        $user = Auth::user();
-        
-        $order = \App\Models\Order::where('user_id', $user->id)
-            ->with(['storeOrders.store', 'storeOrders.items.product', 'storeOrders.items.variant', 'storeOrders.escrow'])
-            ->findOrFail($id);
-
-        return ResponseHelper::success($order, 'Order retrieved successfully');
+        return R::success(app(OrderView::class)->buyerOrder($this->orders()->findOrFail($id)));
     }
 
-    /**
-     * Get all store orders for buyer.
-     */
-    public function storeOrders(Request $request)
+    public function storeOrders(Request $r)
     {
-        $user = Auth::user();
-        
-        $storeOrders = \App\Models\StoreOrder::whereHas('order', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })
-        ->with(['store', 'items.product', 'items.variant', 'escrow', 'order'])
-        ->orderBy('created_at', 'desc')
-        ->paginate($request->get('per_page', 15));
-
-        return ResponseHelper::success($storeOrders, 'Store orders retrieved successfully');
+        return R::success($this->shipments()->latest()->paginate(min(100, max(1, $r->integer('per_page', 15)))));
     }
 
-    /**
-     * Get store order details (includes OTP code).
-     */
     public function showStoreOrder($id)
     {
-        $user = Auth::user();
-        
-        $storeOrder = \App\Models\StoreOrder::whereHas('order', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })
-        ->with(['store', 'items.product', 'items.variant', 'escrow', 'order', 'deliveryAddress'])
-        ->findOrFail($id);
-
-        return ResponseHelper::success($storeOrder, 'Store order retrieved successfully');
+        return R::success(app(OrderView::class)->buyerShipment($this->shipments()->findOrFail($id)));
     }
 
-    /**
-     * Pay for store order.
-     */
-    public function payStoreOrder(Request $request, $storeOrderId)
+    public function payStoreOrder(Request $r, $id)
     {
-        $request->validate([
-            'payment_method' => 'required|in:card,wallet',
-        ]);
+        $data = $r->validate(['payment_method' => 'required|in:wallet,card', 'expected_total' => 'required|numeric|min:0', 'idempotency_key' => 'required|string|max:100']);
+        $so = app(PaymentService::class)->pay($this->shipments()->findOrFail($id), $r->user(), $data);
 
-        $user = Auth::user();
-        
-        $storeOrder = \App\Models\StoreOrder::whereHas('order', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })->findOrFail($storeOrderId);
-
-        if ($storeOrder->status !== 'accepted') {
-            return ResponseHelper::error('Order must be accepted before payment', null, 400);
-        }
-
-        if ($storeOrder->status === 'paid') {
-            return ResponseHelper::error('Order already paid', null, 400);
-        }
-
-        try {
-            // Handle payment based on method
-            if ($request->payment_method === 'wallet') {
-                $wallet = \App\Models\Wallet::firstOrCreate(
-                    ['user_id' => $user->id],
-                    [
-                        'shopping_balance' => 0,
-                        'reward_balance' => 0,
-                        'referral_balance' => 0,
-                        'loyality_points' => 0,
-                        'ad_credit' => 0,
-                    ]
-                );
-
-                if ($wallet->shopping_balance < $storeOrder->total) {
-                    return ResponseHelper::error('Insufficient wallet balance', null, 400);
-                }
-
-                // Deduct from wallet
-                // Atomic balance guard also protects concurrent ad reservations.
-                if (!\App\Models\Wallet::whereKey($wallet->id)->where('shopping_balance', '>=', $storeOrder->total)
-                    ->decrement('shopping_balance', $storeOrder->total)) {
-                    return ResponseHelper::error('Insufficient wallet balance', null, 400);
-                }
-
-                // Create transaction
-                \App\Models\Transaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'order_payment',
-                    'amount' => -$storeOrder->total,
-                    'status' => 'success',
-                    'description' => "Payment for order #{$storeOrder->id}",
-                    'meta' => [
-                        'store_order_id' => $storeOrder->id,
-                        'order_id' => $storeOrder->order_id,
-                    ],
-                ]);
-            } else {
-                // Card payment - would integrate with payment gateway
-                // For now, just proceed with escrow creation
-            }
-
-            // Create escrow
-            $escrow = $this->escrowService->createEscrow($storeOrder);
-
-            // Send email notification
-            Mail::to($storeOrder->store->user->email)->send(new OrderPaidMail($storeOrder));
-
-            return ResponseHelper::success([
-                'store_order' => $storeOrder->fresh(['escrow']),
-                'escrow' => $escrow,
-            ], 'Payment successful');
-        } catch (\Exception $e) {
-            return ResponseHelper::error($e->getMessage());
-        }
+        return R::success(['store_order' => app(OrderView::class)->buyerShipment($so), 'escrow' => $so->escrow], 'Payment confirmed; funds held in escrow.');
     }
 
-    /**
-     * Cancel store order.
-     */
-    public function cancelStoreOrder($storeOrderId)
+    public function cancelStoreOrder(Request $r, $id)
     {
-        $user = Auth::user();
-        
-        $storeOrder = \App\Models\StoreOrder::whereHas('order', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })->findOrFail($storeOrderId);
-
-        try {
-            $updated = $this->orderService->cancelStoreOrderByBuyer($storeOrder);
-
-            return ResponseHelper::success($updated, 'Order cancelled successfully');
-        } catch (\RuntimeException $e) {
-            return ResponseHelper::error($e->getMessage(), null, 400);
-        }
+        return R::success(app(RefundService::class)->cancel($this->shipments()->findOrFail($id), $r->user(), 'Buyer cancellation'));
     }
 
-    /**
-     * Get payment info for order.
-     */
-    public function paymentInfo($orderId)
+    public function dispute(Request $r, $id)
     {
-        $user = Auth::user();
-        
-        $order = \App\Models\Order::where('user_id', $user->id)
-            ->with('storeOrders')
-            ->findOrFail($orderId);
+        $data = $r->validate(['reason' => 'required|string|min:5|max:2000']);
 
-        $unpaidStoreOrders = $order->storeOrders()->where('status', 'accepted')->get();
+        return R::success(app(RefundService::class)->dispute($this->shipments()->findOrFail($id), $r->user(), $data['reason']));
+    }
 
-        return ResponseHelper::success([
-            'order' => $order,
-            'unpaid_store_orders' => $unpaidStoreOrders,
-            'total_due' => $unpaidStoreOrders->sum('total'),
-        ], 'Payment info retrieved');
+    public function deliveryCode(Request $r, $id)
+    {
+        return R::success(app(OrderView::class)->buyerShipment(app(DeliveryVerificationService::class)->reissue($this->shipments()->findOrFail($id), $r->user())));
+    }
+
+    public function paymentInfo($id)
+    {
+        $order = $this->orders()->findOrFail($id);
+        $unpaid = $order->storeOrders->where('status', 'awaiting_payment')->values();
+
+        return R::success(['order' => app(OrderView::class)->buyerOrder($order), 'unpaid_store_orders' => $unpaid,
+            'total_due' => $unpaid->sum('total'), 'card_available' => false]);
     }
 }

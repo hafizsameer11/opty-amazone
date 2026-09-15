@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Buyer;
 
-use App\Http\Controllers\Controller;
 use App\Helpers\ResponseHelper;
-use App\Services\Order\OrderService;
+use App\Http\Controllers\Controller;
 use App\Mail\OrderPlacedMail;
+use App\Services\Order\OrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -27,7 +27,7 @@ class BuyerCheckoutController extends Controller
         $user = Auth::user();
         $cart = \App\Models\Cart::where('user_id', $user->id)->with('items.product', 'items.store')->first();
 
-        if (!$cart || $cart->items()->count() === 0) {
+        if (! $cart || $cart->items()->count() === 0) {
             return ResponseHelper::error('Cart is empty');
         }
 
@@ -42,14 +42,7 @@ class BuyerCheckoutController extends Controller
                 return $item->price * $item->quantity;
             });
 
-            // Per-product shipping fees (fixed = once per line item in cart)
-            $shippingFee = $items->sum(function ($item) {
-                $product = $item->product;
-                if (!$product || ($product->shipping_type ?? 'free') !== 'fixed') {
-                    return 0;
-                }
-                return (float) ($product->shipping_fee ?? 0);
-            });
+            $shippingFee = 0; // Seller quotes delivery after reviewing the address.
 
             $breakdown[] = [
                 'store_id' => $storeId,
@@ -77,7 +70,7 @@ class BuyerCheckoutController extends Controller
     public function place(Request $request)
     {
         $request->validate([
-            'delivery_address_id' => 'required|exists:user_addresses,id',
+            'delivery_address_id' => ['required', \Illuminate\Validation\Rule::exists('user_addresses', 'id')->where('user_id', $request->user()->id)->whereNull('deleted_at')],
             'payment_method' => 'nullable|in:card,wallet',
             'coupon_code' => 'nullable|string',
             'points_to_redeem' => 'nullable|numeric|min:0',
@@ -94,10 +87,15 @@ class BuyerCheckoutController extends Controller
                 $request->points_to_redeem ? (float) $request->points_to_redeem : null
             );
 
-            // Send email notifications
-            Mail::to($user->email)->send(new OrderPlacedMail($result['order']));
-            foreach ($result['store_orders'] as $storeOrder) {
-                Mail::to($storeOrder->store->user->email)->send(new OrderPlacedMail($result['order'], $storeOrder));
+            try {
+                // Send email notifications
+                Mail::to($user->email)->send(new OrderPlacedMail($result['order']));
+                foreach ($result['store_orders'] as $storeOrder) {
+                    Mail::to($storeOrder->store->user->email)->send(new OrderPlacedMail($result['order'], $storeOrder));
+                }
+
+            } catch (\Throwable $mailError) {
+                report($mailError);
             }
 
             return ResponseHelper::success([

@@ -2,241 +2,78 @@
 
 namespace App\Http\Controllers\Seller;
 
+use App\Helpers\ResponseHelper as R;
 use App\Http\Controllers\Controller;
-use App\Helpers\ResponseHelper;
-use App\Services\Order\OrderService;
-use App\Mail\OrderAcceptedMail;
-use App\Mail\OrderRejectedMail;
-use App\Mail\OrderOutForDeliveryMail;
-use App\Mail\OrderDeliveredMail;
+use App\Models\StoreOrder;
+use App\Services\Marketplace\DeliveryVerificationService;
+use App\Services\Marketplace\OrderTotalsService;
+use App\Services\Marketplace\RefundService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 
 class SellerOrderController extends Controller
 {
-    protected $orderService;
-
-    public function __construct(OrderService $orderService)
+    private function orders()
     {
-        $this->orderService = $orderService;
+        abort_unless(auth()->user()->store, 404, 'Store not found.');
+
+        return StoreOrder::where('store_id', auth()->user()->store->id)
+            ->with(['order:id,user_id,order_no', 'order.user:id,name,email,phone', 'items', 'escrow', 'payment']);
     }
 
-    /**
-     * Get all store orders.
-     */
-    public function index(Request $request)
+    public function index(Request $r)
     {
-        $user = Auth::user();
-        $store = $user->store;
-
-        if (!$store) {
-            return ResponseHelper::error('Store not found', null, 404);
-        }
-
-        $query = \App\Models\StoreOrder::where('store_id', $store->id)
-            ->with([
-                'order' => function ($query) {
-                    $query->with('user');
-                },
-                'items' => function ($query) {
-                    $query->with(['product', 'variant']);
-                }
-            ]);
-
-        // Filter by status
-        if ($request->has('status') && $request->status !== '') {
-            $query->where('status', $request->status);
-        }
-
-        $orders = $query->orderBy('created_at', 'desc')
-            ->paginate($request->get('per_page', 15));
-
-        return ResponseHelper::success($orders, 'Orders retrieved successfully');
+        return R::success($this->orders()->when($r->filled('status'), fn ($q) => $q->where('status', $r->status))->latest()->paginate(min(100, max(1, $r->integer('per_page', 15)))));
     }
 
-    /**
-     * Get order details.
-     */
     public function show($id)
     {
-        $user = Auth::user();
-        $store = $user->store;
-
-        if (!$store) {
-            return ResponseHelper::error('Store not found', null, 404);
-        }
-
-        $storeOrder = \App\Models\StoreOrder::where('store_id', $store->id)
-            ->with([
-                'order' => function ($query) {
-                    $query->with('user');
-                },
-                'items' => function ($query) {
-                    $query->with(['product', 'variant']);
-                },
-                'deliveryAddress',
-                'escrow'
-            ])
-            ->findOrFail($id);
-
-        return ResponseHelper::success($storeOrder, 'Order retrieved successfully');
+        return R::success($this->orders()->findOrFail($id));
     }
 
-    /**
-     * Get pending orders.
-     */
-    public function pending(Request $request)
+    public function pending(Request $r)
     {
-        $user = Auth::user();
-        $store = $user->store;
+        $r->merge(['status' => 'pending']);
 
-        if (!$store) {
-            return ResponseHelper::error('Store not found', null, 404);
-        }
-
-        $orders = \App\Models\StoreOrder::where('store_id', $store->id)
-            ->where('status', 'pending')
-            ->with([
-                'order' => function ($query) {
-                    $query->with('user');
-                },
-                'items' => function ($query) {
-                    $query->with(['product', 'variant']);
-                },
-                'deliveryAddress'
-            ])
-            ->orderBy('created_at', 'desc')
-            ->paginate($request->get('per_page', 15));
-
-        return ResponseHelper::success($orders, 'Pending orders retrieved successfully');
+        return $this->index($r);
     }
 
-    /**
-     * Accept order.
-     */
-    public function accept(Request $request, $id)
+    public function accept(Request $r, $id)
     {
-        $request->validate([
-            'delivery_fee' => 'required|numeric|min:0',
-            'estimated_delivery_date' => 'nullable|date',
-            'delivery_method' => 'nullable|string|max:255',
-            'delivery_notes' => 'nullable|string',
-        ]);
+        $data = $r->validate(['delivery_fee' => 'required|numeric|min:0|max:100000', 'delivery_method' => 'required|string|max:255',
+            'estimated_delivery_date' => 'required|date_format:Y-m-d|after_or_equal:today', 'delivery_notes' => 'present|nullable|string|max:2000',
+            'idempotency_key' => 'required|string|max:100']);
+        app(OrderTotalsService::class)->quote($this->orders()->findOrFail($id), $r->user(), $data);
 
-        $user = Auth::user();
-        $store = $user->store;
-
-        if (!$store) {
-            return ResponseHelper::error('Store not found', null, 404);
-        }
-
-        $storeOrder = \App\Models\StoreOrder::where('store_id', $store->id)
-            ->where('status', 'pending')
-            ->findOrFail($id);
-
-        try {
-            $storeOrder = $this->orderService->acceptStoreOrder($storeOrder, $request->all());
-
-            // Send email notification
-            Mail::to($storeOrder->order->user->email)->send(new OrderAcceptedMail($storeOrder));
-
-            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product', 'items.variant']), 'Order accepted successfully');
-        } catch (\Exception $e) {
-            return ResponseHelper::error($e->getMessage());
-        }
+        return $this->show($id);
     }
 
-    /**
-     * Reject order.
-     */
-    public function reject(Request $request, $id)
+    public function reject(Request $r, $id)
     {
-        $request->validate([
-            'reason' => 'required|string|max:1000',
-        ]);
+        $data = $r->validate(['reason' => 'required|string|max:2000']);
+        app(RefundService::class)->cancel($this->orders()->findOrFail($id), $r->user(), $data['reason']);
 
-        $user = Auth::user();
-        $store = $user->store;
-
-        if (!$store) {
-            return ResponseHelper::error('Store not found', null, 404);
-        }
-
-        $storeOrder = \App\Models\StoreOrder::where('store_id', $store->id)
-            ->where('status', 'pending')
-            ->findOrFail($id);
-
-        try {
-            $storeOrder = $this->orderService->rejectStoreOrder($storeOrder, $request->reason);
-
-            // Send email notification
-            Mail::to($storeOrder->order->user->email)->send(new OrderRejectedMail($storeOrder));
-
-            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product', 'items.variant']), 'Order rejected');
-        } catch (\Exception $e) {
-            return ResponseHelper::error($e->getMessage());
-        }
+        return $this->show($id);
     }
 
-    /**
-     * Mark order as out for delivery.
-     */
-    public function outForDelivery($id)
+    public function processing(Request $r, $id)
     {
-        $user = Auth::user();
-        $store = $user->store;
+        app(DeliveryVerificationService::class)->advance($this->orders()->findOrFail($id), $r->user(), 'processing');
 
-        if (!$store) {
-            return ResponseHelper::error('Store not found', null, 404);
-        }
-
-        $storeOrder = \App\Models\StoreOrder::where('store_id', $store->id)
-            ->where('status', 'paid')
-            ->findOrFail($id);
-
-        try {
-            $storeOrder = $this->orderService->markOutForDelivery($storeOrder);
-
-            // Send email notification
-            Mail::to($storeOrder->order->user->email)->send(new OrderOutForDeliveryMail($storeOrder));
-
-            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product', 'items.variant']), 'Order marked as out for delivery');
-        } catch (\Exception $e) {
-            return ResponseHelper::error($e->getMessage());
-        }
+        return $this->show($id);
     }
 
-    /**
-     * Mark order as delivered (requires OTP).
-     */
-    public function delivered(Request $request, $id)
+    public function outForDelivery(Request $r, $id)
     {
-        $request->validate([
-            'delivery_code' => 'required|string|size:6',
-        ]);
+        app(DeliveryVerificationService::class)->advance($this->orders()->findOrFail($id), $r->user(), 'out_for_delivery');
 
-        $user = Auth::user();
-        $store = $user->store;
+        return $this->show($id);
+    }
 
-        if (!$store) {
-            return ResponseHelper::error('Store not found', null, 404);
-        }
+    public function delivered(Request $r, $id)
+    {
+        $data = $r->validate(['delivery_code' => ['required', 'regex:/^\d{6}$/D']]);
+        app(DeliveryVerificationService::class)->verify($this->orders()->findOrFail($id), $r->user(), $data['delivery_code']);
 
-        $storeOrder = \App\Models\StoreOrder::where('store_id', $store->id)
-            ->where('status', 'out_for_delivery')
-            ->findOrFail($id);
-
-        try {
-            $storeOrder = $this->orderService->markDelivered($storeOrder, $request->delivery_code);
-
-            // Send email notification
-            Mail::to($storeOrder->order->user->email)->send(new OrderDeliveredMail($storeOrder));
-
-            return ResponseHelper::success($storeOrder->load(['order.user', 'items.product', 'items.variant', 'escrow']), 'Order marked as delivered');
-        } catch (\Exception $e) {
-            return ResponseHelper::error($e->getMessage());
-        }
+        return $this->show($id);
     }
 }
-

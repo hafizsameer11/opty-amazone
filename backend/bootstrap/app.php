@@ -12,6 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias(['marketplace.role' => \App\Http\Middleware\MarketplaceRole::class]);
+        $middleware->api(append: [\App\Http\Middleware\AdminApiRole::class]);
         // Sanctum: allow stateful frontend requests if we ever use cookie-based auth
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,

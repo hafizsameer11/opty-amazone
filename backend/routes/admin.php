@@ -12,12 +12,13 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AdminAuthController::class, 'login']);
     
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function () {
         Route::post('/logout', [AdminAuthController::class, 'logout']);
     });
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function () {
+    Route::put('/store-orders/{id}/status', [\App\Http\Controllers\Admin\AdminStoreOrderController::class, 'updateStatus']);
     Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index']);
     
     Route::prefix('users')->group(function () {
@@ -111,4 +112,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/toggle-active', [\App\Http\Controllers\Admin\AdminStoreBannerController::class, 'toggleActive']);
         Route::delete('/{id}', [\App\Http\Controllers\Admin\AdminStoreBannerController::class, 'destroy']);
     });
+});
+
+Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->prefix('finance')->group(function () {
+    Route::get('/seller-wallets', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'wallets']);
+    Route::get('/seller-wallets/{storeId}', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'wallet']);
+    Route::get('/seller-transactions', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'entries']);
+    Route::get('/buyer-transactions', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'buyers']);
+    Route::get('/withdrawals', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'withdrawals']);
+    Route::post('/withdrawals/{id}', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'updateWithdrawal']);
 });
