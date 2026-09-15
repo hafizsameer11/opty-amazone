@@ -30,9 +30,20 @@ class AdCampaignService
             Product::whereKey($data['product_id'])->lockForUpdate()->firstOrFail();
             $this->require($this->eligibility->productEligible($data['product_id'], $seller->id), 'product_id', 'Select your own approved, visible, in-stock product from an active store.');
             $this->require(! AdCampaign::where('product_id', $data['product_id'])->whereNotIn('status', AdCampaign::TERMINAL)->exists(), 'product_id', 'This product already has an open campaign.');
-            $start = CarbonImmutable::parse($data['starts_at'])->utc();
-            $end = CarbonImmutable::parse($data['ends_at'])->utc();
-            $this->require($start->gte(now()->subMinute()) && $end->gt($start), 'starts_at', 'Campaign dates must be in the future and end after the start.');
+            // Match Discount Campaigns and Banners: interpret a wall-clock value in the
+            // zone reported by the seller's device, then persist one unambiguous UTC
+            // instant. A run-now campaign deliberately uses server time so approval
+            // activates it immediately regardless of client clock skew.
+            $timezone = $data['schedule_timezone'];
+            $now = now('UTC')->toImmutable();
+            $start = $data['launch_mode'] === 'run_now'
+                ? $now
+                : CarbonImmutable::parse($data['starts_at'], $timezone)->utc();
+            $end = CarbonImmutable::parse($data['ends_at'], $timezone)->utc();
+            if ($data['launch_mode'] === 'schedule') {
+                $this->require($start->gt($now), 'starts_at', 'Choose a future start time when scheduling a campaign.');
+            }
+            $this->require($end->gt($start), 'ends_at', 'Choose an end time after the campaign start time.');
             $days = (int) $start->startOfDay()->diffInDays($end->subSecond()->startOfDay()) + 1;
             $this->require($days <= config('ads.max_days'), 'ends_at', 'Campaigns may run for at most 90 UTC calendar days.');
             $amount = AdMoney::cents($data['budget_amount']);
@@ -41,7 +52,7 @@ class AdCampaignService
             $this->require($amount >= 100 && $bid >= 1 && $bid <= $amount && $total <= config('ads.max_budget_cents'), 'budget_amount', 'Budget must be at least EUR 1, cover the bid, and total at most EUR 100,000.');
             $c = AdCampaign::create([
                 'seller_id' => $seller->id, 'product_id' => $data['product_id'], 'name' => $data['name'],
-                'starts_at' => $start, 'ends_at' => $end, 'budget_type' => $data['budget_type'],
+                'starts_at' => $start, 'ends_at' => $end, 'schedule_timezone' => $timezone, 'budget_type' => $data['budget_type'],
                 'budget_amount_cents' => $amount, 'budget_cents' => $total, 'bid_cents' => $bid,
                 'bid_type' => 'cpc', 'locations' => $data['locations'], 'placements' => $data['placements'],
                 'status' => 'pending_payment', 'payment_status' => 'unpaid',
@@ -110,6 +121,29 @@ class AdCampaignService
             }
 
             return $c;
+        }, 3);
+    }
+
+    /**
+     * Soft-delete only after delivery has stopped and all safely releasable money has
+     * been returned. The financial, event and audit rows stay attached for traceability.
+     */
+    public function delete(AdCampaign $campaign, User $seller): void
+    {
+        Gate::forUser($seller)->authorize('manage', $campaign);
+
+        DB::transaction(function () use ($campaign, $seller) {
+            $c = AdCampaign::whereKey($campaign->id)->lockForUpdate()->firstOrFail();
+            $this->require($c->status !== 'reconciliation_hold', 'campaign', 'Financial reconciliation is required before deletion.');
+
+            if (! $c->terminal()) {
+                $this->budget->release($c, $seller->id);
+                $this->transition($c, 'cancelled', 'deleted', $seller->id, 'Seller deleted the campaign.');
+            } else {
+                $this->audit($c, 'deleted', $c->status, $seller->id, 'Seller deleted the campaign.');
+            }
+
+            $c->delete();
         }, 3);
     }
 

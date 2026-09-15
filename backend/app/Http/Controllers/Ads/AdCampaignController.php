@@ -101,6 +101,15 @@ class AdCampaignController extends Controller
         return response()->json(['data' => $this->analytics->summary($c->load('product'))]);
     }
 
+    public function destroy(Request $request, AdCampaign $campaign)
+    {
+        $this->scopeRole($request);
+        abort_unless($request->user()->isSeller(), 403);
+        $this->campaigns->delete($campaign, $request->user());
+
+        return response()->noContent();
+    }
+
     public function analytics(Request $request, AdCampaign $campaign)
     {
         $this->scopeRole($request);

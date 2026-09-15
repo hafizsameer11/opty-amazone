@@ -20,6 +20,7 @@ foreach (['seller', 'admin'] as $role) {
             Route::get('/options', [AdCampaignController::class, 'options']);
             Route::post('/', [AdCampaignController::class, 'store']);
             Route::post('/{campaign}/duplicate', [AdCampaignController::class, 'duplicate']);
+            Route::delete('/{campaign}', [AdCampaignController::class, 'destroy']);
         } else {
             Route::get('/{campaign}/audits', [AdCampaignController::class, 'audits']);
         }

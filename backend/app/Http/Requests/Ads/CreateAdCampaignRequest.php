@@ -19,6 +19,11 @@ class CreateAdCampaignRequest extends FormRequest
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'name' => ['required', 'string', 'max:120'],
             'starts_at' => ['required', 'date'], 'ends_at' => ['required', 'date', 'after:starts_at'],
+            // The browser sends an IANA zone alongside its local date-time. The server
+            // stores the resulting instant in UTC so a scheduler never depends on the
+            // PHP/server timezone.
+            'schedule_timezone' => ['required', 'string', 'max:64', 'timezone'],
+            'launch_mode' => ['required', Rule::in(['run_now', 'schedule'])],
             'budget_type' => ['required', Rule::in(['daily', 'total'])],
             'budget_amount' => ['required', 'numeric', 'min:1', 'max:100000', 'decimal:0,2'],
             'bid_type' => ['required', Rule::in(['cpc'])],

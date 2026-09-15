@@ -14,7 +14,10 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-\Illuminate\Support\Facades\Schedule::job(new \App\Jobs\RefreshAdCampaigns)->everyMinute()->withoutOverlapping();
+// Run lifecycle transitions in the scheduler process, like Discount Campaigns and
+// Banners. This avoids a scheduled Boost waiting behind an unrelated queue backlog.
+\Illuminate\Support\Facades\Schedule::call(fn () => app(\App\Jobs\RefreshAdCampaigns::class)->handle())
+    ->name('refresh-ad-campaigns')->everyMinute()->withoutOverlapping();
 \Illuminate\Support\Facades\Schedule::job(new \App\Jobs\AggregateAdAnalytics)->everyFiveMinutes()->withoutOverlapping();
 \Illuminate\Support\Facades\Schedule::job(new \App\Jobs\ReconcileAdSpending)->hourly()->withoutOverlapping();
 

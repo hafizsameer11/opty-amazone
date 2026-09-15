@@ -71,6 +71,7 @@ class AdCampaignTest extends TestCase
     {
         return array_replace(['product_id' => $this->product->id, 'name' => 'Autumn glasses',
             'starts_at' => now()->toIso8601String(), 'ends_at' => now()->addDays(2)->toIso8601String(),
+            'schedule_timezone' => 'UTC', 'launch_mode' => 'run_now',
             'budget_type' => 'total', 'budget_amount' => '10.00', 'bid_type' => 'cpc', 'bid_amount' => '1.00',
             'locations' => ['global'], 'placements' => ['homepage'], 'confirm_reservation' => true, 'idempotency_key' => (string) Str::uuid()], $overrides);
     }
@@ -194,6 +195,57 @@ class AdCampaignTest extends TestCase
         $this->assertSame('100.00', $this->seller->wallet->fresh()->shopping_balance);
         $this->assertSame('5.00', $this->seller->wallet->fresh()->ad_credit);
         $this->assertSame(1, $c->transactions()->where('type', 'release')->count());
+    }
+
+    public function test_scheduled_campaign_interprets_the_seller_device_timezone(): void
+    {
+        $c = $this->create([
+            'launch_mode' => 'schedule',
+            'schedule_timezone' => 'Asia/Karachi',
+            // 18:00 in Pakistan is 13:00 UTC, one hour after the test clock.
+            'starts_at' => '2026-09-13T18:00',
+            'ends_at' => '2026-09-14T18:00',
+        ]);
+
+        $this->assertSame('2026-09-13 13:00:00', $c->starts_at->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-09-14 13:00:00', $c->ends_at->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame('Asia/Karachi', $c->schedule_timezone);
+        $c = app(AdCampaignService::class)->action($c, $this->admin, 'approve', 'Approved for Pakistan schedule');
+        $this->assertSame('scheduled', $c->status);
+        $this->travelTo(now()->setTime(13, 0));
+        app(AdCampaignService::class)->refreshLifecycle($c->id);
+        $this->assertSame('active', $c->fresh()->status);
+    }
+
+    public function test_run_now_uses_server_time_and_activates_the_moment_an_admin_approves(): void
+    {
+        $c = $this->create([
+            'launch_mode' => 'run_now',
+            'schedule_timezone' => 'Europe/Rome',
+            // A client-provided future start must be ignored for Run now.
+            'starts_at' => '2026-09-13T18:00',
+            'ends_at' => now()->addDays(2)->toIso8601String(),
+        ]);
+
+        $this->assertTrue($c->starts_at->equalTo(now()));
+        $c = app(AdCampaignService::class)->action($c, $this->admin, 'approve', 'Approved to run now');
+        $this->assertSame('active', $c->status);
+    }
+
+    public function test_seller_delete_stops_delivery_releases_funds_and_preserves_auditing(): void
+    {
+        $c = $this->active();
+        Sanctum::actingAs($this->seller);
+        $this->deleteJson('/api/seller/ad-campaigns/'.$c->id)->assertNoContent();
+
+        $this->assertSoftDeleted('ad_campaigns', ['id' => $c->id]);
+        $this->assertSame('100.00', $this->seller->wallet->fresh()->shopping_balance);
+        $this->assertSame('5.00', $this->seller->wallet->fresh()->ad_credit);
+        $deleted = AdCampaign::withTrashed()->findOrFail($c->id);
+        $this->assertSame('cancelled', $deleted->status);
+        $this->assertSame(1, $deleted->transactions()->where('type', 'release')->count());
+        $this->assertTrue($deleted->audits()->where('action', 'deleted')->exists());
+        $this->getJson('/api/seller/ad-campaigns/'.$c->id)->assertNotFound();
     }
 
     public function test_pause_resume_cancel_and_admin_hold(): void
