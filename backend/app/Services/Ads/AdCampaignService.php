@@ -55,7 +55,7 @@ class AdCampaignService
                 'starts_at' => $start, 'ends_at' => $end, 'schedule_timezone' => $timezone, 'budget_type' => $data['budget_type'],
                 'budget_amount_cents' => $amount, 'budget_cents' => $total, 'bid_cents' => $bid,
                 'bid_type' => 'cpc', 'locations' => $data['locations'], 'placements' => $data['placements'],
-                'status' => 'pending_payment', 'payment_status' => 'unpaid',
+                'status' => 'pending_payment', 'payment_status' => 'unpaid', 'funding_source' => 'seller_wallet',
                 'idempotency_key' => $data['idempotency_key'], 'request_hash' => $hash,
             ]);
             $this->audit($c, 'created', null, $seller->id);

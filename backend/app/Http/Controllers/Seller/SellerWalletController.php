@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Seller;
 use App\Helpers\ResponseHelper as R;
 use App\Http\Controllers\Controller;
 use App\Models\SellerWallet;
+use App\Services\Marketplace\SellerWalletFundingService;
 use App\Services\Marketplace\SellerWalletService;
 use App\Services\Marketplace\WithdrawalService;
 use Illuminate\Http\Request;
@@ -27,7 +28,8 @@ class SellerWalletController extends Controller
     {
         app(SellerWalletService::class)->summary($this->storeId());
 
-        return R::success(SellerWallet::where('store_id', $this->storeId())->firstOrFail()->entries()->latest('id')->paginate(25));
+        return R::success(SellerWallet::where('store_id', $this->storeId())->firstOrFail()->entries()
+            ->with('campaign:id,name,status')->latest('id')->paginate(25));
     }
 
     public function withdrawals(Request $r)
@@ -35,6 +37,18 @@ class SellerWalletController extends Controller
         app(SellerWalletService::class)->summary($this->storeId());
 
         return R::success(SellerWallet::where('store_id', $this->storeId())->firstOrFail()->withdrawals()->latest('id')->paginate(25));
+    }
+
+    public function capabilities()
+    {
+        return R::success(['development_top_up' => app(SellerWalletFundingService::class)->developmentEnabled(), 'currency' => 'EUR']);
+    }
+
+    public function developmentTopUp(Request $r)
+    {
+        $data = $r->validate(['amount' => 'required|numeric|min:5|max:100000', 'idempotency_key' => 'required|uuid']);
+
+        return R::success(app(SellerWalletFundingService::class)->topUp($r->user(), $data['amount'], $data['idempotency_key']), 'Seller wallet funded for development testing.');
     }
 
     public function withdraw(Request $r)

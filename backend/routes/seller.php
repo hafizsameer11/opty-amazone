@@ -244,8 +244,10 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('verifica
 
 Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->group(function () {
     Route::post('/store-orders/{id}/processing', [SellerOrderController::class, 'processing']);
-    Route::get('/wallet', [\App\Http\Controllers\Seller\SellerWalletController::class, 'show']);
-    Route::get('/wallet/transactions', [\App\Http\Controllers\Seller\SellerWalletController::class, 'transactions']);
+      Route::get('/wallet', [\App\Http\Controllers\Seller\SellerWalletController::class, 'show']);
+      Route::get('/wallet/capabilities', [\App\Http\Controllers\Seller\SellerWalletController::class, 'capabilities']);
+      Route::post('/wallet/development-top-ups', [\App\Http\Controllers\Seller\SellerWalletController::class, 'developmentTopUp'])->middleware('throttle:20,1');
+      Route::get('/wallet/transactions', [\App\Http\Controllers\Seller\SellerWalletController::class, 'transactions']);
     Route::get('/wallet/withdrawals', [\App\Http\Controllers\Seller\SellerWalletController::class, 'withdrawals']);
     Route::post('/wallet/withdrawals', [\App\Http\Controllers\Seller\SellerWalletController::class, 'withdraw'])->middleware('throttle:20,1');
 });

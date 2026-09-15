@@ -8,6 +8,7 @@ use App\Models\Escrow;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\SellerWallet;
 use App\Models\Store;
 use App\Models\StoreOrder;
 use App\Models\User;
@@ -38,6 +39,8 @@ class AdCampaignTest extends TestCase
 
     private Product $product;
 
+    private SellerWallet $sellerWallet;
+
     protected function beforeRefreshingDatabase(): void
     {
         // The legacy schema assumes a frame_sizes FK that has no creation migration.
@@ -65,6 +68,7 @@ class AdCampaignTest extends TestCase
             'sku' => (string) Str::uuid(), 'price' => '40.00', 'stock_quantity' => 20, 'stock_status' => 'in_stock',
             'is_approved' => true, 'is_active' => true, 'is_muted' => false]);
         Wallet::create(['user_id' => $this->seller->id, 'shopping_balance' => '100.00', 'ad_credit' => '5.00']);
+        $this->sellerWallet = SellerWallet::create(['store_id' => $store->id, 'available_balance' => '105.00']);
     }
 
     private function draft(array $overrides = []): array
@@ -109,8 +113,11 @@ class AdCampaignTest extends TestCase
         $draft = $this->draft();
         $first = $this->postJson('/api/seller/ad-campaigns', $draft)->assertCreated()->assertJsonPath('data.status', 'pending_review');
         $this->postJson('/api/seller/ad-campaigns', $draft)->assertCreated()->assertJsonPath('data.id', $first->json('data.id'));
-        $this->assertSame('95.00', $this->seller->wallet->fresh()->shopping_balance);
-        $this->assertSame('0.00', $this->seller->wallet->fresh()->ad_credit);
+        $this->assertSame('95.00', $this->sellerWallet->fresh()->available_balance);
+        $this->assertSame('10.00', $this->sellerWallet->fresh()->ad_reserved_balance);
+        $this->assertSame('100.00', $this->seller->wallet->fresh()->shopping_balance);
+        $this->assertSame('5.00', $this->seller->wallet->fresh()->ad_credit);
+        $this->assertSame('seller_wallet', $first->json('data.funding_source'));
         $this->assertDatabaseCount('ad_budget_transactions', 1);
         $this->assertDatabaseCount('ad_audit_logs', 2);
         $this->assertSame([], $this->serve());
@@ -163,18 +170,18 @@ class AdCampaignTest extends TestCase
 
     public function test_failed_reservation_never_activates_and_can_be_retried_once_funded(): void
     {
-        $this->seller->wallet->update(['shopping_balance' => 0, 'ad_credit' => 0]);
+        $this->sellerWallet->update(['available_balance' => 0]);
         $c = $this->create();
         $this->assertSame('payment_failed', $c->status);
         $this->assertDatabaseCount('ad_budget_transactions', 0);
         Sanctum::actingAs($this->admin);
         $this->postJson('/api/admin/ad-campaigns/'.$c->id.'/actions', ['action' => 'approve', 'reason' => 'Reviewed'])->assertUnprocessable();
-        $this->seller->wallet->update(['shopping_balance' => 15]);
+        $this->sellerWallet->update(['available_balance' => 15]);
         Sanctum::actingAs($this->seller);
         for ($i = 0; $i < 2; $i++) {
             $this->postJson('/api/seller/ad-campaigns/'.$c->id.'/actions', ['action' => 'pay'])->assertOk()->assertJsonPath('data.status', 'pending_review');
         }
-        $this->assertSame('5.00', $this->seller->wallet->fresh()->shopping_balance);
+        $this->assertSame('5.00', $this->sellerWallet->fresh()->available_balance);
         $this->assertDatabaseCount('ad_budget_transactions', 1);
     }
 
@@ -192,8 +199,8 @@ class AdCampaignTest extends TestCase
             app(AdCampaignService::class)->refreshLifecycle($c->id);
         }
         $this->assertSame('completed', $c->fresh()->status);
-        $this->assertSame('100.00', $this->seller->wallet->fresh()->shopping_balance);
-        $this->assertSame('5.00', $this->seller->wallet->fresh()->ad_credit);
+        $this->assertSame('105.00', $this->sellerWallet->fresh()->available_balance);
+        $this->assertSame('0.00', $this->sellerWallet->fresh()->ad_reserved_balance);
         $this->assertSame(1, $c->transactions()->where('type', 'release')->count());
     }
 
@@ -239,8 +246,8 @@ class AdCampaignTest extends TestCase
         $this->deleteJson('/api/seller/ad-campaigns/'.$c->id)->assertNoContent();
 
         $this->assertSoftDeleted('ad_campaigns', ['id' => $c->id]);
-        $this->assertSame('100.00', $this->seller->wallet->fresh()->shopping_balance);
-        $this->assertSame('5.00', $this->seller->wallet->fresh()->ad_credit);
+        $this->assertSame('105.00', $this->sellerWallet->fresh()->available_balance);
+        $this->assertSame('0.00', $this->sellerWallet->fresh()->ad_reserved_balance);
         $deleted = AdCampaign::withTrashed()->findOrFail($c->id);
         $this->assertSame('cancelled', $deleted->status);
         $this->assertSame(1, $deleted->transactions()->where('type', 'release')->count());
@@ -280,6 +287,8 @@ class AdCampaignTest extends TestCase
         $this->assertSame(100, (int) $c->fresh()->spent_cents);
         $this->assertSame(1, (int) $c->fresh()->impressions);
         $this->assertSame(1, (int) $c->fresh()->clicks);
+        $this->assertSame('1.00', $this->sellerWallet->fresh()->ad_spend_total);
+        $this->assertDatabaseCount('platform_ledger_entries', 1);
         $this->assertSame([], $this->serve());
         $this->assertTrue(app(AdReconciliationService::class)->reconcile($c->id));
     }
@@ -293,7 +302,7 @@ class AdCampaignTest extends TestCase
         $this->assertSame('exhausted', $c->fresh()->status);
         $this->assertSame(100, (int) $c->fresh()->spent_cents);
         $this->assertSame(50, (int) $c->fresh()->released_cents);
-        $this->assertSame('4.00', $this->seller->wallet->fresh()->ad_credit);
+        $this->assertSame('104.00', $this->sellerWallet->fresh()->available_balance);
         $this->assertSame([], $this->serve());
     }
 
@@ -416,6 +425,20 @@ class AdCampaignTest extends TestCase
         $this->postJson('/api/buyer/wallet/top-up', ['stripe_session_id' => $session['id']])->assertUnprocessable();
     }
 
+    public function test_development_seller_wallet_topup_and_boost_ledger_are_traceable(): void
+    {
+        Sanctum::actingAs($this->seller);
+        $this->postJson('/api/seller/wallet/development-top-ups', ['amount' => '25.00', 'idempotency_key' => (string) Str::uuid()])
+            ->assertOk()->assertJsonPath('data.transaction.type', 'seller_wallet_top_up');
+        $this->assertSame('130.00', $this->sellerWallet->fresh()->available_balance);
+        $this->assertSame('25.00', $this->sellerWallet->fresh()->top_up_total);
+        $c = $this->create();
+        $this->getJson('/api/seller/wallet/transactions')->assertOk()
+            ->assertJsonPath('data.data.0.ad_campaign_id', $c->id);
+        $this->assertSame('120.00', $this->sellerWallet->fresh()->available_balance);
+        $this->assertSame('10.00', $this->sellerWallet->fresh()->ad_reserved_balance);
+    }
+
     private function paidOrder(): StoreOrder
     {
         Queue::fake();
@@ -472,7 +495,7 @@ class AdCampaignTest extends TestCase
         app(AdCampaignService::class)->action($c, $this->admin, 'reject', 'Incorrect advertising content');
         $this->assertSame('rejected', $c->fresh()->status);
         $this->assertSame('Incorrect advertising content', $c->fresh()->rejection_reason);
-        $this->assertSame('5.00', $this->seller->wallet->fresh()->ad_credit);
+        $this->assertSame('105.00', $this->sellerWallet->fresh()->available_balance);
         $c = $this->active();
         $ad = $this->serve()[0];
         $this->event($ad['tracking_token']);
@@ -481,8 +504,8 @@ class AdCampaignTest extends TestCase
             app(AdCampaignService::class)->action($c, $this->admin, 'refund', 'Refund remaining reservation');
         }
         $this->assertSame(900, (int) $c->fresh()->released_cents);
-        $this->assertSame('4.00', $this->seller->wallet->fresh()->ad_credit);
-        $this->assertSame('100.00', $this->seller->wallet->fresh()->shopping_balance);
+        $this->assertSame('104.00', $this->sellerWallet->fresh()->available_balance);
+        $this->assertSame('0.00', $this->sellerWallet->fresh()->ad_reserved_balance);
         $this->assertSame(1, $c->transactions()->where('type', 'refund')->count());
     }
 
@@ -602,18 +625,18 @@ class AdCampaignTest extends TestCase
         // Subprocess connections need committed fixtures; never run this against a real database.
         $this->assertStringStartsWith('opty_ads_test', DB::connection()->getDatabaseName());
         $this->travelBack(); // Use the same real clock as the worker processes.
-        $this->seller->wallet->update(['ad_credit' => 0, 'shopping_balance' => 0]);
+        $this->sellerWallet->update(['available_balance' => 0]);
         $first = $this->create(['ends_at' => now()->addDays(30)->toIso8601String()]);
         $secondProduct = $this->product->replicate();
         $secondProduct->slug = (string) Str::uuid();
         $secondProduct->sku = (string) Str::uuid();
         $secondProduct->save();
         $second = $this->create(['product_id' => $secondProduct->id, 'ends_at' => now()->addDays(30)->toIso8601String()]);
-        $this->seller->wallet->update(['shopping_balance' => 10]);
+        $this->sellerWallet->update(['available_balance' => 10]);
         DB::commit();
         $this->travelBack(); // Worker processes use real time.
         $this->race(array_map(fn ($c) => ['action' => 'pay', 'campaign' => $c->id, 'actor' => $this->seller->id], [$first, $second, $first, $second]));
-        $this->assertSame('0.00', $this->seller->wallet->fresh()->shopping_balance);
+        $this->assertSame('0.00', $this->sellerWallet->fresh()->available_balance);
         $this->assertSame(1, AdCampaign::where('payment_status', 'reserved')->count());
         $funded = AdCampaign::where('payment_status', 'reserved')->firstOrFail();
         app(AdCampaignService::class)->action($funded, $this->admin, 'approve', 'Concurrency test');
@@ -633,11 +656,11 @@ class AdCampaignTest extends TestCase
         $this->assertSame(10, $funded->transactions()->where('type', 'spend')->count());
         $this->assertTrue(app(AdReconciliationService::class)->reconcile($funded->id));
         $unfunded = AdCampaign::where('payment_status', 'failed')->firstOrFail();
-        $this->seller->wallet->refresh()->update(['shopping_balance' => 10]);
+        $this->sellerWallet->refresh()->update(['available_balance' => 10]);
         app(AdCampaignService::class)->action($unfunded, $this->seller, 'pay');
         $this->assertSame('reserved', $unfunded->fresh()->payment_status);
         $this->race(array_fill(0, 4, ['action' => 'cancel', 'campaign' => $unfunded->id, 'actor' => $this->seller->id]));
-        $this->assertSame('10.00', $this->seller->wallet->fresh()->shopping_balance);
+        $this->assertSame('10.00', $this->sellerWallet->fresh()->available_balance);
         $this->assertSame(1, $unfunded->transactions()->where('type', 'release')->count());
         \Illuminate\Foundation\Testing\RefreshDatabaseState::$migrated = false;
     }

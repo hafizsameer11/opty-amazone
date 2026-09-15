@@ -49,6 +49,11 @@ class AdCampaign extends Model
         return $this->hasMany(AdDailyMetric::class);
     }
 
+    public function sellerWallet()
+    {
+        return $this->belongsTo(SellerWallet::class);
+    }
+
     public function terminal(): bool
     {
         return in_array($this->status, self::TERMINAL, true);

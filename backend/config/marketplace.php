@@ -2,6 +2,9 @@
 
 return [
     'development_top_up' => env('MARKETPLACE_DEVELOPMENT_TOP_UP', false),
+    // Never enabled in production: this bypass is strictly for exercising the
+    // same seller-wallet ledger path before a real payment provider is connected.
+    'development_seller_wallet_top_up' => env('MARKETPLACE_DEVELOPMENT_SELLER_WALLET_TOP_UP', true),
     'top_up_max_cents' => 10000000,
     'delivery_code_days' => 7,
     'delivery_code_attempts' => 5,

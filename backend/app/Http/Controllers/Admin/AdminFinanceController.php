@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Helpers\ResponseHelper as R;
 use App\Http\Controllers\Controller;
+use App\Models\PlatformLedgerEntry;
 use App\Models\SellerWallet;
 use App\Models\SellerWalletEntry;
 use App\Models\SellerWithdrawal;
@@ -29,13 +30,21 @@ class AdminFinanceController extends Controller
 
     public function entries(Request $r)
     {
-        return R::success(SellerWalletEntry::when($r->filled('wallet_id'), fn ($q) => $q->where('seller_wallet_id', $r->wallet_id))->latest('id')->paginate(25));
+        return R::success(SellerWalletEntry::with(['campaign:id,name,status'])
+            ->when($r->filled('wallet_id'), fn ($q) => $q->where('seller_wallet_id', $r->wallet_id))->latest('id')->paginate(25));
     }
 
     public function buyers(Request $r)
     {
         return R::success(Transaction::with('user:id,name,email')->whereHas('user', fn ($q) => $q->where('role', 'buyer'))
             ->when($r->filled('user_id'), fn ($q) => $q->where('user_id', $r->user_id))->latest('id')->paginate(25));
+    }
+
+    public function platformRevenue(Request $r)
+    {
+        return R::success(PlatformLedgerEntry::with(['campaign:id,name,status', 'sellerWallet.store:id,name'])
+            ->when($r->filled('campaign_id'), fn ($q) => $q->where('ad_campaign_id', $r->integer('campaign_id')))
+            ->latest('id')->paginate(25));
     }
 
     public function withdrawals()

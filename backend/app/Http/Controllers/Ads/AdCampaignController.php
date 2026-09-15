@@ -8,11 +8,11 @@ use App\Http\Requests\Ads\AdListRequest;
 use App\Http\Requests\Ads\CreateAdCampaignRequest;
 use App\Models\AdCampaign;
 use App\Models\Country;
-use App\Models\Wallet;
 use App\Services\Ads\AdAnalyticsService;
 use App\Services\Ads\AdCampaignService;
 use App\Services\Ads\AdEligibilityService;
-use App\Services\Ads\AdMoney;
+use App\Services\Marketplace\Money;
+use App\Services\Marketplace\SellerWalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -66,14 +66,14 @@ class AdCampaignController extends Controller
                 $p->stock_quantity = (int) $p->available_variant_stock;
             }
         });
-        $wallet = Wallet::where('user_id', $request->user()->id)->first();
+        $wallet = app(SellerWalletService::class)->summary($request->user()->store->id);
 
         return response()->json(['data' => [
             'products' => $products, 'locations' => Country::where('is_active', true)->orderBy('name')->get(['code', 'name']),
             'placements' => config('ads.placements'), 'bid_types' => ['cpc'], 'currency' => 'EUR',
             'review_required' => (bool) config('ads.review_required'),
-            'ad_credit_cents' => $wallet ? AdMoney::cents($wallet->ad_credit) : 0,
-            'shopping_cents' => $wallet ? AdMoney::cents($wallet->shopping_balance) : 0,
+            'seller_wallet_available_cents' => Money::cents($wallet['available_balance']),
+            'seller_wallet_ad_reserved_cents' => Money::cents($wallet['ad_reserved_balance']),
         ]]);
     }
 

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class SellerWalletService
 {
-    public const BALANCES = ['available_balance', 'pending_balance', 'reserved_balance', 'disputed_balance', 'debt_balance', 'total_earnings'];
+    public const BALANCES = ['available_balance', 'pending_balance', 'reserved_balance', 'ad_reserved_balance', 'ad_spend_total', 'top_up_total', 'disputed_balance', 'debt_balance', 'total_earnings'];
 
     public function locked(int $storeId): SellerWallet
     {
@@ -19,7 +19,7 @@ class SellerWalletService
         return SellerWallet::whereKey($wallet->id)->lockForUpdate()->firstOrFail();
     }
 
-    public function entry(SellerWallet $wallet, string $reference, string $type, int $amount, array $deltas, ?int $orderId = null, ?int $withdrawalId = null): SellerWalletEntry
+    public function entry(SellerWallet $wallet, string $reference, string $type, int $amount, array $deltas, ?int $orderId = null, ?int $withdrawalId = null, ?int $campaignId = null, ?string $description = null, array $metadata = []): SellerWalletEntry
     {
         abort_unless(DB::transactionLevel() > 0, 500);
         if ($entry = SellerWalletEntry::where('reference', $reference)->first()) {
@@ -35,7 +35,9 @@ class SellerWalletService
 
         return SellerWalletEntry::create(['seller_wallet_id' => $wallet->id, 'store_order_id' => $orderId,
             'withdrawal_id' => $withdrawalId, 'reference' => $reference, 'type' => $type,
-            'amount' => Money::decimal($amount), 'deltas' => array_map([Money::class, 'decimal'], $deltas), 'balances_after' => $balances]);
+            'ad_campaign_id' => $campaignId, 'amount' => Money::decimal($amount),
+            'deltas' => array_map([Money::class, 'decimal'], $deltas), 'balances_after' => $balances,
+            'description' => $description, 'metadata' => $metadata]);
     }
 
     // Reversals after a payout become a debt, recovered from future settlements.

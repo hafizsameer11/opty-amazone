@@ -4,11 +4,6 @@ use App\Http\Controllers\Ads\AdCampaignController;
 use App\Http\Controllers\Ads\AdDeliveryController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('seller/ad-wallet')->middleware(['auth:sanctum', 'can:create,App\Models\AdCampaign', 'throttle:20,1'])->group(function () {
-    Route::post('/checkout', [\App\Http\Controllers\Buyer\BuyerWalletController::class, 'createCheckoutSession']);
-    Route::post('/confirm', [\App\Http\Controllers\Buyer\BuyerWalletController::class, 'topUp']);
-});
-
 Route::prefix('buyer/ads')->middleware('throttle:120,1')->group(function () {
     Route::get('/', [AdDeliveryController::class, 'index']);
     Route::post('/events', [AdDeliveryController::class, 'event']);

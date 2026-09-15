@@ -8,7 +8,7 @@ class SellerWallet extends Model
 {
     protected $guarded = [];
 
-    protected $casts = ['available_balance' => 'decimal:2', 'pending_balance' => 'decimal:2', 'reserved_balance' => 'decimal:2', 'disputed_balance' => 'decimal:2', 'debt_balance' => 'decimal:2', 'total_earnings' => 'decimal:2'];
+    protected $casts = ['available_balance' => 'decimal:2', 'pending_balance' => 'decimal:2', 'reserved_balance' => 'decimal:2', 'ad_reserved_balance' => 'decimal:2', 'ad_spend_total' => 'decimal:2', 'top_up_total' => 'decimal:2', 'disputed_balance' => 'decimal:2', 'debt_balance' => 'decimal:2', 'total_earnings' => 'decimal:2'];
 
     public function store()
     {

@@ -2,6 +2,7 @@
 
 namespace App\Services\Marketplace;
 
+use App\Models\PlatformLedgerEntry;
 use App\Models\SellerWallet;
 use App\Models\StoreOrder;
 use Illuminate\Support\Facades\DB;
@@ -83,8 +84,14 @@ class ReconciliationService
                 $check($disputed === Money::cents($wallet->disputed_balance), $prefix.'disputed earnings mismatch');
                 $check($earned === Money::cents($wallet->total_earnings), $prefix.'net earnings mismatch');
                 $check($reserved === Money::cents($wallet->reserved_balance), $prefix.'withdrawal reserve mismatch');
-                $held = Money::cents($wallet->available_balance) + $pending + $reserved + $disputed - Money::cents($wallet->debt_balance);
-                $check($held === $pending + $earned - $paidOut, $prefix.'funds conservation mismatch');
+                $adReserved = Money::cents($wallet->ad_reserved_balance);
+                $topUps = Money::cents($wallet->top_up_total);
+                $adSpend = Money::cents($wallet->ad_spend_total);
+                $platformAdSpend = PlatformLedgerEntry::where('seller_wallet_id', $wallet->id)->where('type', 'boost_ad_spend')
+                    ->sum('amount');
+                $check($adSpend === Money::cents($platformAdSpend), $prefix.'advertising revenue ledger mismatch');
+                $held = Money::cents($wallet->available_balance) + $pending + $reserved + $adReserved + $disputed - Money::cents($wallet->debt_balance);
+                $check($held === $pending + $earned + $topUps - $paidOut - $adSpend, $prefix.'funds conservation mismatch');
             }
 
             return ['ok' => $issues === [], 'shipments_checked' => $shipments->count(), 'seller_wallets_checked' => $wallets->count(),

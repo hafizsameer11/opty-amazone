@@ -118,6 +118,7 @@ Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->prefix('finance')
     Route::get('/seller-wallets', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'wallets']);
     Route::get('/seller-wallets/{storeId}', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'wallet']);
     Route::get('/seller-transactions', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'entries']);
+    Route::get('/platform-revenue', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'platformRevenue']);
     Route::get('/buyer-transactions', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'buyers']);
     Route::get('/withdrawals', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'withdrawals']);
     Route::post('/withdrawals/{id}', [\App\Http\Controllers\Admin\AdminFinanceController::class, 'updateWithdrawal']);
