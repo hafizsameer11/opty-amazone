@@ -13,6 +13,7 @@ use App\Services\Auth\PasswordResetService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -66,7 +67,19 @@ class BuyerAuthController extends Controller
     public function register(RegisterRequest $request): JsonResponse
     {
         try {
-            $user = $this->authService->register($request->validated(), 'buyer');
+            $data = $request->validated();
+            $user = DB::transaction(function () use ($data, $request) {
+                unset($data['referral_attribution_token'], $data['referral_code']);
+                $user = $this->authService->register($data, 'buyer');
+                app(\App\Services\Referrals\ReferralService::class)->recordRegistration(
+                    $user,
+                    $request->input('referral_attribution_token'),
+                    $request->input('referral_code'),
+                    $request->ip(),
+                    $request->userAgent(),
+                );
+                return $user;
+            }, 5);
             
             $token = $user->createToken('buyer_token', ['buyer'])->plainTextToken;
 
@@ -78,6 +91,8 @@ class BuyerAuthController extends Controller
                 'Registration successful',
                 201
             );
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors());
         } catch (\Exception $e) {
             Log::error('Buyer registration failed: ' . $e->getMessage(), [
                 'email' => $request->email ?? null,

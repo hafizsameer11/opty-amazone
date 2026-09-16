@@ -56,6 +56,7 @@ class RefundService
                 $so->inventory_restored_at = now();
             }
             $this->reversePoints($so);
+            app(\App\Services\Referrals\ReferralService::class)->invalidateStoreOrder($so, $reason, $actor);
             $so->fill(['status' => $payment ? 'refunded' : 'cancelled', 'payment_status' => $payment ? 'refunded' : 'cancelled',
                 'rejection_reason' => $reason, 'delivery_code_encrypted' => null, 'delivery_code_hash' => null])->save();
             $this->totals->sync($so->order);
@@ -98,6 +99,7 @@ class RefundService
             $amount = Money::cents($escrow->amount);
             $deltas = $escrow->status === 'released' ? $this->sellers->debitAvailable($wallet, $amount) + ['disputed_balance' => $amount] : [];
             $this->sellers->entry($wallet, 'order:'.$so->id.':dispute', 'dispute_hold', $amount, $deltas, $so->id);
+            app(\App\Services\Referrals\ReferralService::class)->suspendStoreOrder($so, 'Order dispute: '.$reason, $actor);
             $escrow->update(['dispute_previous_status' => $escrow->status, 'status' => 'disputed']);
             $so->update(['dispute_previous_status' => $so->status, 'status' => 'disputed', 'payment_status' => 'disputed', 'dispute_reason' => $reason]);
             $this->totals->sync($so->order);

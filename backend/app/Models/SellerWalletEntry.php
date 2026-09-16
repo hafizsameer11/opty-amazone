@@ -14,4 +14,9 @@ class SellerWalletEntry extends Model
     {
         return $this->belongsTo(AdCampaign::class, 'ad_campaign_id')->withTrashed();
     }
+
+    public function referralReward()
+    {
+        return $this->hasOne(ReferralReward::class, 'seller_wallet_entry_id');
+    }
 }

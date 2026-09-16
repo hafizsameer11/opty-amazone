@@ -48,6 +48,12 @@ Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('profile')
     Route::get('/reviews', [BuyerReviewController::class, 'history']);
 });
 
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('referrals')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Buyer\BuyerReferralController::class, 'dashboard']);
+    Route::post('/claim', [\App\Http\Controllers\Buyer\BuyerReferralController::class, 'claim'])->middleware('throttle:20,1');
+    Route::get('/attributions/{attribution}', [\App\Http\Controllers\Buyer\BuyerReferralController::class, 'attribution']);
+});
+
 Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('wishlist')->group(function () {
     Route::get('/', [BuyerWishlistController::class, 'index']);
     Route::post('/{productId}', [BuyerWishlistController::class, 'store']);

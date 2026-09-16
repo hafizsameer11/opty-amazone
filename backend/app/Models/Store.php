@@ -112,6 +112,11 @@ class Store extends Model
         return $this->hasOne(StoreStatistic::class);
     }
 
+    public function referralCampaigns(): HasMany
+    {
+        return $this->hasMany(ReferralCampaign::class);
+    }
+
     /**
      * Get the categories associated with the store.
      */

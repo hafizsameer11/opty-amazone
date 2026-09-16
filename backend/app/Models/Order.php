@@ -58,6 +58,11 @@ class Order extends Model
         return $this->hasMany(StoreOrder::class);
     }
 
+    public function referralRewards(): HasMany
+    {
+        return $this->hasMany(ReferralReward::class);
+    }
+
     /**
      * Generate unique order number.
      */

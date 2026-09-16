@@ -175,6 +175,15 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('coupons'
     Route::post('/{id}/toggle-status', [SellerCouponController::class, 'toggleStatus']);
 });
 
+// Referral campaigns are intentionally independent from coupons and promotions.
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('referral-campaigns')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Seller\SellerReferralCampaignController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Seller\SellerReferralCampaignController::class, 'store']);
+    Route::get('/{id}', [\App\Http\Controllers\Seller\SellerReferralCampaignController::class, 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\Seller\SellerReferralCampaignController::class, 'update']);
+    Route::post('/{id}/action', [\App\Http\Controllers\Seller\SellerReferralCampaignController::class, 'action']);
+});
+
 // Announcement routes
 Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('announcements')->group(function () {
     Route::get('/', [SellerAnnouncementController::class, 'index']);

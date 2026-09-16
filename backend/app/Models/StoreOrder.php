@@ -104,6 +104,11 @@ class StoreOrder extends Model
         return $this->hasOne(Escrow::class);
     }
 
+    public function referralRewards(): HasMany
+    {
+        return $this->hasMany(ReferralReward::class);
+    }
+
     /**
      * Generate delivery code (OTP).
      */

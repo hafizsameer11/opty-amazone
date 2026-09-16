@@ -54,6 +54,10 @@ Route::prefix('search')->group(function () {
     Route::get('/', [App\Http\Controllers\Api\SearchController::class, 'search']);
 });
 
+// Public referral visits create a short-lived opaque attribution token. The
+// browser stores the token; no raw IP/device identifier is returned or stored.
+Route::post('/referrals/attributions', [App\Http\Controllers\Api\ReferralAttributionController::class, 'store'])->middleware('throttle:30,1');
+
 // Lens data routes (public)
 Route::prefix('lens')->name('lens.')->group(function () {
     Route::get('/types', [App\Http\Controllers\Api\LensDataController::class, 'getLensTypes'])->name('types');

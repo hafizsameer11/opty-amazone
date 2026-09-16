@@ -34,6 +34,11 @@ class RegisterRequest extends FormRequest
                 'min:8',
                 'confirmed',
             ],
+            // A token comes from a referral-link visit; a code is optional manual
+            // entry. They are validated by ReferralService inside registration's DB
+            // transaction so an invalid referral never leaves a partial account.
+            'referral_attribution_token' => ['nullable', 'string', 'max:64'],
+            'referral_code' => ['nullable', 'string', 'max:48'],
         ];
     }
 

@@ -116,6 +116,7 @@ class DeliveryVerificationService
                 }
             }
             $this->totals->sync($order);
+            app(\App\Services\Referrals\ReferralService::class)->markDelivered($so);
 
             return $so->fresh(['escrow']);
         }, 5);

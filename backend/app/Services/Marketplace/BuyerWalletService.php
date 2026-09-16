@@ -38,13 +38,19 @@ class BuyerWalletService
 
             return $existing;
         }
+        $balanceBefore = Money::decimal(Money::cents($wallet->shopping_balance));
         $balance = Money::cents($wallet->shopping_balance) + $cents;
-        abort_if($balance < 0, 422, 'Insufficient wallet balance.');
+        // Referral reversals are an explicit, auditable recovery obligation. They may
+        // take a wallet below zero so a later top-up repays the reward; all normal
+        // wallet operations retain the existing insufficient-funds protection.
+        $allowNegative = (bool) ($meta['allow_negative_balance'] ?? false);
+        abort_if($balance < 0 && ! $allowNegative, 422, 'Insufficient wallet balance.');
+        unset($meta['allow_negative_balance']);
         $wallet->update(['shopping_balance' => Money::decimal($balance)]);
 
         return Transaction::create(['user_id' => $user->id, 'payment_reference' => $reference,
             'type' => $type, 'amount' => Money::decimal($cents), 'status' => 'success',
-            'description' => str_replace('_', ' ', ucfirst($type)), 'meta' => $meta + ['balance_after' => Money::decimal($balance)]]);
+            'description' => str_replace('_', ' ', ucfirst($type)), 'meta' => $meta + ['balance_before' => $balanceBefore, 'balance_after' => Money::decimal($balance)]]);
     }
 
     public function developmentTopUp(User $user, mixed $amount, string $key): array

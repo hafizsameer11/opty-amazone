@@ -32,4 +32,9 @@ class Transaction extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function referralReward()
+    {
+        return $this->hasOne(ReferralReward::class, 'buyer_transaction_id');
+    }
 }

@@ -19,4 +19,9 @@ class PlatformLedgerEntry extends Model
     {
         return $this->belongsTo(SellerWallet::class);
     }
+
+    public function referralReward()
+    {
+        return $this->hasOne(ReferralReward::class, 'platform_ledger_entry_id');
+    }
 }

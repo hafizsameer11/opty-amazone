@@ -42,6 +42,9 @@ class PaymentService
             $this->delivery->issue($so);
             $so->order->update(['payment_method' => 'wallet']);
             $this->totals->sync($so->order);
+            // Referral candidates are non-financial until delivery and the configured
+            // return-protection period complete. Capture only after verified payment.
+            app(\App\Services\Referrals\ReferralService::class)->captureOrderCandidates($so);
 
             return $so->fresh(['escrow', 'payment']);
         }, 5);

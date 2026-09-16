@@ -59,6 +59,11 @@ class Category extends Model
         return $this->hasMany(Product::class);
     }
 
+    public function referralCampaigns(): BelongsToMany
+    {
+        return $this->belongsToMany(ReferralCampaign::class, 'referral_campaign_categories');
+    }
+
     /**
      * Get lens types configured for this category by a specific store.
      */
@@ -109,4 +114,3 @@ class Category extends Model
             ->withTimestamps();
     }
 }
-

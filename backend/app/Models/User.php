@@ -8,12 +8,24 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::created(function (self $user) {
+            // Keep code allocation independent of wallets/points. The schema guard
+            // makes deployments safe while the migration is being applied.
+            if ($user->isBuyer() && Schema::hasTable('referral_codes')) {
+                app(\App\Services\Referrals\ReferralService::class)->ensureBuyerCode($user);
+            }
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -135,6 +147,27 @@ class User extends Authenticatable implements MustVerifyEmail
     public function pointTransactions()
     {
         return $this->hasMany(PointTransaction::class);
+    }
+
+    /** Financial referrals deliberately use the existing wallet, not PointService. */
+    public function referralCode()
+    {
+        return $this->hasOne(ReferralCode::class);
+    }
+
+    public function referralConversion()
+    {
+        return $this->hasOne(ReferralConversion::class, 'referred_user_id');
+    }
+
+    public function referralsMade()
+    {
+        return $this->hasMany(ReferralConversion::class, 'referrer_user_id');
+    }
+
+    public function referralRewardsEarned()
+    {
+        return $this->hasMany(ReferralReward::class, 'referrer_user_id');
     }
 
     /**

@@ -20,6 +20,13 @@ Artisan::command('inspire', function () {
     ->name('refresh-ad-campaigns')->everyMinute()->withoutOverlapping();
 \Illuminate\Support\Facades\Schedule::job(new \App\Jobs\AggregateAdAnalytics)->everyFiveMinutes()->withoutOverlapping();
 \Illuminate\Support\Facades\Schedule::job(new \App\Jobs\ReconcileAdSpending)->hourly()->withoutOverlapping();
+\Illuminate\Support\Facades\Schedule::call(fn () => app(\App\Services\Referrals\ReferralService::class)->qualifyDueRewards())
+    ->name('qualify-referral-rewards')->hourly()->withoutOverlapping();
+
+Artisan::command('referrals:qualify {--limit=100 : Maximum pending rewards to process}', function () {
+    $count = app(\App\Services\Referrals\ReferralService::class)->qualifyDueRewards((int) $this->option('limit'));
+    $this->info("Processed {$count} referral reward candidate(s).");
+})->purpose('Qualify and fund due referral rewards after the protection period.');
 
 Artisan::command('ads:import-legacy {--apply : Import snapshots; default is read-only}', function () {
     $query = \App\Models\Product::withTrashed()->where(fn ($q) => $q->where('is_boosted', true)

@@ -153,6 +153,7 @@ class Product extends Model
 
     public function reviews(): HasMany { return $this->hasMany(ProductReview::class); }
     public function wishlistItems(): HasMany { return $this->hasMany(WishlistItem::class); }
+    public function referralCampaigns(): BelongsToMany { return $this->belongsToMany(ReferralCampaign::class, 'referral_campaign_products'); }
 
     /**
      * Get the default variant.

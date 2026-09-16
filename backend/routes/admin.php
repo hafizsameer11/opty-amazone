@@ -89,6 +89,18 @@ Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function ()
         Route::get('/transactions', [\App\Http\Controllers\Admin\AdminPointsController::class, 'getTransactions']);
     });
 
+    Route::prefix('referrals')->group(function () {
+        Route::get('/settings', [\App\Http\Controllers\Admin\AdminReferralController::class, 'settings']);
+        Route::put('/settings', [\App\Http\Controllers\Admin\AdminReferralController::class, 'updateSettings']);
+        Route::get('/campaigns', [\App\Http\Controllers\Admin\AdminReferralController::class, 'campaigns']);
+        Route::post('/campaigns/{id}/action', [\App\Http\Controllers\Admin\AdminReferralController::class, 'campaignAction']);
+        Route::get('/conversions', [\App\Http\Controllers\Admin\AdminReferralController::class, 'conversions']);
+        Route::get('/rewards', [\App\Http\Controllers\Admin\AdminReferralController::class, 'rewards']);
+        Route::post('/rewards/{id}/action', [\App\Http\Controllers\Admin\AdminReferralController::class, 'rewardAction']);
+        Route::get('/audit', [\App\Http\Controllers\Admin\AdminReferralController::class, 'audit']);
+        Route::get('/export', [\App\Http\Controllers\Admin\AdminReferralController::class, 'export']);
+    });
+
     Route::prefix('store-chat')->group(function () {
         Route::get('/unread-count', [\App\Http\Controllers\Admin\AdminStoreChatController::class, 'unreadCount']);
         Route::get('/conversations', [\App\Http\Controllers\Admin\AdminStoreChatController::class, 'index']);
