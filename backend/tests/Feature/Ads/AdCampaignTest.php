@@ -425,10 +425,10 @@ class AdCampaignTest extends TestCase
         $this->postJson('/api/buyer/wallet/top-up', ['stripe_session_id' => $session['id']])->assertUnprocessable();
     }
 
-    public function test_development_seller_wallet_topup_and_boost_ledger_are_traceable(): void
+    public function test_seller_wallet_topup_and_boost_ledger_are_traceable(): void
     {
         Sanctum::actingAs($this->seller);
-        $this->postJson('/api/seller/wallet/development-top-ups', ['amount' => '25.00', 'idempotency_key' => (string) Str::uuid()])
+        $this->postJson('/api/seller/wallet/top-ups', ['amount' => '25.00', 'idempotency_key' => (string) Str::uuid()])
             ->assertOk()->assertJsonPath('data.transaction.type', 'seller_wallet_top_up');
         $this->assertSame('130.00', $this->sellerWallet->fresh()->available_balance);
         $this->assertSame('25.00', $this->sellerWallet->fresh()->top_up_total);

@@ -11,15 +11,15 @@ class SellerWalletFundingService
 {
     public function __construct(private SellerWalletService $wallets) {}
 
-    public function developmentEnabled(): bool
+    public function fundingEnabled(): bool
     {
-        return app()->environment(['local', 'testing']) && (bool) config('marketplace.development_seller_wallet_top_up');
+        return (bool) config('marketplace.seller_wallet_top_up_enabled');
     }
 
     public function topUp(User $seller, mixed $amount, string $idempotencyKey): array
     {
         abort_unless($seller->isSeller() && $seller->store, 403);
-        abort_unless($this->developmentEnabled(), 403, 'Development seller-wallet funding is disabled.');
+        abort_unless($this->fundingEnabled(), 403, 'Wallet funding is currently unavailable.');
         $cents = Money::cents($amount);
         if ($cents < 500 || $cents > config('marketplace.top_up_max_cents')) {
             throw ValidationException::withMessages(['amount' => 'Top-up must be between EUR 5 and EUR 100,000.']);
@@ -38,7 +38,7 @@ class SellerWalletFundingService
             }
             $entry = $this->wallets->entry($wallet, $reference, 'seller_wallet_top_up', $cents,
                 ['available_balance' => $cents, 'top_up_total' => $cents], null, null, null,
-                'Development seller wallet top-up', ['payment_method' => 'development']);
+                'Seller wallet top-up', ['payment_method' => 'manual']);
 
             return ['wallet' => $wallet->fresh(), 'transaction' => $entry];
         }, 5);

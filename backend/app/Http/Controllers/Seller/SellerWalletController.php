@@ -41,14 +41,14 @@ class SellerWalletController extends Controller
 
     public function capabilities()
     {
-        return R::success(['development_top_up' => app(SellerWalletFundingService::class)->developmentEnabled(), 'currency' => 'EUR']);
+        return R::success(['wallet_top_up' => app(SellerWalletFundingService::class)->fundingEnabled(), 'currency' => 'EUR']);
     }
 
-    public function developmentTopUp(Request $r)
+    public function topUp(Request $r)
     {
         $data = $r->validate(['amount' => 'required|numeric|min:5|max:100000', 'idempotency_key' => 'required|uuid']);
 
-        return R::success(app(SellerWalletFundingService::class)->topUp($r->user(), $data['amount'], $data['idempotency_key']), 'Seller wallet funded for development testing.');
+        return R::success(app(SellerWalletFundingService::class)->topUp($r->user(), $data['amount'], $data['idempotency_key']), 'Funds were added to your Seller Wallet.');
     }
 
     public function withdraw(Request $r)
