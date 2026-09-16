@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class SupportTicket extends Model
 {
     use HasFactory;
-    protected $fillable = ['ticket_no','user_id','user_role','subject','category','description','priority','status','order_id','store_id','product_id','assigned_admin_id','resolved_at','closed_at'];
+    protected $fillable = ['ticket_no','user_id','user_role','subject','category','description','priority','status','user_unread_count','admin_unread_count','order_id','store_id','product_id','assigned_admin_id','resolved_at','closed_at'];
     protected $casts = ['resolved_at' => 'datetime', 'closed_at' => 'datetime'];
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
     public function assignedAdmin(): BelongsTo { return $this->belongsTo(User::class, 'assigned_admin_id'); }

@@ -11,6 +11,9 @@ use App\Http\Controllers\Buyer\BuyerOrderController;
 use App\Http\Controllers\Buyer\BuyerWalletController;
 use App\Http\Controllers\Buyer\BuyerCouponController;
 use App\Http\Controllers\Buyer\BuyerStoreChatController;
+use App\Http\Controllers\Buyer\BuyerWishlistController;
+use App\Http\Controllers\Buyer\BuyerReviewController;
+use App\Http\Controllers\Support\SupportTicketController;
 use App\Http\Controllers\Buyer\PrescriptionController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +45,24 @@ Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('profile')
     Route::post('/verify-phone/send', [BuyerUserController::class, 'sendPhoneVerification']);
     Route::post('/verify-phone', [BuyerUserController::class, 'verifyPhone']);
     Route::delete('/', [BuyerUserController::class, 'deleteAccount']);
+    Route::get('/reviews', [BuyerReviewController::class, 'history']);
+});
+
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('wishlist')->group(function () {
+    Route::get('/', [BuyerWishlistController::class, 'index']);
+    Route::post('/{productId}', [BuyerWishlistController::class, 'store']);
+    Route::delete('/{productId}', [BuyerWishlistController::class, 'destroy']);
+    Route::get('/{productId}/status', [BuyerWishlistController::class, 'status']);
+});
+
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('support')->group(function () {
+    Route::get('/tickets', [SupportTicketController::class, 'index']);
+    Route::post('/tickets', [SupportTicketController::class, 'store']);
+    Route::get('/tickets/{id}', [SupportTicketController::class, 'show']);
+    Route::post('/tickets/{id}/messages', [SupportTicketController::class, 'reply']);
+    Route::post('/tickets/{id}/close', [SupportTicketController::class, 'close']);
+    Route::post('/tickets/{id}/reopen', [SupportTicketController::class, 'reopen']);
+    Route::get('/messages/{id}/attachment', [\App\Http\Controllers\Support\SupportAttachmentController::class, 'show']);
 });
 
 Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('addresses')->group(function () {
@@ -58,8 +79,10 @@ Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('stores')-
     Route::get('/{id}/follow-status', [BuyerStoreController::class, 'followStatus']);
     Route::post('/{id}/follow', [BuyerStoreController::class, 'followStore']);
     Route::post('/{id}/unfollow', [BuyerStoreController::class, 'unfollowStore']);
-    Route::get('/{id}/reviews', [BuyerStoreController::class, 'getStoreReviews']);
-    Route::post('/{id}/reviews', [BuyerStoreController::class, 'createReview']);
+    Route::get('/{id}/reviews', [BuyerReviewController::class, 'storeIndex']);
+    Route::post('/{id}/reviews', [BuyerReviewController::class, 'storeStore']);
+    Route::put('/reviews/{id}', [BuyerReviewController::class, 'storeUpdate']);
+    Route::delete('/reviews/{id}', [BuyerReviewController::class, 'storeDestroy']);
     Route::post('/{id}/report', [\App\Http\Controllers\Buyer\BuyerStoreReportController::class, 'store']);
     Route::get('/{id}/chat', [BuyerStoreChatController::class, 'show']);
     Route::get('/{id}/chat/messages', [BuyerStoreChatController::class, 'messages']);
@@ -72,11 +95,13 @@ Route::prefix('product')->group(function () {
     Route::get('/flash-offers', [BuyerProductController::class, 'flashOffers']);
     Route::get('/product-details/{id}', [BuyerProductController::class, 'getDetails']);
     Route::get('/categories/{categorySlug}/products', [BuyerProductController::class, 'getByCategory']);
-    Route::get('/{id}/reviews', [BuyerProductController::class, 'getReviews']);
+    Route::get('/{id}/reviews', [BuyerReviewController::class, 'productIndex']);
 });
 
 Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('product')->group(function () {
-    Route::post('/{id}/reviews', [BuyerProductController::class, 'createReview']);
+    Route::post('/{id}/reviews', [BuyerReviewController::class, 'productStore']);
+    Route::put('/reviews/{id}', [BuyerReviewController::class, 'productUpdate']);
+    Route::delete('/reviews/{id}', [BuyerReviewController::class, 'productDestroy']);
 });
 
 // Cart routes

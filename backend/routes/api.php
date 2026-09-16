@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 require __DIR__.'/ads.php';
 require __DIR__.'/commerce-campaigns.php';
 
+Route::middleware('auth:sanctum')->get('/support/messages/{id}/attachment', [App\Http\Controllers\Support\SupportAttachmentController::class, 'show']);
+
 /*
 |--------------------------------------------------------------------------
 | API Routes

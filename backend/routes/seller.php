@@ -21,6 +21,7 @@ use App\Http\Controllers\Seller\SellerProductPrescriptionDropdownController;
 use App\Http\Controllers\Seller\SellerStoreChatController;
 use App\Http\Controllers\Seller\SellerAdminChatController;
 use App\Http\Controllers\Seller\SellerNotificationBadgeController;
+use App\Http\Controllers\Support\SupportTicketController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -50,6 +51,16 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('profile'
     Route::post('/verify-phone/send', [SellerUserController::class, 'sendPhoneVerification']);
     Route::post('/verify-phone', [SellerUserController::class, 'verifyPhone']);
     Route::delete('/', [SellerUserController::class, 'deleteAccount']);
+});
+
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('support')->group(function () {
+    Route::get('/tickets', [SupportTicketController::class, 'index']);
+    Route::post('/tickets', [SupportTicketController::class, 'store']);
+    Route::get('/tickets/{id}', [SupportTicketController::class, 'show']);
+    Route::post('/tickets/{id}/messages', [SupportTicketController::class, 'reply']);
+    Route::post('/tickets/{id}/close', [SupportTicketController::class, 'close']);
+    Route::post('/tickets/{id}/reopen', [SupportTicketController::class, 'reopen']);
+    Route::get('/messages/{id}/attachment', [\App\Http\Controllers\Support\SupportAttachmentController::class, 'show']);
 });
 
 Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('store')->group(function () {

@@ -13,5 +13,5 @@ class SupportMessage extends Model
     protected $appends = ['attachment_url'];
     public function ticket(): BelongsTo { return $this->belongsTo(SupportTicket::class, 'support_ticket_id'); }
     public function sender(): BelongsTo { return $this->belongsTo(User::class, 'sender_id'); }
-    public function getAttachmentUrlAttribute(): ?string { return $this->attachment_path ? Storage::disk('public')->url($this->attachment_path) : null; }
+    public function getAttachmentUrlAttribute(): ?string { return $this->attachment_path ? url('/api/support/messages/'.$this->id.'/attachment') : null; }
 }

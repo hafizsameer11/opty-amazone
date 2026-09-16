@@ -98,6 +98,14 @@ Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function ()
         Route::post('/conversations/{id}/messages', [\App\Http\Controllers\Admin\AdminStoreChatController::class, 'storeMessage']);
     });
 
+    Route::prefix('support/tickets')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\AdminSupportTicketController::class, 'index']);
+        Route::get('/{id}', [\App\Http\Controllers\Admin\AdminSupportTicketController::class, 'show']);
+        Route::post('/{id}/messages', [\App\Http\Controllers\Admin\AdminSupportTicketController::class, 'reply']);
+        Route::put('/{id}', [\App\Http\Controllers\Admin\AdminSupportTicketController::class, 'update']);
+    });
+    Route::get('/support/messages/{id}/attachment', [\App\Http\Controllers\Support\SupportAttachmentController::class, 'show']);
+
     Route::prefix('store-reports')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'index']);
         Route::get('/{id}', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'show']);
