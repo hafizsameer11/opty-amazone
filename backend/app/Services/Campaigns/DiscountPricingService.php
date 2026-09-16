@@ -71,7 +71,15 @@ class DiscountPricingService
                 if ($ranked->isEmpty()) { break; }
                 $winner = $ranked->first(); $c = $winner['campaign']; $discount = $winner['discount'];
                 $r['final_line_cents'] -= $discount;
-                $r['campaigns'][] = ['id' => $c->id, 'name' => $c->name, 'discount_amount' => $discount / 100];
+                // The end instant travels with every calculated price.  Buyers use this
+                // canonical UTC value for the promotion countdown; it is never derived
+                // from a product's (potentially stale) display price.
+                $r['campaigns'][] = [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'discount_amount' => $discount / 100,
+                    'ends_at' => $c->ends_at->utc()->toISOString(),
+                ];
                 if (!$c->stacking) { break; }
                 $remaining = $remaining->filter(fn ($other) => $other->id !== $c->id && $other->stacking);
             }

@@ -151,6 +151,9 @@ class Product extends Model
         return $this->hasMany(ProductVariant::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    public function reviews(): HasMany { return $this->hasMany(ProductReview::class); }
+    public function wishlistItems(): HasMany { return $this->hasMany(WishlistItem::class); }
+
     /**
      * Get the default variant.
      */
@@ -217,4 +220,3 @@ class Product extends Model
             ->where('is_muted', false);
     }
 }
-

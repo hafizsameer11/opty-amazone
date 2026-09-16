@@ -116,6 +116,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(StoreReview::class);
     }
 
+    public function productReviews() { return $this->hasMany(ProductReview::class); }
+    public function wishlistItems() { return $this->hasMany(WishlistItem::class); }
+    public function supportTickets() { return $this->hasMany(SupportTicket::class); }
+    public function orders() { return $this->hasMany(Order::class); }
+
     /**
      * Get the user's wallet.
      */
