@@ -266,7 +266,18 @@ class ReferralService
             match ($action) {
                 'pause' => (function () use ($campaign) { abort_unless(in_array($campaign->status, ['active', 'scheduled']), 409, 'Only active or scheduled campaigns can be paused.'); $campaign->update(['status' => 'paused']); })(),
                 'resume' => (function () use ($campaign) { abort_unless($campaign->status === 'paused' && $campaign->approval_status === 'approved', 409, 'Campaign approval is required before resuming.'); $campaign->update(['status' => $this->approvedCampaignStatus($campaign->activation_mode, $campaign->starts_at)]); })(),
-                'approve' => (function () use ($campaign, $actor) { abort_unless($campaign->status === 'pending_approval', 409, 'Only pending campaigns can be approved.'); $campaign->update(['status' => $this->approvedCampaignStatus($campaign->activation_mode, $campaign->starts_at), 'approval_status' => 'approved', 'approved_by' => $actor->id, 'approved_at' => now(), 'rejection_reason' => null]); })(),
+                'approve' => (function () use ($campaign, $actor) {
+                    abort_unless($campaign->status === 'pending_approval', 409, 'Only pending campaigns can be approved.');
+                    $approvedAt = now();
+                    // "Run now" starts at approval, not at draft creation. Otherwise a
+                    // stale/future draft time can make an active campaign invisible.
+                    $startsAt = $campaign->activation_mode === 'immediate' ? $approvedAt : $campaign->starts_at;
+                    $campaign->update([
+                        'status' => $this->approvedCampaignStatus($campaign->activation_mode, $startsAt),
+                        'approval_status' => 'approved', 'approved_by' => $actor->id,
+                        'approved_at' => $approvedAt, 'starts_at' => $startsAt, 'rejection_reason' => null,
+                    ]);
+                })(),
                 'suspend' => $campaign->update(['status' => 'suspended', 'approval_status' => 'suspended', 'rejection_reason' => $reason]),
                 'reject' => $this->rejectCampaign($campaign, $actor, (string) $reason),
                 'archive' => (function () use ($campaign, $actor) { abort_if($campaign->status === 'archived', 409, 'Campaign is already archived.'); $this->archiveCampaign($campaign, $actor); })(),

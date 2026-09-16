@@ -5,7 +5,6 @@ namespace Tests\Feature\Referrals;
 use App\Models\Order;
 use App\Models\PlatformLedgerEntry;
 use App\Models\ReferralCampaign;
-use App\Models\ReferralCode;
 use App\Models\ReferralConversion;
 use App\Models\ReferralReward;
 use App\Models\Store;
@@ -93,8 +92,15 @@ class ReferralServiceTest extends TestCase
         $immediate = $this->pendingCampaign($seller, $store, [
             'identifier' => 'REF-IMMEDIATE-1', 'activation_mode' => 'immediate', 'starts_at' => now()->addDay(),
         ]);
+        $approvalStartedAt = now();
         $service->setCampaignStatus($immediate, $admin, 'approve');
-        $this->assertSame('active', $immediate->fresh()->status);
+        $immediate->refresh();
+        $this->assertSame('active', $immediate->status);
+        $this->assertTrue($immediate->starts_at->gte($approvalStartedAt->copy()->startOfSecond()));
+        $this->assertTrue($immediate->starts_at->lte(now()));
+
+        $buyer = User::factory()->create(['role' => 'buyer']);
+        $this->assertTrue($service->buyerDashboard($buyer)['campaigns']->contains('id', $immediate->id));
     }
 
     public function test_platform_reward_uses_existing_buyer_wallet_transaction_and_immutable_platform_ledger(): void
