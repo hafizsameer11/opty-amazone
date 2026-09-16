@@ -470,7 +470,9 @@ class ReferralService
         $code = $this->ensureBuyerCode($buyer);
         $rewards = ReferralReward::with(['campaign:id,name,identifier', 'order:id,order_no', 'storeOrder:id,store_id', 'referred:id,name,email'])
             ->where('referrer_user_id', $buyer->id)->latest('id');
-        $counts = (clone $rewards)->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
+        // The history query is ordered by ID. Clear that order before grouping,
+        // because MySQL's ONLY_FULL_GROUP_BY mode rejects ORDER BY id here.
+        $counts = (clone $rewards)->reorder()->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
         $campaigns = ReferralCampaign::with(['store:id,name', 'products:id,name', 'categories:id,name'])
             ->where('status', 'active')->where('approval_status', 'approved')->where('starts_at', '<=', now())
             ->where(fn (Builder $q) => $q->whereNull('ends_at')->orWhere('ends_at', '>', now()))->orderBy('ends_at')->get();
