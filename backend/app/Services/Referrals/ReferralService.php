@@ -83,6 +83,7 @@ class ReferralService
     /** Creates a tokenized, privacy-minimised public referral visit. */
     public function createAttribution(string $codeValue, ?string $campaignIdentifier, ?int $productId, ?User $viewer, ?string $ip, ?string $userAgent): array
     {
+        $this->activateDueCampaigns();
         $code = ReferralCode::with('user')->where('code', strtoupper(trim($codeValue)))->where('is_active', true)->first();
         if (! $code || ! $code->user?->isBuyer()) {
             throw ValidationException::withMessages(['ref' => ['This referral code is invalid or inactive.']]);
@@ -186,6 +187,7 @@ class ReferralService
         return DB::transaction(function () use ($seller, $data) {
             $store = $seller->store;
             $needsApproval = (bool) $this->settings()['seller_referrals_require_approval'];
+            $activation = $this->campaignActivationAttributes($data);
             $budget = Money::cents($data['budget_amount']);
             abort_if($budget <= 0, 422, 'Campaign budget must be positive.');
             $wallet = $this->sellers->locked($store->id);
@@ -193,7 +195,7 @@ class ReferralService
             $campaign = ReferralCampaign::create([
                 'store_id' => $store->id, 'seller_id' => $seller->id, 'name' => $data['name'],
                 'identifier' => $this->campaignIdentifier($store->id), 'scope_type' => $data['scope_type'],
-                'status' => $needsApproval ? 'pending_approval' : 'active',
+                'status' => $needsApproval ? 'pending_approval' : $this->approvedCampaignStatus($activation['activation_mode'], $activation['starts_at']),
                 'approval_status' => $needsApproval ? 'pending' : 'approved',
                 'approved_at' => $needsApproval ? null : now(), 'reward_type' => $data['reward_type'],
                 'reward_amount' => $data['reward_amount'], 'max_reward_per_order' => $data['max_reward_per_order'] ?? null,
@@ -201,7 +203,7 @@ class ReferralService
                 'usage_limit' => $data['usage_limit'] ?? null, 'monthly_reward_limit' => $data['monthly_reward_limit'] ?? null,
                 'per_buyer_limit' => $data['per_buyer_limit'] ?? null, 'minimum_order_amount' => $data['minimum_order_amount'] ?? 0,
                 'minimum_quantity' => $data['minimum_quantity'] ?? 1, 'new_customer_only' => $data['new_customer_only'] ?? true,
-                'platform_stacking' => $data['platform_stacking'] ?? 'exclusive', 'starts_at' => $data['starts_at'],
+                'platform_stacking' => $data['platform_stacking'] ?? 'exclusive', 'activation_mode' => $activation['activation_mode'], 'starts_at' => $activation['starts_at'],
                 'ends_at' => $data['ends_at'] ?? null, 'metadata' => $data['metadata'] ?? null,
             ]);
             $this->syncScope($campaign, $data['product_ids'] ?? [], $data['category_ids'] ?? []);
@@ -219,7 +221,15 @@ class ReferralService
         return DB::transaction(function () use ($input, $seller, $data) {
             $campaign = ReferralCampaign::whereKey($input->id)->lockForUpdate()->firstOrFail();
             abort_if(in_array($campaign->status, ['archived', 'suspended']), 409, 'Archived or suspended campaigns cannot be edited.');
-            $payload = array_intersect_key($data, array_flip(['name', 'scope_type', 'reward_type', 'reward_amount', 'max_reward_per_order', 'usage_limit', 'monthly_reward_limit', 'per_buyer_limit', 'minimum_order_amount', 'minimum_quantity', 'new_customer_only', 'platform_stacking', 'starts_at', 'ends_at', 'metadata']));
+            $payload = array_intersect_key($data, array_flip(['name', 'scope_type', 'reward_type', 'reward_amount', 'max_reward_per_order', 'usage_limit', 'monthly_reward_limit', 'per_buyer_limit', 'minimum_order_amount', 'minimum_quantity', 'new_customer_only', 'platform_stacking', 'ends_at', 'metadata']));
+            if (array_key_exists('activation_mode', $data) || array_key_exists('starts_at', $data)) {
+                $activation = $this->campaignActivationAttributes($data, $campaign);
+                $payload['activation_mode'] = $activation['activation_mode'];
+                $payload['starts_at'] = $activation['starts_at'];
+                if ($campaign->approval_status === 'approved' && $campaign->status !== 'paused') {
+                    $payload['status'] = $this->approvedCampaignStatus($activation['activation_mode'], $activation['starts_at']);
+                }
+            }
             $newBudget = array_key_exists('budget_amount', $data) ? Money::cents($data['budget_amount']) : Money::cents($campaign->budget_amount);
             $spent = Money::cents($campaign->budget_spent);
             abort_if($newBudget < $spent, 422, 'Campaign budget cannot be lower than rewarded referral cost.');
@@ -254,9 +264,9 @@ class ReferralService
                 abort(403);
             }
             match ($action) {
-                'pause' => (function () use ($campaign) { abort_unless($campaign->status === 'active', 409, 'Only active campaigns can be paused.'); $campaign->update(['status' => 'paused']); })(),
-                'resume' => (function () use ($campaign) { abort_unless($campaign->status === 'paused' && $campaign->approval_status === 'approved', 409, 'Campaign approval is required before resuming.'); $campaign->update(['status' => 'active']); })(),
-                'approve' => (function () use ($campaign, $actor) { abort_unless($campaign->status === 'pending_approval', 409, 'Only pending campaigns can be approved.'); $campaign->update(['status' => 'active', 'approval_status' => 'approved', 'approved_by' => $actor->id, 'approved_at' => now(), 'rejection_reason' => null]); })(),
+                'pause' => (function () use ($campaign) { abort_unless(in_array($campaign->status, ['active', 'scheduled']), 409, 'Only active or scheduled campaigns can be paused.'); $campaign->update(['status' => 'paused']); })(),
+                'resume' => (function () use ($campaign) { abort_unless($campaign->status === 'paused' && $campaign->approval_status === 'approved', 409, 'Campaign approval is required before resuming.'); $campaign->update(['status' => $this->approvedCampaignStatus($campaign->activation_mode, $campaign->starts_at)]); })(),
+                'approve' => (function () use ($campaign, $actor) { abort_unless($campaign->status === 'pending_approval', 409, 'Only pending campaigns can be approved.'); $campaign->update(['status' => $this->approvedCampaignStatus($campaign->activation_mode, $campaign->starts_at), 'approval_status' => 'approved', 'approved_by' => $actor->id, 'approved_at' => now(), 'rejection_reason' => null]); })(),
                 'suspend' => $campaign->update(['status' => 'suspended', 'approval_status' => 'suspended', 'rejection_reason' => $reason]),
                 'reject' => $this->rejectCampaign($campaign, $actor, (string) $reason),
                 'archive' => (function () use ($campaign, $actor) { abort_if($campaign->status === 'archived', 409, 'Campaign is already archived.'); $this->archiveCampaign($campaign, $actor); })(),
@@ -270,6 +280,7 @@ class ReferralService
     /** Payment success is the earliest moment a financial referral candidate can exist. */
     public function captureOrderCandidates(StoreOrder $input): void
     {
+        $this->activateDueCampaigns();
         DB::transaction(function () use ($input) {
             $storeOrder = StoreOrder::with(['order.user.referralConversion', 'items.product' => fn ($q) => $q->withTrashed()])->lockForUpdate()->findOrFail($input->id);
             if ($storeOrder->payment_status !== 'paid' || $storeOrder->status === 'refunded') {
@@ -297,6 +308,28 @@ class ReferralService
                         ->update(['status' => 'rejected', 'reason' => 'Seller campaign has priority for this purchase.', 'rejected_at' => now()]);
                 }
             }
+        }, 5);
+    }
+
+    /** Promote approved scheduled campaigns exactly once when their start time arrives. */
+    public function activateDueCampaigns(int $limit = 250): int
+    {
+        return DB::transaction(function () use ($limit) {
+            $campaigns = ReferralCampaign::query()
+                ->where('status', 'scheduled')
+                ->where('approval_status', 'approved')
+                ->where('activation_mode', 'scheduled')
+                ->where('starts_at', '<=', now())
+                ->orderBy('starts_at')
+                ->limit(max(1, min($limit, 1000)))
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($campaigns as $campaign) {
+                $campaign->update(['status' => 'active']);
+            }
+
+            return $campaigns->count();
         }, 5);
     }
 
@@ -433,6 +466,7 @@ class ReferralService
 
     public function buyerDashboard(User $buyer, ?int $eligibleProductId = null): array
     {
+        $this->activateDueCampaigns();
         $code = $this->ensureBuyerCode($buyer);
         $rewards = ReferralReward::with(['campaign:id,name,identifier', 'order:id,order_no', 'storeOrder:id,store_id', 'referred:id,name,email'])
             ->where('referrer_user_id', $buyer->id)->latest('id');
@@ -471,6 +505,37 @@ class ReferralService
             'conversion_rate' => $clicks ? round($orders / $clicks * 100, 2) : 0,
             'average_order_value' => $orders ? round($revenue / $orders, 2) : 0,
             'budget_used' => (float) $campaign->budget_spent, 'budget_remaining' => (float) $campaign->budget_reserved];
+    }
+
+    /** @return array{activation_mode:string,starts_at:\Illuminate\Support\Carbon} */
+    private function campaignActivationAttributes(array $data, ?ReferralCampaign $campaign = null): array
+    {
+        $mode = $data['activation_mode'] ?? $campaign?->activation_mode ?? 'immediate';
+        if ($mode === 'immediate') {
+            $startsAt = now();
+            if (! empty($data['ends_at']) && now()->parse($data['ends_at'])->lte($startsAt)) {
+                throw ValidationException::withMessages(['ends_at' => ['The campaign end time must be after its activation time.']]);
+            }
+            return ['activation_mode' => 'immediate', 'starts_at' => $startsAt];
+        }
+
+        $startsAt = array_key_exists('starts_at', $data) ? now()->parse($data['starts_at']) : $campaign?->starts_at;
+        if (! $startsAt) {
+            throw ValidationException::withMessages(['starts_at' => ['Choose a future activation time for a scheduled campaign.']]);
+        }
+        if (! $startsAt->isFuture()) {
+            throw ValidationException::withMessages(['starts_at' => ['A scheduled campaign must start in the future. Choose Run now to activate after approval.']]);
+        }
+        if (! empty($data['ends_at']) && now()->parse($data['ends_at'])->lte($startsAt)) {
+            throw ValidationException::withMessages(['ends_at' => ['The campaign end time must be after its activation time.']]);
+        }
+
+        return ['activation_mode' => 'scheduled', 'starts_at' => $startsAt];
+    }
+
+    private function approvedCampaignStatus(string $activationMode, \Illuminate\Support\Carbon $startsAt): string
+    {
+        return $activationMode === 'scheduled' && $startsAt->isFuture() ? 'scheduled' : 'active';
     }
 
     private function createSellerCandidate(StoreOrder $storeOrder, ReferralAttribution $attribution): bool

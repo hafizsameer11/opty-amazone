@@ -27,6 +27,9 @@ return new class extends Migration
             $table->string('scope_type', 24); // store, products, categories, mixed
             $table->string('status', 24)->default('pending_approval');
             $table->string('approval_status', 24)->default('pending');
+            // Immediate campaigns start as soon as approval is granted. Scheduled
+            // campaigns remain scheduled until their explicit start time.
+            $table->string('activation_mode', 16)->default('immediate');
             $table->foreignId('approved_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->dateTime('approved_at')->nullable();
             $table->string('reward_type', 16); // fixed, percentage

@@ -13,6 +13,11 @@ return new class extends Migration
         if (! Schema::hasColumn('frame_sizes', 'product_variant_id')) {
             Schema::table('frame_sizes', fn (Blueprint $table) => $table->foreignId('product_variant_id')->nullable()->constrained('product_variants')->nullOnDelete());
         }
+        // SQLite cannot alter a column's nullability or add/drop a foreign key
+        // in place. Its fresh schema keeps the nullable compatibility column.
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         // Sizes must belong to a color variation — drop any leftover standalone rows
         DB::table('frame_sizes')->whereNull('product_variant_id')->delete();
 
@@ -37,6 +42,9 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         Schema::table('frame_sizes', function (Blueprint $table) {
             $table->dropForeign(['product_variant_id']);
         });

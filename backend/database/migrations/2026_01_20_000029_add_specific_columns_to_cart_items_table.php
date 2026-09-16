@@ -106,7 +106,10 @@ return new class extends Migration
     private function hasIndex($table, $indexName): bool
     {
         $connection = Schema::getConnection();
-        $database = $connection->getDatabaseName();
+        if ($connection->getDriverName() === 'sqlite') {
+            $result = $connection->select("PRAGMA index_list('{$table}')");
+            return collect($result)->contains(fn ($index) => ($index->name ?? null) === $indexName);
+        }
         $result = $connection->select("SHOW INDEX FROM `{$table}` WHERE Key_name = ?", [$indexName]);
         return count($result) > 0;
     }
@@ -148,4 +151,3 @@ return new class extends Migration
         });
     }
 };
-

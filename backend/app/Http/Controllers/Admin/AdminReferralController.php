@@ -37,6 +37,7 @@ class AdminReferralController extends Controller
 
     public function campaigns(Request $request, ReferralService $referrals)
     {
+        $referrals->activateDueCampaigns();
         $rows = ReferralCampaign::with(['store:id,name', 'seller:id,name,email', 'products:id,name', 'categories:id,name'])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->filled('approval_status'), fn ($q) => $q->where('approval_status', $request->string('approval_status')))->latest('id')->paginate(25);

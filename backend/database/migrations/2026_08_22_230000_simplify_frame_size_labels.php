@@ -8,6 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         // Free-text size labels (e.g. "12mm", "Medium") — dimensions optional
         DB::statement('ALTER TABLE frame_sizes MODIFY lens_width DECIMAL(5,2) NOT NULL DEFAULT 0');
         DB::statement('ALTER TABLE frame_sizes MODIFY bridge_width DECIMAL(5,2) NOT NULL DEFAULT 0');
@@ -17,6 +20,9 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement('ALTER TABLE frame_sizes MODIFY lens_width DECIMAL(5,2) NOT NULL');
         DB::statement('ALTER TABLE frame_sizes MODIFY bridge_width DECIMAL(5,2) NOT NULL');
         DB::statement('ALTER TABLE frame_sizes MODIFY temple_length DECIMAL(5,2) NOT NULL');
