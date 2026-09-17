@@ -2,6 +2,9 @@
  * Fields persisted on cart lines and copied to order_items — used to render selections everywhere.
  */
 export interface OrderLineSelections {
+  original_price?: number;
+  campaign_discount_amount?: number;
+  campaign_pricing?: import('@/services/campaign-service').CampaignPrice;
   variant_id?: number | null;
   variant?: {
     id?: number;

@@ -23,11 +23,19 @@ export interface StoreOrder {
   id: number;
   order_id: number;
   store_id: number;
-  status: 'pending' | 'accepted' | 'rejected' | 'paid' | 'processing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  status: 'pending' | 'awaiting_payment' | 'rejected' | 'paid' | 'processing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'refunded' | 'disputed';
   subtotal: number;
   delivery_fee: number;
   total: number;
-  delivery_code: string;
+  discount_total?: number;
+  payment_status?: string;
+  financial_version?: number;
+  delivery_address_snapshot?: Record<string, string | number | null>;
+  delivery_code_expires_at?: string;
+  delivery_verified_at?: string;
+  dispute_reason?: string;
+  escrow?: { id: number; amount: number; status: string };
+  delivery_code?: string | null;
   estimated_delivery_date?: string;
   delivery_method?: string;
   delivery_notes?: string;
@@ -42,18 +50,14 @@ export interface StoreOrder {
     slug: string;
   };
   items: OrderItem[];
-  escrow?: {
-    id: number;
-    amount: number;
-    status: 'locked' | 'released';
-  };
+
 }
 
 export interface Order {
   id: number;
   order_no: string;
   payment_method?: string;
-  payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
+  payment_status: 'pending' | 'partially_paid' | 'paid' | 'failed' | 'refunded' | 'cancelled' | 'disputed';
   items_total: number;
   shipping_total: number;
   platform_fee: number;
@@ -96,13 +100,15 @@ export const orderService = {
     return res.data.data;
   },
 
-  async payStoreOrder(storeOrderId: number, paymentMethod: 'card' | 'wallet') {
+  async payStoreOrder(storeOrderId: number, paymentMethod: 'card' | 'wallet', expectedTotal: number) {
     const res = await apiClient.post(`/buyer/store-orders/${storeOrderId}/pay`, {
-      payment_method: paymentMethod,
+      payment_method: paymentMethod, expected_total: expectedTotal, idempotency_key: `order-payment:${storeOrderId}`,
     });
     return res.data.data;
   },
 
+  async reissueCode(id: number) { const res = await apiClient.post(`/buyer/store-orders/${id}/delivery-code`); return res.data.data; },
+  async dispute(id: number, reason: string) { const res = await apiClient.post(`/buyer/store-orders/${id}/dispute`, { reason }); return res.data.data; },
   async cancelStoreOrder(storeOrderId: number) {
     const res = await apiClient.post(`/buyer/store-orders/${storeOrderId}/cancel`);
     return res.data.data;

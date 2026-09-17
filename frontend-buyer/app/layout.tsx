@@ -6,7 +6,6 @@ import { CartProvider } from "@/contexts/CartContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ToastProvider } from "@/components/ui/Toast";
 import PageLoader from "@/components/ui/PageLoader";
-import GoogleTranslateWidget from "@/components/ui/GoogleTranslateWidget";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -33,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="notranslate">
       <body
         className={`${inter.variable} ${poppins.variable} font-sans antialiased`}
         style={{ fontFamily: 'var(--font-poppins), var(--font-inter), system-ui, -apple-system, sans-serif' }}
@@ -45,7 +44,6 @@ export default function RootLayout({
               <ToastProvider>
                 <PageLoader />
                 {children}
-                <GoogleTranslateWidget />
               </ToastProvider>
             </CartProvider>
           </LanguageProvider>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import Link from 'next/link';
 import Image from 'next/image';
+import { clearReferralAttribution, readReferralAttribution, referralService, storeReferralAttribution } from '@/services/referral-service';
 
 const registerSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters'),
@@ -18,15 +19,23 @@ const registerSchema = z.object({
   phone: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   password_confirmation: z.string(),
+  referral_code: z.string().max(48).optional(),
+  referral_attribution_token: z.string().max(64).optional(),
 }).refine((data) => data.password === data.password_confirmation, {
   message: "Passwords don't match",
   path: ['password_confirmation'],
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
+type ApiFailure = { response?: { data?: { errors?: Record<string, string[]>; message?: string } } };
 
 export default function BuyerRegisterPage() {
+  return <Suspense fallback={<main className="min-h-screen bg-blue-50" />}><BuyerRegisterPageContent /></Suspense>;
+}
+
+function BuyerRegisterPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { register: registerUser } = useAuth();
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -34,19 +43,35 @@ export default function BuyerRegisterPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors }, setValue,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
   });
+
+  useEffect(() => {
+    const code = searchParams.get('ref')?.trim().toUpperCase();
+    const savedToken = readReferralAttribution();
+    if (savedToken) setValue('referral_attribution_token', savedToken);
+    if (!code) return;
+    setValue('referral_code', code);
+    // Keep a server-issued token as the browser attribution record, while the
+    // code remains a resilient/manual fallback if storage is unavailable.
+    referralService.track(code).then(({ token }) => {
+      storeReferralAttribution(token);
+      setValue('referral_attribution_token', token);
+    }).catch(() => {});
+  }, [searchParams, setValue]);
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
       setIsLoading(true);
       setError('');
       await registerUser(data);
+      clearReferralAttribution();
       router.push('/');
-    } catch (err: any) {
-      const errors = err.response?.data?.errors;
+    } catch (err: unknown) {
+      const failure = err as ApiFailure;
+      const errors = failure.response?.data?.errors;
       const errorValues = errors ? Object.values(errors) : [];
       const firstError = errorValues.length > 0 ? (errorValues[0] as string[])?.[0] : undefined;
       const errorMessage =
@@ -55,7 +80,7 @@ export default function BuyerRegisterPage() {
         errors?.name?.[0] ||
         errors?.phone?.[0] ||
         firstError ||
-        err.response?.data?.message ||
+        failure.response?.data?.message ||
         'Registration failed. Please try again.';
       setError(errorMessage);
     } finally {
@@ -88,6 +113,7 @@ export default function BuyerRegisterPage() {
               <Input label="Full Name" type="text" {...register('name')} error={errors.name?.message} required />
               <Input label="Email Address" type="email" {...register('email')} error={errors.email?.message} required />
               <Input label="Phone Number (Optional)" type="tel" {...register('phone')} error={errors.phone?.message} />
+              <Input label="Referral Code (Optional)" type="text" {...register('referral_code')} error={errors.referral_code?.message} />
               <Input label="Password" type="password" {...register('password')} error={errors.password?.message} required />
               <Input label="Confirm Password" type="password" {...register('password_confirmation')} error={errors.password_confirmation?.message} required />
             </div>

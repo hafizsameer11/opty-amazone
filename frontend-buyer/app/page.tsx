@@ -1,4 +1,5 @@
 'use client';
+import SponsoredProducts from '@/components/products/SponsoredProducts';
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -6,10 +7,11 @@ import Image from "next/image";
 // Layout components are now handled by app/template.tsx
 import { productService, type Product } from "@/services/product-service";
 import { StoreService, type PublicStore } from "@/services/store-service";
-import { bannerService, type PublicBanner } from "@/services/banner-service";
+import PromotionalBanners from '@/components/campaigns/PromotionalBanners';
 import { getFullImageUrl, isLocalhostImage } from "@/lib/image-utils";
 import { isEyeProductCategory } from "@/utils/product-utils";
 import Loader from "@/components/ui/Loader";
+import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 
 function ProductCard({ product }: { product: Product }) {
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
@@ -48,6 +50,9 @@ function ProductCard({ product }: { product: Product }) {
   const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
     : (defaultVariant?.price ?? product.price);
+  const displayPricing = activeVariantId && hasVariants && product.variants
+    ? product.variants.find(v => v.id === activeVariantId)?.pricing ?? product.pricing
+    : defaultVariant?.pricing ?? product.pricing;
 
   return (
     <Link
@@ -125,6 +130,7 @@ function ProductCard({ product }: { product: Product }) {
             </div>
           </div>
         )}
+        <DiscountCampaignIndicator pricing={displayPricing} compact className="mb-2" />
         <div className="mt-auto flex items-center justify-between">
           <div className="text-base md:text-lg font-bold text-[#0066CC]">
             €{Number(displayPrice || 0).toFixed(2)}
@@ -143,16 +149,13 @@ function ProductCard({ product }: { product: Product }) {
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [stores, setStores] = useState<PublicStore[]>([]);
-  const [banners, setBanners] = useState<PublicBanner[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingStores, setLoadingStores] = useState(true);
-  const [loadingBanners, setLoadingBanners] = useState(true);
 
   useEffect(() => {
     loadProducts();
     loadStores();
-    loadBanners();
     loadCategories();
   }, []);
 
@@ -180,17 +183,6 @@ export default function HomePage() {
     }
   };
 
-  const loadBanners = async () => {
-    try {
-      setLoadingBanners(true);
-      const data = await bannerService.getPublicBanners({ limit: 6 });
-      setBanners(data || []);
-    } catch (error) {
-      console.error('Failed to load banners:', error);
-    } finally {
-      setLoadingBanners(false);
-    }
-  };
 
   const loadCategories = async () => {
     try {
@@ -204,63 +196,10 @@ export default function HomePage() {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 md:space-y-8 px-1 sm:px-2 lg:px-0">
 
-        {/* Admin-controlled Banners */}
-        <section className="w-full px-1 sm:px-2 lg:px-0 pb-4 md:pb-6">
-          <div className="rounded-t-2xl bg-[#0066CC] text-white px-4 py-3 flex items-center justify-between">
-            <h2 className="text-sm md:text-base font-semibold uppercase tracking-wide inline-flex items-center gap-2">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20" aria-hidden="true">
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.518 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.98 10.1c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.616-4.674z" />
-                </svg>
-              </span>
-              Featured Banners
-            </h2>
-            <Link
-              href="/products"
-              className="text-xs md:text-sm font-semibold hover:text-blue-100 inline-flex items-center gap-1"
-            >
-              View All
-              <span aria-hidden="true">→</span>
-            </Link>
-          </div>
-          <div className="bg-white rounded-b-2xl shadow-sm px-1.5 sm:px-3 py-4 sm:py-5">
-            {loadingBanners ? (
-              <div className="flex gap-3 md:gap-4 overflow-x-auto scrollbar-hide pb-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-[170px] min-w-[280px] sm:min-w-[320px] rounded-xl bg-gray-200 animate-pulse"></div>
-                ))}
-              </div>
-            ) : banners.length > 0 ? (
-              <div className="flex gap-3 md:gap-4 overflow-x-auto scrollbar-hide pb-2">
-                {banners.map((banner) => {
-                  const imageUrl = getFullImageUrl(banner.image_url || banner.image);
-                  const content = (
-                    <div className="relative h-[170px] min-w-[280px] sm:min-w-[320px] lg:min-w-[360px] rounded-xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                      <Image
-                        src={imageUrl}
-                        alt={banner.title || 'Promotional banner'}
-                        fill
-                        className="object-cover"
-                        unoptimized={isLocalhostImage(imageUrl)}
-                      />
-                    </div>
-                  );
+        <PromotionalBanners placement="homepage_hero" />
+        <PromotionalBanners placement="homepage_featured" />
 
-                  return banner.link ? (
-                    <Link key={banner.id} href={banner.link} className="block">
-                      {content}
-                    </Link>
-                  ) : (
-                    <div key={banner.id}>{content}</div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-center text-gray-600 py-6">No banners available right now.</p>
-            )}
-          </div>
-        </section>
-
+        <SponsoredProducts placement="homepage" />
         {/* Top selling products */}
         <section className="w-full px-1 sm:px-2 lg:px-0 pb-4 md:pb-6">
           <div className="rounded-t-2xl bg-[#0052a3] text-white px-4 py-3 flex items-center justify-between">

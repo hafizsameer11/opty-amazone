@@ -1,4 +1,8 @@
 "use client";
+import { useCampaignPrice } from "@/components/campaigns/useCampaignPrice";
+import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
+import SponsoredProducts from '@/components/products/SponsoredProducts';
+import AdProductView from '@/components/products/AdProductView';
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
@@ -20,6 +24,8 @@ import { useToast } from "@/components/ui/Toast";
 import Loader from "@/components/ui/Loader";
 import LensColorOverlay from "@/components/products/LensColorOverlay";
 import { getFullImageUrl, isLocalhostImage } from "@/lib/image-utils";
+import SaveProductButton from "@/components/products/SaveProductButton";
+import ReviewForm from "@/components/reviews/ReviewForm";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -45,6 +51,7 @@ export default function ProductDetailPage() {
   const [clSelectedPackQty, setClSelectedPackQty] = useState<number | null>(null);
   const [selectedFrameSizeId, setSelectedFrameSizeId] = useState<number | null>(null);
   const [hasPickedColor, setHasPickedColor] = useState(false);
+  const { price: campaignPrice } = useCampaignPrice(product?.id, { variant_id: selectedVariantId || undefined, frame_size_id: selectedFrameSizeId || undefined, contact_lens_pack_quantity: clSelectedPackQty || undefined }, quantity, product?.product_type !== "eye_hygiene" && product?.product_type !== "contact_lens");
 
   const handleClDisplayPriceChange = useCallback((price: number | null) => {
     setClDisplayPrice(price);
@@ -236,7 +243,7 @@ export default function ProductDetailPage() {
   const showThumbnailGallery = images.length > 1 && !clHideThumbnailGallery;
   
   // Determine which price to show
-  const displayPrice =
+  const displayPrice = campaignPrice?.discounted_price ?? (
     product.product_type === "contact_lens" && hasClConfiguredPacks
       ? Number(
           activePackRow?.price ??
@@ -252,7 +259,7 @@ export default function ProductDetailPage() {
             selectedVariant?.price ??
             product.price
         )
-      : selectedVariant?.price ?? product.price;
+      : selectedVariant?.price ?? product.price);
   const displayStockStatus = needsSizeSelection
     ? 'in_stock'
     : selectedFrameSize?.stock_status ?? selectedVariant?.stock_status ?? product.stock_status;
@@ -373,6 +380,7 @@ export default function ProductDetailPage() {
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                   {product.name}
                 </h1>
+                <div className="flex flex-wrap items-center gap-3"><SaveProductButton productId={product.id} /><Link href={`/profile?tab=referrals&product=${product.id}`} className="text-sm font-semibold text-teal-700 hover:underline">Refer &amp; Earn</Link></div>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center">
                     {[...Array(5)].map((_, i) => (
@@ -557,6 +565,8 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
+              {campaignPrice?.campaign_name && <p className="text-sm text-green-700">{campaignPrice.campaign_name} · Save €{campaignPrice.discount_amount.toFixed(2)} per unit</p>}
+              <DiscountCampaignIndicator pricing={campaignPrice ?? product.pricing} className="mt-3 mb-2" />
               {/* Price */}
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl font-bold text-[#0066CC] notranslate">
@@ -1095,10 +1105,13 @@ export default function ProductDetailPage() {
                 <Button variant="outline" className="w-full">
                   Write a Review
                 </Button>
+                <ReviewForm type="product" id={product.id} />
               </div>
             </div>
           </div>
         </div>
+      <AdProductView productId={product.id} />
+      {product.category?.id && <div className="max-w-7xl mx-auto px-4"><SponsoredProducts placement="recommendations" categoryId={Number(product.category.id)} excludeProductId={product.id} /></div>}
       {/* Product Checkout Modal */}
       {showCheckoutModal && product && (
         <ProductCheckoutModal

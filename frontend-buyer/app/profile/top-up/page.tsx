@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import apiClient from '@/lib/api-client';
 import { walletService } from '@/services/wallet-service';
 import { useToast } from '@/components/ui/Toast';
 // Layout components are now handled by app/template.tsx
@@ -14,6 +15,7 @@ function TopUpForm() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
+  const [mode, setMode] = useState<'loading' | 'development' | 'stripe' | 'unavailable'>('loading');
   const [amount, setAmount] = useState('');
   const [processing, setProcessing] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
@@ -27,6 +29,17 @@ function TopUpForm() {
   useEffect(() => {
     if (isAuthenticated) {
       loadBalance();
+      walletService.capabilities().then(c => setMode(c.development_top_up ? 'development' : c.stripe_available ? 'stripe' : 'unavailable')).catch(() => setMode('unavailable'));
+      const session = new URLSearchParams(window.location.search).get('session_id');
+      if (session) {
+        setProcessing(true);
+        walletService.topUp({ stripe_session_id: session }).then(() => {
+          showToast('success', 'Stripe payment verified and wallet credited.');
+          window.history.replaceState(null, '', '/profile/top-up');
+          void loadBalance();
+        }).catch(error => showToast('error', error.response?.data?.message || 'Payment verification failed.'))
+          .finally(() => setProcessing(false));
+      }
     }
   }, [isAuthenticated]);
 
@@ -57,15 +70,23 @@ function TopUpForm() {
 
     setProcessing(true);
     try {
-      await walletService.topUp({
-        amount: topUpAmount,
+      if (mode === 'development') {
+        const slot = 'opty-development-topup:' + topUpAmount.toFixed(2);
+        const key = sessionStorage.getItem(slot) || crypto.randomUUID();
+        sessionStorage.setItem(slot, key);
+        await walletService.developmentTopUp(topUpAmount, key);
+        sessionStorage.removeItem(slot);
+        await loadBalance(); setAmount('');
+        showToast('success', 'Development top-up added to your wallet.');
+        return;
+      }
+      if (mode !== 'stripe') throw new Error('Wallet top-up is not available in this environment.');
+      const origin = window.location.origin;
+      const response = await apiClient.post('/buyer/wallet/create-checkout-session', {
+        amount: Math.round(topUpAmount * 100), currency: 'eur',
+        success_url: origin + '/profile/top-up?session_id={CHECKOUT_SESSION_ID}', cancel_url: origin + '/profile/top-up',
       });
-      showToast('success', `Successfully topped up €${topUpAmount.toFixed(2)}`);
-      await loadBalance();
-      setAmount('');
-      setTimeout(() => {
-        router.push('/profile?tab=wallet');
-      }, 1200);
+      window.location.assign(response.data.data.url);
     } catch (error: any) {
       showToast('error', error.response?.data?.message || error.message || 'Failed to top up wallet. Please try again.');
     } finally {
@@ -164,8 +185,8 @@ function TopUpForm() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div>
-                      <p className="text-sm font-semibold text-blue-900 mb-1">Direct Wallet Credit</p>
-                      <p className="text-xs text-blue-700">Top-up is currently processed directly without Stripe.</p>
+                      <p className="text-sm font-semibold text-blue-900 mb-1">Secure wallet payment</p>
+                      <p className="text-xs text-blue-700">{mode === 'development' ? 'Development testing mode: funds are credited directly. No card is charged.' : mode === 'stripe' ? 'Continue to Stripe. Funds are credited after the server verifies your completed payment.' : mode === 'loading' ? 'Checking available payment methods…' : 'Wallet top-up is not available in this environment.'}</p>
                     </div>
                   </div>
                 </div>
@@ -175,7 +196,7 @@ function TopUpForm() {
                   type="submit"
                   className="w-full"
                   size="lg"
-                  disabled={processing || !amount || parseFloat(amount) < 5}
+                  disabled={processing || ['loading', 'unavailable'].includes(mode) || !amount || parseFloat(amount) < 5}
                 >
                   {processing ? (
                     <span className="flex items-center justify-center gap-2">

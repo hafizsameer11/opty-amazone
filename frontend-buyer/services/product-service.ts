@@ -7,6 +7,7 @@ export interface ProductVariant {
   color_code?: string;
   images: string[];
   price?: number;
+  pricing?: import('./campaign-service').CampaignPrice;
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
   is_default: boolean;
@@ -77,6 +78,7 @@ export interface LensAreaCoordinates {
 }
 
 export interface Product {
+  pricing?: import('./campaign-service').CampaignPrice;
   id: number;
   name: string;
   slug: string;

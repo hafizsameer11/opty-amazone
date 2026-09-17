@@ -6,6 +6,8 @@ import Image from 'next/image';
 import { Product } from '@/services/product-service';
 import { isEyeProductCategory } from '@/utils/product-utils';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
+import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
+import SaveProductButton from '@/components/products/SaveProductButton';
 
 interface ProductListCardProps {
   product: Product;
@@ -47,6 +49,9 @@ export default function ProductListCard({ product }: ProductListCardProps) {
   const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
     : (defaultVariant?.price ?? product.price);
+  const displayPricing = activeVariantId && hasVariants && product.variants
+    ? product.variants.find(v => v.id === activeVariantId)?.pricing ?? product.pricing
+    : defaultVariant?.pricing ?? product.pricing;
 
   return (
     <Link
@@ -55,6 +60,7 @@ export default function ProductListCard({ product }: ProductListCardProps) {
     >
       {/* Image */}
       <div className="relative w-48 sm:w-64 h-48 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 border-r border-gray-100 flex-shrink-0">
+        <div className="absolute right-2 top-2 z-10"><SaveProductButton productId={product.id} /></div>
         <div className="absolute inset-0 flex items-center justify-center p-4">
           <Image
             src={getFullImageUrl(displayImage)}
@@ -161,6 +167,7 @@ export default function ProductListCard({ product }: ProductListCardProps) {
         </div>
 
         {/* Price and Stock */}
+        <DiscountCampaignIndicator pricing={displayPricing} className="mb-3" />
         <div className="flex items-center justify-between pt-3 border-t border-gray-200">
           <div>
             <div className="text-2xl font-bold text-[#0066CC]">

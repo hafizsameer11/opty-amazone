@@ -1,4 +1,5 @@
 'use client';
+import { useCampaignPrice } from '@/components/campaigns/useCampaignPrice';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Product } from '@/services/product-service';
@@ -356,7 +357,12 @@ export default function ContactLensConfiguration({
   const leftAxisOptions = sideOptionsForField(prescriptionOptions, 'axis', 'left');
   const hasAnySphOptions = rightSphOptions.length > 0 || leftSphOptions.length > 0;
 
+  const { price: campaignPrice } = useCampaignPrice(product.id, {
+    variant_id: packSelection.mode === 'variant' ? packSelection.variantId : selectedColourVariantId || undefined,
+    contact_lens_pack_quantity: packSelection.mode === 'pack' ? packSelection.quantity : undefined,
+  }, Math.max(1, (rightEye.enabled ? Number(rightEye.quantity) : 0) + (leftEye.enabled ? Number(leftEye.quantity) : 0)));
   const selectedPackPrice = useMemo(() => {
+    if (campaignPrice) return campaignPrice.discounted_price;
     if (packSelection.mode === 'pack') {
       const row = configuredPacks.find((p) => p.quantity === packSelection.quantity);
       if (row?.price != null && Number.isFinite(Number(row.price))) return Number(row.price);
@@ -370,7 +376,7 @@ export default function ContactLensConfiguration({
     }
     if (hasConfiguredPacks) return 0;
     return Number(product.price) || 0;
-  }, [packSelection, configuredPacks, hasConfiguredPacks, product.price, product.variants]);
+  }, [packSelection, configuredPacks, hasConfiguredPacks, product.price, product.variants, campaignPrice]);
 
   useEffect(() => {
     if (!onSelectedPackQuantityChange) return;

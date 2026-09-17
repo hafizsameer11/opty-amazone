@@ -1,5 +1,8 @@
 'use client';
 
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import DeliverySummary from '@/components/orders/DeliverySummary';
+import OrderActions from '@/components/orders/OrderActions';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -16,7 +19,10 @@ export default function OrderDetailsPage() {
   const router = useRouter();
   const { isAuthenticated, loading } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
+  const [payingId, setPayingId] = useState<number | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(true);
+
+  useLiveRefresh(() => loadOrder(true), isAuthenticated && Boolean(params.id));
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -30,9 +36,9 @@ export default function OrderDetailsPage() {
     }
   }, [isAuthenticated, params.id]);
 
-  const loadOrder = async () => {
+  const loadOrder = async (silent = false) => {
     try {
-      setLoadingOrder(true);
+      if (!silent) setLoadingOrder(true);
       const data = await orderService.getOrder(Number(params.id));
       setOrder(data);
     } catch (error) {
@@ -43,12 +49,14 @@ export default function OrderDetailsPage() {
   };
 
   const handlePayStoreOrder = async (storeOrderId: number) => {
+    if (payingId !== null) return;
+    setPayingId(storeOrderId);
     try {
-      await orderService.payStoreOrder(storeOrderId, 'wallet');
+      await orderService.payStoreOrder(storeOrderId, 'wallet', Number(order?.store_orders.find(so => so.id === storeOrderId)?.total));
       loadOrder();
     } catch (error: any) {
       alert(error.response?.data?.message || 'Payment failed');
-    }
+    } finally { setPayingId(null); }
   };
 
   if (loading || loadingOrder) {
@@ -73,7 +81,7 @@ export default function OrderDetailsPage() {
         text: 'text-amber-700',
         icon: '⏳',
       },
-      accepted: {
+      awaiting_payment: {
         bg: 'bg-blue-50 border-blue-200',
         text: 'text-blue-700',
         icon: '✓',
@@ -115,9 +123,7 @@ export default function OrderDetailsPage() {
   };
 
   const getStoreOrderTotal = (storeOrder: Order['store_orders'][number]) => {
-    const rawTotal = Number(storeOrder.total ?? 0);
-    if (rawTotal > 0) return rawTotal;
-    return Number(storeOrder.subtotal ?? 0) + Number(storeOrder.delivery_fee ?? 0);
+    return Number(storeOrder.total ?? 0);
   };
 
   return (
@@ -193,7 +199,7 @@ export default function OrderDetailsPage() {
 
                   <div className="p-6">
                     {/* Seller Quote / Schedule */}
-                    {(storeOrder.status === 'accepted' ||
+                    {(storeOrder.status === 'awaiting_payment' ||
                       storeOrder.status === 'paid' ||
                       storeOrder.status === 'out_for_delivery' ||
                       storeOrder.status === 'delivered') && (
@@ -232,6 +238,8 @@ export default function OrderDetailsPage() {
                     )}
 
                     {/* OTP Code Display */}
+                    <DeliverySummary shipment={storeOrder} />
+                    <OrderActions shipment={storeOrder} onUpdate={() => loadOrder(true)} />
                     {storeOrder.delivery_code && (
                       <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-xl p-6 mb-6 shadow-sm">
                         <div className="flex items-center gap-3 mb-3">
@@ -271,7 +279,7 @@ export default function OrderDetailsPage() {
                     )}
 
                     {/* Payment Button for Accepted Orders */}
-                    {storeOrder.status === 'accepted' && (
+                    {storeOrder.financial_version === 1 && storeOrder.status === 'awaiting_payment' && (
                       <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-5 mb-6">
                         <div className="flex items-center justify-between mb-4">
                           <div>
@@ -299,6 +307,7 @@ export default function OrderDetailsPage() {
                           </div>
                         </div>
                         <Button
+                          disabled={payingId !== null}
                           onClick={() => handlePayStoreOrder(storeOrder.id)}
                           className="w-full"
                           size="lg"

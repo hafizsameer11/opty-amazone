@@ -1,4 +1,6 @@
 'use client';
+import PromotionalBanners from '@/components/campaigns/PromotionalBanners';
+import SponsoredProducts from '@/components/products/SponsoredProducts';
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -12,6 +14,7 @@ import Input from '@/components/ui/Input';
 import Loader from '@/components/ui/Loader';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import ProductCardCategoryLine from '@/components/products/ProductCardCategoryLine';
+import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 
 function ProductCard({ product }: { product: Product }) {
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
@@ -50,6 +53,9 @@ function ProductCard({ product }: { product: Product }) {
   const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
     : (defaultVariant?.price ?? product.price);
+  const displayPricing = activeVariantId && hasVariants && product.variants
+    ? product.variants.find(v => v.id === activeVariantId)?.pricing ?? product.pricing
+    : defaultVariant?.pricing ?? product.pricing;
 
   return (
     <Link
@@ -57,11 +63,6 @@ function ProductCard({ product }: { product: Product }) {
       className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 overflow-hidden group relative flex flex-col h-full"
     >
       <div className="relative w-full h-48 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-100">
-        {product.is_boosted && (
-          <span className="absolute top-2 left-2 z-10 inline-flex items-center rounded-full bg-amber-500 text-white text-[10px] font-bold px-2 py-1 tracking-wide">
-            VIP
-          </span>
-        )}
         <div className="absolute inset-0 flex items-center justify-center">
           <Image
             src={displayImageUrl}
@@ -133,6 +134,7 @@ function ProductCard({ product }: { product: Product }) {
             </div>
           </div>
         )}
+        <DiscountCampaignIndicator pricing={displayPricing} compact className="mb-2" />
         <div className="mt-auto flex items-center justify-between">
           <div className="text-lg sm:text-xl font-bold text-[#0066CC]">
             €{Number(displayPrice || 0).toFixed(2)}
@@ -231,6 +233,8 @@ export default function CategoryPage() {
             </div>
           )}
 
+          {category?.id && <PromotionalBanners placement="category_page" categoryId={Number(category.id)} />}
+          {category?.id && <SponsoredProducts placement="categories" categoryId={Number(category.id)} />}
           {/* Search and Filters */}
           <div className="bg-white rounded-lg shadow-sm p-4 mb-6 space-y-4">
             <div>

@@ -1,5 +1,8 @@
 'use client';
 
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import DeliverySummary from '@/components/orders/DeliverySummary';
+import OrderActions from '@/components/orders/OrderActions';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,7 +19,10 @@ export default function StoreOrderDetailsPage() {
   const router = useRouter();
   const { isAuthenticated, loading } = useAuth();
   const [storeOrder, setStoreOrder] = useState<StoreOrder | null>(null);
+  const [paying, setPaying] = useState(false);
   const [loadingOrder, setLoadingOrder] = useState(true);
+
+  useLiveRefresh(() => loadStoreOrder(true), isAuthenticated && Boolean(params.id));
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -30,9 +36,9 @@ export default function StoreOrderDetailsPage() {
     }
   }, [isAuthenticated, params.id]);
 
-  const loadStoreOrder = async () => {
+  const loadStoreOrder = async (silent = false) => {
     try {
-      setLoadingOrder(true);
+      if (!silent) setLoadingOrder(true);
       const data = await orderService.getStoreOrder(Number(params.id));
       setStoreOrder(data);
     } catch (error) {
@@ -43,13 +49,14 @@ export default function StoreOrderDetailsPage() {
   };
 
   const handlePay = async () => {
-    if (!storeOrder) return;
+    if (!storeOrder || paying) return;
+    setPaying(true);
     try {
-      await orderService.payStoreOrder(storeOrder.id, 'wallet');
+      await orderService.payStoreOrder(storeOrder.id, 'wallet', Number(storeOrder.total));
       loadStoreOrder();
     } catch (error: any) {
       alert(error.response?.data?.message || 'Payment failed');
-    }
+    } finally { setPaying(false); }
   };
 
   if (loading || loadingOrder) {
@@ -70,7 +77,7 @@ export default function StoreOrderDetailsPage() {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800',
-      accepted: 'bg-blue-100 text-blue-800',
+      awaiting_payment: 'bg-blue-100 text-blue-800',
       rejected: 'bg-red-100 text-red-800',
       paid: 'bg-green-100 text-green-800',
       out_for_delivery: 'bg-purple-100 text-purple-800',
@@ -81,9 +88,7 @@ export default function StoreOrderDetailsPage() {
   };
 
   const resolvedStoreOrderTotal = (() => {
-    const rawTotal = Number(storeOrder.total ?? 0);
-    if (rawTotal > 0) return rawTotal;
-    return Number(storeOrder.subtotal ?? 0) + Number(storeOrder.delivery_fee ?? 0);
+    return Number(storeOrder.total ?? 0);
   })();
 
   return (
@@ -116,7 +121,9 @@ export default function StoreOrderDetailsPage() {
             </span>
           </div>
 
-          {/* OTP Code - Prominently Displayed */}
+          <DeliverySummary shipment={storeOrder} />
+          <OrderActions shipment={storeOrder} onUpdate={() => loadStoreOrder(true)} />
+          {/* Delivery verification code */}
           {storeOrder.delivery_code && (
             <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-4 border-yellow-300 rounded-xl p-6 mb-6 text-center">
               <p className="text-sm font-semibold text-yellow-900 mb-3 uppercase tracking-wide">
@@ -126,14 +133,13 @@ export default function StoreOrderDetailsPage() {
                 {storeOrder.delivery_code}
               </p>
               <p className="text-xs text-yellow-800 max-w-md mx-auto">
-                Please save this code. The seller will need to enter this code to mark your order
-                as delivered. You can find this code in your order confirmation email as well.
+                Give this code to the courier only after you have received the products. It confirms delivery and releases the seller’s earnings.
               </p>
             </div>
           )}
 
           {/* Payment Section */}
-          {storeOrder.status === 'accepted' && (
+          {storeOrder.financial_version === 1 && storeOrder.status === 'awaiting_payment' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Required</h3>
               <div className="flex items-center justify-between mb-4">
@@ -142,7 +148,7 @@ export default function StoreOrderDetailsPage() {
                   €{resolvedStoreOrderTotal.toFixed(2)}
                 </span>
               </div>
-              <Button onClick={handlePay} className="w-full" size="lg">
+              <Button disabled={paying} onClick={handlePay} className="w-full" size="lg">
                 Pay Now
               </Button>
             </div>
@@ -222,7 +228,7 @@ export default function StoreOrderDetailsPage() {
             <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
               <p className="text-sm text-green-800">
                 <strong>Payment Status:</strong> Funds are{' '}
-                {storeOrder.escrow.status === 'locked' ? 'locked in escrow' : 'released to seller'}
+                {storeOrder.escrow.status.replaceAll('_', ' ')}
               </p>
             </div>
           )}

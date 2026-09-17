@@ -215,7 +215,8 @@ export default function CheckoutPage() {
 
             {/* Payment Method */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Payment Method</h2>
+              <h2 className="text-xl font-semibold mb-4">Payment after seller review</h2>
+              <p className="text-sm text-blue-700 mb-4">No payment is taken now. Each seller quotes delivery for your address. Review the updated total and pay from your order page.</p>
               <div className="space-y-3">
                 <label className="flex items-center border-2 rounded-lg p-4 cursor-pointer">
                   <input
@@ -233,11 +234,12 @@ export default function CheckoutPage() {
                     type="radio"
                     name="payment"
                     value="card"
+                    disabled
                     checked={paymentMethod === 'card'}
                     onChange={() => setPaymentMethod('card')}
                     className="mr-3"
                   />
-                  <span className="font-medium">Card</span>
+                  <span className="font-medium">Card unavailable — use wallet</span>
                 </label>
               </div>
             </div>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 // Layout components are now handled by app/template.tsx
 import { userService, type ProfileResponse } from "../../services/user-service";
 import { orderService, type Order } from "../../services/order-service";
@@ -13,6 +14,10 @@ import Button from "@/components/ui/Button";
 import EditProfileForm from "@/components/profile/EditProfileForm";
 import OrderDetailsModal from "@/components/orders/OrderDetailsModal";
 import Badge from "@/components/ui/Badge";
+import FollowedStoresPanel from "@/components/profile/FollowedStoresPanel";
+import ReviewsPanel from "@/components/profile/ReviewsPanel";
+import SupportPanel from "@/components/profile/SupportPanel";
+import ReferralPanel from "@/components/profile/ReferralPanel";
 
 type AccountTab =
   | "overview"
@@ -27,8 +32,13 @@ type AccountTab =
   | "faqs";
 
 export default function ProfilePage() {
+  return <Suspense fallback={<main className="mx-auto max-w-7xl p-6 text-gray-500">Loading your profile…</main>}><ProfilePageContent /></Suspense>;
+}
+
+function ProfilePageContent() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [profile, setProfile] = useState<ProfileResponse["user"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,6 +51,17 @@ export default function ProfilePage() {
   const [loadingBalance, setLoadingBalance] = useState(false);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'referrals') setActiveTab('referrals');
+    if (tab === 'wallet') setActiveTab('wallet');
+  }, [searchParams]);
+
+  useLiveRefresh(async () => {
+    if (activeTab === 'orders') { const data = await orderService.getOrders(); setOrders(data.data || []); }
+    if (activeTab === 'wallet') { const [balance, history] = await Promise.all([walletService.getBalance(), walletService.getTransactions({ per_page: 10 })]); setWalletBalance(balance.balance); setTransactions(history.data || []); }
+  }, isAuthenticated && ['orders', 'wallet'].includes(activeTab));
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -356,7 +377,7 @@ export default function ProfilePage() {
       const getStatusColor = (status: string) => {
         const colors: Record<string, string> = {
           pending: 'bg-yellow-100 text-yellow-800',
-          accepted: 'bg-blue-100 text-blue-800',
+          awaiting_payment: 'bg-blue-100 text-blue-800',
           rejected: 'bg-red-100 text-red-800',
           paid: 'bg-green-100 text-green-800',
           out_for_delivery: 'bg-purple-100 text-purple-800',
@@ -629,10 +650,14 @@ export default function ProfilePage() {
                               </div>
                               <div className="flex-1">
                                 <p className="font-semibold text-gray-900 text-sm">
-                                  {transaction.description || transaction.type.replace('_', ' ')}
+                                  {transaction.type === 'referral_reward'
+                                    ? `Referral Reward — ${(transaction.meta as any)?.products?.join(', ') || 'Eligible order'}`
+                                    : transaction.type === 'referral_reward_reversal'
+                                    ? `Referral Reward Reversal — ${(transaction.meta as any)?.products?.join(', ') || 'Eligible order'}`
+                                    : transaction.description || transaction.type.replace('_', ' ')}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  {new Date(transaction.created_at).toLocaleDateString()}
+                                  {new Date(transaction.created_at).toLocaleDateString()} · {transaction.meta?.payment_method || 'wallet'}
                                 </p>
                               </div>
                             </div>
@@ -693,6 +718,7 @@ export default function ProfilePage() {
       );
     }
 
+    if (String(activeTab) === "followed-stores") return <FollowedStoresPanel />;
     if (activeTab === "followed-stores") {
       return (
         <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
@@ -708,6 +734,7 @@ export default function ProfilePage() {
       );
     }
 
+    if (String(activeTab) === "reviews") return <ReviewsPanel />;
     if (activeTab === "reviews") {
       return (
         <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
@@ -723,20 +750,10 @@ export default function ProfilePage() {
     }
 
     if (activeTab === "referrals") {
-      return (
-        <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">
-            Referrals
-          </h2>
-          <p className="text-sm text-gray-600">
-            In the future you’ll be able to invite friends and earn rewards for
-            every successful signup or order. For now, this section is a
-            placeholder.
-          </p>
-        </div>
-      );
+      return <ReferralPanel />;
     }
 
+    if (String(activeTab) === "support") return <SupportPanel />;
     if (activeTab === "support") {
       return (
         <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
@@ -900,4 +917,3 @@ export default function ProfilePage() {
     </>
   );
 }
-

@@ -1,4 +1,5 @@
 'use client';
+import SponsoredProducts from '@/components/products/SponsoredProducts';
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -8,6 +9,7 @@ import { productService, type Product } from '@/services/product-service';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 
 type SearchStore = {
   id: number;
@@ -22,6 +24,7 @@ function SearchPageInner() {
   const searchParams = useSearchParams();
   const initialQ = searchParams.get('q') || '';
   const [q, setQ] = useState(initialQ);
+  const [submittedQuery, setSubmittedQuery] = useState(initialQ);
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [stores, setStores] = useState<SearchStore[]>([]);
@@ -29,6 +32,7 @@ function SearchPageInner() {
 
   const runSearch = async (query: string) => {
     const trimmed = query.trim();
+    setSubmittedQuery(trimmed);
     if (trimmed.length < 2) {
       setProducts([]);
       setStores([]);
@@ -88,6 +92,7 @@ function SearchPageInner() {
         <p className="text-gray-600 mb-6">No results for “{initialQ}”.</p>
       )}
 
+      {!loading && submittedQuery.length >= 2 && <SponsoredProducts placement="search" query={submittedQuery} />}
       {products.length > 0 && (
         <section className="mb-10">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Products ({products.length})</h2>
@@ -112,6 +117,7 @@ function SearchPageInner() {
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-semibold text-gray-900 line-clamp-2">{p.name}</p>
+                    <DiscountCampaignIndicator pricing={p.pricing} compact className="mt-2" />
                     <p className="text-[#0066CC] font-bold mt-1">€{Number(p.price || 0).toFixed(2)}</p>
                   </div>
                 </Link>

@@ -165,7 +165,8 @@ export default function CartPage() {
                               </svg>
                             </span>
                           </Link>
-                          <OrderLineSelections line={item} className="mt-1" />
+                            <OrderLineSelections line={item} className="mt-1" />
+                            {item.campaign_pricing?.campaign_name && <p className="text-sm text-green-700">{item.campaign_pricing.campaign_name}: <del>€{Number(item.original_price).toFixed(2)}</del> · Save €{Number(item.campaign_discount_amount).toFixed(2)} each</p>}
                           <p className="text-sm text-gray-600 mt-1">
                             €{Number(item.price || 0).toFixed(2)} each
                           </p>

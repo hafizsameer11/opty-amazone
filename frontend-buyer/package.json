@@ -7,7 +7,8 @@
     "dev:pm2": "next dev -H 127.0.0.1 -p 3120",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:campaign-ui": "playwright test"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -20,6 +21,7 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^20",
     "@types/react": "^19",

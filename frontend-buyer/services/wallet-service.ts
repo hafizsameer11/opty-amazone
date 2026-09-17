@@ -7,7 +7,8 @@ export interface WalletBalance {
 
 export interface WalletTransaction {
   id: number;
-  type: 'top_up' | 'withdraw' | 'payment' | 'refund';
+  type: string;
+  meta?: { payment_method?: string; products?: string[]; campaign_name?: string; order_id?: number; store_order_id?: number; reward_amount?: string | number; referral_reward_id?: number };
   amount: number;
   status: 'pending' | 'success' | 'completed' | 'failed';
   description?: string;
@@ -15,8 +16,8 @@ export interface WalletTransaction {
 }
 
 export interface TopUpData {
-  amount: number;
-  stripe_session_id?: string;
+  amount?: number;
+  stripe_session_id: string;
 }
 
 export interface WithdrawData {
@@ -28,6 +29,8 @@ export interface WithdrawData {
 }
 
 export const walletService = {
+  async capabilities(): Promise<{ development_top_up: boolean; stripe_available: boolean }> { const res = await apiClient.get('/buyer/wallet/capabilities'); return res.data.data; },
+  async developmentTopUp(amount: number, key: string) { const res = await apiClient.post('/buyer/wallet/development-top-up', { amount, idempotency_key: key }); return res.data.data; },
   async getBalance(): Promise<WalletBalance> {
     const res = await apiClient.get('/buyer/wallet/balance');
     return res.data.data;
@@ -47,8 +50,11 @@ export const walletService = {
   },
 
   async withdraw(data: WithdrawData) {
-    const res = await apiClient.post('/buyer/wallet/withdraw', data);
+    const slot = 'opty-buyer-withdraw:' + JSON.stringify(data);
+    const key = sessionStorage.getItem(slot) || crypto.randomUUID();
+    sessionStorage.setItem(slot, key);
+    const res = await apiClient.post('/buyer/wallet/withdraw', { ...data, idempotency_key: key });
+    sessionStorage.removeItem(slot);
     return res.data.data;
   },
 };
-

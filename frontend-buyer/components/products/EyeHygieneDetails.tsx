@@ -1,4 +1,5 @@
 'use client';
+import { useCampaignPrice } from '@/components/campaigns/useCampaignPrice';
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Product } from '@/services/product-service';
@@ -102,11 +103,13 @@ export default function EyeHygieneDetails({
   const selectedSize = selection.kind === 'size_volume' ? sizeList.find((r) => r.id === selection.id) : null;
   const selectedNamed = selection.kind === 'eye_hygiene' ? namedList.find((r) => r.id === selection.id) : null;
 
+  const { price: campaignPrice } = useCampaignPrice(product.id, { product_size_volume_id: selectedSize?.id, eye_hygiene_variant_id: selectedNamed?.id }, quantity);
   const displayPrice = useMemo(() => {
+    if (campaignPrice) return campaignPrice.discounted_price;
     if (selectedSize) return toNum(selectedSize.price, toNum(product.price, 0));
     if (selectedNamed) return toNum(selectedNamed.price, toNum(product.price, 0));
     return toNum(product.price, 0);
-  }, [selectedSize, selectedNamed, product.price]);
+  }, [selectedSize, selectedNamed, product.price, campaignPrice]);
 
   const variantImageUrl = useMemo(() => {
     if (selectedSize?.image_url) return selectedSize.image_url;

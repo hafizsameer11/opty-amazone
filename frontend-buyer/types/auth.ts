@@ -24,6 +24,8 @@ export interface RegisterData {
   phone?: string;
   password: string;
   password_confirmation: string;
+  referral_attribution_token?: string;
+  referral_code?: string;
 }
 
 export interface LoginData {

@@ -276,6 +276,7 @@ export default function OrderLineSelections({
     }
   }
 
+  if (line.campaign_pricing?.campaign_name) rows.push(<SelectionRow key="campaign" label="Discount campaign">{line.campaign_pricing.campaign_name} · Original €{Number(line.original_price).toFixed(2)} · Saved €{Number(line.campaign_discount_amount).toFixed(2)} per unit</SelectionRow>);
   if (rows.length === 0) return null;
 
   return <div className={`space-y-0.5 ${className}`.trim()}>{rows}</div>;

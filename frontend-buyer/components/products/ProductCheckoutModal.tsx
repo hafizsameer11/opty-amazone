@@ -1,4 +1,5 @@
 'use client';
+import { useCampaignPrice } from '@/components/campaigns/useCampaignPrice';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
@@ -83,6 +84,12 @@ export default function ProductCheckoutModal({
   const [selectedFrameSize, setSelectedFrameSize] = useState<any>(null);
   const [quantity, setQuantity] = useState(1);
 
+  const { price: campaignPrice, error: campaignPriceError } = useCampaignPrice(product.id, {
+    variant_id: selectedVariantId || undefined, frame_size_id: selectedFrameSize?.id,
+    lens_type: selectedLensType?.name, lens_thickness_material_id: selectedThicknessMaterial?.id,
+    lens_thickness_option_id: selectedLensIndex?.id, treatment_ids: selectedTreatments,
+    progressive_variant_id: selectedProgressiveVariant?.id,
+  }, quantity, isOpen);
   // Shipping
   const [selectedShipping, setSelectedShipping] = useState<string>('standard');
   const [couponCode, setCouponCode] = useState<string>('');
@@ -396,7 +403,7 @@ export default function ProductCheckoutModal({
     });
 
     // Shipping (mock - should come from backend)
-    const shippingPrice = selectedShipping === 'express' ? 5.90 : 3.90;
+    const shippingPrice = 0;
     summary.push({
       id: 'shipping',
       name: `Shipping (${selectedShipping === 'express' ? 'Express' : 'Standard'})`,
@@ -409,14 +416,14 @@ export default function ProductCheckoutModal({
 
   // Calculate totals using useMemo
   const { subtotal, shipping, discount, total } = useMemo(() => {
-    const sub = orderSummary
+    const sub = campaignPrice ? campaignPrice.discounted_price * quantity : orderSummary
       .filter(item => item.type !== 'shipping')
       .reduce((sum, item) => sum + item.price, 0);
     const ship = orderSummary.find(item => item.type === 'shipping')?.price || 0;
     const disc = appliedCoupon ? Number(appliedCoupon.discount_amount || 0) : 0;
     const tot = Math.max(0, sub + ship - disc);
     return { subtotal: sub, shipping: ship, discount: disc, total: tot };
-  }, [orderSummary, appliedCoupon]);
+  }, [orderSummary, appliedCoupon, campaignPrice, quantity]);
 
   const handleApplyCoupon = async () => {
     const code = couponCode.trim();
@@ -529,6 +536,7 @@ export default function ProductCheckoutModal({
 
   // Handle add to cart
   const handleAddToCart = async () => {
+    if (!campaignPrice || campaignPriceError) { alert(campaignPriceError || "Please wait for the current price."); return; }
     try {
       setAddingToCart(true);
       const cartData: AddToCartData = {
@@ -630,34 +638,7 @@ export default function ProductCheckoutModal({
                   ))}
                 </div>
 
-                {/* Shipping Options */}
-                <div className="pt-4 border-t border-gray-200 mt-4">
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">Shipping</label>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${
-                      selectedShipping === 'standard' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        type="radio"
-                        name="shipping-method"
-                        value="standard"
-                        checked={selectedShipping === 'standard'}
-                        onChange={(e) => setSelectedShipping(e.target.value)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900">Gls</div>
-                            <div className="text-xs text-gray-600 mt-0.5 truncate">Laboris ut cillum au</div>
-                            <div className="text-xs text-gray-500 mt-0.5">4 business days</div>
-                          </div>
-                          <div className="text-sm font-semibold text-gray-900 whitespace-nowrap ml-2">${shipping.toFixed(2)}</div>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
+                <p className="mt-4 text-sm text-blue-700">Delivery fee is quoted by the seller after reviewing your address. You pay after reviewing the final total.</p>
 
                 {/* Coupon Code */}
                 <div className="pt-4 border-t border-gray-200 mt-4">

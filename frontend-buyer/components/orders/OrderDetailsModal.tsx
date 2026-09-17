@@ -1,5 +1,8 @@
 'use client';
 
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import DeliverySummary from '@/components/orders/DeliverySummary';
+import OrderActions from '@/components/orders/OrderActions';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -25,8 +28,11 @@ export default function OrderDetailsModal({
   const router = useRouter();
   const { showToast } = useToast();
   const [order, setOrder] = useState<Order | null>(null);
+  const [payingId, setPayingId] = useState<number | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(true);
   const [error, setError] = useState('');
+
+  useLiveRefresh(() => loadOrder(true), isOpen && Boolean(orderId));
 
   useEffect(() => {
     if (isOpen && orderId) {
@@ -34,9 +40,9 @@ export default function OrderDetailsModal({
     }
   }, [isOpen, orderId]);
 
-  const loadOrder = async () => {
+  const loadOrder = async (silent = false) => {
     try {
-      setLoadingOrder(true);
+      if (!silent) setLoadingOrder(true);
       setError('');
       const data = await orderService.getOrder(orderId);
       setOrder(data);
@@ -49,13 +55,15 @@ export default function OrderDetailsModal({
   };
 
   const handlePayStoreOrder = async (storeOrderId: number) => {
+    if (payingId !== null) return;
+    setPayingId(storeOrderId);
     try {
-      await orderService.payStoreOrder(storeOrderId, 'wallet');
+      await orderService.payStoreOrder(storeOrderId, 'wallet', Number(order?.store_orders.find(so => so.id === storeOrderId)?.total));
       await loadOrder();
       showToast('success', 'Payment processed successfully');
     } catch (error: any) {
       showToast('error', error.response?.data?.message || 'Payment failed');
-    }
+    } finally { setPayingId(null); }
   };
 
   const handleViewFullPage = () => {
@@ -70,7 +78,7 @@ export default function OrderDetailsModal({
         text: 'text-amber-700',
         icon: '⏳',
       },
-      accepted: {
+      awaiting_payment: {
         bg: 'bg-blue-50 border-blue-200',
         text: 'text-blue-700',
         icon: '✓',
@@ -112,9 +120,7 @@ export default function OrderDetailsModal({
   };
 
   const getStoreOrderTotal = (storeOrder: Order['store_orders'][number]) => {
-    const rawTotal = Number(storeOrder.total ?? 0);
-    if (rawTotal > 0) return rawTotal;
-    return Number(storeOrder.subtotal ?? 0) + Number(storeOrder.delivery_fee ?? 0);
+    return Number(storeOrder.total ?? 0);
   };
 
   return (
@@ -195,7 +201,7 @@ export default function OrderDetailsModal({
 
                   <div className="p-4">
                     {/* Seller Quote / Schedule */}
-                    {(storeOrder.status === 'accepted' ||
+                    {(storeOrder.status === 'awaiting_payment' ||
                       storeOrder.status === 'paid' ||
                       storeOrder.status === 'out_for_delivery' ||
                       storeOrder.status === 'delivered') && (
@@ -234,6 +240,8 @@ export default function OrderDetailsModal({
                     )}
 
                     {/* OTP Code Display */}
+                    <DeliverySummary shipment={storeOrder} />
+                    <OrderActions shipment={storeOrder} onUpdate={() => loadOrder(true)} />
                     {storeOrder.delivery_code && (
                       <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-lg p-4 mb-4">
                         <div className="flex items-center gap-2 mb-2">
@@ -261,7 +269,7 @@ export default function OrderDetailsModal({
                     )}
 
                     {/* Payment Button for Accepted Orders */}
-                    {storeOrder.status === 'accepted' && (
+                    {storeOrder.financial_version === 1 && storeOrder.status === 'awaiting_payment' && (
                       <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
                         <div className="flex items-center justify-between mb-3">
                           <div>
@@ -272,6 +280,7 @@ export default function OrderDetailsModal({
                           </div>
                         </div>
                         <Button
+                          disabled={payingId !== null}
                           onClick={() => handlePayStoreOrder(storeOrder.id)}
                           className="w-full"
                           size="sm"

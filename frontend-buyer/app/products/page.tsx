@@ -1,4 +1,5 @@
 'use client';
+import PromotionalBanners from '@/components/campaigns/PromotionalBanners';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
@@ -10,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import ProductListCard from '@/components/products/ProductListCard';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
+import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 
 const PRODUCT_TYPE_OPTIONS = [
   { value: 'frame', label: 'Frames', icon: '🕶️' },
@@ -69,6 +71,9 @@ function ProductCard({ product }: { product: Product }) {
   const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
     : (defaultVariant?.price ?? product.price);
+  const displayPricing = activeVariantId && hasVariants && product.variants
+    ? product.variants.find(v => v.id === activeVariantId)?.pricing ?? product.pricing
+    : defaultVariant?.pricing ?? product.pricing;
 
   return (
     <Link
@@ -146,6 +151,7 @@ function ProductCard({ product }: { product: Product }) {
             </div>
           </div>
         )}
+        <DiscountCampaignIndicator pricing={displayPricing} compact className="mb-2" />
         <div className="mt-auto flex items-center justify-between">
           <div className="text-lg sm:text-xl font-bold text-[#0066CC]">
             €{Number(displayPrice || 0).toFixed(2)}
@@ -314,6 +320,7 @@ export default function ProductsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Filters Sidebar */}
           <aside className="lg:col-span-1">
+            <PromotionalBanners placement="sidebar" />
             <div className="bg-white/95 backdrop-blur rounded-2xl shadow-sm border border-gray-200 p-5 sticky top-4 transition-all hover:shadow-md">
               <div className="mb-4 rounded-xl bg-gradient-to-r from-[#0066CC] to-[#00A0FF] p-4 text-white">
                 <div className="flex items-center justify-between">

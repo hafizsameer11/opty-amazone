@@ -1,7 +1,12 @@
 import apiClient from '@/lib/api-client';
+import { adToken } from '@/services/ad-service';
+import { campaignVisitor } from '@/services/campaign-service';
 import type { OrderLineSelections } from '@/types/order-line';
 
 export interface CartItem extends OrderLineSelections {
+  original_price?: number;
+  campaign_discount_amount?: number;
+  campaign_pricing?: import('./campaign-service').CampaignPrice;
   id: number;
   product_id: number;
   store_id: number;
@@ -85,7 +90,7 @@ export const cartService = {
   },
 
   async addItem(data: AddToCartData): Promise<CartItem> {
-    const res = await apiClient.post('/buyer/cart/items', data);
+    const res = await apiClient.post('/buyer/cart/items', { ...data, ad_tracking_token: adToken(data.product_id), banner_tracking_token: localStorage.getItem('commerce_campaign_click') }, { headers: { 'X-Campaign-Visitor': campaignVisitor() } });
     return res.data.data;
   },
 

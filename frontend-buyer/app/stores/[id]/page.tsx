@@ -1,4 +1,5 @@
 'use client';
+import PromotionalBanners from '@/components/campaigns/PromotionalBanners';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -14,8 +15,10 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import ProductCardCategoryLine from '@/components/products/ProductCardCategoryLine';
+import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 import StoreChatPanel from '@/components/stores/StoreChatPanel';
 import ReportStoreButton from '@/components/stores/ReportStoreButton';
+import ReviewForm from '@/components/reviews/ReviewForm';
 
 function normalizeExternalUrl(url: string): string {
   const t = url.trim();
@@ -81,6 +84,9 @@ function ProductCard({ product }: { product: Product }) {
   const displayPrice = activeVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
     : (defaultVariant?.price ?? product.price);
+  const displayPricing = activeVariantId && hasVariants && product.variants
+    ? product.variants.find(v => v.id === activeVariantId)?.pricing ?? product.pricing
+    : defaultVariant?.pricing ?? product.pricing;
 
   return (
     <Link
@@ -168,6 +174,7 @@ function ProductCard({ product }: { product: Product }) {
             </div>
           </div>
         )}
+        <DiscountCampaignIndicator pricing={displayPricing} compact className="mb-2" />
         <div className="mt-auto flex items-center justify-between">
           <div className="text-lg font-bold text-[#0066CC]">
             €{Number(displayPrice || 0).toFixed(2)}
@@ -589,6 +596,7 @@ export default function StorePage() {
 
         {/* Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <PromotionalBanners placement="store_page" storeId={Number(store.id)} />
           {/* Products Section */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
@@ -656,6 +664,7 @@ export default function StorePage() {
                 {store.rating != null ? ` · ${Number(store.rating).toFixed(1)}★` : ''})
               </span>
             </h2>
+            <ReviewForm type="store" id={store.id} onSaved={() => loadReviews()} />
             {reviews.length > 0 ? (
               <div className="space-y-4 mt-4">
                 {reviews.map((review) => (
