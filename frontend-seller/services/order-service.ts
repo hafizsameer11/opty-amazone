@@ -26,6 +26,14 @@ export interface StoreOrder {
   subtotal: number;
   delivery_fee: number;
   total: number;
+  discount_total?: number;
+  payment_status?: string;
+  financial_version?: number;
+  delivery_address_snapshot?: Record<string, string | number | null>;
+  delivery_code_expires_at?: string;
+  delivery_verified_at?: string;
+  dispute_reason?: string;
+  escrow?: { id: number; amount: number; status: string };
   delivery_code?: string;
   estimated_delivery_date?: string;
   delivery_method?: string;
@@ -86,7 +94,7 @@ export const orderService = {
   },
 
   async acceptOrder(id: number, data: AcceptOrderData): Promise<StoreOrder> {
-    const res = await apiClient.post(`/seller/store-orders/${id}/accept`, data);
+    const res = await apiClient.post(`/seller/store-orders/${id}/accept`, { ...data, delivery_notes: data.delivery_notes || "", idempotency_key: `shipping-quote:${id}` });
     return res.data.data;
   },
 

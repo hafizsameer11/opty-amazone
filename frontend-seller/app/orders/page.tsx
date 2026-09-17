@@ -1,5 +1,6 @@
 'use client';
 
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,6 +21,8 @@ export default function SellerOrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  useLiveRefresh(() => loadOrders(true), isAuthenticated);
+
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/auth/login');
@@ -32,9 +35,9 @@ export default function SellerOrdersPage() {
     }
   }, [isAuthenticated, statusFilter]);
 
-  const loadOrders = async () => {
+  const loadOrders = async (silent = false) => {
     try {
-      setLoadingOrders(true);
+      if (!silent) setLoadingOrders(true);
       const params: any = {};
       if (statusFilter) {
         params.status = statusFilter;
@@ -88,7 +91,7 @@ export default function SellerOrdersPage() {
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: 'default' | 'success' | 'warning' | 'error' | 'info' | 'primary' | 'secondary'; label: string }> = {
       pending: { variant: 'warning', label: 'Pending' },
-      accepted: { variant: 'info', label: 'Accepted' },
+      awaiting_payment: { variant: 'info', label: 'Awaiting payment' },
       rejected: { variant: 'error', label: 'Rejected' },
       paid: { variant: 'success', label: 'Paid' },
       out_for_delivery: { variant: 'primary', label: 'Out for Delivery' },
@@ -131,14 +134,14 @@ export default function SellerOrdersPage() {
             Pending
           </button>
           <button
-            onClick={() => setStatusFilter('accepted')}
+            onClick={() => setStatusFilter('awaiting_payment')}
             className={`px-4 py-2.5 rounded-lg whitespace-nowrap font-medium transition-all duration-200 ${
-              statusFilter === 'accepted'
+              statusFilter === 'awaiting_payment'
                 ? 'bg-gradient-to-r from-[#0066CC] to-[#0052A3] text-white shadow-md'
                 : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[#0066CC] hover:text-[#0066CC]'
             }`}
           >
-            Accepted
+            Awaiting payment
           </button>
           <button
             onClick={() => setStatusFilter('paid')}

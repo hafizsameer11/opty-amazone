@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from 'next/link';
 import { useRouter, useSearchParams } from "next/navigation";
 import { userService, type ProfileResponse } from "@/services/user-service";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +16,8 @@ import Alert from "@/components/ui/Alert";
 import Button from "@/components/ui/Button";
 import EditProfileForm from "@/components/profile/EditProfileForm";
 import ChangePasswordForm from "@/components/profile/ChangePasswordForm";
+import DataPanel from "@/components/profile/DataPanel";
+import SupportPanel from "@/components/profile/SupportPanel";
 
 type AccountTab =
   | "overview"
@@ -298,6 +301,7 @@ function ProfilePageContent() {
       );
     }
 
+    if (String(activeTab) === "products") return <DataPanel kind="products" />;
     if (activeTab === "products") {
       return (
         <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
@@ -326,6 +330,7 @@ function ProfilePageContent() {
       );
     }
 
+    if (String(activeTab) === "orders") return <DataPanel kind="orders" />;
     if (activeTab === "orders") {
       return (
         <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
@@ -354,6 +359,7 @@ function ProfilePageContent() {
       );
     }
 
+    if (String(activeTab) === "analytics") return <DataPanel kind="analytics" />;
     if (activeTab === "analytics") {
       return (
         <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
@@ -390,6 +396,7 @@ function ProfilePageContent() {
       );
     }
 
+    if (String(activeTab) === "support") return <SupportPanel />;
     if (activeTab === "support") {
       return (
         <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
@@ -458,6 +465,7 @@ function ProfilePageContent() {
         <Sidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header />
+      <Link href="/wallet" className="block px-6 py-3 text-blue-700 font-semibold">Seller Wallet &amp; earnings →</Link>
           <main className="flex-1 overflow-y-auto">
             <div className="py-6">
               <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-8">

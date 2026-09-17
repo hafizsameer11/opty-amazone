@@ -43,6 +43,7 @@ export default function Sidebar() {
   }, [isAuthenticated, pathname]);
 
   const navigation: NavItem[] = useMemo(() => [
+    { name: "Seller Wallet", href: "/wallet", icon: <span className="text-xl">€</span> },
     {
       name: t('guide'),
       href: '/guide',
@@ -126,6 +127,7 @@ export default function Sidebar() {
         </svg>
       ),
     },
+    { name: 'Referral Campaigns', href: '/referral-campaigns', icon: <span className="text-xl">↗</span> },
     {
       name: t('boostAds'),
       href: '/boost-ads',

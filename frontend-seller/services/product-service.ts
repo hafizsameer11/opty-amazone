@@ -339,29 +339,6 @@ export const productService = {
     await apiClient.delete(`/seller/frame-sizes/${frameSizeId}`);
   },
 
-  async boostWithPlan(
-    id: number,
-    data: {
-      location: string;
-      budget: number;
-      start_at?: string;
-      end_at?: string;
-      pay_method: string;
-    }
-  ): Promise<{ product: Product; message?: string }> {
-    const res = await apiClient.post(`/seller/products/${id}/boost`, data);
-    return res.data.data;
-  },
-
-  async completeBoostPayment(id: number): Promise<{ product: Product; message?: string }> {
-    const res = await apiClient.post(`/seller/products/${id}/boost/complete-payment`);
-    return res.data.data;
-  },
-
-  async toggleBoost(id: number): Promise<Product> {
-    const res = await apiClient.post(`/seller/products/${id}/toggle-boost`);
-    return res.data.data;
-  },
 };
 
 /** Map API product to seller edit form state. */

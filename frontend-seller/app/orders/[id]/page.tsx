@@ -1,5 +1,7 @@
 'use client';
 
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import DeliverySummary from '@/components/orders/DeliverySummary';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,6 +32,8 @@ export default function SellerOrderDetailsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  useLiveRefresh(() => loadOrder(true), isAuthenticated && Boolean(params.id));
+
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/auth/login');
@@ -42,9 +46,9 @@ export default function SellerOrderDetailsPage() {
     }
   }, [isAuthenticated, params.id]);
 
-  const loadOrder = async () => {
+  const loadOrder = async (silent = false) => {
     try {
-      setLoadingOrder(true);
+      if (!silent) setLoadingOrder(true);
       const data = await orderService.getOrder(Number(params.id));
       setStoreOrder(data);
     } catch (error) {
@@ -169,7 +173,7 @@ export default function SellerOrderDetailsPage() {
               className={`px-4 py-2 rounded-full text-sm font-semibold ${
                 storeOrder.status === 'pending'
                   ? 'bg-yellow-100 text-yellow-800'
-                  : storeOrder.status === 'accepted'
+                  : storeOrder.status === 'awaiting_payment'
                   ? 'bg-blue-100 text-blue-800'
                   : storeOrder.status === 'paid'
                   ? 'bg-green-100 text-green-800'
@@ -184,7 +188,8 @@ export default function SellerOrderDetailsPage() {
             </span>
           </div>
 
-          {/* Order Items */}
+          <DeliverySummary shipment={storeOrder} />
+            {/* Order Items */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h3>
             <div className="space-y-3">
@@ -227,7 +232,7 @@ export default function SellerOrderDetailsPage() {
           </div>
 
           {/* Actions based on status */}
-          {storeOrder.status === 'pending' && (
+          {storeOrder.financial_version === 1 && storeOrder.status === 'pending' && (
             <div className="space-y-4">
               {!showAcceptForm && !showRejectForm && (
                 <div className="flex gap-4">
@@ -258,7 +263,7 @@ export default function SellerOrderDetailsPage() {
                   <h3 className="text-lg font-semibold mb-4">Accept Order</h3>
                   <div className="space-y-4">
                     <Input
-                      label="Delivery Fee"
+                      label="Delivery Fee" aria-label="Delivery Fee"
                       type="number"
                       step="0.01"
                       value={deliveryFee}
@@ -266,13 +271,15 @@ export default function SellerOrderDetailsPage() {
                       required
                     />
                     <Input
-                      label="Estimated Delivery Date"
+                      label="Estimated Delivery Date" aria-label="Estimated Delivery Date"
+                      required
                       type="date"
                       value={estimatedDeliveryDate}
                       onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
                     />
                     <Input
-                      label="Delivery Method"
+                      label="Delivery Method" aria-label="Delivery Method"
+                      required
                       type="text"
                       value={deliveryMethod}
                       onChange={(e) => setDeliveryMethod(e.target.value)}
@@ -283,6 +290,7 @@ export default function SellerOrderDetailsPage() {
                         Delivery Notes
                       </label>
                       <textarea
+                        aria-label="Delivery Notes"
                         value={deliveryNotes}
                         onChange={(e) => setDeliveryNotes(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-transparent"
@@ -340,7 +348,7 @@ export default function SellerOrderDetailsPage() {
             </div>
           )}
 
-          {storeOrder.status === 'paid' && (
+          {['paid', 'processing'].includes(storeOrder.status) && (
             <Button onClick={handleOutForDelivery} className="w-full">
               Mark as Out for Delivery
             </Button>
@@ -363,7 +371,7 @@ export default function SellerOrderDetailsPage() {
                   </p>
                   <div className="space-y-4">
                     <Input
-                      label="Delivery Code (OTP)"
+                      label="Delivery Code (OTP)" aria-label="Delivery Code (OTP)"
                       type="text"
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}

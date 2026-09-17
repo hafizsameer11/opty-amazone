@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
-import GoogleTranslateWidget from "@/components/ui/GoogleTranslateWidget";
 import SellerGate from "@/components/layout/SellerGate";
 
 const geistSans = Geist({
@@ -27,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="notranslate">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
@@ -35,7 +34,6 @@ export default function RootLayout({
         <AuthProvider>
           <LanguageProvider>
             <SellerGate>{children}</SellerGate>
-            <GoogleTranslateWidget />
           </LanguageProvider>
         </AuthProvider>
       </body>

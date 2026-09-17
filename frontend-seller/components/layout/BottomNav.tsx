@@ -38,6 +38,7 @@ export default function BottomNav() {
   }, [isAuthenticated, pathname]);
 
   const navItems = [
+    { href: "/wallet", label: "Wallet", badgeKey: undefined, icon: <span className="text-xl">€</span> },
     {
       href: '/dashboard',
       label: t('dashboard'),

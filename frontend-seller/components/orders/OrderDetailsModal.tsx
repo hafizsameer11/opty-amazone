@@ -1,5 +1,7 @@
 'use client';
 
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import DeliverySummary from '@/components/orders/DeliverySummary';
 import { useEffect, useState } from 'react';
 import { orderService, type StoreOrder, type OrderItem } from '@/services/order-service';
 import OrderLineSelections from '@/components/orders/OrderLineSelections';
@@ -37,15 +39,17 @@ export default function OrderDetailsModal({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  useLiveRefresh(() => loadOrder(true), isOpen && Boolean(orderId));
+
   useEffect(() => {
     if (isOpen && orderId) {
       loadOrder();
     }
   }, [isOpen, orderId]);
 
-  const loadOrder = async () => {
+  const loadOrder = async (silent = false) => {
     try {
-      setLoadingOrder(true);
+      if (!silent) setLoadingOrder(true);
       setError('');
       setSuccess('');
       const data = await orderService.getOrder(orderId);
@@ -134,7 +138,7 @@ export default function OrderDetailsModal({
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: 'default' | 'success' | 'warning' | 'error' | 'info' | 'primary' | 'secondary'; label: string }> = {
       pending: { variant: 'warning', label: 'Pending' },
-      accepted: { variant: 'info', label: 'Accepted' },
+      awaiting_payment: { variant: 'info', label: 'Awaiting payment' },
       paid: { variant: 'success', label: 'Paid' },
       out_for_delivery: { variant: 'primary', label: 'Out for Delivery' },
       delivered: { variant: 'default', label: 'Delivered' },
@@ -180,6 +184,7 @@ export default function OrderDetailsModal({
               {getStatusBadge(storeOrder.status)}
             </div>
 
+            <DeliverySummary shipment={storeOrder} />
             {/* Order Items */}
             <div className="mb-6">
               <h4 className="text-base font-semibold text-gray-900 mb-4">Order Items</h4>
@@ -231,7 +236,7 @@ export default function OrderDetailsModal({
           </Card>
 
           {/* Actions based on status */}
-          {storeOrder.status === 'pending' && (
+          {storeOrder.financial_version === 1 && storeOrder.status === 'pending' && (
             <div className="space-y-4">
               {!showAcceptForm && !showRejectForm && (
                 <div className="flex gap-4">
@@ -262,7 +267,7 @@ export default function OrderDetailsModal({
                   <h4 className="text-lg font-semibold mb-4 text-gray-900">Accept Order</h4>
                   <form onSubmit={handleAccept} className="space-y-4">
                     <Input
-                      label="Delivery Fee"
+                      label="Delivery Fee" aria-label="Delivery Fee"
                       type="number"
                       step="0.01"
                       value={deliveryFee}
@@ -270,13 +275,15 @@ export default function OrderDetailsModal({
                       required
                     />
                     <Input
-                      label="Estimated Delivery Date"
+                      label="Estimated Delivery Date" aria-label="Estimated Delivery Date"
+                      required
                       type="date"
                       value={estimatedDeliveryDate}
                       onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
                     />
                     <Input
-                      label="Delivery Method"
+                      label="Delivery Method" aria-label="Delivery Method"
+                      required
                       type="text"
                       value={deliveryMethod}
                       onChange={(e) => setDeliveryMethod(e.target.value)}
@@ -287,6 +294,7 @@ export default function OrderDetailsModal({
                         Delivery Notes
                       </label>
                       <textarea
+                        aria-label="Delivery Notes"
                         value={deliveryNotes}
                         onChange={(e) => setDeliveryNotes(e.target.value)}
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
@@ -353,7 +361,7 @@ export default function OrderDetailsModal({
             </div>
           )}
 
-          {storeOrder.status === 'paid' && (
+          {['paid', 'processing'].includes(storeOrder.status) && (
             <Button onClick={handleOutForDelivery} className="w-full">
               Mark as Out for Delivery
             </Button>
@@ -376,7 +384,7 @@ export default function OrderDetailsModal({
                   </p>
                   <form onSubmit={handleDelivered} className="space-y-4">
                     <Input
-                      label="Delivery Code (OTP)"
+                      label="Delivery Code (OTP)" aria-label="Delivery Code (OTP)"
                       type="text"
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}

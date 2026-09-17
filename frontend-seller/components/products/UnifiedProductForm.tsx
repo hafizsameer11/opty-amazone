@@ -59,8 +59,6 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
     treatment_options: [],
     is_featured: false,
     is_active: true,
-    shipping_type: 'free',
-    shipping_fee: 0,
     base_curve_options: [],
     diameter_options: [],
     powers_range: '',
@@ -341,41 +339,8 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
               </select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-100">
-                <label className="block text-sm font-bold text-gray-800 mb-3">Shipping</label>
-                <select
-                  value={formData.shipping_type || 'free'}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      shipping_type: e.target.value as 'free' | 'fixed',
-                      shipping_fee: e.target.value === 'free' ? 0 : formData.shipping_fee,
-                    })
-                  }
-                  className="w-full px-4 py-3.5 bg-white border-2 border-orange-200 rounded-xl"
-                >
-                  <option value="free">Free shipping</option>
-                  <option value="fixed">Fixed fee per item</option>
-                </select>
-              </div>
-              {(formData.shipping_type || 'free') === 'fixed' && (
-                <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-100">
-                  <Input
-                    label="Shipping fee (€)"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.shipping_fee ?? 0}
-                    onChange={(e) =>
-                      setFormData({ ...formData, shipping_fee: parseFloat(e.target.value) || 0 })
-                    }
-                    className="bg-white"
-                  />
-                </div>
-              )}
-            </div>
-            
+            <p className="text-sm text-gray-600">Delivery is quoted when you review each order and its destination.</p>
+
             <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-xl p-6 border border-slate-200">
               <label className="block text-sm font-bold text-gray-800 mb-3">
                 Description
