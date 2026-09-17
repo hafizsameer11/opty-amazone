@@ -27,8 +27,8 @@ export const orderService = {
   },
 
   /** Updates per-store fulfillment (seller pipeline) */
-  async updateStoreOrderStatus(storeOrderId: number, status: string) {
-    const res = await apiClient.put(`/admin/store-orders/${storeOrderId}/status`, { status });
+  async updateStoreOrderStatus(storeOrderId: number, status: string, reason: string, deliveryCode?: string) {
+    const res = await apiClient.put(`/admin/store-orders/${storeOrderId}/status`, { status, reason, delivery_code: deliveryCode });
     return res.data.data;
   },
 };

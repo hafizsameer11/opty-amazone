@@ -67,28 +67,6 @@ export default function ProductDetailsPage() {
     }
   };
 
-  const handleToggleBoost = async () => {
-    try {
-      await productService.toggleBoost(Number(params.id));
-      showToast('success', 'Boost status updated');
-      loadProduct();
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      showToast('error', err.response?.data?.message || 'Failed to toggle boost');
-    }
-  };
-
-  const handleApproveBoost = async () => {
-    try {
-      await productService.approveBoost(Number(params.id));
-      showToast('success', 'Pending boost approved');
-      loadProduct();
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      showToast('error', err.response?.data?.message || 'Failed to approve boost');
-    }
-  };
-
   const handleDelete = async () => {
     if (!confirm('Delete this product permanently?')) return;
     try {
@@ -137,12 +115,7 @@ export default function ProductDetailsPage() {
             <Button variant="primary" onClick={handleApprove}>Approve</Button>
             <Button variant="danger" onClick={() => setRejectOpen(true)}>Reject</Button>
             <Button variant="outline" onClick={handleToggleActive}>Toggle visible</Button>
-            <Button variant="outline" onClick={() => void handleToggleBoost()}>
-              {product.is_boosted ? 'Remove boost' : 'Boost'}
-            </Button>
-            {product.boost_payment_status === 'pending_payment' && !product.is_boosted && (
-              <Button variant="primary" onClick={() => void handleApproveBoost()}>Approve boost</Button>
-            )}
+            <a className="border rounded-lg px-4 py-2 text-blue-700" href={'/ad-campaigns?product_id=' + product.id}>View ad campaigns</a>
             <Button variant="danger" onClick={handleDelete}>Delete</Button>
           </div>
         </div>
@@ -175,13 +148,8 @@ export default function ProductDetailsPage() {
                 </Badge>
               </div>
               <div>
-                <p className="text-sm text-slate-500 mb-1">Boost</p>
-                <Badge variant={product.is_boosted ? 'success' : 'default'}>
-                  {product.is_boosted ? 'Boosted' : 'Not boosted'}
-                </Badge>
-                {product.boost_payment_status ? (
-                  <p className="text-xs text-slate-400 mt-1">{String(product.boost_payment_status)}</p>
-                ) : null}
+                <p className="text-sm text-slate-500 mb-1">Product advertising</p>
+                <a className="text-blue-700 underline" href={'/ad-campaigns?product_id=' + product.id}>Campaign status and payments</a>
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useEffect, useState, useCallback } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import DataTable from '@/components/ui/DataTable';
@@ -23,9 +24,9 @@ export default function OrdersPage() {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
 
-  const loadOrders = useCallback(async (pageNum: number) => {
+  const loadOrders = useCallback(async (pageNum: number, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setLoadError(null);
       const params: Record<string, string | number> = { per_page: 20, page: pageNum };
       if (appliedSearch) params.search = appliedSearch;
@@ -41,6 +42,8 @@ export default function OrdersPage() {
       setLoading(false);
     }
   }, [appliedSearch, paymentFilter, showToast]);
+
+  useLiveRefresh(() => loadOrders(page, true));
 
   useEffect(() => {
     void loadOrders(page);

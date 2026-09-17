@@ -15,14 +15,19 @@ interface NavItem {
 }
 
 const navigation: NavItem[] = [
+  { nameKey: "Marketplace Finance", href: "/finance", icon: <span className="text-xl">€</span> },
+  { nameKey: "Referral Program", href: "/referrals", icon: <span className="text-xl">↗</span> },
   { nameKey: 'dashboard', href: '/dashboard', icon: <DashboardIcon /> },
   { nameKey: 'users', href: '/users', icon: <UsersIcon /> },
   { nameKey: 'sellers', href: '/sellers', icon: <SellersIcon /> },
   { nameKey: 'products', href: '/products', icon: <ProductsIcon /> },
+  { nameKey: 'boostCampaigns', href: '/ad-campaigns', icon: <ProductsIcon /> },
   { nameKey: 'orders', href: '/orders', icon: <OrdersIcon /> },
   { nameKey: 'messages', href: '/messages', icon: <MessagesIcon /> },
+  { nameKey: 'support', href: '/support', icon: <MessagesIcon /> },
   { nameKey: 'storeReports', href: '/store-reports', icon: <ReportsIcon /> },
   { nameKey: 'categories', href: '/categories', icon: <CategoriesIcon /> },
+  { nameKey: 'Discount Campaigns', href: '/discount-campaigns', icon: <ProductsIcon /> },
   { nameKey: 'storeBanners', href: '/banners', icon: <BannersIcon /> },
   { nameKey: 'coupons', href: '/coupons', icon: <CouponsIcon /> },
   { nameKey: 'points', href: '/points', icon: <PointsIcon /> },

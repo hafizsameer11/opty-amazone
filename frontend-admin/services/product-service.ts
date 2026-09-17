@@ -42,15 +42,7 @@ export const productService = {
     return res.data.data;
   },
 
-  async toggleBoost(id: number) {
-    const res = await apiClient.post(`/admin/products/${id}/toggle-boost`);
-    return res.data.data;
-  },
 
-  async approveBoost(id: number) {
-    const res = await apiClient.post(`/admin/products/${id}/approve-boost`);
-    return res.data.data;
-  },
 
   async delete(id: number) {
     await apiClient.delete(`/admin/products/${id}`);

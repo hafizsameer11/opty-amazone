@@ -4,7 +4,6 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ToastProvider } from "@/components/ui/Toast";
-import GoogleTranslateWidget from "@/components/ui/GoogleTranslateWidget";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -31,13 +30,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="notranslate">
       <body className={`${inter.variable} ${poppins.variable} font-sans`}>
         <AuthProvider>
           <LanguageProvider>
             <ToastProvider>
               {children}
-              <GoogleTranslateWidget />
             </ToastProvider>
           </LanguageProvider>
         </AuthProvider>
