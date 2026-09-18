@@ -87,6 +87,23 @@ class BuyerWalletService
         }, 5);
     }
 
+    /**
+     * Credit a buyer wallet directly while the normal card gateway is not in use.
+     * This is the regular Buyer Wallet top-up path and has no Stripe gate.
+     */
+    public function directTopUp(User $user, mixed $amount, string $key): array
+    {
+        abort_unless($user->isBuyer(), 403);
+        $cents = Money::cents($amount);
+        abort_unless($cents >= 500 && $cents <= config('marketplace.top_up_max_cents'), 422, 'Top-up must be between EUR 5 and EUR 100,000.');
+
+        return DB::transaction(function () use ($user, $cents, $key) {
+            $transaction = $this->change($user, $cents, 'buyer-top-up:'.$user->id.':'.$key, 'top_up', ['payment_method' => 'wallet_top_up']);
+
+            return ['wallet' => ['balance' => (float) $user->wallet()->first()->shopping_balance], 'transaction' => $transaction];
+        }, 5);
+    }
+
     public function withdraw(User $buyer, array $data): array
     {
         abort_unless($buyer->isBuyer(), 403);

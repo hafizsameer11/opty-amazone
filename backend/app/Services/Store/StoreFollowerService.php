@@ -21,16 +21,9 @@ class StoreFollowerService
 
             $store = Store::findOrFail($storeId);
 
-            // Check if already following
-            $existing = StoreFollower::where('store_id', $storeId)
-                ->where('user_id', $buyer->id)
-                ->first();
-
-            if ($existing) {
-                return $existing;
-            }
-
-            return StoreFollower::create([
+            // firstOrCreate keeps repeated follow clicks idempotent and also
+            // avoids creating duplicate relationships for the unique pair.
+            return StoreFollower::firstOrCreate([
                 'store_id' => $storeId,
                 'user_id' => $buyer->id,
             ]);
@@ -92,13 +85,15 @@ class StoreFollowerService
             return collect();
         }
 
-        return StoreFollower::where('user_id', $buyer->id)
-            ->whereHas('store')
-            ->with('store')
-            ->get()
-            ->pluck('store')
-            ->filter()
-            ->values();
+        // Query stores directly through the follower subquery. This avoids
+        // returning partially hydrated relation values and naturally excludes
+        // soft-deleted stores through the Store model's global scope.
+        return Store::query()
+            ->whereIn('id', StoreFollower::query()
+                ->select('store_id')
+                ->where('user_id', $buyer->id))
+            ->orderBy('name')
+            ->get();
     }
 
     /**

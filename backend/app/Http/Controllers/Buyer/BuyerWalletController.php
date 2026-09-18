@@ -84,10 +84,23 @@ class BuyerWalletController extends Controller
     }
 
     /**
-     * Top up wallet (called after Stripe success).
+     * Top up directly while the card gateway is not active, or confirm a
+     * future Stripe session when one is supplied.
      */
     public function topUp(Request $request): JsonResponse
     {
+        if ($request->filled('amount')) {
+            $data = $request->validate([
+                'amount' => 'required|numeric|min:5|max:100000',
+                'idempotency_key' => 'required|string|max:100',
+            ]);
+
+            $result = app(\App\Services\Marketplace\BuyerWalletService::class)
+                ->directTopUp($request->user(), $data['amount'], $data['idempotency_key']);
+
+            return ResponseHelper::success($result, 'Wallet topped up successfully.');
+        }
+
         $data = $request->validate(['stripe_session_id' => ['required', 'string', 'max:255', 'regex:/^cs_[a-zA-Z0-9_]+$/']]);
         $result = app(\App\Services\Ads\WalletFundingService::class)->confirm($request->user(), $data['stripe_session_id']);
 

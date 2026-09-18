@@ -89,7 +89,10 @@ class BuyerStoreController extends Controller
         $stores = $this->followerService->getFollowedStores($request->user());
 
         return ResponseHelper::success([
-            'stores' => StoreResource::collection($stores),
+            // Resolve the resource collection before placing it inside the
+            // response payload. This keeps `stores` a plain JSON array rather
+            // than a nested JsonResource object.
+            'stores' => StoreResource::collection($stores)->resolve($request),
         ]);
     }
 
