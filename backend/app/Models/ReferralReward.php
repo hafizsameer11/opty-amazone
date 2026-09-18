@@ -13,6 +13,38 @@ class ReferralReward extends Model
         'suspended_at' => 'datetime', 'reversed_at' => 'datetime', 'risk_flags' => 'array', 'terms_snapshot' => 'array',
     ];
 
+    protected static function booted(): void
+    {
+        static::updated(function (self $reward): void {
+            if (! $reward->wasChanged('status')) {
+                return;
+            }
+
+            $reward->loadMissing(['referrer', 'campaign.store.user']);
+            $status = (string) $reward->status;
+            $labels = [
+                'qualified' => ['Referral reward qualified', 'Your referral reward is being processed.'],
+                'rewarded' => ['Referral reward received', 'Your referral reward has been credited to your wallet.'],
+                'rejected' => ['Referral reward rejected', 'A referral reward was rejected.'],
+                'suspended' => ['Referral reward paused', 'A referral reward needs verification before it can be paid.'],
+                'reversed' => ['Referral reward reversed', 'A referral reward was reversed.'],
+            ];
+            if (! isset($labels[$status])) {
+                return;
+            }
+
+            [$title, $message] = $labels[$status];
+            app(\App\Services\Notifications\MarketplaceNotificationService::class)->send(
+                $reward->referrer,
+                'referral.'.$status,
+                $title,
+                $message,
+                '/profile?tab=referrals',
+                ['reward_id' => $reward->id, 'status' => $status, 'amount' => (float) $reward->amount]
+            );
+        });
+    }
+
     public function conversion() { return $this->belongsTo(ReferralConversion::class, 'referral_conversion_id'); }
     public function attribution() { return $this->belongsTo(ReferralAttribution::class, 'referral_attribution_id'); }
     public function campaign() { return $this->belongsTo(ReferralCampaign::class, 'referral_campaign_id'); }

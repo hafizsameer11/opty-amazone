@@ -5,6 +5,7 @@ namespace App\Services\Marketplace;
 use App\Models\SellerWallet;
 use App\Models\SellerWalletEntry;
 use App\Models\Store;
+use App\Services\Notifications\MarketplaceNotificationService;
 use Illuminate\Support\Facades\DB;
 
 class SellerWalletService
@@ -33,11 +34,25 @@ class SellerWalletService
         }
         $wallet->update($balances);
 
-        return SellerWalletEntry::create(['seller_wallet_id' => $wallet->id, 'store_order_id' => $orderId,
+        $entry = SellerWalletEntry::create(['seller_wallet_id' => $wallet->id, 'store_order_id' => $orderId,
             'withdrawal_id' => $withdrawalId, 'reference' => $reference, 'type' => $type,
             'ad_campaign_id' => $campaignId, 'amount' => Money::decimal($amount),
             'deltas' => array_map([Money::class, 'decimal'], $deltas), 'balances_after' => $balances,
             'description' => $description, 'metadata' => $metadata]);
+
+        $store = Store::with('user')->find($wallet->store_id);
+        $isBoost = str_starts_with($type, 'boost_');
+        $isReferral = str_starts_with($type, 'referral_');
+        app(MarketplaceNotificationService::class)->send(
+            $store?->user,
+            $isBoost ? 'boost.campaign' : ($isReferral ? 'referral.seller_transaction' : 'wallet.seller_transaction'),
+            $isBoost ? 'Boost campaign updated' : ($isReferral ? 'Referral campaign transaction' : 'Seller wallet updated'),
+            $description ?: 'Your seller wallet has a new transaction.',
+            $isBoost ? '/boost-ads' : ($isReferral ? '/referral-campaigns' : '/wallet'),
+            ['wallet_entry_id' => $entry->id, 'transaction_type' => $type, 'amount' => (float) $entry->amount]
+        );
+
+        return $entry;
     }
 
     // Reversals after a payout become a debt, recovered from future settlements.

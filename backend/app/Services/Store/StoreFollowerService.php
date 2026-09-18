@@ -54,11 +54,11 @@ class StoreFollowerService
                 throw new \Exception('Only buyers can unfollow stores');
             }
 
-            $follower = StoreFollower::where('store_id', $storeId)
+            // Unfollow is intentionally idempotent. This keeps repeated clicks,
+            // stale tabs, and already-removed follows from becoming API errors.
+            return (bool) StoreFollower::where('store_id', $storeId)
                 ->where('user_id', $buyer->id)
-                ->firstOrFail();
-
-            return $follower->delete();
+                ->delete();
         } catch (\Exception $e) {
             Log::error('Unfollow store failed: ' . $e->getMessage(), [
                 'buyer_id' => $buyer->id,
@@ -95,7 +95,9 @@ class StoreFollowerService
         return StoreFollower::where('user_id', $buyer->id)
             ->with('store')
             ->get()
-            ->pluck('store');
+            ->pluck('store')
+            ->filter()
+            ->values();
     }
 
     /**

@@ -15,6 +15,7 @@ use App\Http\Controllers\Buyer\BuyerWishlistController;
 use App\Http\Controllers\Buyer\BuyerReviewController;
 use App\Http\Controllers\Support\SupportTicketController;
 use App\Http\Controllers\Buyer\PrescriptionController;
+use App\Http\Controllers\Notifications\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -32,6 +33,13 @@ Route::prefix('auth')->group(function () {
     Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->group(function () {
         Route::post('/logout', [BuyerAuthController::class, 'logout']);
     });
+});
+
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::get('/unread', [NotificationController::class, 'unread']);
+    Route::post('/read-all', [NotificationController::class, 'markAllRead']);
+    Route::post('/{id}/read', [NotificationController::class, 'markRead']);
 });
 
 Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('profile')->group(function () {

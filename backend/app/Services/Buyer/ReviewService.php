@@ -3,6 +3,7 @@
 namespace App\Services\Buyer;
 
 use App\Models\{Order, Product, ProductReview, Store, StoreReview, StoreStatistic, User};
+use App\Services\Notifications\MarketplaceNotificationService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -22,6 +23,8 @@ class ReviewService
     {
         $review = ProductReview::create(['product_id' => $product->id, 'user_id' => $buyer->id, 'rating' => $data['rating'], 'comment' => $data['comment'] ?? null, 'is_verified_purchase' => $this->productVerified($buyer, $product->id)]);
         $this->refreshProductRating($product->id);
+        app(MarketplaceNotificationService::class)->send($product->store?->user, 'review.new', 'New product review',
+            "A buyer left a review for {$product->name}.", "/products/{$product->id}/edit", ['review_id' => $review->id, 'product_id' => $product->id]);
         return $review->load('user');
     }
 
@@ -29,6 +32,8 @@ class ReviewService
     {
         $review = StoreReview::create(['store_id' => $store->id, 'user_id' => $buyer->id, 'rating' => $data['rating'], 'comment' => $data['comment'] ?? null, 'is_verified_purchase' => $this->storeVerified($buyer, $store->id)]);
         $this->refreshStoreRating($store->id);
+        app(MarketplaceNotificationService::class)->send($store->user, 'review.new', 'New store review',
+            "A buyer left a review for {$store->name}.", "/store", ['review_id' => $review->id, 'store_id' => $store->id]);
         return $review->load('user');
     }
 

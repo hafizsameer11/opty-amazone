@@ -22,6 +22,7 @@ use App\Http\Controllers\Seller\SellerStoreChatController;
 use App\Http\Controllers\Seller\SellerAdminChatController;
 use App\Http\Controllers\Seller\SellerNotificationBadgeController;
 use App\Http\Controllers\Support\SupportTicketController;
+use App\Http\Controllers\Notifications\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -38,6 +39,13 @@ Route::prefix('auth')->group(function () {
     Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->group(function () {
         Route::post('/logout', [SellerAuthController::class, 'logout']);
     });
+});
+
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::get('/unread-count', [NotificationController::class, 'unread']);
+    Route::post('/read-all', [NotificationController::class, 'markAllRead']);
+    Route::post('/{id}/read', [NotificationController::class, 'markRead']);
 });
 
 Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('profile')->group(function () {

@@ -27,6 +27,7 @@ class SellerNotificationBadgeController extends Controller
             return ResponseHelper::success([
                 'messages' => 0,
                 'orders' => 0,
+                'notifications' => 0,
             ]);
         }
 
@@ -46,6 +47,7 @@ class SellerNotificationBadgeController extends Controller
         return ResponseHelper::success([
             'messages' => $buyerChatUnread + $adminChatUnread,
             'orders' => $pendingOrders,
+            'notifications' => $user->unreadNotifications()->count(),
         ]);
     }
 }

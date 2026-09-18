@@ -3,6 +3,7 @@
 namespace App\Services\Support;
 
 use App\Models\{Order, Product, Store, SupportMessage, SupportTicket, SupportTicketEvent, User};
+use App\Services\Notifications\MarketplaceNotificationService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,10 @@ class SupportTicketService
             $this->message($ticket, $user, $data['description'], $file, false);
             $ticket->update(['admin_unread_count' => 1]);
             $this->event($ticket, $user, 'created');
+            app(MarketplaceNotificationService::class)->sendToAdmins(
+                'support.ticket_created', 'New support ticket', "A new support ticket {$ticket->ticket_no} needs attention.",
+                '/support', ['ticket_id' => $ticket->id, 'ticket_no' => $ticket->ticket_no]
+            );
             return $ticket->fresh(['user:id,name,email','messages.sender:id,name']);
         });
     }
@@ -43,6 +48,23 @@ class SupportTicketService
         $message = $this->message($ticket, $user, $body, $file, $internal);
         if (!$internal) { $counter = $user->isAdmin() ? 'user_unread_count' : 'admin_unread_count'; $ticket->update(['status' => $user->isAdmin() ? 'waiting_for_user' : 'in_progress', 'resolved_at' => null, 'closed_at' => null, $counter => DB::raw($counter.' + 1')]); }
         $this->event($ticket, $user, 'message_added');
+        if (!$internal) {
+            if ($user->isAdmin()) {
+                app(MarketplaceNotificationService::class)->send(
+                    $ticket->user,
+                    'support.reply',
+                    'Support replied to your ticket',
+                    "Support has replied to ticket {$ticket->ticket_no}.",
+                    '/profile?tab=support',
+                    ['ticket_id' => $ticket->id, 'ticket_no' => $ticket->ticket_no]
+                );
+            } else {
+                app(MarketplaceNotificationService::class)->sendToAdmins(
+                    'support.reply', 'Support ticket reply', "A user replied to ticket {$ticket->ticket_no}.",
+                    '/support', ['ticket_id' => $ticket->id, 'ticket_no' => $ticket->ticket_no]
+                );
+            }
+        }
         return $message->load('sender:id,name');
     }
 
@@ -64,7 +86,16 @@ class SupportTicketService
         abort_unless(in_array($status, self::STATUSES, true), 422, 'Invalid ticket status.');
         $ticket->status = $status; if ($priority !== null) $ticket->priority = $priority; if ($assignedAdminId !== null) { abort_unless(User::whereKey($assignedAdminId)->where('role', 'admin')->exists(), 422, 'Assigned user must be an administrator.'); $ticket->assigned_admin_id = $assignedAdminId; }
         $ticket->resolved_at = $status === 'resolved' ? now() : ($status === 'closed' ? $ticket->resolved_at : null);
-        $ticket->closed_at = $status === 'closed' ? now() : null; $ticket->save(); $this->event($ticket, $admin, 'status_changed', $status); return $ticket->fresh(['user:id,name,email','assignedAdmin:id,name']);
+        $ticket->closed_at = $status === 'closed' ? now() : null; $ticket->save(); $this->event($ticket, $admin, 'status_changed', $status);
+        app(MarketplaceNotificationService::class)->send(
+            $ticket->user,
+            'support.status_changed',
+            'Support ticket updated',
+            "Ticket {$ticket->ticket_no} is now {$status}.",
+            '/profile?tab=support',
+            ['ticket_id' => $ticket->id, 'ticket_no' => $ticket->ticket_no, 'status' => $status]
+        );
+        return $ticket->fresh(['user:id,name,email','assignedAdmin:id,name']);
     }
 
     private function message(SupportTicket $ticket, User $sender, string $body, ?UploadedFile $file, bool $internal): SupportMessage

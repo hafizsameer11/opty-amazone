@@ -5,6 +5,7 @@ namespace App\Services\Marketplace;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\Notifications\MarketplaceNotificationService;
 use Illuminate\Support\Facades\DB;
 
 class BuyerWalletService
@@ -48,9 +49,26 @@ class BuyerWalletService
         unset($meta['allow_negative_balance']);
         $wallet->update(['shopping_balance' => Money::decimal($balance)]);
 
-        return Transaction::create(['user_id' => $user->id, 'payment_reference' => $reference,
+        $transaction = Transaction::create(['user_id' => $user->id, 'payment_reference' => $reference,
             'type' => $type, 'amount' => Money::decimal($cents), 'status' => 'success',
             'description' => str_replace('_', ' ', ucfirst($type)), 'meta' => $meta + ['balance_before' => $balanceBefore, 'balance_after' => Money::decimal($balance)]]);
+
+        $labels = [
+            'top_up' => ['Wallet topped up', 'Your wallet was credited successfully.', 'wallet.top_up'],
+            'withdraw' => ['Withdrawal requested', 'Your wallet withdrawal request was recorded.', 'wallet.withdrawal'],
+            'order_payment' => ['Payment completed', 'Your order payment was completed.', 'wallet.order_payment'],
+            'refund' => ['Refund received', 'A refund was credited to your wallet.', 'wallet.refund'],
+            'referral_reward' => ['Referral reward received', 'A referral reward was credited to your wallet.', 'referral.reward'],
+            'referral_reward_reversal' => ['Referral reward reversed', 'A referral reward was reversed from your wallet.', 'referral.reversal'],
+        ];
+        [$title, $message, $event] = $labels[$type] ?? ['Wallet transaction', 'Your wallet balance changed.', 'wallet.transaction'];
+        app(MarketplaceNotificationService::class)->send($user, $event, $title, $message, '/profile?tab=wallet', [
+            'transaction_id' => $transaction->id,
+            'transaction_type' => $type,
+            'amount' => (float) $transaction->amount,
+        ]);
+
+        return $transaction;
     }
 
     public function developmentTopUp(User $user, mixed $amount, string $key): array

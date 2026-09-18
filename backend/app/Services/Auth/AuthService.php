@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use App\Services\Notifications\MarketplaceNotificationService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -64,6 +65,15 @@ class AuthService
 
             // Create new token
             $token = $this->tokenService->createToken($user, $role);
+
+            app(MarketplaceNotificationService::class)->send(
+                $user,
+                'account.login',
+                'New login detected',
+                'Your account was just used to sign in. If this was not you, change your password and contact support.',
+                $role === 'seller' ? '/profile' : '/profile',
+                ['role' => $role, 'logged_in_at' => now()->toIso8601String()]
+            );
 
             return [
                 'user' => $user,

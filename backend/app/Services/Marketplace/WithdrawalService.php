@@ -5,6 +5,7 @@ namespace App\Services\Marketplace;
 use App\Models\SellerWithdrawal;
 use App\Models\StoreOrder;
 use App\Models\User;
+use App\Services\Notifications\MarketplaceNotificationService;
 use Illuminate\Support\Facades\DB;
 
 class WithdrawalService
@@ -67,6 +68,15 @@ class WithdrawalService
                 $status === 'completed' ? -$amount : 0, $deltas, null, $withdrawal->id);
             $withdrawal->update(['status' => $status, 'processed_by' => $admin->id, 'notes' => $data['notes'] ?? null]
                 + ($status === 'completed' ? ['payout_reference' => $data['payout_reference'], 'completed_at' => now()] : []));
+
+            app(MarketplaceNotificationService::class)->send(
+                $withdrawal->wallet?->store?->user,
+                'wallet.withdrawal_status',
+                'Withdrawal status updated',
+                "Your seller withdrawal is now {$status}.",
+                '/wallet',
+                ['withdrawal_id' => $withdrawal->id, 'status' => $status, 'amount' => (float) $withdrawal->amount]
+            );
 
             return $withdrawal;
         }, 5);

@@ -6,6 +6,7 @@ use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
 use App\Mail\OrderPlacedMail;
 use App\Services\Order\OrderService;
+use App\Services\Notifications\MarketplaceNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -86,6 +87,27 @@ class BuyerCheckoutController extends Controller
                 $request->coupon_code,
                 $request->points_to_redeem ? (float) $request->points_to_redeem : null
             );
+
+            $notifications = app(MarketplaceNotificationService::class);
+            $order = $result['order'];
+            $notifications->send(
+                $user,
+                'order.placed',
+                'Order placed successfully',
+                "Your order {$order->order_no} has been placed successfully.",
+                "/orders/{$order->id}",
+                ['order_id' => $order->id, 'order_no' => $order->order_no]
+            );
+            foreach ($result['store_orders'] as $storeOrder) {
+                $notifications->send(
+                    $storeOrder->store?->user,
+                    'order.received',
+                    'New order received',
+                    "A new order {$order->order_no} is waiting for your review.",
+                    "/orders/{$storeOrder->id}",
+                    ['order_id' => $order->id, 'store_order_id' => $storeOrder->id, 'order_no' => $order->order_no]
+                );
+            }
 
             try {
                 // Send email notifications

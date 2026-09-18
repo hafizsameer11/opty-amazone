@@ -36,6 +36,11 @@ class BuyerUserController extends Controller
 
         return ResponseHelper::success([
             'user' => new UserResource($user),
+            'counts' => [
+                'orders' => $user->orders()->count(),
+                'saved_items' => $user->wishlistItems()->count(),
+                'followed_stores' => $user->followedStores()->count(),
+            ],
         ]);
     }
 
@@ -179,4 +184,3 @@ class BuyerUserController extends Controller
         }
     }
 }
-
