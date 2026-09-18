@@ -12,6 +12,8 @@ class BuyerWalletService
 {
     public function developmentEnabled(): bool
     {
+        // Direct funding is a development/testing aid. Stripe availability must
+        // not block it in those environments, but production must remain safe.
         return app()->environment(['local', 'testing']) && (bool) config('marketplace.development_top_up');
     }
 

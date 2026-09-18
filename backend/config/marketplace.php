@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'development_top_up' => env('MARKETPLACE_DEVELOPMENT_TOP_UP', false),
+    'development_top_up' => env('MARKETPLACE_DEVELOPMENT_TOP_UP', true),
     // Temporary direct funding switch. Set this to false once a payment gateway
     // takes responsibility for creating seller wallet credits.
     'seller_wallet_top_up_enabled' => env('MARKETPLACE_SELLER_WALLET_TOP_UP_ENABLED', true),

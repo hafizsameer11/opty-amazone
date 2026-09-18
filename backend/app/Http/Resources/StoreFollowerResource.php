@@ -18,7 +18,7 @@ class StoreFollowerResource extends JsonResource
             'id' => $this->id,
             'store_id' => $this->store_id,
             'user' => new UserResource($this->whenLoaded('user')),
-            'created_at' => $this->created_at->toISOString(),
+            'created_at' => $this->created_at?->toISOString(),
         ];
     }
 }

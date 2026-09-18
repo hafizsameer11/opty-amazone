@@ -93,6 +93,7 @@ class StoreFollowerService
         }
 
         return StoreFollower::where('user_id', $buyer->id)
+            ->whereHas('store')
             ->with('store')
             ->get()
             ->pluck('store')

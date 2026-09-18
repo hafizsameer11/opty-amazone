@@ -56,8 +56,8 @@ class StoreResource extends JsonResource
             'products_count' => $productsCount,
             'followers_count' => $followersCount,
             'rating' => $rating ? round((float) $rating, 2) : null,
-            'created_at' => $this->created_at->toISOString(),
-            'updated_at' => $this->updated_at->toISOString(),
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

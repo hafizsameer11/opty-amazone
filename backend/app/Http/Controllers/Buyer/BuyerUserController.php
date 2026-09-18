@@ -38,8 +38,8 @@ class BuyerUserController extends Controller
             'user' => new UserResource($user),
             'counts' => [
                 'orders' => $user->orders()->count(),
-                'saved_items' => $user->wishlistItems()->count(),
-                'followed_stores' => $user->followedStores()->count(),
+                'saved_items' => $user->wishlistItems()->whereHas('product')->count(),
+                'followed_stores' => $user->followedStores()->whereHas('store')->count(),
             ],
         ]);
     }

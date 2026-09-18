@@ -12,7 +12,10 @@ class WishlistService
     public function list(User $buyer, int $perPage = 20): LengthAwarePaginator
     {
         return WishlistItem::with(['product.store', 'product.category'])
-            ->where('user_id', $buyer->id)->latest()->paginate($perPage);
+            ->where('user_id', $buyer->id)
+            ->whereHas('product')
+            ->latest()
+            ->paginate($perPage);
     }
 
     public function save(User $buyer, int $productId): WishlistItem
