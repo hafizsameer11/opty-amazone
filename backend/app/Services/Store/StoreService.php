@@ -123,7 +123,7 @@ class StoreService
 
             // Delete old image if exists
             if ($store->profile_image) {
-                Storage::delete($store->profile_image);
+                Storage::disk('public')->delete($store->profile_image);
             }
 
             // Store new image
@@ -151,7 +151,7 @@ class StoreService
 
             // Delete old image if exists
             if ($store->banner_image) {
-                Storage::delete($store->banner_image);
+                Storage::disk('public')->delete($store->banner_image);
             }
 
             // Store new image
@@ -178,7 +178,7 @@ class StoreService
             $store = $this->getStore($user);
 
             if ($store->profile_image) {
-                Storage::delete($store->profile_image);
+                Storage::disk('public')->delete($store->profile_image);
                 $store->profile_image = null;
                 $store->save();
             }
@@ -202,7 +202,7 @@ class StoreService
             $store = $this->getStore($user);
 
             if ($store->banner_image) {
-                Storage::delete($store->banner_image);
+                Storage::disk('public')->delete($store->banner_image);
                 $store->banner_image = null;
                 $store->save();
             }

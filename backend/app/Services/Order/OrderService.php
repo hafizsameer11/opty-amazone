@@ -38,9 +38,11 @@ class OrderService
             }
 
             $deliveryAddress = UserAddress::where('user_id', $user->id)->lockForUpdate()->findOrFail($deliveryAddressId);
-            $snapshot = $deliveryAddress->only(['full_name', 'phone', 'address_line_1', 'address_line_2', 'postal_code', 'country_id', 'state_id', 'city_id']);
+            $snapshot = $deliveryAddress->only(['full_name', 'phone', 'address_line_1', 'address_line_2', 'postal_code', 'country_id', 'state_id', 'city_id', 'country_name', 'state_name', 'city_name']);
             foreach (['country', 'state', 'city'] as $relation) {
-                $snapshot[$relation] = $deliveryAddress->$relation?->name;
+                $snapshot[$relation] = $deliveryAddress->$relation?->name
+                    ?? $snapshot[$relation.'_name']
+                    ?? null;
             }
             $snapshot['source'] = 'checkout';
             app(\App\Services\Marketplace\BuyerWalletService::class)->locked($user);

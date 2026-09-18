@@ -23,8 +23,11 @@ class UserAddress extends Model
         'address_line_1',
         'address_line_2',
         'country_id',
+        'country_name',
         'state_id',
+        'state_name',
         'city_id',
+        'city_name',
         'postal_code',
         'is_default',
     ];
@@ -61,4 +64,3 @@ class UserAddress extends Model
         return $this->belongsTo(City::class);
     }
 }
-

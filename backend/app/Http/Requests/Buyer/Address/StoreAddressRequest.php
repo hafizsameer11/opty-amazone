@@ -20,11 +20,13 @@ class StoreAddressRequest extends FormRequest
             'address_line_1' => ['required', 'string', 'max:255'],
             'address_line_2' => ['nullable', 'string', 'max:255'],
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'country_name' => ['nullable', 'string', 'max:255'],
             'state_id' => ['nullable', 'integer', 'exists:states,id'],
+            'state_name' => ['nullable', 'string', 'max:255'],
             'city_id' => ['nullable', 'integer', 'exists:cities,id'],
+            'city_name' => ['nullable', 'string', 'max:255'],
             'postal_code' => ['nullable', 'string', 'max:20'],
             'is_default' => ['sometimes', 'boolean'],
         ];
     }
 }
-

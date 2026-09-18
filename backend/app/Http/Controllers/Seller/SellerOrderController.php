@@ -9,6 +9,7 @@ use App\Services\Marketplace\DeliveryVerificationService;
 use App\Services\Marketplace\OrderTotalsService;
 use App\Services\Marketplace\RefundService;
 use App\Services\Notifications\MarketplaceNotificationService;
+use App\Notifications\MarketplaceNotification;
 use Illuminate\Http\Request;
 
 class SellerOrderController extends Controller
@@ -88,6 +89,48 @@ class SellerOrderController extends Controller
         app(MarketplaceNotificationService::class)->send($storeOrder->order?->user, 'order.shipped', 'Order shipped',
             "Your order {$storeOrder->order?->order_no} is out for delivery.", "/store-orders/{$storeOrder->id}",
             ['order_id' => $storeOrder->order_id, 'store_order_id' => $storeOrder->id]);
+
+        return $this->show($id);
+    }
+
+    /**
+     * Tell the buyer that the seller has started the delivery confirmation
+     * flow and needs the buyer's delivery code.
+     */
+    public function requestDeliveryCode(Request $r, $id)
+    {
+        $storeOrder = $this->orders()->findOrFail($id);
+        abort_unless($storeOrder->status === 'out_for_delivery', 422, 'The delivery code can only be requested for an out-for-delivery order.');
+
+        $buyer = $storeOrder->order?->user;
+        if ($buyer) {
+            $alreadyUnread = $buyer->unreadNotifications()
+                ->where('type', MarketplaceNotification::class)
+                ->get()
+                ->contains(function ($notification) use ($storeOrder) {
+                    $data = is_array($notification->data) ? $notification->data : [];
+
+                    return ($data['event'] ?? null) === 'order.delivery_code_requested'
+                        && (int) ($data['context']['store_order_id'] ?? 0) === (int) $storeOrder->id;
+                });
+
+            if (! $alreadyUnread) {
+                app(MarketplaceNotificationService::class)->send(
+                    $buyer,
+                    'order.delivery_code_requested',
+                    'Delivery confirmation code requested',
+                    "The seller is requesting your delivery confirmation code for order {$storeOrder->order?->order_no}. Please share your delivery code with the seller to confirm delivery.",
+                    "/stores/{$storeOrder->store_id}?chat=1&delivery_order_id={$storeOrder->id}",
+                    [
+                        'order_id' => $storeOrder->order_id,
+                        'store_order_id' => $storeOrder->id,
+                        'buyer_id' => $buyer->id,
+                        'seller_id' => $r->user()->id,
+                        'store_id' => $storeOrder->store_id,
+                    ]
+                );
+            }
+        }
 
         return $this->show($id);
     }

@@ -160,6 +160,7 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('store-or
     Route::post('/{id}/accept', [SellerOrderController::class, 'accept']);
     Route::post('/{id}/reject', [SellerOrderController::class, 'reject']);
     Route::post('/{id}/out-for-delivery', [SellerOrderController::class, 'outForDelivery']);
+    Route::post('/{id}/delivery-code-request', [SellerOrderController::class, 'requestDeliveryCode']);
     Route::post('/{id}/delivered', [SellerOrderController::class, 'delivered']);
 });
 

@@ -184,7 +184,10 @@ class Store extends Model
             return null;
         }
 
-        return Storage::url($this->profile_image);
+        // Store uploads are written to the public disk. Resolving the URL
+        // through the default disk can point at the private filesystem and
+        // produce an unusable image URL when FILESYSTEM_DISK is `local`.
+        return Storage::disk('public')->url($this->profile_image);
     }
 
     /**
@@ -196,6 +199,6 @@ class Store extends Model
             return null;
         }
 
-        return Storage::url($this->banner_image);
+        return Storage::disk('public')->url($this->banner_image);
     }
 }
