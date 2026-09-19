@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Buyer\Store\CreateReviewRequest;
 use App\Http\Requests\Buyer\Store\UpdateReviewRequest;
 use App\Http\Resources\StoreFollowerResource;
-use App\Http\Resources\StoreResource;
+use App\Http\Resources\PublicStoreResource;
 use App\Http\Resources\StoreReviewResource;
 use App\Models\Store;
 use App\Services\Store\StoreFollowerService;
@@ -27,10 +27,10 @@ class BuyerStoreController extends Controller
      */
     public function getStore(int $id): JsonResponse
     {
-        $store = Store::findOrFail($id);
+        $store = Store::with(['socialLinks' => fn ($links) => $links->where('is_active', true)])->findOrFail($id);
 
         return ResponseHelper::success([
-            'store' => new StoreResource($store),
+            'store' => new PublicStoreResource($store),
         ]);
     }
 
@@ -92,7 +92,7 @@ class BuyerStoreController extends Controller
             // Resolve the resource collection before placing it inside the
             // response payload. This keeps `stores` a plain JSON array rather
             // than a nested JsonResource object.
-            'stores' => StoreResource::collection($stores)->resolve($request),
+            'stores' => PublicStoreResource::collection($stores)->resolve($request),
         ]);
     }
 

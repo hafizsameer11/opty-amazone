@@ -92,6 +92,7 @@ class StoreFollowerService
             ->whereIn('id', StoreFollower::query()
                 ->select('store_id')
                 ->where('user_id', $buyer->id))
+            ->with(['socialLinks' => fn ($links) => $links->where('is_active', true)])
             ->orderBy('name')
             ->get();
     }

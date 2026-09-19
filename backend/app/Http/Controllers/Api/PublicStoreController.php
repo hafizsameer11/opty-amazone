@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\StoreResource;
+use App\Http\Resources\PublicStoreResource;
 use App\Http\Resources\StoreReviewResource;
 use App\Models\Store;
 use App\Services\Store\StoreReviewService;
@@ -23,7 +23,8 @@ class PublicStoreController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Store::where('status', 'active')
-            ->where('is_active', true);
+            ->where('is_active', true)
+            ->with(['socialLinks' => fn ($links) => $links->where('is_active', true)]);
 
         if ($request->has('search')) {
             $query->where('name', 'like', '%' . $request->input('search') . '%');
@@ -32,7 +33,7 @@ class PublicStoreController extends Controller
         $stores = $query->paginate($request->input('per_page', 15));
 
         return ResponseHelper::success([
-            'stores' => StoreResource::collection($stores->items()),
+            'stores' => PublicStoreResource::collection($stores->items()),
             'pagination' => [
                 'current_page' => $stores->currentPage(),
                 'last_page' => $stores->lastPage(),
@@ -49,10 +50,11 @@ class PublicStoreController extends Controller
     {
         $store = Store::where('status', 'active')
             ->where('is_active', true)
+            ->with(['socialLinks' => fn ($links) => $links->where('is_active', true)])
             ->findOrFail($id);
 
         return ResponseHelper::success([
-            'store' => new StoreResource($store),
+            'store' => new PublicStoreResource($store),
         ]);
     }
 

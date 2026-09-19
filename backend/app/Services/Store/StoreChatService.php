@@ -6,6 +6,7 @@ use App\Models\Store;
 use App\Models\StoreChatConversation;
 use App\Models\StoreChatMessage;
 use App\Models\User;
+use App\Services\Notifications\MarketplaceNotificationService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
@@ -142,6 +143,16 @@ class StoreChatService
             ]);
             $conversation->increment('seller_unread_count');
 
+            $conversation->loadMissing('store.user');
+            $this->notifyNewMessage(
+                recipient: $conversation->store?->user,
+                sender: $buyer,
+                message: $message,
+                conversation: $conversation,
+                url: "/messages?conversation_id={$conversation->id}",
+                senderRole: 'buyer',
+            );
+
             return $message->load('sender:id,name');
         });
     }
@@ -220,8 +231,49 @@ class StoreChatService
             ]);
             $conversation->increment('buyer_unread_count');
 
+            $conversation->loadMissing('buyer', 'store');
+            $this->notifyNewMessage(
+                recipient: $conversation->buyer,
+                sender: $seller,
+                message: $message,
+                conversation: $conversation,
+                url: "/stores/{$conversation->store_id}?chat=1&conversation_id={$conversation->id}",
+                senderRole: 'seller',
+            );
+
             return $message->load('sender:id,name');
         });
+    }
+
+    private function notifyNewMessage(
+        ?User $recipient,
+        User $sender,
+        StoreChatMessage $message,
+        StoreChatConversation $conversation,
+        string $url,
+        string $senderRole,
+    ): void {
+        $preview = Str::limit(preg_replace('/\s+/', ' ', trim(strip_tags($message->body))) ?: 'Sent an attachment', 120);
+
+        app(MarketplaceNotificationService::class)->send(
+            $recipient,
+            'chat.message_received',
+            "New message from {$sender->name}",
+            "{$sender->name} sent you a new message: {$preview}",
+            $url,
+            [
+                'conversation_id' => $conversation->id,
+                'message_id' => $message->id,
+                'store_id' => $conversation->store_id,
+                'sender_id' => $sender->id,
+                'sender_name' => $sender->name,
+                'sender_role' => $senderRole,
+                'sender_image_url' => $senderRole === 'seller'
+                    ? $conversation->store?->profile_image_url
+                    : $sender->profile_image_url,
+                'preview' => $preview,
+            ],
+        );
     }
 
     /**
