@@ -23,9 +23,11 @@ class RegisterRequest extends FormRequest
                 'unique:users,email',
             ],
             'phone' => [
-                'nullable',
+                'required',
                 'string',
+                'min:8',
                 'max:20',
+                'regex:/^\+?[0-9][0-9\s().-]{7,19}$/',
                 'unique:users,phone',
             ],
             'password' => [
@@ -45,6 +47,8 @@ class RegisterRequest extends FormRequest
             'email.email' => 'Email must be a valid email address',
             'email.unique' => 'Email already exists',
             'phone.unique' => 'Phone number already exists',
+            'phone.required' => 'Phone number is required',
+            'phone.regex' => 'Enter a valid phone number including the country code',
             'password.required' => 'Password is required',
             'password.min' => 'Password must be at least 8 characters',
             'password.confirmed' => 'Password confirmation does not match',

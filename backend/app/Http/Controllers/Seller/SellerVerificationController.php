@@ -4,25 +4,29 @@ namespace App\Http\Controllers\Seller;
 
 use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
+use App\Services\Store\StoreService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SellerVerificationController extends Controller
 {
+    public function __construct(private StoreService $storeService)
+    {
+    }
+
     /** Step 1 — submit KYC / verification documents. */
     public function submit(Request $request): JsonResponse
     {
-        $store = $request->user()->store;
-        if (!$store) {
-            return ResponseHelper::error('Store not found', null, 404);
-        }
+        // A store is created lazily for newly registered sellers. Resolving it
+        // here keeps the registration -> verification flow reliable.
+        $store = $this->storeService->getStore($request->user());
 
         $validated = $request->validate([
-            'bank_account_holder' => 'required|string|max:255',
-            'bank_name' => 'required|string|max:255',
-            'bank_iban' => 'nullable|string|max:64',
+            'business_type' => 'required|string|max:100',
+            'business_registration' => 'required|string|max:255',
             'tax_id' => 'nullable|string|max:64',
-            'business_registration' => 'nullable|string|max:255',
+            'business_address' => 'required|string|max:1000',
+            'website' => 'nullable|url|max:2048',
             'id_document_url' => 'nullable|string|max:2048',
         ]);
 
@@ -30,8 +34,6 @@ class SellerVerificationController extends Controller
         $meta['kyc'] = array_merge($meta['kyc'] ?? [], $validated);
 
         $store->update([
-            'bank_account_holder' => $validated['bank_account_holder'],
-            'bank_name' => $validated['bank_name'],
             'meta' => $meta,
             'verification_submitted_at' => now(),
             'onboarding_status' => 'pending_review',

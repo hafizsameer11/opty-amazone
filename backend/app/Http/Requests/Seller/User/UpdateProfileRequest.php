@@ -17,9 +17,9 @@ class UpdateProfileRequest extends FormRequest
 
         return [
             'name' => ['sometimes', 'string', 'max:255'],
-            'email' => ['sometimes', 'email', 'max:255', 'unique:users,email,' . $userId],
+            // Seller login email is the account identifier and cannot be changed here.
+            'email' => ['prohibited'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:20', 'unique:users,phone,' . $userId],
         ];
     }
 }
-

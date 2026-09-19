@@ -87,6 +87,11 @@ class StoreService
         try {
             $store = $this->getStore($user);
 
+            // Extended store-profile fields live in the existing JSON meta
+            // column so deployments do not need a destructive schema change.
+            $profile = $data['profile'] ?? null;
+            unset($data['profile']);
+
             // Generate slug if name is being updated
             if (isset($data['name']) && $data['name'] !== $store->name) {
                 $slug = Str::slug($data['name']);
@@ -98,6 +103,15 @@ class StoreService
                     $counter++;
                 }
                 $data['slug'] = $slug;
+            }
+
+            if (is_array($profile)) {
+                $meta = is_array($store->meta) ? $store->meta : [];
+                $meta['profile'] = array_merge(
+                    is_array($meta['profile'] ?? null) ? $meta['profile'] : [],
+                    $profile,
+                );
+                $data['meta'] = $meta;
             }
 
             $store->fill($data);

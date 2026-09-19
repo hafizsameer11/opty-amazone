@@ -6,6 +6,7 @@ use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Store;
 use App\Models\User;
+use App\Notifications\SellerApprovedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -63,11 +64,15 @@ class AdminSellerController extends Controller
      */
     public function approve($id): JsonResponse
     {
-        $store = Store::findOrFail($id);
+        $store = Store::with('user')->findOrFail($id);
         $store->update([
             'onboarding_status' => 'approved',
             'status' => 'active',
         ]);
+
+        if ($store->user) {
+            $store->user->notify(new SellerApprovedNotification());
+        }
 
         return ResponseHelper::success($store, 'Store approved successfully');
     }
