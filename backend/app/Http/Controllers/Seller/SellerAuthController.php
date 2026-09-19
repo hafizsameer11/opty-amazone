@@ -10,6 +10,7 @@ use App\Http\Requests\Seller\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\PasswordResetService;
+use App\Services\Store\StoreService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -25,7 +26,8 @@ class SellerAuthController extends Controller
 {
     public function __construct(
         private AuthService $authService,
-        private PasswordResetService $passwordResetService
+        private PasswordResetService $passwordResetService,
+        private StoreService $storeService
     ) {}
 
     /**
@@ -66,6 +68,11 @@ class SellerAuthController extends Controller
     {
         try {
             $user = $this->authService->register($request->validated(), 'seller');
+
+            // Provision the seller's store immediately. Verification is the
+            // next screen in onboarding, so it must not depend on a previous
+            // dashboard request creating the Store row.
+            $this->storeService->getStore($user);
             
             $token = $user->createToken('seller_token', ['seller'])->plainTextToken;
 
