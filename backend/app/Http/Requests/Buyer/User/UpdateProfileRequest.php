@@ -13,13 +13,12 @@ class UpdateProfileRequest extends FormRequest
 
     public function rules(): array
     {
-        $userId = $this->user()?->id;
-
         return [
             'name' => ['sometimes', 'string', 'max:255'],
-            'email' => ['sometimes', 'email', 'max:255', 'unique:users,email,' . $userId],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:20', 'unique:users,phone,' . $userId],
+            // Buyer email is the account identifier and cannot be changed from
+            // the profile screen.
+            'email' => ['prohibited'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:20', 'unique:users,phone,' . $this->user()?->id],
         ];
     }
 }
-

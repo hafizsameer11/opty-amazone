@@ -15,6 +15,7 @@ class RegistrationTest extends TestCase
         $response = $this->postJson('/api/buyer/auth/register', [
             'name' => 'Test Buyer',
             'email' => 'buyer@test.com',
+            'phone' => '+391234567890',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
@@ -51,6 +52,18 @@ class RegistrationTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_buyer_registration_requires_phone(): void
+    {
+        $response = $this->postJson('/api/buyer/auth/register', [
+            'name' => 'Test Buyer',
+            'email' => 'buyer@test.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['phone']);
     }
 
     public function test_buyer_registration_requires_unique_email(): void

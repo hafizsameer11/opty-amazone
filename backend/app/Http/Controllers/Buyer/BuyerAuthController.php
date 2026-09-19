@@ -38,10 +38,11 @@ class BuyerAuthController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"name", "email", "password", "password_confirmation"},
+     *             required={"name", "email", "phone", "password", "password_confirmation"},
      *             @OA\Property(property="name", type="string", example="John Doe"),
      *             @OA\Property(property="email", type="string", format="email", example="buyer@example.com"),
      *             @OA\Property(property="phone", type="string", example="+1234567890"),
+     *             @OA\Property(property="verification_code", type="string", nullable=true, example="123456"),
      *             @OA\Property(property="password", type="string", format="password", example="password123"),
      *             @OA\Property(property="password_confirmation", type="string", format="password", example="password123")
      *         )
@@ -69,7 +70,7 @@ class BuyerAuthController extends Controller
         try {
             $data = $request->validated();
             $user = DB::transaction(function () use ($data, $request) {
-                unset($data['referral_attribution_token'], $data['referral_code']);
+                unset($data['referral_attribution_token'], $data['referral_code'], $data['verification_code']);
                 $user = $this->authService->register($data, 'buyer');
                 app(\App\Services\Referrals\ReferralService::class)->recordRegistration(
                     $user,

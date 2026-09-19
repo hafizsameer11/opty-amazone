@@ -23,11 +23,16 @@ class RegisterRequest extends FormRequest
                 'unique:users,email',
             ],
             'phone' => [
-                'nullable',
+                'required',
                 'string',
                 'max:20',
                 'unique:users,phone',
             ],
+            // Kept in the request contract so the frontend can collect a
+            // verification code. Code delivery/verification is handled by a
+            // separate verification provider and is intentionally not stored
+            // as part of the user record.
+            'verification_code' => ['nullable', 'string', 'max:12'],
             'password' => [
                 'required',
                 'string',
@@ -50,6 +55,7 @@ class RegisterRequest extends FormRequest
             'email.email' => 'Email must be a valid email address',
             'email.unique' => 'Email already exists',
             'phone.unique' => 'Phone number already exists',
+            'phone.required' => 'Phone number is required',
             'password.required' => 'Password is required',
             'password.min' => 'Password must be at least 8 characters',
             'password.confirmed' => 'Password confirmation does not match',
