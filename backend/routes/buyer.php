@@ -56,6 +56,11 @@ Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('profile')
     Route::get('/reviews', [BuyerReviewController::class, 'history']);
 });
 
+Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('reviews')->group(function () {
+    Route::get('/product/{id}/eligibility', [BuyerReviewController::class, 'productEligibility']);
+    Route::get('/store/{id}/eligibility', [BuyerReviewController::class, 'storeEligibility']);
+});
+
 Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('referrals')->group(function () {
     Route::get('/', [\App\Http\Controllers\Buyer\BuyerReferralController::class, 'dashboard']);
     Route::post('/claim', [\App\Http\Controllers\Buyer\BuyerReferralController::class, 'claim'])->middleware('throttle:20,1');

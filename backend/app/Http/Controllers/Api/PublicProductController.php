@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Helpers\ResponseHelper;
 use App\Models\Product;
+use App\Models\ProductReview;
+use App\Http\Resources\ProductReviewResource;
 use App\Models\Category;
 use App\Services\Product\EyeHygieneVariantService;
 use Illuminate\Http\Request;
@@ -65,7 +67,32 @@ class PublicProductController extends Controller
         }
 
         $product->increment('view_count');
+        $verifiedReviews = ProductReview::query()
+            ->where('product_id', $product->id)
+            ->where('is_verified_purchase', true);
+        $product->setAttribute('rating', round((float) ((clone $verifiedReviews)->avg('rating') ?? 0), 2));
+        $product->setAttribute('review_count', (clone $verifiedReviews)->count());
 
         return ResponseHelper::success(app(\App\Services\Campaigns\DiscountPricingService::class)->product($product, request()->user('sanctum')?->id), 'Product retrieved successfully');
+    }
+
+    public function reviews(int $id, Request $request)
+    {
+        Product::visibleToBuyers()->findOrFail($id);
+        $reviews = ProductReview::with('user')
+            ->where('product_id', $id)
+            ->where('is_verified_purchase', true)
+            ->latest()
+            ->paginate(min(100, max(1, $request->integer('per_page', 15))));
+
+        return ResponseHelper::success([
+            'reviews' => ProductReviewResource::collection($reviews->items()),
+            'pagination' => [
+                'current_page' => $reviews->currentPage(),
+                'last_page' => $reviews->lastPage(),
+                'per_page' => $reviews->perPage(),
+                'total' => $reviews->total(),
+            ],
+        ]);
     }
 }

@@ -101,7 +101,7 @@ class BuyerStoreController extends Controller
      */
     public function getStoreReviews(int $id, Request $request): JsonResponse
     {
-        $reviews = $this->reviewService->getStoreReviews($id, $request->all());
+        $reviews = $this->reviewService->getStoreReviews($id, array_merge($request->all(), ['verified' => true]));
 
         return ResponseHelper::success([
             'reviews' => StoreReviewResource::collection($reviews->items()),

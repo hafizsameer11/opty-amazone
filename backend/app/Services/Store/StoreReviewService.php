@@ -5,36 +5,25 @@ namespace App\Services\Store;
 use App\Models\Store;
 use App\Models\StoreReview;
 use App\Models\User;
+use App\Services\Buyer\ReviewService as BuyerReviewService;
 use App\Services\Notifications\MarketplaceNotificationService;
 use Illuminate\Support\Facades\Log;
 
 class StoreReviewService
 {
+    public function __construct(private BuyerReviewService $buyerReviewService) {}
+
     /**
      * Create a store review.
      */
     public function createReview(User $buyer, int $storeId, array $data): StoreReview
     {
         try {
-            if (!$buyer->isBuyer()) {
-                throw new \Exception('Only buyers can review stores');
-            }
-
-            $store = Store::findOrFail($storeId);
-
-            // Check if user already reviewed this store
-            $existing = StoreReview::where('store_id', $storeId)
-                ->where('user_id', $buyer->id)
-                ->first();
-
-            if ($existing) {
-                throw new \Exception('You have already reviewed this store');
-            }
-
-            $data['store_id'] = $storeId;
-            $data['user_id'] = $buyer->id;
-
-            return StoreReview::create($data);
+            return $this->buyerReviewService->createStore(
+                $buyer,
+                Store::findOrFail($storeId),
+                $data
+            );
         } catch (\Exception $e) {
             Log::error('Review creation failed: ' . $e->getMessage(), [
                 'buyer_id' => $buyer->id,

@@ -14,6 +14,7 @@ class StoreReview extends Model
     protected $fillable = [
         'store_id',
         'user_id',
+        'store_order_id',
         'rating',
         'comment',
         'is_verified_purchase',
@@ -41,5 +42,10 @@ class StoreReview extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function storeOrder(): BelongsTo
+    {
+        return $this->belongsTo(StoreOrder::class);
     }
 }

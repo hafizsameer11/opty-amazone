@@ -37,6 +37,7 @@ Route::prefix('stores')->group(function () {
 Route::prefix('products')->group(function () {
     Route::get('/', [App\Http\Controllers\Api\PublicProductController::class, 'index']);
     Route::get('/{id}', [App\Http\Controllers\Api\PublicProductController::class, 'show']);
+    Route::get('/{id}/reviews', [App\Http\Controllers\Api\PublicProductController::class, 'reviews']);
 });
 
 // Category routes

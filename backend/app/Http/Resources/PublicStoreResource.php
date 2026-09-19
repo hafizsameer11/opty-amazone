@@ -23,7 +23,9 @@ class PublicStoreResource extends JsonResource
             ->count();
 
         $followersCount = $this->followers()->count();
-        $rating = $this->reviews()->avg('rating');
+        $verifiedReviews = $this->reviews()->where('is_verified_purchase', true);
+        $reviewsCount = (clone $verifiedReviews)->count();
+        $rating = $verifiedReviews->avg('rating');
         $links = $this->relationLoaded('socialLinks')
             ? $this->socialLinks->where('is_active', true)
             : $this->socialLinks()->where('is_active', true)->get();
@@ -45,6 +47,7 @@ class PublicStoreResource extends JsonResource
             'is_active' => $this->is_active,
             'products_count' => $productsCount,
             'followers_count' => $followersCount,
+            'reviews_count' => $reviewsCount,
             'rating' => $rating ? round((float) $rating, 2) : null,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
