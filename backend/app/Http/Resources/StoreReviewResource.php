@@ -18,6 +18,11 @@ class StoreReviewResource extends JsonResource
             'id' => $this->id,
             'store_id' => $this->store_id,
             'store_order_id' => $this->store_order_id,
+            'store' => $this->whenLoaded('store', fn () => [
+                'id' => $this->store->id,
+                'name' => $this->store->name,
+                'slug' => $this->store->slug,
+            ]),
             'user' => new UserResource($this->whenLoaded('user')),
             'rating' => $this->rating,
             'comment' => $this->comment,

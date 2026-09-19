@@ -21,6 +21,7 @@ use App\Http\Controllers\Seller\SellerProductPrescriptionDropdownController;
 use App\Http\Controllers\Seller\SellerStoreChatController;
 use App\Http\Controllers\Seller\SellerAdminChatController;
 use App\Http\Controllers\Seller\SellerNotificationBadgeController;
+use App\Http\Controllers\Seller\SellerReviewController;
 use App\Http\Controllers\Support\SupportTicketController;
 use App\Http\Controllers\Notifications\NotificationController;
 use Illuminate\Support\Facades\Route;
@@ -54,6 +55,7 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('profile'
     Route::post('/change-password', [SellerUserController::class, 'changePassword']);
     Route::post('/upload-image', [SellerUserController::class, 'uploadProfileImage']);
     Route::delete('/image', [SellerUserController::class, 'deleteProfileImage']);
+    Route::get('/reviews', [SellerReviewController::class, 'index']);
     Route::post('/verify-email/send', [SellerUserController::class, 'sendEmailVerification']);
     Route::post('/verify-email', [SellerUserController::class, 'verifyEmail']);
     Route::post('/verify-phone/send', [SellerUserController::class, 'sendPhoneVerification']);

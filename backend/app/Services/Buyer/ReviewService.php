@@ -5,6 +5,8 @@ namespace App\Services\Buyer;
 use App\Models\{OrderItem, Product, ProductReview, Store, StoreOrder, StoreReview, StoreStatistic, User};
 use App\Services\Notifications\MarketplaceNotificationService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class ReviewService
@@ -88,14 +90,24 @@ class ReviewService
             $this->reject('A delivered purchase of this product is required before reviewing it.');
         }
 
-        $review = ProductReview::create([
-            'product_id' => $product->id,
-            'user_id' => $buyer->id,
-            'order_item_id' => $purchase->id,
-            'rating' => $data['rating'],
-            'comment' => $data['comment'] ?? null,
-            'is_verified_purchase' => true,
-        ]);
+        $imagePath = $this->storeReviewImage($data['image'] ?? null, $product->id, $buyer->id);
+
+        try {
+            $review = ProductReview::create([
+                'product_id' => $product->id,
+                'user_id' => $buyer->id,
+                'order_item_id' => $purchase->id,
+                'rating' => $data['rating'],
+                'comment' => $data['comment'] ?? null,
+                'image' => $imagePath,
+                'is_verified_purchase' => true,
+            ]);
+        } catch (\Throwable $e) {
+            if ($imagePath) {
+                Storage::disk('public')->delete($imagePath);
+            }
+            throw $e;
+        }
 
         $this->refreshProductRating($product->id);
         $product->loadMissing('store.user');
@@ -146,10 +158,32 @@ class ReviewService
             $this->reject('A delivered purchase is required to keep this review verified.');
         }
 
-        $review->fill(['rating' => $data['rating'] ?? $review->rating, 'comment' => $data['comment'] ?? null]);
+        $oldImage = $review->image;
+        $newImage = $review->image;
+        if (($data['image'] ?? null) instanceof UploadedFile) {
+            $newImage = $this->storeReviewImage($data['image'], $review->product_id, $buyer->id);
+        } elseif (!empty($data['remove_image'])) {
+            $newImage = null;
+        }
+
+        $review->fill([
+            'rating' => $data['rating'] ?? $review->rating,
+            'comment' => array_key_exists('comment', $data) ? $data['comment'] : $review->comment,
+            'image' => $newImage,
+        ]);
         $review->is_verified_purchase = true;
         $review->order_item_id ??= $purchase->id;
-        $review->save();
+        try {
+            $review->save();
+        } catch (\Throwable $e) {
+            if ($newImage && $newImage !== $oldImage) {
+                Storage::disk('public')->delete($newImage);
+            }
+            throw $e;
+        }
+        if ($oldImage && $oldImage !== $newImage) {
+            Storage::disk('public')->delete($oldImage);
+        }
         $this->refreshProductRating($review->product_id);
 
         return $review->fresh('user');
@@ -176,6 +210,9 @@ class ReviewService
     {
         $review = ProductReview::where('user_id', $buyer->id)->findOrFail($id);
         $productId = $review->product_id;
+        if ($review->image) {
+            Storage::disk('public')->delete($review->image);
+        }
         $review->delete();
         $this->refreshProductRating($productId);
     }
@@ -188,18 +225,19 @@ class ReviewService
         $this->refreshStoreRating($storeId);
     }
 
-    public function history(User $buyer, int $perPage = 20): LengthAwarePaginator
+    public function history(User $buyer, int $perPage = 20, ?string $type = null): LengthAwarePaginator
     {
-        $products = ProductReview::with(['product.store', 'orderItem.storeOrder'])
+        $products = $type === 'store' ? collect() : ProductReview::with(['product.store', 'orderItem.storeOrder'])
             ->where('user_id', $buyer->id)
             ->get()
             ->map(fn ($review) => [
                 'type' => 'product', 'id' => $review->id, 'rating' => $review->rating,
                 'comment' => $review->comment, 'is_verified_purchase' => (bool) $review->is_verified_purchase,
-                'order_item_id' => $review->order_item_id, 'created_at' => $review->created_at?->toISOString(),
+                'order_item_id' => $review->order_item_id, 'image' => $review->image, 'image_url' => $review->image_url,
+                'created_at' => $review->created_at?->toISOString(),
                 'product' => $review->product,
             ]);
-        $stores = StoreReview::with(['store', 'storeOrder'])
+        $stores = $type === 'product' ? collect() : StoreReview::with(['store', 'storeOrder'])
             ->where('user_id', $buyer->id)
             ->get()
             ->map(fn ($review) => [
@@ -250,6 +288,15 @@ class ReviewService
     private function reject(string $message): void
     {
         throw ValidationException::withMessages(['review' => [$message]]);
+    }
+
+    private function storeReviewImage(mixed $image, int $productId, int $buyerId): ?string
+    {
+        if (!$image instanceof UploadedFile) {
+            return null;
+        }
+
+        return $image->store("reviews/products/{$productId}/buyer-{$buyerId}", 'public');
     }
 
     private function refreshProductRating(int $id): void

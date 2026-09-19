@@ -16,6 +16,8 @@ class UpdateReviewRequest extends FormRequest
         return [
             'rating' => ['sometimes', 'integer', 'min:1', 'max:5'],
             'comment' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'image' => ['sometimes', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'remove_image' => ['sometimes', 'boolean'],
         ];
     }
 }

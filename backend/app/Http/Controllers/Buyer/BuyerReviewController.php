@@ -37,5 +37,11 @@ class BuyerReviewController extends Controller
     public function storeStore(int $id, CreateReviewRequest $r) { $x = $this->service->createStore($r->user(), Store::findOrFail($id), $r->validated()); return ResponseHelper::success(['review' => new StoreReviewResource($x)], 'Review created successfully', 201); }
     public function storeUpdate(int $id, UpdateReviewRequest $r) { return ResponseHelper::success(['review' => new StoreReviewResource($this->service->updateStore($r->user(), $id, $r->validated()))], 'Review updated successfully'); }
     public function storeDestroy(int $id, Request $r) { $this->service->deleteStore($r->user(), $id); return ResponseHelper::success(null, 'Review deleted successfully'); }
-    public function history(Request $r) { $p = $this->service->history($r->user(), min(100, max(1, $r->integer('per_page', 20)))); return ResponseHelper::success(['reviews' => $p->items(), 'pagination' => ['current_page' => $p->currentPage(), 'last_page' => $p->lastPage(), 'per_page' => $p->perPage(), 'total' => $p->total()]]); }
+    public function history(Request $r)
+    {
+        $type = $r->input('type');
+        abort_unless($type === null || in_array($type, ['store', 'product'], true), 422, 'Review type must be store or product.');
+        $p = $this->service->history($r->user(), min(100, max(1, $r->integer('per_page', 20))), $type);
+        return ResponseHelper::success(['reviews' => $p->items(), 'pagination' => ['current_page' => $p->currentPage(), 'last_page' => $p->lastPage(), 'per_page' => $p->perPage(), 'total' => $p->total()]]);
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class ProductReview extends Model
 {
@@ -16,6 +17,7 @@ class ProductReview extends Model
         'order_item_id',
         'rating',
         'comment',
+        'image',
         'is_verified_purchase',
     ];
 
@@ -37,5 +39,10 @@ class ProductReview extends Model
     public function orderItem(): BelongsTo
     {
         return $this->belongsTo(OrderItem::class);
+    }
+
+    public function getImageUrlAttribute(): ?string
+    {
+        return $this->image ? Storage::disk('public')->url($this->image) : null;
     }
 }
