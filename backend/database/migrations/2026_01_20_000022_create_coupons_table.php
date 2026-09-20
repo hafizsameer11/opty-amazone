@@ -18,7 +18,6 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->enum('discount_type', ['percentage', 'fixed_amount', 'free_shipping', 'bogo'])->default('percentage');
             $table->decimal('discount_value', 10, 2);
-            $table->decimal('max_discount', 10, 2)->nullable();
             $table->decimal('min_order_amount', 10, 2)->nullable();
             $table->integer('usage_limit')->nullable();
             $table->integer('usage_per_user')->nullable();

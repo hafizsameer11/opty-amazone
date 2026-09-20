@@ -283,7 +283,9 @@ class CouponService
             ->where('store_id', $storeId)->get();
         $ids = $coupons->pluck('id');
         $usages = CouponUsage::whereIn('coupon_id', $ids);
-        $redeemed = (clone $usages)->where('status', 'redeemed');
+        // The revenue query joins store_orders, which has its own status column.
+        // Qualifying this predicate keeps the Seller Coupons index query valid.
+        $redeemed = (clone $usages)->where('coupon_usages.status', 'redeemed');
         $revenue = (clone $redeemed)->join('store_orders', 'coupon_usages.store_order_id', '=', 'store_orders.id')
             ->sum('store_orders.total');
 
@@ -291,9 +293,9 @@ class CouponService
             'total_coupons' => $coupons->count(),
             'active_coupons' => $coupons->filter->isAvailableNow()->count(),
             'redeemed_coupons' => (clone $redeemed)->count(),
-            'reserved_coupons' => (clone $usages)->where('status', 'reserved')->count(),
-            'total_usages' => (clone $usages)->whereIn('status', ['reserved', 'redeemed', 'refunded'])->count(),
-            'total_discount_given' => (float) ((clone $usages)->whereIn('status', ['redeemed', 'refunded'])->sum('discount_amount') + (clone $usages)->whereIn('status', ['redeemed', 'refunded'])->sum('shipping_discount')),
+            'reserved_coupons' => (clone $usages)->where('coupon_usages.status', 'reserved')->count(),
+            'total_usages' => (clone $usages)->whereIn('coupon_usages.status', ['reserved', 'redeemed', 'refunded'])->count(),
+            'total_discount_given' => (float) ((clone $usages)->whereIn('coupon_usages.status', ['redeemed', 'refunded'])->sum('discount_amount') + (clone $usages)->whereIn('coupon_usages.status', ['redeemed', 'refunded'])->sum('shipping_discount')),
             'revenue_generated' => (float) $revenue,
             'order_count' => (clone $redeemed)->whereNotNull('store_order_id')->count(),
             'conversion_count' => (clone $redeemed)->count(),
@@ -318,8 +320,6 @@ class CouponService
             'free_shipping' => 0,
             default => throw new CouponValidationException('unsupported_coupon_type', 'This coupon type is not supported.'),
         };
-        if ($coupon->discount_type === 'percentage' && $coupon->max_discount !== null) $discount = min($discount, Money::cents($coupon->max_discount));
-
         $affected = $eligible->map(fn (CartItem $item) => [
             'cart_item_id' => $item->id, 'product_id' => $item->product_id, 'variant_id' => $item->variant_id,
             'quantity' => (int) $item->quantity, 'eligible_line_subtotal' => Money::decimal(Money::cents($item->price) * (int) $item->quantity),
@@ -395,7 +395,6 @@ class CouponService
         return [
             'coupon_id' => $coupon->id, 'code' => $coupon->code, 'store_id' => $coupon->store_id,
             'discount_type' => $coupon->discount_type, 'discount_value' => (float) $coupon->discount_value,
-            'max_discount' => $coupon->max_discount === null ? null : (float) $coupon->max_discount,
             'scope' => $coupon->scope, 'eligible_subtotal' => Money::decimal($eligibleSubtotal),
             'discount_amount' => Money::decimal($discount), 'shipping_discount' => Money::decimal(0),
             'product_ids' => $coupon->products->pluck('id')->values()->all(),

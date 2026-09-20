@@ -64,6 +64,9 @@ class CouponLifecycleTest extends TestCase
 
     public function test_coupon_is_case_insensitive_and_never_discounts_another_seller(): void
     {
+        // Percentage coupons deliberately have no maximum-discount cap. Their
+        // percentage is applied to the eligible seller lines only.
+        $this->assertFalse(Schema::hasColumn('coupons', 'max_discount'));
         $this->coupon();
         $quote = app(CouponService::class)->quoteCart($this->cart, $this->buyer, [$this->storeA->id => 'save20']);
 
@@ -226,6 +229,8 @@ class CouponLifecycleTest extends TestCase
             'product_ids' => [$this->productA->id], 'is_public' => true,
         ])->assertCreated()->json('data.id');
         $this->assertSame('SELLER10', Coupon::findOrFail($id)->code);
+        $this->assertDatabaseHas('coupon_products', ['coupon_id' => $id, 'product_id' => $this->productA->id]);
+        $this->assertSame('10.00', app(CouponService::class)->quoteCart($this->cart, $this->buyer, [$this->storeA->id => 'seller10'])['coupon_discount']);
         $this->postJson('/api/seller/coupons/'.$id.'/toggle-status')->assertOk();
         $this->assertFalse(Coupon::findOrFail($id)->is_active);
         $this->assertSame('inactive', Coupon::findOrFail($id)->status);
@@ -246,5 +251,22 @@ class CouponLifecycleTest extends TestCase
         } catch (CouponValidationException $exception) {
             $this->assertSame('inactive', $exception->reason);
         }
+    }
+
+    public function test_seller_coupon_index_loads_product_variants_without_a_sku_column(): void
+    {
+        ProductVariant::create([
+            'product_id' => $this->productA->id,
+            'color_name' => 'Tortoiseshell',
+            'color_code' => '#583B24',
+            'price' => 100,
+            'stock_quantity' => 4,
+            'stock_status' => 'in_stock',
+        ]);
+
+        Sanctum::actingAs($this->storeA->user);
+        $this->getJson('/api/seller/coupons')
+            ->assertOk()
+            ->assertJsonPath('success', true);
     }
 }

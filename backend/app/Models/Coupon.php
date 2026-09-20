@@ -17,14 +17,14 @@ class Coupon extends Model
     public const TYPES = ['percentage', 'fixed_amount', 'free_shipping'];
 
     protected $fillable = [
-        'store_id', 'code', 'description', 'discount_type', 'scope', 'discount_value', 'max_discount',
+        'store_id', 'code', 'description', 'discount_type', 'scope', 'discount_value',
         'min_order_amount', 'usage_limit', 'usage_per_user', 'starts_at', 'ends_at', 'is_active',
         'status', 'is_public', 'followers_only', 'first_order_only', 'applicable_to', 'conditions',
         'archived_at', 'admin_disabled_at', 'admin_disabled_by', 'rule_snapshot',
     ];
 
     protected $casts = [
-        'discount_value' => 'decimal:2', 'max_discount' => 'decimal:2', 'min_order_amount' => 'decimal:2',
+        'discount_value' => 'decimal:2', 'min_order_amount' => 'decimal:2',
         'is_active' => 'boolean', 'is_public' => 'boolean', 'followers_only' => 'boolean',
         'first_order_only' => 'boolean', 'starts_at' => 'datetime', 'ends_at' => 'datetime',
         'archived_at' => 'datetime', 'admin_disabled_at' => 'datetime', 'rule_snapshot' => 'array',

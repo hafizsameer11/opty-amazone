@@ -99,7 +99,7 @@ class BuyerCouponController extends Controller
         return [
             'id' => $coupon->id, 'store_id' => $coupon->store_id, 'code' => $coupon->code,
             'description' => $coupon->description, 'discount_type' => $coupon->discount_type,
-            'discount_value' => $coupon->discount_value, 'max_discount' => $coupon->max_discount,
+            'discount_value' => $coupon->discount_value,
             'minimum_eligible_subtotal' => $coupon->min_order_amount, 'starts_at' => $coupon->starts_at,
             'ends_at' => $coupon->ends_at, 'scope' => $coupon->scope,
             'product_ids' => $coupon->products->pluck('id')->values(),

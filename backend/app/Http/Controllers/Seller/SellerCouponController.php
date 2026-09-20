@@ -24,7 +24,14 @@ class SellerCouponController extends Controller
     {
         $store = $this->sellerStore($request);
         if (! $store) return ResponseHelper::error('Store not found.', null, 404);
-        $query = Coupon::where('store_id', $store->id)->whereNull('archived_at')->with(['products:id,name,sku', 'categories:id,name', 'variants:id,product_id,sku'])
+        $query = Coupon::where('store_id', $store->id)->whereNull('archived_at')->with([
+            'products:id,name,sku',
+            'categories:id,name',
+            // Product variants have colour/price fields, not a SKU column.
+            // Selecting sku here made the coupon index fail before it could
+            // render, including for a seller who has no coupons yet.
+            'variants:id,product_id,color_name,color_code,price,stock_quantity',
+        ])
             ->withCount(['usages', 'usages as redeemed_usages_count' => fn ($query) => $query->where('status', 'redeemed')]);
         if ($request->filled('search')) $query->where(fn ($q) => $q->where('code', 'like', '%'.$request->search.'%')->orWhere('description', 'like', '%'.$request->search.'%'));
         if ($request->filled('type')) $query->where('discount_type', $request->type);
@@ -207,7 +214,7 @@ class SellerCouponController extends Controller
         $validator = Validator::make($request->all(), [
             'code' => [$prefix, 'string', 'max:50'], 'description' => ['nullable', 'string', 'max:1000'],
             'discount_type' => [$prefix, 'in:percentage,fixed_amount,free_shipping'],
-            'discount_value' => ['nullable', 'numeric', 'min:0'], 'max_discount' => ['nullable', 'numeric', 'min:0'],
+            'discount_value' => ['nullable', 'numeric', 'min:0'],
             'min_order_amount' => ['nullable', 'numeric', 'min:0'], 'usage_limit' => ['nullable', 'integer', 'min:1'],
             'usage_per_user' => ['nullable', 'integer', 'min:1'], 'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'], 'is_active' => ['nullable', 'boolean'],
@@ -229,7 +236,7 @@ class SellerCouponController extends Controller
 
     private function attributes(array $data, int $storeId, bool $partial = false): array
     {
-        $fields = ['description', 'discount_type', 'discount_value', 'max_discount', 'min_order_amount', 'usage_limit', 'usage_per_user', 'starts_at', 'ends_at', 'is_active', 'status', 'scope', 'is_public', 'followers_only', 'first_order_only'];
+        $fields = ['description', 'discount_type', 'discount_value', 'min_order_amount', 'usage_limit', 'usage_per_user', 'starts_at', 'ends_at', 'is_active', 'status', 'scope', 'is_public', 'followers_only', 'first_order_only'];
         $result = $partial ? [] : ['store_id' => $storeId];
         foreach ($fields as $field) if (array_key_exists($field, $data)) $result[$field] = $data[$field];
         if (array_key_exists('code', $data)) $result['code'] = strtoupper(trim($data['code']));
