@@ -14,9 +14,16 @@ class SupportTicketService
     public const STATUSES = ['open','in_progress','waiting_for_user','resolved','closed'];
     public const CATEGORIES = ['order','payment','shipping','refund','product','account','seller_store','technical','other'];
 
-    public function listForUser(User $user, int $perPage = 20): LengthAwarePaginator
+    public function listForUser(User $user, array $filters = [], int $perPage = 20): LengthAwarePaginator
     {
-        return SupportTicket::with(['user:id,name,email','assignedAdmin:id,name'])->where('user_id', $user->id)->where('user_role', $user->role)->latest('updated_at')->paginate($perPage);
+        return SupportTicket::with(['user:id,name,email', 'assignedAdmin:id,name'])
+            ->where('user_id', $user->id)
+            ->where('user_role', $user->role)
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['category'] ?? null, fn ($query, $category) => $query->where('category', $category))
+            ->when($filters['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
+            ->latest('updated_at')
+            ->paginate($perPage);
     }
 
     public function create(User $user, array $data, ?UploadedFile $file = null): SupportTicket

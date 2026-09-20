@@ -84,6 +84,7 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('store')-
     Route::get('/statistics', [SellerStoreController::class, 'getStatistics']);
     Route::get('/overview', [SellerStoreController::class, 'getOverview']);
     Route::get('/dashboard', [SellerStoreController::class, 'getDashboard']);
+    Route::get('/followers', [SellerStoreController::class, 'getFollowers']);
     
     Route::prefix('settings')->group(function () {
         Route::get('/', [SellerStoreSettingsController::class, 'getSettings']);

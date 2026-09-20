@@ -10,6 +10,7 @@ use App\Http\Requests\Seller\Store\UploadImageRequest;
 use App\Http\Resources\StoreResource;
 use App\Http\Resources\StoreStatisticResource;
 use App\Services\Store\StoreService;
+use App\Services\Store\StoreFollowerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,7 +23,8 @@ use Illuminate\Http\Request;
 class SellerStoreController extends Controller
 {
     public function __construct(
-        private StoreService $storeService
+        private StoreService $storeService,
+        private StoreFollowerService $followerService
     ) {}
 
     /**
@@ -218,5 +220,35 @@ class SellerStoreController extends Controller
         } catch (\Exception $e) {
             return ResponseHelper::serverError('Failed to retrieve dashboard data');
         }
+    }
+
+    /**
+     * List people following the authenticated seller's store.
+     */
+    public function getFollowers(Request $request): JsonResponse
+    {
+        $followers = $this->followerService->paginateStoreFollowers(
+            $request->user(),
+            min(100, max(1, $request->integer('per_page', 20)))
+        );
+
+        return ResponseHelper::success([
+            'followers' => $followers->getCollection()->map(fn ($follower) => [
+                'id' => $follower->id,
+                'followed_at' => $follower->created_at?->toISOString(),
+                'user' => [
+                    'id' => $follower->user->id,
+                    'name' => $follower->user->name,
+                    'profile_image_url' => $follower->user->profile_image_url,
+                    'created_at' => $follower->user->created_at?->toISOString(),
+                ],
+            ])->values(),
+            'pagination' => [
+                'current_page' => $followers->currentPage(),
+                'last_page' => $followers->lastPage(),
+                'per_page' => $followers->perPage(),
+                'total' => $followers->total(),
+            ],
+        ]);
     }
 }

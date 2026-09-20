@@ -5,6 +5,7 @@ namespace App\Services\Store;
 use App\Models\Store;
 use App\Models\StoreFollower;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 
 class StoreFollowerService
@@ -74,6 +75,23 @@ class StoreFollowerService
         }
 
         return $store->followers()->with('user')->get();
+    }
+
+    /**
+     * Get a paginated, privacy-conscious follower list for the store owner.
+     */
+    public function paginateStoreFollowers(User $seller, int $perPage = 20): LengthAwarePaginator
+    {
+        $store = $seller->store;
+
+        if (!$store) {
+            abort(404, 'Store not found');
+        }
+
+        return $store->followers()
+            ->with('user:id,name,profile_image,created_at')
+            ->latest()
+            ->paginate($perPage);
     }
 
     /**
