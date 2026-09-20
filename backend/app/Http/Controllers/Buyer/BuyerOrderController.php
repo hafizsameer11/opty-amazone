@@ -6,6 +6,7 @@ use App\Helpers\ResponseHelper as R;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\StoreOrder;
+use App\Services\Coupon\CouponValidationException;
 use App\Services\Marketplace\DeliveryVerificationService;
 use App\Services\Marketplace\OrderView;
 use App\Services\Marketplace\PaymentService;
@@ -48,7 +49,11 @@ class BuyerOrderController extends Controller
     public function payStoreOrder(Request $r, $id)
     {
         $data = $r->validate(['payment_method' => 'required|in:wallet,card', 'expected_total' => 'required|numeric|min:0', 'idempotency_key' => 'required|string|max:100']);
-        $so = app(PaymentService::class)->pay($this->shipments()->findOrFail($id), $r->user(), $data);
+        try {
+            $so = app(PaymentService::class)->pay($this->shipments()->findOrFail($id), $r->user(), $data);
+        } catch (CouponValidationException $exception) {
+            return R::error($exception->getMessage(), ['reason' => $exception->reason], 422);
+        }
         $notifications = app(MarketplaceNotificationService::class);
         $notifications->send($r->user(), 'order.payment_completed', 'Payment completed',
             "Payment for order {$so->order?->order_no} was completed successfully.", "/store-orders/{$so->id}",

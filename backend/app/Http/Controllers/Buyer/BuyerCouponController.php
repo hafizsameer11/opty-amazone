@@ -4,52 +4,107 @@ namespace App\Http\Controllers\Buyer;
 
 use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
+use App\Models\Cart;
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\Store;
+use App\Services\Campaigns\DiscountPricingService;
 use App\Services\Coupon\CouponService;
+use App\Services\Coupon\CouponValidationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class BuyerCouponController extends Controller
 {
-    public function __construct(
-        private CouponService $couponService
-    ) {}
+    public function __construct(private CouponService $couponService, private DiscountPricingService $pricing) {}
 
-    /**
-     * Validate coupon code.
-     */
+    /** Quote against the authenticated buyer's persisted cart, never client totals. */
     public function validate(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'code' => 'required|string',
-            'order_total' => 'required|numeric|min:0',
+            'code' => ['required', 'string', 'max:50'],
+            'store_id' => ['nullable', 'integer'],
         ]);
+        if ($validator->fails()) return ResponseHelper::validationError($validator->errors());
 
-        if ($validator->fails()) {
-            return ResponseHelper::validationError($validator->errors());
+        return $this->quote($request, [
+            $request->filled('store_id') ? (int) $request->store_id : '_single' => $request->code,
+        ]);
+    }
+
+    public function quote(Request $request, ?array $codes = null): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'coupon_codes' => ['nullable', 'array'],
+            'coupon_codes.*' => ['nullable', 'string', 'max:50'],
+        ]);
+        if ($codes === null && $validator->fails()) return ResponseHelper::validationError($validator->errors());
+
+        $cart = Cart::where('user_id', $request->user()->id)->first();
+        if (! $cart) return ResponseHelper::error('Cart is empty.', null, 422);
+
+        try {
+            $this->pricing->repriceCart($cart);
+            $quote = $this->couponService->quoteCart($cart, $request->user(), $codes ?? (array) $request->input('coupon_codes', []));
+
+            return ResponseHelper::success($this->publicQuote($quote), 'Coupon quote calculated successfully.');
+        } catch (CouponValidationException $exception) {
+            return ResponseHelper::error($exception->getMessage(), ['reason' => $exception->reason], 422);
         }
+    }
 
-        $user = Auth::user();
-        $result = $this->couponService->validateCoupon(
-            $request->code,
-            $user->id,
-            (float) $request->order_total
-        );
+    /** Removing a coupon is stateless; provide a new official quote with no codes. */
+    public function remove(Request $request): JsonResponse
+    {
+        return $this->quote($request, []);
+    }
 
-        if (!$result['valid']) {
-            return ResponseHelper::error($result['message'], null, 400);
-        }
+    public function storeCoupons(Request $request, int $storeId): JsonResponse
+    {
+        Store::findOrFail($storeId);
+        $coupons = $this->couponService->publicCouponsForStore($storeId, $request->user());
+        return ResponseHelper::success($coupons->map(fn ($coupon) => $this->discoveryCard($coupon))->values(), 'Store coupons retrieved successfully.');
+    }
 
-        return ResponseHelper::success([
-            'coupon' => [
-                'id' => $result['coupon']->id,
-                'code' => $result['coupon']->code,
-                'discount_type' => $result['coupon']->discount_type,
-                'discount_value' => $result['coupon']->discount_value,
-            ],
-            'discount_amount' => $result['discount_amount'],
-            'message' => $result['message'],
-        ], 'Coupon validated successfully');
+    public function productCoupons(Request $request, int $productId): JsonResponse
+    {
+        $product = Product::findOrFail($productId);
+        $coupons = $this->couponService->publicCouponsForStore($product->store_id, $request->user(), $product);
+        return ResponseHelper::success($coupons->map(fn ($coupon) => $this->discoveryCard($coupon))->values(), 'Product coupons retrieved successfully.');
+    }
+
+    public function categoryCoupons(Request $request, int $categoryId): JsonResponse
+    {
+        $category = Category::findOrFail($categoryId);
+        $stores = Product::query()->where(fn ($query) => $query->where('category_id', $category->id)->orWhere('sub_category_id', $category->id))
+            ->distinct()->pluck('store_id');
+        $coupons = $stores->flatMap(fn ($storeId) => $this->couponService->publicCouponsForStore((int) $storeId, $request->user())
+            ->filter(fn ($coupon) => $coupon->scope === 'store' || $coupon->scope === 'categories' && $coupon->categories->contains('id', $category->id)));
+
+        return ResponseHelper::success($coupons->map(fn ($coupon) => $this->discoveryCard($coupon))->values(), 'Category coupons retrieved successfully.');
+    }
+
+    private function publicQuote(array $quote): array
+    {
+        $stores = collect($quote['stores'])->map(function (array $store) {
+            unset($store['_quote']);
+            return $store;
+        })->values()->all();
+        return $quote + ['stores' => $stores, 'breakdown' => $stores];
+    }
+
+    private function discoveryCard($coupon): array
+    {
+        return [
+            'id' => $coupon->id, 'store_id' => $coupon->store_id, 'code' => $coupon->code,
+            'description' => $coupon->description, 'discount_type' => $coupon->discount_type,
+            'discount_value' => $coupon->discount_value, 'max_discount' => $coupon->max_discount,
+            'minimum_eligible_subtotal' => $coupon->min_order_amount, 'starts_at' => $coupon->starts_at,
+            'ends_at' => $coupon->ends_at, 'scope' => $coupon->scope,
+            'product_ids' => $coupon->products->pluck('id')->values(),
+            'category_ids' => $coupon->categories->pluck('id')->values(),
+            'variant_ids' => $coupon->variants->pluck('id')->values(),
+        ];
     }
 }

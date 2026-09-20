@@ -14,7 +14,7 @@ class Order extends Model
 
     protected $fillable = [
         'delivery_address_snapshot', 'rewards_awarded_at',
-        'user_id',
+        'user_id', 'checkout_key',
         'order_no',
         'payment_method',
         'payment_status',

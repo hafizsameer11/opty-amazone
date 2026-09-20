@@ -5,13 +5,14 @@ namespace App\Services\Marketplace;
 use App\Models\PointTransaction;
 use App\Models\StoreOrder;
 use App\Models\User;
+use App\Services\Coupon\CouponService;
 use App\Services\Inventory\InventoryService;
 use Illuminate\Support\Facades\DB;
 
 class RefundService
 {
     public function __construct(private OrderTotalsService $totals, private BuyerWalletService $buyers,
-        private SellerWalletService $sellers, private InventoryService $inventory) {}
+        private SellerWalletService $sellers, private InventoryService $inventory, private CouponService $coupons) {}
 
     public function cancel(StoreOrder $input, User $actor, string $reason): StoreOrder
     {
@@ -54,6 +55,13 @@ class RefundService
                     $this->inventory->restoreForOrderLine($item);
                 }
                 $so->inventory_restored_at = now();
+            }
+            if ($payment) {
+                // Preserve the original redemption and snapshot for accounting and
+                // future partial-refund reconciliation.
+                $this->coupons->markRefunded($so);
+            } else {
+                $this->coupons->release($so, 'cancelled');
             }
             $this->reversePoints($so);
             app(\App\Services\Referrals\ReferralService::class)->invalidateStoreOrder($so, $reason, $actor);

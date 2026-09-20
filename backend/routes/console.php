@@ -24,6 +24,8 @@ Artisan::command('inspire', function () {
     ->name('qualify-referral-rewards')->hourly()->withoutOverlapping();
 \Illuminate\Support\Facades\Schedule::call(fn () => app(\App\Services\Referrals\ReferralService::class)->activateDueCampaigns())
     ->name('activate-scheduled-referral-campaigns')->everyMinute()->withoutOverlapping();
+\Illuminate\Support\Facades\Schedule::call(fn () => app(\App\Services\Coupon\CouponService::class)->releaseExpiredReservations())
+    ->name('release-expired-coupon-reservations')->everyFiveMinutes()->withoutOverlapping();
 
 Artisan::command('referrals:qualify {--limit=100 : Maximum pending rewards to process}', function () {
     $count = app(\App\Services\Referrals\ReferralService::class)->qualifyDueRewards((int) $this->option('limit'));
@@ -45,3 +47,8 @@ Artisan::command('ads:import-legacy {--apply : Import snapshots; default is read
     });
     $this->info('Imported into legacy_review. Payment flags do not constitute proof of payment.');
 });
+
+Artisan::command('coupons:release-expired', function () {
+    $count = app(\App\Services\Coupon\CouponService::class)->releaseExpiredReservations();
+    $this->info("Released {$count} expired coupon reservation(s).");
+})->purpose('Release unpaid coupon reservations after their checkout hold expires.');

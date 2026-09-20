@@ -14,6 +14,7 @@ class StoreOrder extends Model
 
     protected $fillable = [
         'redeemed_points', 'reward_points', 'payment_status', 'financial_version', 'delivery_address_snapshot', 'discount_total',
+        'coupon_code', 'coupon_discount', 'coupon_shipping_discount', 'coupon_snapshot',
         'quote_key', 'quote_fingerprint', 'delivery_code_hash', 'delivery_code_encrypted',
         'delivery_code_expires_at', 'delivery_code_issued_at', 'delivery_code_attempts',
         'delivery_code_locked_until', 'delivery_verified_at', 'inventory_restored_at',
@@ -38,6 +39,7 @@ class StoreOrder extends Model
 
     protected $casts = [
         'delivery_address_snapshot' => 'array', 'discount_total' => 'decimal:2',
+        'coupon_discount' => 'decimal:2', 'coupon_shipping_discount' => 'decimal:2', 'coupon_snapshot' => 'array',
         'delivery_code_expires_at' => 'datetime', 'delivery_code_issued_at' => 'datetime',
         'delivery_code_locked_until' => 'datetime', 'delivery_verified_at' => 'datetime',
         'inventory_restored_at' => 'datetime',

@@ -65,7 +65,12 @@ Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function ()
 
     Route::prefix('coupons')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\AdminCouponController::class, 'index']);
+        Route::get('/{id}', [\App\Http\Controllers\Admin\AdminCouponController::class, 'show']);
+        Route::get('/{id}/usage-history', [\App\Http\Controllers\Admin\AdminCouponController::class, 'usageHistory']);
+        Route::get('/{id}/audit-history', [\App\Http\Controllers\Admin\AdminCouponController::class, 'auditHistory']);
         Route::post('/{id}/toggle-status', [\App\Http\Controllers\Admin\AdminCouponController::class, 'toggleStatus']);
+        Route::post('/{id}/disable', [\App\Http\Controllers\Admin\AdminCouponController::class, 'disable']);
+        Route::post('/{id}/enable', [\App\Http\Controllers\Admin\AdminCouponController::class, 'enable']);
         Route::delete('/{id}', [\App\Http\Controllers\Admin\AdminCouponController::class, 'destroy']);
     });
 

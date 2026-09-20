@@ -5,127 +5,90 @@ namespace App\Http\Controllers\Buyer;
 use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
 use App\Mail\OrderPlacedMail;
-use App\Services\Order\OrderService;
+use App\Models\Cart;
+use App\Services\Campaigns\DiscountPricingService;
+use App\Services\Coupon\CouponService;
+use App\Services\Coupon\CouponValidationException;
 use App\Services\Notifications\MarketplaceNotificationService;
+use App\Services\Order\OrderService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 
 class BuyerCheckoutController extends Controller
 {
-    protected $orderService;
+    public function __construct(
+        private OrderService $orderService,
+        private CouponService $couponService,
+        private DiscountPricingService $pricing,
+    ) {}
 
-    public function __construct(OrderService $orderService)
-    {
-        $this->orderService = $orderService;
-    }
-
-    /**
-     * Preview checkout (calculate totals).
-     */
+    /** Official checkout preview; every amount comes from the current server cart. */
     public function preview(Request $request)
     {
-        $user = Auth::user();
-        $cart = \App\Models\Cart::where('user_id', $user->id)->with('items.product', 'items.store')->first();
+        $request->validate([
+            'coupon_code' => ['nullable', 'string', 'max:50'],
+            'coupon_codes' => ['nullable', 'array'],
+            'coupon_codes.*' => ['nullable', 'string', 'max:50'],
+        ]);
+        $cart = Cart::where('user_id', $request->user()->id)->first();
+        if (! $cart) return ResponseHelper::error('Cart is empty.', null, 422);
 
-        if (! $cart || $cart->items()->count() === 0) {
-            return ResponseHelper::error('Cart is empty');
+        $codes = (array) $request->input('coupon_codes', []);
+        if ($request->filled('coupon_code')) $codes['_single'] = $request->coupon_code;
+
+        try {
+            $this->pricing->repriceCart($cart);
+            $quote = $this->couponService->quoteCart($cart, $request->user(), $codes);
+            $stores = collect($quote['stores'])->map(function (array $store) {
+                unset($store['_quote']);
+                return $store + ['items_count' => 0, 'shipping_fee' => '0.00', 'total' => $store['final_before_shipping']];
+            })->values()->all();
+            return ResponseHelper::success([
+                'breakdown' => $stores, 'stores' => $stores,
+                'original_subtotal' => $quote['original_subtotal'],
+                'automatic_campaign_discount' => $quote['automatic_campaign_discount'],
+                'coupon_discount' => $quote['coupon_discount'],
+                'shipping_discount' => $quote['shipping_discount'],
+                'points_discount' => '0.00', 'items_total' => $quote['final_before_shipping'],
+                'shipping_total' => '0.00', 'grand_total' => $quote['final_before_shipping'],
+            ], 'Checkout preview calculated successfully.');
+        } catch (CouponValidationException $exception) {
+            return ResponseHelper::error($exception->getMessage(), ['reason' => $exception->reason], 422);
         }
-
-        app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
-        // Group items by store
-        $itemsByStore = $cart->items()->get()->groupBy('store_id');
-        $breakdown = [];
-
-        foreach ($itemsByStore as $storeId => $items) {
-            $store = $items->first()->store;
-            $subtotal = $items->sum(function ($item) {
-                return $item->price * $item->quantity;
-            });
-
-            $shippingFee = 0; // Seller quotes delivery after reviewing the address.
-
-            $breakdown[] = [
-                'store_id' => $storeId,
-                'store_name' => $store->name,
-                'items_count' => $items->count(),
-                'subtotal' => $subtotal,
-                'shipping_fee' => $shippingFee,
-                'total' => $subtotal + $shippingFee,
-            ];
-        }
-
-        $grandTotal = collect($breakdown)->sum('total');
-
-        return ResponseHelper::success([
-            'breakdown' => $breakdown,
-            'items_total' => collect($breakdown)->sum('subtotal'),
-            'shipping_total' => collect($breakdown)->sum('shipping_fee'),
-            'grand_total' => $grandTotal,
-        ], 'Checkout preview');
     }
 
-    /**
-     * Place order.
-     */
     public function place(Request $request)
     {
         $request->validate([
             'delivery_address_id' => ['required', \Illuminate\Validation\Rule::exists('user_addresses', 'id')->where('user_id', $request->user()->id)->whereNull('deleted_at')],
             'payment_method' => 'nullable|in:card,wallet',
-            'coupon_code' => 'nullable|string',
-            'points_to_redeem' => 'nullable|numeric|min:0',
+            'coupon_code' => 'nullable|string|max:50', 'coupon_codes' => 'nullable|array',
+            'coupon_codes.*' => 'nullable|string|max:50', 'points_to_redeem' => 'nullable|numeric|min:0',
+            'idempotency_key' => 'nullable|string|max:120',
         ]);
-
-        $user = Auth::user();
-
+        $user = $request->user();
         try {
             $result = $this->orderService->placeOrder(
-                $user,
-                $request->delivery_address_id,
-                $request->payment_method,
-                $request->coupon_code,
-                $request->points_to_redeem ? (float) $request->points_to_redeem : null
+                $user, $request->delivery_address_id, $request->payment_method, $request->coupon_code,
+                $request->points_to_redeem ? (float) $request->points_to_redeem : null,
+                (array) $request->input('coupon_codes', []), $request->input('idempotency_key')
             );
-
             $notifications = app(MarketplaceNotificationService::class);
             $order = $result['order'];
-            $notifications->send(
-                $user,
-                'order.placed',
-                'Order placed successfully',
-                "Your order {$order->order_no} has been placed successfully.",
-                "/orders/{$order->id}",
-                ['order_id' => $order->id, 'order_no' => $order->order_no]
-            );
+            $notifications->send($user, 'order.placed', 'Order placed successfully', "Your order {$order->order_no} has been placed successfully.", "/orders/{$order->id}", ['order_id' => $order->id, 'order_no' => $order->order_no]);
             foreach ($result['store_orders'] as $storeOrder) {
-                $notifications->send(
-                    $storeOrder->store?->user,
-                    'order.received',
-                    'New order received',
-                    "A new order {$order->order_no} is waiting for your review.",
-                    "/orders/{$storeOrder->id}",
-                    ['order_id' => $order->id, 'store_order_id' => $storeOrder->id, 'order_no' => $order->order_no]
-                );
+                $notifications->send($storeOrder->store?->user, 'order.received', 'New order received', "A new order {$order->order_no} is waiting for your review.", "/orders/{$storeOrder->id}", ['order_id' => $order->id, 'store_order_id' => $storeOrder->id, 'order_no' => $order->order_no]);
             }
-
             try {
-                // Send email notifications
                 Mail::to($user->email)->send(new OrderPlacedMail($result['order']));
-                foreach ($result['store_orders'] as $storeOrder) {
-                    Mail::to($storeOrder->store->user->email)->send(new OrderPlacedMail($result['order'], $storeOrder));
-                }
+                foreach ($result['store_orders'] as $storeOrder) Mail::to($storeOrder->store->user->email)->send(new OrderPlacedMail($result['order'], $storeOrder));
+            } catch (\Throwable $mailError) { report($mailError); }
 
-            } catch (\Throwable $mailError) {
-                report($mailError);
-            }
-
-            return ResponseHelper::success([
-                'order' => $result['order'],
-                'store_orders' => $result['store_orders'],
-            ], 'Order placed successfully');
-        } catch (\Exception $e) {
-            return ResponseHelper::error($e->getMessage());
+            return ResponseHelper::success(['order' => $result['order'], 'store_orders' => $result['store_orders']], 'Order placed successfully');
+        } catch (CouponValidationException $exception) {
+            return ResponseHelper::error($exception->getMessage(), ['reason' => $exception->reason], 422);
+        } catch (\Exception $exception) {
+            return ResponseHelper::error($exception->getMessage());
         }
     }
 }

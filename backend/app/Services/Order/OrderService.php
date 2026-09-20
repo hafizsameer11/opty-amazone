@@ -2,14 +2,12 @@
 
 namespace App\Services\Order;
 
-use App\Models\Cart;
-use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\StoreOrder;
-use App\Models\User;
-use App\Models\UserAddress;
+use App\Models\{Cart, Order, OrderItem, StoreOrder, User, UserAddress};
+use App\Services\Campaigns\DiscountPricingService;
 use App\Services\Coupon\CouponService;
 use App\Services\Inventory\InventoryService;
+use App\Services\Marketplace\Money;
+use App\Services\Marketplace\OrderTotalsService;
 use App\Services\Points\PointService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,271 +15,175 @@ use Illuminate\Support\Facades\Log;
 class OrderService
 {
     public function __construct(
-        private CouponService $couponService,
-        private PointService $pointService,
-        private InventoryService $inventoryService
+        private CouponService $coupons,
+        private PointService $points,
+        private InventoryService $inventory,
+        private DiscountPricingService $pricing,
+        private OrderTotalsService $totals,
     ) {}
 
     /**
-     * Place order from cart.
-     * Creates one Order and multiple StoreOrders (one per store).
+     * Prices, coupon eligibility and all store allocations are recalculated
+     * inside one transaction. Client totals and eligible item ids are ignored.
      */
-    public function placeOrder(User $user, int $deliveryAddressId, ?string $paymentMethod = null, ?string $couponCode = null, ?float $pointsToRedeem = null): array
-    {
-        DB::beginTransaction();
-
+    public function placeOrder(
+        User $user,
+        int $deliveryAddressId,
+        ?string $paymentMethod = null,
+        ?string $couponCode = null,
+        ?float $pointsToRedeem = null,
+        array $couponCodes = [],
+        ?string $checkoutKey = null,
+    ): array {
         try {
-            $cart = Cart::where('user_id', $user->id)->lockForUpdate()->first();
+            return DB::transaction(function () use ($user, $deliveryAddressId, $paymentMethod, $couponCode, $pointsToRedeem, $couponCodes, $checkoutKey) {
+                $checkoutKey = $checkoutKey ? trim($checkoutKey) : null;
+                if ($checkoutKey !== null && $checkoutKey !== '') {
+                    $existing = Order::where('user_id', $user->id)->where('checkout_key', $checkoutKey)->lockForUpdate()->first();
+                    if ($existing) return $this->resultFor($existing);
+                }
 
-            if (! $cart || $cart->items()->count() === 0) {
-                throw new \Exception('Cart is empty');
-            }
+                $cart = Cart::where('user_id', $user->id)->lockForUpdate()->first();
+                if (! $cart || ! $cart->items()->exists()) throw new \RuntimeException('Cart is empty');
 
-            $deliveryAddress = UserAddress::where('user_id', $user->id)->lockForUpdate()->findOrFail($deliveryAddressId);
-            $snapshot = $deliveryAddress->only(['full_name', 'phone', 'address_line_1', 'address_line_2', 'postal_code', 'country_id', 'state_id', 'city_id', 'country_name', 'state_name', 'city_name']);
-            foreach (['country', 'state', 'city'] as $relation) {
-                $snapshot[$relation] = $deliveryAddress->$relation?->name
-                    ?? $snapshot[$relation.'_name']
-                    ?? null;
-            }
-            $snapshot['source'] = 'checkout';
-            app(\App\Services\Marketplace\BuyerWalletService::class)->locked($user);
-            app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart, true);
+                $address = UserAddress::where('user_id', $user->id)->lockForUpdate()->findOrFail($deliveryAddressId);
+                $snapshot = $this->addressSnapshot($address);
+                app(\App\Services\Marketplace\BuyerWalletService::class)->locked($user);
+                $this->pricing->repriceCart($cart, true);
 
-            // Group cart items by store
-            $itemsByStore = $cart->items()
-                ->with([
-                    'product' => fn ($q) => $q->withTrashed(),
-                    'store' => fn ($q) => $q->withTrashed(),
+                if ($couponCode && trim($couponCode) !== '') $couponCodes['_single'] = $couponCode;
+                $couponQuote = $this->coupons->quoteCart($cart, $user, $couponCodes, true);
+                $itemsByStore = $cart->items()->with([
+                    'product' => fn ($query) => $query->withTrashed(),
+                    'store' => fn ($query) => $query->withTrashed(),
                     'variant',
-                ])
-                ->get()
-                ->groupBy('store_id');
+                ])->get()->groupBy('store_id');
 
-            // Create parent order
-            $order = Order::create([
-                'user_id' => $user->id,
-                'order_no' => Order::generateOrderNumber(),
-                'delivery_address_snapshot' => $snapshot,
-                'payment_method' => $paymentMethod,
-                'payment_status' => 'pending',
-                'items_total' => 0,
-                'shipping_total' => 0,
-                'platform_fee' => 0,
-                'discount_total' => 0,
-                'grand_total' => 0,
-            ]);
-
-            $storeOrders = [];
-            $totalItems = 0;
-            $totalShipping = 0;
-            $totalPlatformFee = 0;
-            $totalDiscount = 0;
-            $grandTotal = 0;
-
-            // Calculate total items first for coupon validation
-            foreach ($itemsByStore as $storeId => $items) {
-                $subtotal = $items->sum(function ($item) {
-                    return $item->price * $item->quantity;
-                });
-                $totalItems += $subtotal;
-            }
-
-            // Validate and apply coupon if provided
-            $coupon = null;
-            $couponDiscount = 0;
-            if ($couponCode) {
-                $validation = $this->couponService->validateCoupon($couponCode, $user->id, $totalItems);
-                if ($validation['valid']) {
-                    $coupon = $validation['coupon'];
-                    $couponDiscount = $validation['discount_amount'];
-                } else {
-                    throw new \Exception($validation['message']);
-                }
-            }
-
-            // Validate and apply points redemption if provided
-            $pointsDiscount = 0;
-            $pointsUsed = 0;
-            if ($pointsToRedeem && $pointsToRedeem > 0) {
-                try {
-                    // Calculate order total after coupon discount
-                    $orderTotalAfterCoupon = max(0, $totalItems - $couponDiscount);
-
-                    // Redeem points (this will deduct points from wallet)
-                    $redeemResult = $this->pointService->redeemPoints($user, $pointsToRedeem, null);
-                    $pointsDiscount = $redeemResult['discount_amount'];
-                    $pointsUsed = $redeemResult['points_used'];
-
-                    // Ensure points discount doesn't exceed order total
-                    if ($pointsDiscount > $orderTotalAfterCoupon) {
-                        $pointsDiscount = $orderTotalAfterCoupon;
-                    }
-                } catch (\Exception $e) {
-                    throw new \Exception('Points redemption failed: '.$e->getMessage());
-                }
-            }
-
-            // Reserve / decrement inventory (row locks; throws if oversold vs current stock)
-            foreach ($itemsByStore as $items) {
-                foreach ($items as $cartItem) {
-                    $this->inventoryService->decrementForCartLine($cartItem);
-                }
-            }
-
-            // Create StoreOrder for each store
-            foreach ($itemsByStore as $storeId => $items) {
-                $store = $items->first()?->store;
-                if (! $store) {
-                    throw new \Exception('Cart contains items from a store that is no longer available.');
+                foreach ($itemsByStore as $items) {
+                    foreach ($items as $cartItem) $this->inventory->decrementForCartLine($cartItem);
                 }
 
-                // Calculate subtotal for this store
-                $subtotal = $items->sum(function ($item) {
-                    return $item->price * $item->quantity;
-                });
-
-                // Generate delivery code (OTP)
-                // Delivery codes are issued only after verified payment.
-
-                // Create StoreOrder (status: pending, delivery fee will be set by seller)
-                $storeOrder = StoreOrder::create([
-                    'order_id' => $order->id,
-                    'store_id' => $storeId,
-                    'status' => 'pending',
-                    'subtotal' => $subtotal,
-                    'delivery_fee' => 0, // Will be set by seller on accept
-                    'total' => $subtotal,
-                    'delivery_code' => null,
-                    'payment_status' => 'pending', 'financial_version' => 1,
-                    'delivery_address_snapshot' => $snapshot,
-                    'delivery_address_id' => $deliveryAddressId,
+                $order = Order::create([
+                    'user_id' => $user->id, 'order_no' => Order::generateOrderNumber(), 'checkout_key' => $checkoutKey,
+                    'delivery_address_snapshot' => $snapshot, 'payment_method' => $paymentMethod, 'payment_status' => 'pending',
+                    'items_total' => 0, 'shipping_total' => 0, 'platform_fee' => 0, 'discount_total' => 0, 'grand_total' => 0,
                 ]);
 
-                // Create OrderItems
-                foreach ($items as $cartItem) {
-                    $product = $cartItem->product;
-                    $variant = $cartItem->variant;
+                $storeOrders = [];
+                $couponDiscountCents = 0;
+                foreach ($itemsByStore as $storeId => $items) {
+                    $store = $items->first()?->store;
+                    if (! $store) throw new \RuntimeException('Cart contains items from a store that is no longer available.');
 
-                    // Use variant images if available, otherwise product images
-                    $images = $variant && $variant->images ? $variant->images : $product->images;
-                    $pv = $cartItem->product_variant;
-                    if (is_array($pv) && ! empty($pv['eye_hygiene']['image_url'])) {
-                        $ehImg = $pv['eye_hygiene']['image_url'];
-                        $baseImages = is_array($images) ? $images : (array) ($images ?? []);
-                        $images = array_values(array_unique(array_merge([$ehImg], $baseImages)));
-                    }
-
-                    OrderItem::create([
-                        'store_order_id' => $storeOrder->id,
-                        'product_id' => $product->id,
-                        'variant_id' => $cartItem->variant_id,
-                        'product_size_volume_id' => $cartItem->product_size_volume_id,
-                        'eye_hygiene_variant_id' => $cartItem->eye_hygiene_variant_id,
-                        'quantity' => $cartItem->quantity,
-                        'price' => $cartItem->price,
-                        'original_price' => $cartItem->original_price,
-                        'campaign_discount_amount' => $cartItem->campaign_discount_amount,
-                        'campaign_pricing' => $cartItem->campaign_pricing,
-                        'line_total' => $cartItem->price * $cartItem->quantity,
-                        'product_name' => $product->name,
-                        'product_sku' => $product->sku,
-                        'product_variant' => $cartItem->product_variant,
-                        'lens_configuration' => $cartItem->lens_configuration,
-                        'prescription_data' => $cartItem->prescription_data,
-                        'product_images' => $images,
-                        // Copy specific fields from cart item
-                        'frame_size_id' => $cartItem->frame_size_id,
-                        'prescription_id' => $cartItem->prescription_id,
-                        'lens_index' => $cartItem->lens_index,
-                        'lens_type' => $cartItem->lens_type,
-                        'lens_thickness_material_id' => $cartItem->lens_thickness_material_id,
-                        'lens_thickness_option_id' => $cartItem->lens_thickness_option_id,
-                        'lens_color_id' => $cartItem->lens_color_id,
-                        'treatment_ids' => $cartItem->treatment_ids,
-                        'lens_coatings' => $cartItem->lens_coatings,
-                        'photochromic_color_id' => $cartItem->photochromic_color_id,
-                        'prescription_sun_color_id' => $cartItem->prescription_sun_color_id,
-                        'progressive_variant_id' => $cartItem->progressive_variant_id,
-                        // Contact lens fields
-                        'contact_lens_left_base_curve' => $cartItem->contact_lens_left_base_curve,
-                        'contact_lens_left_diameter' => $cartItem->contact_lens_left_diameter,
-                        'contact_lens_left_power' => $cartItem->contact_lens_left_power,
-                        'contact_lens_left_qty' => $cartItem->contact_lens_left_qty,
-                        'contact_lens_left_cylinder' => $cartItem->contact_lens_left_cylinder,
-                        'contact_lens_left_axis' => $cartItem->contact_lens_left_axis,
-                        'contact_lens_right_base_curve' => $cartItem->contact_lens_right_base_curve,
-                        'contact_lens_right_diameter' => $cartItem->contact_lens_right_diameter,
-                        'contact_lens_right_power' => $cartItem->contact_lens_right_power,
-                        'contact_lens_right_qty' => $cartItem->contact_lens_right_qty,
-                        'contact_lens_right_cylinder' => $cartItem->contact_lens_right_cylinder,
-                        'contact_lens_right_axis' => $cartItem->contact_lens_right_axis,
-                        'contact_lens_pack_quantity' => $cartItem->contact_lens_pack_quantity,
+                    $subtotal = $items->sum(fn ($item) => Money::cents($item->price) * (int) $item->quantity);
+                    $storeCoupon = $couponQuote['stores'][(int) $storeId]['_quote'] ?? null;
+                    $couponCents = (int) ($storeCoupon['discount_cents'] ?? 0);
+                    $couponDiscountCents += $couponCents;
+                    $storeOrder = StoreOrder::create([
+                        'order_id' => $order->id, 'store_id' => $storeId, 'status' => 'pending',
+                        'subtotal' => Money::decimal($subtotal), 'delivery_fee' => Money::decimal(0),
+                        'discount_total' => Money::decimal($couponCents), 'total' => Money::decimal($subtotal - $couponCents),
+                        'payment_status' => 'pending', 'financial_version' => 1,
+                        'delivery_address_snapshot' => $snapshot, 'delivery_address_id' => $deliveryAddressId,
                     ]);
+
+                    $createdItems = [];
+                    foreach ($items as $cartItem) $createdItems[$cartItem->id] = $this->createOrderItem($storeOrder, $cartItem);
+                    if ($storeCoupon) {
+                        $storeCoupon['affected_items'] = $this->attachAffectedOrderItems($storeCoupon['affected_items'], $createdItems);
+                        $storeCoupon['snapshot']['affected_items'] = $storeCoupon['affected_items'];
+                        $this->coupons->reserve($storeOrder, $user, $storeCoupon, $checkoutKey ?: 'order-'.$order->id);
+                    }
+                    $storeOrders[] = $storeOrder;
                 }
 
-                $grandTotal += $subtotal;
-                $storeOrders[] = $storeOrder;
-            }
+                $pointsDiscount = 0;
+                $pointsUsed = 0;
+                if ($pointsToRedeem && $pointsToRedeem > 0) {
+                    $maximum = max(0, Money::cents($couponQuote['final_before_shipping']));
+                    $redemption = $this->points->redeemPoints($user, $pointsToRedeem, null);
+                    $pointsDiscount = min($maximum, Money::cents($redemption['discount_amount']));
+                    $pointsUsed = (float) $redemption['points_used'];
+                }
 
-            // Apply discounts to grand total
-            $totalDiscount = $couponDiscount + $pointsDiscount;
-            $grandTotal = max(0, $grandTotal - $totalDiscount);
+                if ($pointsDiscount > 0) $this->totals->allocateAdditionalPoints($order, $pointsDiscount, $pointsUsed);
+                if ($pointsUsed > 0) {
+                    \App\Models\PointTransaction::where('user_id', $user->id)->where('type', 'redeem')->whereNull('reference_id')
+                        ->latest()->first()?->update(['reference_type' => 'order', 'reference_id' => $order->id]);
+                }
 
-            // Update order totals
-            $order->update([
-                'items_total' => $totalItems,
-                'shipping_total' => $totalShipping,
-                'platform_fee' => $totalPlatformFee,
-                'discount_total' => $totalDiscount,
-                'grand_total' => $grandTotal,
-                'meta' => [
-                    'coupon_id' => $coupon ? $coupon->id : null,
-                    'coupon_code' => $coupon ? $coupon->code : null,
-                    'points_redeemed' => $pointsUsed,
-                    'points_discount' => $pointsDiscount,
-                ],
-            ]);
+                $order->update(['meta' => [
+                    'coupon_codes' => collect($couponQuote['stores'])->filter(fn ($store) => $store['coupon'])->mapWithKeys(fn ($store) => [$store['store_id'] => $store['coupon']['code']])->all(),
+                    'coupon_breakdown' => collect($couponQuote['stores'])->mapWithKeys(fn ($store) => [$store['store_id'] => $store['coupon']])->filter()->all(),
+                    'points_redeemed' => $pointsUsed, 'points_discount' => Money::decimal($pointsDiscount),
+                ]]);
+                $this->totals->sync($order);
+                $this->pricing->recordUsage($order);
+                $cart->items()->delete();
 
-            // Apply coupon to order (create usage record)
-            if ($coupon) {
-                $this->couponService->applyCoupon($order, $coupon);
-            }
-
-            // Update point transaction with order reference if points were redeemed
-            if ($pointsUsed > 0) {
-                \App\Models\PointTransaction::where('user_id', $user->id)
-                    ->where('type', 'redeem')
-                    ->whereNull('reference_id')
-                    ->orderBy('created_at', 'desc')
-                    ->first()
-                    ?->update([
-                        'reference_type' => 'order',
-                        'reference_id' => $order->id,
-                    ]);
-            }
-
-            app(\App\Services\Marketplace\OrderTotalsService::class)->allocate($order, $totalDiscount, $pointsUsed);
-            app(\App\Services\Marketplace\OrderTotalsService::class)->sync($order);
-            app(\App\Services\Campaigns\DiscountPricingService::class)->recordUsage($order);
-
-            // Clear cart
-            $cart->items()->delete();
-
-            DB::commit();
-
-            return [
-                'order' => $order->load([
-                    'storeOrders.store',
-                    'storeOrders.items.product',
-                    'storeOrders.items.variant',
-                ]),
-                'store_orders' => $storeOrders,
-            ];
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Order placement failed: '.$e->getMessage());
-            throw $e;
+                return $this->resultFor($order);
+            }, 5);
+        } catch (\Throwable $exception) {
+            Log::error('Order placement failed: '.$exception->getMessage());
+            throw $exception;
         }
+    }
+
+    private function resultFor(Order $order): array
+    {
+        $order->load(['storeOrders.store', 'storeOrders.items.product', 'storeOrders.items.variant']);
+        return ['order' => $order, 'store_orders' => $order->storeOrders->values()->all()];
+    }
+
+    private function addressSnapshot(UserAddress $address): array
+    {
+        $snapshot = $address->only(['full_name', 'phone', 'address_line_1', 'address_line_2', 'postal_code', 'country_id', 'state_id', 'city_id', 'country_name', 'state_name', 'city_name']);
+        foreach (['country', 'state', 'city'] as $relation) $snapshot[$relation] = $address->$relation?->name ?? $snapshot[$relation.'_name'] ?? null;
+        $snapshot['source'] = 'checkout';
+        return $snapshot;
+    }
+
+    private function createOrderItem(StoreOrder $storeOrder, $cartItem): OrderItem
+    {
+        $product = $cartItem->product;
+        $variant = $cartItem->variant;
+        $images = $variant && $variant->images ? $variant->images : $product->images;
+        $productVariant = $cartItem->product_variant;
+        if (is_array($productVariant) && ! empty($productVariant['eye_hygiene']['image_url'])) {
+            $images = array_values(array_unique(array_merge([$productVariant['eye_hygiene']['image_url']], is_array($images) ? $images : (array) ($images ?? []))));
+        }
+
+        return OrderItem::create([
+            'store_order_id' => $storeOrder->id, 'product_id' => $product->id, 'variant_id' => $cartItem->variant_id,
+            'product_size_volume_id' => $cartItem->product_size_volume_id, 'eye_hygiene_variant_id' => $cartItem->eye_hygiene_variant_id,
+            'quantity' => $cartItem->quantity, 'price' => $cartItem->price, 'original_price' => $cartItem->original_price,
+            'campaign_discount_amount' => $cartItem->campaign_discount_amount, 'campaign_pricing' => $cartItem->campaign_pricing,
+            'line_total' => Money::decimal(Money::cents($cartItem->price) * (int) $cartItem->quantity),
+            'product_name' => $product->name, 'product_sku' => $product->sku, 'product_variant' => $productVariant,
+            'lens_configuration' => $cartItem->lens_configuration, 'prescription_data' => $cartItem->prescription_data, 'product_images' => $images,
+            'frame_size_id' => $cartItem->frame_size_id, 'prescription_id' => $cartItem->prescription_id,
+            'lens_index' => $cartItem->lens_index, 'lens_type' => $cartItem->lens_type,
+            'lens_thickness_material_id' => $cartItem->lens_thickness_material_id, 'lens_thickness_option_id' => $cartItem->lens_thickness_option_id,
+            'lens_color_id' => $cartItem->lens_color_id, 'treatment_ids' => $cartItem->treatment_ids,
+            'lens_coatings' => $cartItem->lens_coatings, 'photochromic_color_id' => $cartItem->photochromic_color_id,
+            'prescription_sun_color_id' => $cartItem->prescription_sun_color_id, 'progressive_variant_id' => $cartItem->progressive_variant_id,
+            'contact_lens_left_base_curve' => $cartItem->contact_lens_left_base_curve, 'contact_lens_left_diameter' => $cartItem->contact_lens_left_diameter,
+            'contact_lens_left_power' => $cartItem->contact_lens_left_power, 'contact_lens_left_qty' => $cartItem->contact_lens_left_qty,
+            'contact_lens_left_cylinder' => $cartItem->contact_lens_left_cylinder, 'contact_lens_left_axis' => $cartItem->contact_lens_left_axis,
+            'contact_lens_right_base_curve' => $cartItem->contact_lens_right_base_curve, 'contact_lens_right_diameter' => $cartItem->contact_lens_right_diameter,
+            'contact_lens_right_power' => $cartItem->contact_lens_right_power, 'contact_lens_right_qty' => $cartItem->contact_lens_right_qty,
+            'contact_lens_right_cylinder' => $cartItem->contact_lens_right_cylinder, 'contact_lens_right_axis' => $cartItem->contact_lens_right_axis,
+            'contact_lens_pack_quantity' => $cartItem->contact_lens_pack_quantity,
+        ]);
+    }
+
+    /** Snapshot the immutable order-item ids, not only transient cart line ids. */
+    private function attachAffectedOrderItems(array $affected, array $orderItems): array
+    {
+        return collect($affected)->map(function (array $line) use ($orderItems) {
+            $match = $orderItems[(int) ($line['cart_item_id'] ?? 0)] ?? null;
+            if ($match) $line['order_item_id'] = $match->id;
+            return $line;
+        })->values()->all();
     }
 }

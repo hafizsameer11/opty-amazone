@@ -5,19 +5,21 @@ namespace App\Services\Marketplace;
 use App\Models\MarketplacePayment;
 use App\Models\StoreOrder;
 use App\Models\User;
+use App\Services\Coupon\CouponService;
 use App\Services\Escrow\EscrowService;
 use Illuminate\Support\Facades\DB;
 
 class PaymentService
 {
     public function __construct(private OrderTotalsService $totals, private BuyerWalletService $wallets,
-        private EscrowService $escrows, private DeliveryVerificationService $delivery) {}
+        private EscrowService $escrows, private DeliveryVerificationService $delivery, private CouponService $coupons) {}
 
     public function pay(StoreOrder $input, User $buyer, array $data): StoreOrder
     {
         abort_unless($data['payment_method'] === 'wallet', 503, 'Card order payment is not available. Fund your wallet with Stripe when configured.');
 
-        return DB::transaction(function () use ($input, $buyer, $data) {
+        try {
+            return DB::transaction(function () use ($input, $buyer, $data) {
             $so = $this->totals->locked($input);
             $this->totals->authorize($so, $buyer, 'buyer');
             $this->wallets->locked($buyer);
@@ -26,6 +28,7 @@ class PaymentService
 
                 return $so->load('escrow', 'payment');
             }
+            $this->coupons->ensureReservationPayable($so);
             abort_unless($so->status === 'awaiting_payment' && $so->payment_status === 'pending' && (int) $so->financial_version === 1,
                 409, 'A seller shipping quote is required before payment. Legacy orders require review.');
             $amount = Money::cents($so->total);
@@ -39,6 +42,7 @@ class PaymentService
                 'amount' => $so->total, 'method' => 'wallet', 'status' => 'paid', 'transaction_id' => $transaction->id]);
             $this->escrows->createEscrow($so);
             $so->update(['status' => 'paid', 'payment_status' => 'paid', 'paid_at' => now()]);
+            $this->coupons->redeem($so);
             $this->delivery->issue($so);
             $so->order->update(['payment_method' => 'wallet']);
             $this->totals->sync($so->order);
@@ -47,6 +51,28 @@ class PaymentService
             app(\App\Services\Referrals\ReferralService::class)->captureOrderCandidates($so);
 
             return $so->fresh(['escrow', 'payment']);
-        }, 5);
+            }, 5);
+        } catch (\App\Services\Coupon\CouponValidationException $exception) {
+            // The failed payment transaction rolls back status changes. Persist
+            // expiration separately so the same stale StoreOrder can never pay
+            // using a released coupon amount.
+            if ($exception->reason === 'coupon_reservation_expired') {
+                DB::transaction(function () use ($input) {
+                    $shipment = $this->totals->locked($input);
+                    $this->coupons->expireReservation($shipment);
+                }, 5);
+            }
+            throw $exception;
+        } catch (\Throwable $exception) {
+            // A declined/insufficient wallet payment leaves no financial record; free
+            // the reserved coupon slot in a fresh transaction so it can be used again.
+            if (str_contains(strtolower($exception->getMessage()), 'insufficient wallet balance')) {
+                DB::transaction(function () use ($input) {
+                    $shipment = $this->totals->locked($input);
+                    $this->coupons->release($shipment, 'payment_failed');
+                }, 5);
+            }
+            throw $exception;
+        }
     }
 }

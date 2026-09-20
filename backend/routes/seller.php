@@ -180,11 +180,16 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('promotio
 // Coupon routes
 Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('coupons')->group(function () {
     Route::get('/', [SellerCouponController::class, 'index']);
+    Route::get('/analytics', [SellerCouponController::class, 'analytics']);
+    Route::get('/targets/{type}', [SellerCouponController::class, 'targets'])->whereIn('type', ['products', 'categories', 'variants']);
     Route::post('/', [SellerCouponController::class, 'store']);
     Route::get('/{id}', [SellerCouponController::class, 'show']);
     Route::put('/{id}', [SellerCouponController::class, 'update']);
     Route::delete('/{id}', [SellerCouponController::class, 'destroy']);
     Route::post('/{id}/toggle-status', [SellerCouponController::class, 'toggleStatus']);
+    Route::post('/{id}/pause', [SellerCouponController::class, 'pause']);
+    Route::post('/{id}/resume', [SellerCouponController::class, 'resume']);
+    Route::get('/{id}/usage-history', [SellerCouponController::class, 'usageHistory']);
 });
 
 // Referral campaigns are intentionally independent from coupons and promotions.
