@@ -153,7 +153,7 @@ class BuyerProductController extends Controller
         }
 
         // Sort
-        $sortBy = in_array($request->get('sort_by'), ['created_at', 'price', 'rating', 'name'], true) ? $request->get('sort_by') : 'created_at';
+        $sortBy = in_array($request->get('sort_by'), ['created_at', 'price', 'rating', 'name', 'view_count'], true) ? $request->get('sort_by') : 'created_at';
         $sortOrder = $request->get('sort_order') === 'asc' ? 'asc' : 'desc';
         $products = $this->paginateWithCurrentPrices($query, $request, $sortBy, $sortOrder);
         return ResponseHelper::success($products, 'Products retrieved successfully');
@@ -203,7 +203,7 @@ class BuyerProductController extends Controller
         }
 
         // Sort
-        $sortBy = in_array($request->get('sort_by'), ['created_at', 'price', 'rating', 'name'], true) ? $request->get('sort_by') : 'created_at';
+        $sortBy = in_array($request->get('sort_by'), ['created_at', 'price', 'rating', 'name', 'view_count'], true) ? $request->get('sort_by') : 'created_at';
         $sortOrder = $request->get('sort_order') === 'asc' ? 'asc' : 'desc';
         $products = $this->paginateWithCurrentPrices($query, $request, $sortBy, $sortOrder);
 
