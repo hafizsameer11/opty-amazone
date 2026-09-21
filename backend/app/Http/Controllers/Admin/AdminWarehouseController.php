@@ -19,17 +19,41 @@ class AdminWarehouseController extends Controller
     public function dashboard(): JsonResponse
     {
         $products = WarehouseProduct::with('category')->get();
+        $publishedProducts = $products->filter(fn (WarehouseProduct $product) => ! $product->is_draft);
+        $availableProducts = $publishedProducts->filter(fn (WarehouseProduct $product) => $product->is_active);
         $orders = WarehouseOrder::query();
+        $start = now()->startOfMonth()->subMonths(5);
+        $recentOrders = WarehouseOrder::where('created_at', '>=', $start)->get(['created_at', 'total', 'payment_status', 'status']);
+        $ordersByMonth = $recentOrders->groupBy(fn (WarehouseOrder $order) => $order->created_at->format('Y-m'));
+        $trend = collect(range(0, 5))->map(function (int $offset) use ($start, $ordersByMonth) {
+            $month = $start->copy()->addMonths($offset);
+            $rows = $ordersByMonth->get($month->format('Y-m'), collect());
+            return [
+                'month' => $month->format('Y-m'),
+                'label' => $month->format('M'),
+                'orders' => $rows->count(),
+                'revenue' => (float) $rows->where('payment_status', 'paid')->where('status', '!=', 'cancelled')->sum('total'),
+            ];
+        })->values();
+
         return ResponseHelper::success([
             'stats' => [
-                'total_products' => $products->count(), 'total_stock' => (int) $products->sum('stock_quantity'),
+                'total_products' => $publishedProducts->count(), 'total_stock' => (int) $availableProducts->sum('stock_quantity'),
                 'warehouse_orders' => (int) $orders->count(), 'revenue' => (float) (clone $orders)->where('payment_status', 'paid')->sum('total'),
+                'draft_products' => $products->where('is_draft', true)->count(),
+                'low_stock_products' => $availableProducts->filter(fn (WarehouseProduct $product) => $product->availability === 'low_stock')->count(),
+                'out_of_stock_products' => $availableProducts->filter(fn (WarehouseProduct $product) => $product->availability === 'out_of_stock')->count(),
             ],
-            'low_stock' => $products->filter(fn (WarehouseProduct $product) => $product->availability === 'low_stock')->values(),
-            'best_selling' => \App\Models\WarehouseOrderItem::selectRaw('warehouse_product_id, product_name, sku, SUM(quantity) as units, COUNT(DISTINCT warehouse_order_id) as orders')
-                ->groupBy('warehouse_product_id', 'product_name', 'sku')->orderByDesc('units')->limit(5)->get(),
-            'stock_by_category' => $products->groupBy(fn (WarehouseProduct $product) => $product->category?->name ?? 'Uncategorised')
+            'low_stock' => $availableProducts->filter(fn (WarehouseProduct $product) => $product->availability === 'low_stock')->values(),
+            'best_selling' => \App\Models\WarehouseOrderItem::query()
+                ->join('warehouse_orders', 'warehouse_orders.id', '=', 'warehouse_order_items.warehouse_order_id')
+                ->where('warehouse_orders.payment_status', 'paid')
+                ->where('warehouse_orders.status', '!=', 'cancelled')
+                ->selectRaw('warehouse_order_items.warehouse_product_id, warehouse_order_items.product_name, warehouse_order_items.sku, MAX(warehouse_order_items.image_path) as image_path, SUM(warehouse_order_items.quantity) as units, COUNT(DISTINCT warehouse_order_items.warehouse_order_id) as orders')
+                ->groupBy('warehouse_order_items.warehouse_product_id', 'warehouse_order_items.product_name', 'warehouse_order_items.sku')->orderByDesc('units')->limit(5)->get(),
+            'stock_by_category' => $availableProducts->groupBy(fn (WarehouseProduct $product) => $product->category?->name ?? 'Uncategorised')
                 ->map(fn ($group) => (int) $group->sum('stock_quantity')),
+            'orders_trend' => $trend,
         ], 'Warehouse dashboard retrieved successfully.');
     }
 
@@ -43,6 +67,8 @@ class AdminWarehouseController extends Controller
         if ($request->get('availability') === 'low_stock') $query->where('stock_quantity', '>', 0)->whereColumn('stock_quantity', '<=', 'low_stock_threshold');
         if ($request->get('availability') === 'out_of_stock') $query->where('stock_quantity', 0);
         if ($request->boolean('archived')) $query->onlyTrashed();
+        elseif ($request->boolean('drafts')) $query->where('is_draft', true);
+        else $query->where('is_draft', false);
         return ResponseHelper::success($query->paginate(min(100, max(1, $request->integer('per_page', 20)))));
     }
 
@@ -135,8 +161,9 @@ class AdminWarehouseController extends Controller
             'image' => 'nullable|image|max:5120', 'price' => [$required, 'numeric', 'min:0'], 'shipping_fee' => 'nullable|numeric|min:0',
             'stock_quantity' => [$required, 'integer', 'min:0'], 'low_stock_threshold' => 'nullable|integer|min:0',
             'color' => 'nullable|string|max:100', 'temple_size' => 'nullable|string|max:50', 'lens_size' => 'nullable|string|max:50', 'bridge_size' => 'nullable|string|max:50',
-            'details' => 'nullable|array', 'is_active' => 'nullable|boolean',
+            'details' => 'nullable|array', 'is_active' => 'nullable|boolean', 'is_draft' => 'nullable|boolean',
         ]);
+        if (($data['is_draft'] ?? $product?->is_draft) === true) $data['is_active'] = false;
         if ($request->hasFile('image')) $data['image_path'] = $request->file('image')->store('warehouse/products', 'public');
         unset($data['image']);
         $this->assertNonPrescriptionDetails($data, $product);

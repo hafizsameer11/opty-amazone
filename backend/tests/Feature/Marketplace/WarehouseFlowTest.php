@@ -125,6 +125,16 @@ class WarehouseFlowTest extends TestCase
             'details' => ['brand' => 'Vista', 'material' => 'Hydrogel', 'replacement_frequency' => 'Monthly', 'pack_size' => '6', 'base_curve' => '8.6', 'diameter' => '14.2', 'water_content' => '55%'],
         ])->assertCreated()->assertJsonPath('data.is_active', true);
         $productId = $created->json('data.id');
+        $draftId = $this->postJson('/api/admin/warehouse/products', [
+            'warehouse_category_id' => $categoryId, 'name' => 'Draft monthly lens stock', 'sku' => 'WH-CL-DRAFT-001',
+            'price' => 9.50, 'stock_quantity' => 4, 'is_active' => true, 'is_draft' => true,
+            'details' => ['brand' => 'Vista', 'material' => 'Hydrogel'],
+        ])->assertCreated()->assertJsonPath('data.is_draft', true)->assertJsonPath('data.is_active', false)->json('data.id');
+        $this->getJson('/api/admin/warehouse/products?drafts=1')->assertOk()
+            ->assertJsonPath('data.data.0.id', $draftId);
+        $this->getJson('/api/admin/warehouse/dashboard')->assertOk()
+            ->assertJsonPath('data.stats.draft_products', 1)
+            ->assertJsonStructure(['data' => ['best_selling', 'stock_by_category', 'orders_trend' => [['month', 'label', 'orders', 'revenue']]]]);
         $this->postJson('/api/admin/warehouse/products', [
             'warehouse_category_id' => $categoryId, 'name' => 'Invalid prescription stock', 'sku' => 'WH-INVALID-001',
             'price' => 1, 'stock_quantity' => 1, 'details' => ['sph' => '-2.00'],
@@ -156,6 +166,8 @@ class WarehouseFlowTest extends TestCase
 
         Sanctum::actingAs($admin);
         $this->getJson('/api/admin/warehouse/orders?status=pending')->assertOk()->assertJsonPath('data.data.0.id', $orderId);
+        $this->getJson('/api/admin/warehouse/dashboard')->assertOk()
+            ->assertJsonPath('data.best_selling.0.sku', 'WH-CL-001');
         $this->getJson('/api/admin/warehouse/orders/'.$orderId)->assertOk()->assertJsonPath('data.id', $orderId);
         $this->putJson('/api/admin/warehouse/orders/'.$orderId, ['status' => 'confirmed'])->assertOk()
             ->assertJsonPath('data.status', 'confirmed');

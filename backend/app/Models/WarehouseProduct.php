@@ -15,9 +15,9 @@ class WarehouseProduct extends Model
 
     protected $fillable = [
         'warehouse_category_id', 'name', 'sku', 'description', 'image_path', 'price', 'shipping_fee', 'stock_quantity',
-        'low_stock_threshold', 'color', 'temple_size', 'lens_size', 'bridge_size', 'details', 'is_active',
+        'low_stock_threshold', 'color', 'temple_size', 'lens_size', 'bridge_size', 'details', 'is_active', 'is_draft',
     ];
-    protected $casts = ['price' => 'decimal:2', 'shipping_fee' => 'decimal:2', 'details' => 'array', 'is_active' => 'boolean'];
+    protected $casts = ['price' => 'decimal:2', 'shipping_fee' => 'decimal:2', 'details' => 'array', 'is_active' => 'boolean', 'is_draft' => 'boolean'];
     protected $appends = ['image_url', 'availability'];
 
     public function category(): BelongsTo { return $this->belongsTo(WarehouseCategory::class, 'warehouse_category_id'); }
