@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\Coupon\CouponService;
 use App\Services\Coupon\CouponValidationException;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ class SellerCouponController extends Controller
     {
         $store = $this->sellerStore($request);
         if (! $store) return ResponseHelper::error('Store not found.', null, 404);
+        $this->couponService->activateDueCoupons();
         $query = Coupon::where('store_id', $store->id)->whereNull('archived_at')->with([
             'products:id,name,sku',
             'categories:id,name',
@@ -76,6 +78,8 @@ class SellerCouponController extends Controller
         if (! $store) return ResponseHelper::error('Store not found.', null, 404);
         $data = $this->validated($request);
         if ($data instanceof JsonResponse) return $data;
+        $data = $this->applySchedule($data);
+        if ($data instanceof JsonResponse) return $data;
 
         try {
             return DB::transaction(function () use ($data, $store, $request) {
@@ -99,6 +103,8 @@ class SellerCouponController extends Controller
         if (! $store) return ResponseHelper::error('Store not found.', null, 404);
         $coupon = Coupon::where('store_id', $store->id)->findOrFail($id);
         $data = $this->validated($request, $coupon, false);
+        if ($data instanceof JsonResponse) return $data;
+        $data = $this->applySchedule($data, $coupon, false);
         if ($data instanceof JsonResponse) return $data;
 
         try {
@@ -128,7 +134,10 @@ class SellerCouponController extends Controller
         $coupon = $this->ownedCoupon($request, $id);
         $before = $coupon->toArray();
         $nextActive = ! $coupon->is_active;
-        $coupon->update(['is_active' => $nextActive, 'status' => $nextActive ? 'active' : 'inactive']);
+        $coupon->update([
+            'is_active' => $nextActive,
+            'status' => $nextActive ? ($coupon->starts_at?->isFuture() ? 'scheduled' : 'active') : 'inactive',
+        ]);
         $this->couponService->audit($coupon, $request->user(), $coupon->is_active ? 'activated' : 'deactivated', $before, $coupon->fresh()->toArray());
         return ResponseHelper::success($coupon->fresh(), 'Coupon status updated successfully.');
     }
@@ -147,7 +156,7 @@ class SellerCouponController extends Controller
         $coupon = $this->ownedCoupon($request, $id);
         if ($coupon->admin_disabled_at) return ResponseHelper::error('This coupon has been disabled by an administrator.', null, 403);
         $before = $coupon->toArray();
-        $coupon->update(['status' => 'active', 'is_active' => true]);
+        $coupon->update(['status' => $coupon->starts_at?->isFuture() ? 'scheduled' : 'active', 'is_active' => true]);
         $this->couponService->audit($coupon, $request->user(), 'resumed', $before, $coupon->fresh()->toArray());
         return ResponseHelper::success($coupon->fresh(), 'Coupon resumed successfully.');
     }
@@ -217,7 +226,8 @@ class SellerCouponController extends Controller
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'min_order_amount' => ['nullable', 'numeric', 'min:0'], 'usage_limit' => ['nullable', 'integer', 'min:1'],
             'usage_per_user' => ['nullable', 'integer', 'min:1'], 'starts_at' => ['nullable', 'date'],
-            'ends_at' => ['nullable', 'date', 'after:starts_at'], 'is_active' => ['nullable', 'boolean'],
+            'ends_at' => ['nullable', 'date'], 'schedule_timezone' => ['nullable', 'string', 'max:64', 'timezone'],
+            'launch_mode' => ['nullable', 'in:run_now,schedule'], 'is_active' => ['nullable', 'boolean'],
             'status' => ['nullable', 'in:active,inactive,paused'], 'scope' => [$creating ? 'required' : 'sometimes', 'in:store,products,categories,variants'],
             'is_public' => ['nullable', 'boolean'], 'followers_only' => ['nullable', 'boolean'], 'first_order_only' => ['nullable', 'boolean'],
             'product_ids' => ['nullable', 'array'], 'product_ids.*' => ['integer'],
@@ -236,7 +246,7 @@ class SellerCouponController extends Controller
 
     private function attributes(array $data, int $storeId, bool $partial = false): array
     {
-        $fields = ['description', 'discount_type', 'discount_value', 'min_order_amount', 'usage_limit', 'usage_per_user', 'starts_at', 'ends_at', 'is_active', 'status', 'scope', 'is_public', 'followers_only', 'first_order_only'];
+        $fields = ['description', 'discount_type', 'discount_value', 'min_order_amount', 'usage_limit', 'usage_per_user', 'starts_at', 'ends_at', 'schedule_timezone', 'is_active', 'status', 'scope', 'is_public', 'followers_only', 'first_order_only'];
         $result = $partial ? [] : ['store_id' => $storeId];
         foreach ($fields as $field) if (array_key_exists($field, $data)) $result[$field] = $data[$field];
         if (array_key_exists('code', $data)) $result['code'] = strtoupper(trim($data['code']));
@@ -245,5 +255,65 @@ class SellerCouponController extends Controller
             $result['applicable_to'] = $result['scope'];
         } elseif (isset($result['scope'])) $result['applicable_to'] = $result['scope'];
         return $result;
+    }
+
+    /**
+     * Coupon date inputs are entered in a Seller's browser timezone, then
+     * stored as UTC instants. This mirrors Discount Campaign scheduling and
+     * ensures that a time such as 12:00 in Asia/Karachi is not treated as
+     * 12:00 on the server.
+     */
+    private function applySchedule(array $data, ?Coupon $coupon = null, bool $creating = true): array|JsonResponse
+    {
+        $timezone = (string) ($data['schedule_timezone'] ?? $coupon?->schedule_timezone ?? 'UTC');
+        $now = CarbonImmutable::now('UTC');
+        $start = null;
+        $end = null;
+
+        try {
+            if (array_key_exists('starts_at', $data) && filled($data['starts_at'])) {
+                $start = CarbonImmutable::parse($data['starts_at'], $timezone)->utc();
+            }
+            if (array_key_exists('ends_at', $data) && filled($data['ends_at'])) {
+                $end = CarbonImmutable::parse($data['ends_at'], $timezone)->utc();
+            }
+        } catch (\Throwable) {
+            return ResponseHelper::validationError(['starts_at' => ['Enter a valid scheduled date and time.']]);
+        }
+
+        $launchMode = $data['launch_mode'] ?? null;
+        if ($launchMode === 'schedule' && ! $start) {
+            return ResponseHelper::validationError(['starts_at' => ['Choose a future start time when scheduling a coupon.']]);
+        }
+        if ($launchMode === 'schedule' && $start?->lte($now)) {
+            return ResponseHelper::validationError(['starts_at' => ['Choose a future start time when scheduling a coupon.']]);
+        }
+
+        $effectiveStart = $launchMode === 'run_now' ? $now : $start;
+        if ($end && $end->lte($effectiveStart ?? $now)) {
+            return ResponseHelper::validationError(['ends_at' => ['Choose an end time after the coupon starts.']]);
+        }
+        if ($end && $end->lte($now)) {
+            return ResponseHelper::validationError(['ends_at' => ['Choose an end time in the future.']]);
+        }
+
+        // Preserve legacy callers that only provide a future starts_at while
+        // giving modern callers explicit Run now / Schedule behavior.
+        if ($launchMode === 'run_now') {
+            $data['starts_at'] = $now;
+            $data['status'] = 'active';
+            $data['is_active'] = true;
+        } elseif ($launchMode === 'schedule' || ($start?->isFuture() && ($data['is_active'] ?? $coupon?->is_active ?? true))) {
+            $data['starts_at'] = $start;
+            $data['status'] = 'scheduled';
+            $data['is_active'] = true;
+        } elseif ($start) {
+            $data['starts_at'] = $start;
+        }
+
+        if ($end) $data['ends_at'] = $end;
+        $data['schedule_timezone'] = $timezone;
+
+        return $data;
     }
 }

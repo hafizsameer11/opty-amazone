@@ -225,6 +225,39 @@ class CouponService
         return $count;
     }
 
+    /**
+     * Promote scheduled coupons whose UTC start instant has arrived.
+     *
+     * Availability is also evaluated from starts_at at quote time, so a buyer
+     * is never held up if this minute-level maintenance task runs a little
+     * late. This transition keeps stored status, analytics, and seller/admin
+     * lists in sync with that same source of truth.
+     */
+    public function activateDueCoupons(int $limit = 250): int
+    {
+        return DB::transaction(function () use ($limit) {
+            $now = now('UTC');
+            $coupons = Coupon::query()
+                ->where('status', 'scheduled')
+                ->where('is_active', true)
+                ->whereNull('archived_at')
+                ->whereNull('admin_disabled_at')
+                ->whereNotNull('starts_at')
+                ->where('starts_at', '<=', $now)
+                ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', $now))
+                ->orderBy('starts_at')
+                ->limit(max(1, min($limit, 1000)))
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($coupons as $coupon) {
+                $coupon->update(['status' => 'active']);
+            }
+
+            return $coupons->count();
+        }, 5);
+    }
+
     public function syncTargets(Coupon $coupon, array $data): void
     {
         $scope = $data['scope'] ?? $coupon->scope;

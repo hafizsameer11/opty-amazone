@@ -26,6 +26,8 @@ Artisan::command('inspire', function () {
     ->name('activate-scheduled-referral-campaigns')->everyMinute()->withoutOverlapping();
 \Illuminate\Support\Facades\Schedule::call(fn () => app(\App\Services\Coupon\CouponService::class)->releaseExpiredReservations())
     ->name('release-expired-coupon-reservations')->everyFiveMinutes()->withoutOverlapping();
+\Illuminate\Support\Facades\Schedule::call(fn () => app(\App\Services\Coupon\CouponService::class)->activateDueCoupons())
+    ->name('activate-scheduled-coupons')->everyMinute()->withoutOverlapping();
 
 Artisan::command('referrals:qualify {--limit=100 : Maximum pending rewards to process}', function () {
     $count = app(\App\Services\Referrals\ReferralService::class)->qualifyDueRewards((int) $this->option('limit'));
@@ -52,3 +54,8 @@ Artisan::command('coupons:release-expired', function () {
     $count = app(\App\Services\Coupon\CouponService::class)->releaseExpiredReservations();
     $this->info("Released {$count} expired coupon reservation(s).");
 })->purpose('Release unpaid coupon reservations after their checkout hold expires.');
+
+Artisan::command('coupons:activate-scheduled {--limit=250 : Maximum scheduled coupons to activate}', function () {
+    $count = app(\App\Services\Coupon\CouponService::class)->activateDueCoupons((int) $this->option('limit'));
+    $this->info("Activated {$count} scheduled coupon(s).");
+})->purpose('Activate scheduled coupons whose UTC start time has arrived.');

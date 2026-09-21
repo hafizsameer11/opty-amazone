@@ -17,6 +17,7 @@ class AdminCouponController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->couponService->activateDueCoupons();
         $query = Coupon::withTrashed()->with(['store:id,user_id,name', 'store.user:id,name,email'])
             ->withCount(['usages', 'usages as redeemed_usages_count' => fn ($usage) => $usage->where('status', 'redeemed')]);
         if ($request->filled('store_id')) $query->where('store_id', $request->store_id);

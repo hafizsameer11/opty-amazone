@@ -8,6 +8,7 @@ use App\Services\Coupon\CouponValidationException;
 use App\Services\Order\OrderService;
 use App\Services\Marketplace\{BuyerWalletService, OrderTotalsService, PaymentService, RefundService};
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -92,6 +93,58 @@ class CouponLifecycleTest extends TestCase
         $coupon->update(['code' => 'VARIANT25', 'scope' => 'variants', 'discount_type' => 'percentage', 'discount_value' => 25]);
         $service->syncTargets($coupon, ['scope' => 'variants', 'variant_ids' => [$variant->id]]);
         $this->assertSame('25.00', $service->quoteCart($this->cart->fresh(), $this->buyer, [$this->storeA->id => 'variant25'])['coupon_discount']);
+    }
+
+    public function test_coupon_schedule_uses_the_sellers_timezone_and_run_now_activates_immediately(): void
+    {
+        Carbon::setTestNow('2026-09-21 06:55:00 UTC');
+
+        try {
+            Sanctum::actingAs($this->storeA->user);
+            $scheduledId = $this->postJson('/api/seller/coupons', [
+                'code' => 'PKTIME10',
+                'discount_type' => 'percentage',
+                'discount_value' => 10,
+                'scope' => 'products',
+                'product_ids' => [$this->productA->id],
+                'launch_mode' => 'schedule',
+                'schedule_timezone' => 'Asia/Karachi',
+                // 12:00 in Pakistan is 07:00 UTC. The API also accepts the
+                // browser's UTC ISO value, which is what the Seller UI sends.
+                'starts_at' => '2026-09-21T12:00:00',
+                'ends_at' => '2026-09-21T13:00:00',
+            ])->assertCreated()->json('data.id');
+
+            $scheduled = Coupon::findOrFail($scheduledId);
+            $this->assertSame('Asia/Karachi', $scheduled->schedule_timezone);
+            $this->assertSame('scheduled', $scheduled->status);
+            $this->assertSame('2026-09-21 07:00', $scheduled->starts_at->utc()->format('Y-m-d H:i'));
+
+            Carbon::setTestNow('2026-09-21 07:00:00 UTC');
+            $this->assertTrue($scheduled->fresh()->isAvailableNow());
+            $this->assertSame('10.00', app(CouponService::class)->quoteCart($this->cart, $this->buyer, [$this->storeA->id => 'pktime10'])['coupon_discount']);
+            $this->assertSame(1, app(CouponService::class)->activateDueCoupons());
+            $this->assertSame('active', $scheduled->fresh()->status);
+
+            Carbon::setTestNow('2026-09-21 08:00:00 UTC');
+            $runNowId = $this->postJson('/api/seller/coupons', [
+                'code' => 'RUNNOW10',
+                'discount_type' => 'percentage',
+                'discount_value' => 10,
+                'scope' => 'store',
+                'launch_mode' => 'run_now',
+                'schedule_timezone' => 'Asia/Karachi',
+                'starts_at' => '2030-01-01T00:00:00',
+            ])->assertCreated()->json('data.id');
+
+            $runNow = Coupon::findOrFail($runNowId);
+            $this->assertSame('active', $runNow->status);
+            $this->assertTrue($runNow->is_active);
+            $this->assertSame('2026-09-21 08:00', $runNow->starts_at->utc()->format('Y-m-d H:i'));
+            $this->assertTrue($runNow->isAvailableNow());
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_minimum_uses_eligible_subtotal_and_target_isolation_is_enforced(): void

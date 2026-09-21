@@ -18,7 +18,7 @@ class Coupon extends Model
 
     protected $fillable = [
         'store_id', 'code', 'description', 'discount_type', 'scope', 'discount_value',
-        'min_order_amount', 'usage_limit', 'usage_per_user', 'starts_at', 'ends_at', 'is_active',
+        'min_order_amount', 'usage_limit', 'usage_per_user', 'starts_at', 'ends_at', 'schedule_timezone', 'is_active',
         'status', 'is_public', 'followers_only', 'first_order_only', 'applicable_to', 'conditions',
         'archived_at', 'admin_disabled_at', 'admin_disabled_by', 'rule_snapshot',
     ];
