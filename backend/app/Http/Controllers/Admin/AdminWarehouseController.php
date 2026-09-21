@@ -121,6 +121,13 @@ class AdminWarehouseController extends Controller
             $decoded = json_decode((string) $request->input('details'), true);
             $request->merge(['details' => is_array($decoded) ? $decoded : []]);
         }
+        // Be tolerant of a cached/older Admin bundle that serialises a
+        // FormData checkbox as "true" / "false". The current bundle sends
+        // Laravel's canonical 1 / 0 values, but this prevents a deployment
+        // race from rejecting a valid active product submission.
+        if (is_string($request->input('is_active')) && in_array(strtolower((string) $request->input('is_active')), ['true', 'false'], true)) {
+            $request->merge(['is_active' => strtolower((string) $request->input('is_active')) === 'true' ? 1 : 0]);
+        }
         $required = $creating ? 'required' : 'sometimes';
         $data = $request->validate([
             'warehouse_category_id' => [$required, 'integer', 'exists:warehouse_categories,id'], 'name' => [$required, 'string', 'max:255'],

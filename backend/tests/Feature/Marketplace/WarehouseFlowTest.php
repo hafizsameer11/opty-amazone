@@ -104,8 +104,9 @@ class WarehouseFlowTest extends TestCase
         $created = $this->postJson('/api/admin/warehouse/products', [
             'warehouse_category_id' => $categoryId, 'name' => 'Monthly Clear Lens', 'sku' => 'WH-CL-001',
             'price' => 12.50, 'shipping_fee' => 1.50, 'stock_quantity' => 8, 'low_stock_threshold' => 2,
+            'is_active' => 'true',
             'details' => ['brand' => 'Vista', 'material' => 'Hydrogel', 'replacement_frequency' => 'Monthly', 'pack_size' => '6', 'base_curve' => '8.6', 'diameter' => '14.2', 'water_content' => '55%'],
-        ])->assertCreated();
+        ])->assertCreated()->assertJsonPath('data.is_active', true);
         $productId = $created->json('data.id');
         $this->postJson('/api/admin/warehouse/products', [
             'warehouse_category_id' => $categoryId, 'name' => 'Invalid prescription stock', 'sku' => 'WH-INVALID-001',
