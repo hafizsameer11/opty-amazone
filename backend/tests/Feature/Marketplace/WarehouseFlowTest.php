@@ -41,8 +41,25 @@ class WarehouseFlowTest extends TestCase
         $this->product = WarehouseProduct::create([
             'warehouse_category_id' => $category->id, 'name' => 'Warehouse acetate frame', 'sku' => 'WH-FRAME-001',
             'price' => 10, 'shipping_fee' => 5, 'stock_quantity' => 100, 'low_stock_threshold' => 10,
+            'image_path' => 'warehouse/products/warehouse-acetate-frame.jpg',
             'color' => 'Black', 'temple_size' => '145mm', 'lens_size' => '52mm', 'bridge_size' => '18mm', 'is_active' => true,
         ]);
+    }
+
+    public function test_warehouse_product_images_use_the_public_storage_url_for_admin_and_seller_responses(): void
+    {
+        $this->assertStringEndsWith('/storage/warehouse/products/warehouse-acetate-frame.jpg', (string) $this->product->fresh()->image_url);
+
+        Sanctum::actingAs($this->seller);
+        $this->getJson('/api/seller/warehouse/products')
+            ->assertOk()
+            ->assertJsonStructure(['data' => ['products' => ['data' => [['image_path', 'image_url']]]]]);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        Sanctum::actingAs($admin);
+        $this->getJson('/api/admin/warehouse/products')
+            ->assertOk()
+            ->assertJsonStructure(['data' => ['data' => [['image_path', 'image_url']]]]);
     }
 
     public function test_seller_wallet_warehouse_checkout_decrements_only_warehouse_stock_and_creates_no_store_order(): void

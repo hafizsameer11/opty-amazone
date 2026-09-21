@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class WarehouseProduct extends Model
 {
@@ -20,7 +21,14 @@ class WarehouseProduct extends Model
     protected $appends = ['image_url', 'availability'];
 
     public function category(): BelongsTo { return $this->belongsTo(WarehouseCategory::class, 'warehouse_category_id'); }
-    public function getImageUrlAttribute(): ?string { return $this->image_path ? Storage::url($this->image_path) : null; }
+    /** Warehouse uploads are written to the public disk, never the default disk. */
+    public function getImageUrlAttribute(): ?string
+    {
+        if (! $this->image_path) return null;
+        if (Str::startsWith($this->image_path, ['http://', 'https://'])) return $this->image_path;
+
+        return Storage::disk('public')->url($this->image_path);
+    }
     public function getAvailabilityAttribute(): string
     {
         if (! $this->is_active || $this->stock_quantity === 0) return 'out_of_stock';
