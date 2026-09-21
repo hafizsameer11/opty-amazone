@@ -129,12 +129,23 @@ class CouponLifecycleTest extends TestCase
             Carbon::setTestNow('2026-09-21 08:00:00 UTC');
             $runNowId = $this->postJson('/api/seller/coupons', [
                 'code' => 'RUNNOW10',
+                'description' => 'Complete Seller form payload',
                 'discount_type' => 'percentage',
                 'discount_value' => 10,
-                'scope' => 'store',
+                'min_order_amount' => 25,
+                'usage_limit' => 50,
+                'usage_per_user' => 2,
+                'scope' => 'products',
+                'product_ids' => [$this->productA->id],
                 'launch_mode' => 'run_now',
                 'schedule_timezone' => 'Asia/Karachi',
                 'starts_at' => '2030-01-01T00:00:00',
+                'ends_at' => '2026-09-22T08:00:00.000Z',
+                'is_active' => true,
+                'status' => 'active',
+                'is_public' => true,
+                'followers_only' => false,
+                'first_order_only' => false,
             ])->assertCreated()->json('data.id');
 
             $runNow = Coupon::findOrFail($runNowId);

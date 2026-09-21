@@ -18,6 +18,7 @@ Route::prefix('auth')->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function () {
+    Route::get('/live-summary', [\App\Http\Controllers\Admin\AdminLiveSummaryController::class, '__invoke']);
     Route::put('/store-orders/{id}/status', [\App\Http\Controllers\Admin\AdminStoreOrderController::class, 'updateStatus']);
     Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index']);
     
