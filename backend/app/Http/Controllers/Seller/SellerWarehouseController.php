@@ -15,14 +15,18 @@ class SellerWarehouseController extends Controller
 
     public function products(Request $request): JsonResponse
     {
-        $query = WarehouseProduct::with('category')->where('is_active', true)->where('stock_quantity', '>', 0)->latest();
+        $query = WarehouseProduct::with('category')
+            ->where('is_active', true)
+            ->where('stock_quantity', '>', 0)
+            ->whereHas('category', fn ($category) => $category->where('is_active', true))
+            ->latest();
         if ($request->filled('search')) $query->where(fn ($q) => $q->where('name', 'like', '%'.$request->search.'%')->orWhere('sku', 'like', '%'.$request->search.'%'));
         if ($request->filled('category_id')) $query->where('warehouse_category_id', $request->integer('category_id'));
         if ($request->filled('type')) $query->whereHas('category', fn ($q) => $q->where('type', $request->type));
         return ResponseHelper::success(['products' => $query->paginate(min(60, max(1, $request->integer('per_page', 24)))), 'categories' => WarehouseCategory::where('is_active', true)->orderBy('sort_order')->get(), 'cart_count' => $this->warehouse->cart($request->user())->items()->sum('quantity')]);
     }
 
-    public function product(int $id): JsonResponse { return ResponseHelper::success(WarehouseProduct::with('category')->where('is_active', true)->findOrFail($id)); }
+    public function product(int $id): JsonResponse { return ResponseHelper::success(WarehouseProduct::with('category')->where('is_active', true)->whereHas('category', fn ($category) => $category->where('is_active', true))->findOrFail($id)); }
     public function cart(Request $request): JsonResponse { return ResponseHelper::success($this->warehouse->cartPayload($request->user())); }
 
     public function addCartItem(Request $request): JsonResponse

@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class AdminWarehouseController extends Controller
 {
@@ -131,7 +132,39 @@ class AdminWarehouseController extends Controller
         ]);
         if ($request->hasFile('image')) $data['image_path'] = $request->file('image')->store('warehouse/products', 'public');
         unset($data['image']);
+        $this->assertNonPrescriptionDetails($data, $product);
         return $data;
+    }
+
+    /**
+     * Warehouse stock is deliberately not a prescription catalogue. Keep the
+     * flexible `details` JSON limited to the normal stock attributes rendered
+     * by the Admin form, so power/SPH/CYL/axis or eye-specific data cannot
+     * enter through a crafted API request either.
+     */
+    private function assertNonPrescriptionDetails(array $data, ?WarehouseProduct $product): void
+    {
+        if (! array_key_exists('details', $data)) return;
+
+        $categoryId = $data['warehouse_category_id'] ?? $product?->warehouse_category_id;
+        $type = WarehouseCategory::findOrFail($categoryId)->type;
+        $allowed = match ($type) {
+            'eyeglasses' => [],
+            'contact_lenses' => ['brand', 'material', 'replacement_frequency', 'pack_size', 'base_curve', 'diameter', 'water_content'],
+            'contact_lens_solutions' => ['brand', 'solution_type', 'volume_ml', 'pack_type', 'expiry_date'],
+        };
+        $details = (array) ($data['details'] ?? []);
+        $invalid = array_values(array_diff(array_keys($details), $allowed));
+        if ($invalid !== []) {
+            throw ValidationException::withMessages([
+                'details' => ['Only normal warehouse product details are allowed. Prescription and eye-specific fields are not supported.'],
+            ]);
+        }
+        foreach ($details as $value) {
+            if (! is_scalar($value) || mb_strlen((string) $value) > 255) {
+                throw ValidationException::withMessages(['details' => ['Warehouse product details must be short text values.']]);
+            }
+        }
     }
 
     private function uniqueSlug(string $name, ?int $ignore = null): string

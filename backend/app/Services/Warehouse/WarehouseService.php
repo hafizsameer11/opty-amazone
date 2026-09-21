@@ -124,6 +124,9 @@ class WarehouseService
             if ($locked->status === 'cancelled' && $next !== 'cancelled') {
                 throw ValidationException::withMessages(['status' => ['A cancelled warehouse order cannot be reopened.']]);
             }
+            if ($locked->status === 'delivered' && $next === 'cancelled') {
+                throw ValidationException::withMessages(['status' => ['A delivered warehouse order cannot be cancelled.']]);
+            }
             if ($next === 'cancelled' && $locked->status !== 'cancelled') {
                 $wallet = app(SellerWalletService::class)->locked((int) $locked->store_id);
                 $amount = Money::cents($locked->total);
@@ -132,6 +135,18 @@ class WarehouseService
                     app(SellerWalletService::class)->creditAvailable($wallet, $amount), null, null, null,
                     "Refund for warehouse order {$locked->order_number}", ['warehouse_order_id' => $locked->id]
                 );
+                // Cancellation reverses the fulfilled inventory allocation as
+                // well as the wallet payment. Lock products in a stable order
+                // so concurrent checkout/cancellation flows cannot oversell.
+                $items = $locked->items()->orderBy('warehouse_product_id')->get();
+                $products = WarehouseProduct::withTrashed()
+                    ->whereIn('id', $items->pluck('warehouse_product_id')->filter())
+                    ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+                foreach ($items as $item) {
+                    if ($product = $products->get($item->warehouse_product_id)) {
+                        $product->increment('stock_quantity', (int) $item->quantity);
+                    }
+                }
                 $data['payment_status'] = 'refunded';
                 $data['cancelled_at'] = now();
             }
