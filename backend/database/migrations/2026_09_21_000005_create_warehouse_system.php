@@ -12,7 +12,10 @@ return new class extends Migration
         Schema::create('warehouse_categories', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique();
+            // Use concise explicit index names: MySQL permits at most 64
+            // characters for an identifier, while Laravel's generated names
+            // can exceed that limit for warehouse_* tables.
+            $table->string('slug')->unique('wh_cat_slug_uq');
             $table->enum('type', ['eyeglasses', 'contact_lenses', 'contact_lens_solutions']);
             $table->text('description')->nullable();
             $table->boolean('is_active')->default(true);
@@ -25,7 +28,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('warehouse_category_id')->constrained()->restrictOnDelete();
             $table->string('name');
-            $table->string('sku')->unique();
+            $table->string('sku')->unique('wh_product_sku_uq');
             $table->text('description')->nullable();
             $table->string('image_path')->nullable();
             $table->decimal('price', 15, 2);
@@ -42,13 +45,13 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
-            $table->index(['warehouse_category_id', 'is_active']);
-            $table->index(['stock_quantity', 'is_active']);
+            $table->index(['warehouse_category_id', 'is_active'], 'wh_product_category_active_ix');
+            $table->index(['stock_quantity', 'is_active'], 'wh_product_stock_active_ix');
         });
 
         Schema::create('warehouse_carts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('seller_id')->unique()->constrained('users')->restrictOnDelete();
+            $table->foreignId('seller_id')->unique('wh_cart_seller_uq')->constrained('users')->restrictOnDelete();
             $table->timestamps();
         });
 
@@ -58,13 +61,13 @@ return new class extends Migration
             $table->foreignId('warehouse_product_id')->constrained()->restrictOnDelete();
             $table->unsignedInteger('quantity');
             $table->timestamps();
-            $table->unique(['warehouse_cart_id', 'warehouse_product_id']);
+            $table->unique(['warehouse_cart_id', 'warehouse_product_id'], 'wh_cart_item_cart_product_uq');
         });
 
         Schema::create('warehouse_orders', function (Blueprint $table) {
             $table->id();
-            $table->string('order_number')->unique();
-            $table->string('idempotency_key', 120)->nullable()->unique();
+            $table->string('order_number')->unique('wh_order_number_uq');
+            $table->string('idempotency_key', 120)->nullable()->unique('wh_order_idempotency_uq');
             $table->foreignId('seller_id')->constrained('users')->restrictOnDelete();
             $table->foreignId('store_id')->nullable()->constrained()->nullOnDelete();
             $table->enum('status', ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'])->default('pending');
@@ -81,8 +84,8 @@ return new class extends Migration
             $table->timestamp('cancelled_at')->nullable();
             $table->timestamp('delivered_at')->nullable();
             $table->timestamps();
-            $table->index(['seller_id', 'status']);
-            $table->index(['status', 'created_at']);
+            $table->index(['seller_id', 'status'], 'wh_order_seller_status_ix');
+            $table->index(['status', 'created_at'], 'wh_order_status_created_ix');
         });
 
         Schema::create('warehouse_order_items', function (Blueprint $table) {
