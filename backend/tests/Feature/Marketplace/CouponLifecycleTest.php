@@ -77,6 +77,40 @@ class CouponLifecycleTest extends TestCase
         $this->assertSame('0.00', $quote['stores'][$this->storeB->id]['coupon_discount']);
     }
 
+    public function test_buyer_coupon_apply_accepts_case_insensitive_codes_and_keeps_each_store_isolated(): void
+    {
+        $this->coupon(['code' => 'CART20']);
+        Sanctum::actingAs($this->buyer);
+
+        $this->postJson('/api/buyer/coupons/apply', [
+            'code' => ' cart20 ',
+            'store_id' => $this->storeA->id,
+        ])->assertOk()
+            ->assertJsonPath('data.stores.0.store_id', $this->storeA->id)
+            ->assertJsonPath('data.stores.0.coupon.code', 'CART20')
+            ->assertJsonPath('data.stores.0.coupon.discount_amount', '20.00')
+            ->assertJsonPath('data.stores.1.coupon_discount', '0.00');
+
+        // The endpoint also accepts the current per-store mapping used by
+        // checkout after another seller's coupon has been selected.
+        $this->postJson('/api/buyer/coupons/apply', [
+            'coupon_codes' => [$this->storeA->id => 'cart20'],
+        ])->assertOk()
+            ->assertJsonPath('data.coupon_discount', '20.00');
+    }
+
+    public function test_buyer_coupon_apply_explains_when_the_coupon_store_is_not_in_the_cart(): void
+    {
+        $this->coupon(['code' => 'STOREONLY']);
+        CartItem::where('cart_id', $this->cart->id)->where('store_id', $this->storeA->id)->delete();
+        Sanctum::actingAs($this->buyer);
+
+        $this->postJson('/api/buyer/coupons/apply', ['code' => 'storeonly'])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.reason', 'coupon_store_not_in_cart')
+            ->assertJsonPath('message', 'Add an eligible product from this store to your cart before applying this coupon.');
+    }
+
     public function test_product_category_and_variant_scopes_use_real_cart_lines(): void
     {
         $service = app(CouponService::class);

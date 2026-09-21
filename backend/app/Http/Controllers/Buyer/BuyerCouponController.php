@@ -54,6 +54,21 @@ class BuyerCouponController extends Controller
         }
     }
 
+    /**
+     * Compatibility entry point for older Buyer clients.  New clients submit
+     * the complete per-store map, while older ones still send one `code` and
+     * an optional `store_id`.  Both paths deliberately end in the same
+     * server-side cart quote; no client total is ever accepted.
+     */
+    public function apply(Request $request): JsonResponse
+    {
+        if ($request->has('coupon_codes')) {
+            return $this->quote($request);
+        }
+
+        return $this->validate($request);
+    }
+
     /** Removing a coupon is stateless; provide a new official quote with no codes. */
     public function remove(Request $request): JsonResponse
     {
@@ -91,7 +106,13 @@ class BuyerCouponController extends Controller
             unset($store['_quote']);
             return $store;
         })->values()->all();
-        return $quote + ['stores' => $stores, 'breakdown' => $stores];
+
+        // Array union (`+`) keeps the original associative `stores` value.
+        // That JSON-encodes as an object keyed by store ID, but the Buyer
+        // checkout consumes a list and calls `.find()`/`.map()` on it.  Merge
+        // so the public response always replaces the internal map with a
+        // sequential array.
+        return array_merge($quote, ['stores' => $stores, 'breakdown' => $stores]);
     }
 
     private function discoveryCard($coupon): array

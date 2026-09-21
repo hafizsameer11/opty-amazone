@@ -44,6 +44,19 @@ class CouponService
             $requestedByStore[$coupon->store_id] = $coupon;
         }
 
+        // A real code should never silently disappear simply because the
+        // buyer has not added anything from that seller yet.  Returning a
+        // precise eligibility error lets checkout explain the next action
+        // instead of presenting it as an invalid code.
+        foreach ($requestedByStore as $storeId => $coupon) {
+            if (! $byStore->has($storeId)) {
+                throw new CouponValidationException(
+                    'coupon_store_not_in_cart',
+                    'Add an eligible product from this store to your cart before applying this coupon.'
+                );
+            }
+        }
+
         $stores = [];
         $originalTotal = $campaignDiscountTotal = $couponDiscountTotal = 0;
         foreach ($byStore as $storeId => $storeItems) {

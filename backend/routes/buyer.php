@@ -144,7 +144,7 @@ Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('checkout'
 Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('coupons')->group(function () {
     Route::post('/validate', [BuyerCouponController::class, 'validate']);
     Route::post('/quote', [BuyerCouponController::class, 'quote']);
-    Route::post('/apply', [BuyerCouponController::class, 'quote']);
+    Route::post('/apply', [BuyerCouponController::class, 'apply']);
     Route::post('/remove', [BuyerCouponController::class, 'remove']);
     Route::get('/stores/{storeId}', [BuyerCouponController::class, 'storeCoupons']);
     Route::get('/products/{productId}', [BuyerCouponController::class, 'productCoupons']);
