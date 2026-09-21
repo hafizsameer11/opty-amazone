@@ -64,6 +64,24 @@ Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function ()
         Route::delete('/{id}', [\App\Http\Controllers\Admin\AdminCategoryController::class, 'destroy']);
     });
 
+    // Warehouse is an independent Admin → Seller supply channel.  It does
+    // not share marketplace products, buyer orders, or buyer checkout APIs.
+    Route::prefix('warehouse')->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'dashboard']);
+        Route::get('/products', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'products']);
+        Route::post('/products', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'storeProduct']);
+        Route::get('/products/{id}', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'product']);
+        Route::post('/products/{id}', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'updateProduct']);
+        Route::delete('/products/{id}', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'deleteProduct']);
+        Route::get('/categories', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'categories']);
+        Route::post('/categories', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'storeCategory']);
+        Route::put('/categories/{id}', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'updateCategory']);
+        Route::delete('/categories/{id}', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'deleteCategory']);
+        Route::get('/orders', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'orders']);
+        Route::get('/orders/{id}', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'order']);
+        Route::put('/orders/{id}', [\App\Http\Controllers\Admin\AdminWarehouseController::class, 'updateOrder']);
+    });
+
     Route::prefix('coupons')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\AdminCouponController::class, 'index']);
         Route::get('/{id}', [\App\Http\Controllers\Admin\AdminCouponController::class, 'show']);

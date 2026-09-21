@@ -157,6 +157,20 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('orders')
     Route::get('/{id}', [SellerOrderController::class, 'show']);
 });
 
+// This separate supply channel is deliberately not part of Seller → Buyer
+// orders, StoreOrders, or their delivery-code process.
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('warehouse')->group(function () {
+    Route::get('/products', [\App\Http\Controllers\Seller\SellerWarehouseController::class, 'products']);
+    Route::get('/products/{id}', [\App\Http\Controllers\Seller\SellerWarehouseController::class, 'product']);
+    Route::get('/cart', [\App\Http\Controllers\Seller\SellerWarehouseController::class, 'cart']);
+    Route::post('/cart/items', [\App\Http\Controllers\Seller\SellerWarehouseController::class, 'addCartItem']);
+    Route::put('/cart/items/{id}', [\App\Http\Controllers\Seller\SellerWarehouseController::class, 'updateCartItem']);
+    Route::delete('/cart/items/{id}', [\App\Http\Controllers\Seller\SellerWarehouseController::class, 'removeCartItem']);
+    Route::post('/checkout', [\App\Http\Controllers\Seller\SellerWarehouseController::class, 'checkout']);
+    Route::get('/orders', [\App\Http\Controllers\Seller\SellerWarehouseController::class, 'orders']);
+    Route::get('/orders/{id}', [\App\Http\Controllers\Seller\SellerWarehouseController::class, 'order']);
+});
+
 // Store order routes
 Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('store-orders')->group(function () {
     Route::get('/pending', [SellerOrderController::class, 'pending']);
