@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const LIVE_API_ORIGIN = 'https://api.vistaexpress.it';
+const LIVE_BUYER_API_PROXY = '/vista-service';
 
 /** Base URL without /api (works with env as http://host or http://host/api). */
 export function getApiOrigin(): string {
@@ -27,7 +28,26 @@ export function getApiOrigin(): string {
   return origin;
 }
 
-const API_BASE_URL = `${getApiOrigin()}/api`;
+/**
+ * The public Buyer site uses a same-origin Next.js rewrite instead of making
+ * browser requests directly to api.vistaexpress.it. Besides avoiding CORS
+ * differences between browsers, this keeps browser privacy/ad-blocking rules
+ * from blocking the API subdomain and leaving the UI in a permanent loader.
+ * Local/staging development continues to use the configured API URL directly.
+ */
+function getApiBaseUrl(): string {
+  if (
+    typeof window !== 'undefined'
+    && (window.location.hostname === 'buyer.vistaexpress.it'
+      || window.location.hostname.endsWith('.buyer.vistaexpress.it'))
+  ) {
+    return LIVE_BUYER_API_PROXY;
+  }
+
+  return `${getApiOrigin()}/api`;
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

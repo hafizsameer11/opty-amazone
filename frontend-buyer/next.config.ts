@@ -2,6 +2,17 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_BUILD_DIR || ".next",
+  async rewrites() {
+    return [
+      {
+        // Keep Buyer API calls same-origin in production. This prevents a
+        // browser extension or cross-origin policy from blocking every
+        // dynamic Buyer request while Laravel remains the API authority.
+        source: "/vista-service/:path*",
+        destination: "https://api.vistaexpress.it/api/:path*",
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {
