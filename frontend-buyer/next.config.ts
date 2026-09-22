@@ -13,6 +13,22 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async headers() {
+    return [
+      {
+        // Turbopack can expose route chunks under stable names such as
+        // app/page.js. Revalidate those assets after a deployment so the
+        // browser cannot retain an older client bundle than the HTML shell.
+        source: "/_next/static/chunks/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, max-age=0, must-revalidate",
+          },
+        ],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {
