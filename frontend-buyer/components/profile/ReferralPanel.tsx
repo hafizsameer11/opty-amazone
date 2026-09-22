@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { referralService, type ReferralDashboard } from '@/services/referral-service';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 
 const euro = (value: string | number) => `€${Number(value || 0).toFixed(2)}`;
 
@@ -12,12 +13,16 @@ export default function ReferralPanel() {
   const [copied, setCopied] = useState('');
   const search = useSearchParams();
   const productId = search.get('product');
-  useEffect(() => {
-    referralService.dashboard(productId ? Number(productId) : undefined).then(setData).catch((e: unknown) => {
+  const load = useCallback(async () => {
+    try {
+      setData(await referralService.dashboard(productId ? Number(productId) : undefined));
+      setError('');
+    } catch (e: unknown) {
       const response = (e as { response?: { status?: number; data?: { message?: string } } }).response;
       setError(response?.status && response.status >= 500 ? 'Referrals are temporarily unavailable. Please try again shortly.' : response?.data?.message || 'Unable to load referrals.');
-    });
+    }
   }, [productId]);
+  useLiveRefresh(load, true, 30000, true);
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
   const platformUrl = data ? `${origin}${data.platform.link}` : '';
   const counts = useMemo(() => ['pending', 'qualified', 'rewarded', 'rejected', 'reversed'] as const, []);

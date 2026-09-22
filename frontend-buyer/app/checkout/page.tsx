@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 // Layout components are now handled by app/template.tsx
-import { cartService, type CartItem } from '@/services/cart-service';
+import { cartService, type Cart, type CartItem } from '@/services/cart-service';
 import OrderLineSelections from '@/components/orders/OrderLineSelections';
 import { orderService } from '@/services/order-service';
 import { userService, type Address } from '@/services/user-service';
@@ -13,22 +13,27 @@ import Loader from '@/components/ui/Loader';
 import Button from '@/components/ui/Button';
 import CouponInput from '@/components/checkout/CouponInput';
 import PointsRedeemInput from '@/components/checkout/PointsRedeemInput';
-import { type CouponValidation } from '@/services/coupon-service';
+import { couponService, type CouponQuote, type CouponValidation } from '@/services/coupon-service';
+import { getAxiosErrorMessage } from '@/lib/api-client';
 import Link from 'next/link';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function CheckoutPage() {
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const { showToast } = useToast();
   const router = useRouter();
-  const [cart, setCart] = useState<any>(null);
+  const [cart, setCart] = useState<Cart | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'wallet'>('wallet');
-  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
+  const [appliedCoupons, setAppliedCoupons] = useState<CouponValidation[]>([]);
+  const [couponQuote, setCouponQuote] = useState<CouponQuote | null>(null);
   const [appliedPoints, setAppliedPoints] = useState<number | null>(null);
   const [pointsDiscount, setPointsDiscount] = useState<number>(0);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const checkoutKey = useRef(typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `checkout:${Date.now()}`);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -37,12 +42,22 @@ export default function CheckoutPage() {
   }, [isAuthenticated, loading, router]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadData();
-    }
-  }, [isAuthenticated]);
+    if (!isAuthenticated || !cart) return;
+    const codes = Object.fromEntries(appliedCoupons.flatMap((coupon) => coupon.store_id && coupon.coupon?.code ? [[coupon.store_id, coupon.coupon.code]] : []));
+    couponService.quote(codes).then(setCouponQuote).catch((error: unknown) => {
+      setCouponQuote(null);
+      if (appliedCoupons.length) showToast('error', getAxiosErrorMessage(error) || t('coupon.reviewSelection'));
+    });
+  }, [isAuthenticated, cart, appliedCoupons, showToast, t]);
 
-  const loadData = async () => {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const codes = Object.fromEntries(appliedCoupons.flatMap((coupon) => coupon.store_id && coupon.coupon?.code ? [[coupon.store_id, coupon.coupon.code]] : []));
+    if (Object.keys(codes).length) sessionStorage.setItem('checkout_coupon_codes', JSON.stringify(codes));
+    else sessionStorage.removeItem('checkout_coupon_codes');
+  }, [appliedCoupons]);
+
+  const loadData = useCallback(async () => {
     try {
       setLoadingData(true);
       const [cartData, addressesData] = await Promise.all([
@@ -51,9 +66,37 @@ export default function CheckoutPage() {
       ]);
       setCart(cartData);
       setAddresses(addressesData);
+      const savedCoupons = typeof window === 'undefined' ? {} : JSON.parse(sessionStorage.getItem('checkout_coupon_codes') || '{}');
+      if (Object.keys(savedCoupons).length) {
+        try {
+          const quote = await couponService.quote(savedCoupons);
+          setCouponQuote(quote);
+          setAppliedCoupons(quote.stores.flatMap((store) => store.coupon ? [{
+            valid: true,
+            store_id: store.store_id,
+            coupon: {
+              id: store.coupon.id,
+              code: store.coupon.code,
+              discount_type: store.coupon.snapshot.discount_type as 'percentage' | 'fixed_amount' | 'free_shipping',
+              discount_value: Number(store.coupon.snapshot.discount_value || 0),
+              store_id: store.store_id,
+            },
+            discount_amount: Number(store.coupon.discount_amount),
+            quote,
+            message: 'Coupon quote calculated successfully.',
+          }] : []));
+        } catch {
+          sessionStorage.removeItem('checkout_coupon_codes');
+        }
+      }
+      const requestedAddressId = Number(new URLSearchParams(window.location.search).get('address_id'));
+      const requestedAddress = Number.isFinite(requestedAddressId)
+        ? addressesData.find((addr) => addr.id === requestedAddressId)
+        : undefined;
       const defaultAddress = addressesData.find((addr) => addr.is_default);
-      if (defaultAddress) {
-        setSelectedAddressId(defaultAddress.id);
+      const addressToSelect = requestedAddress || defaultAddress;
+      if (addressToSelect) {
+        setSelectedAddressId(addressToSelect.id);
       }
     } catch (error) {
       console.error('Failed to load checkout data:', error);
@@ -61,7 +104,13 @@ export default function CheckoutPage() {
     } finally {
       setLoadingData(false);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      void loadData();
+    }
+  }, [isAuthenticated, loadData]);
 
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
@@ -74,30 +123,21 @@ export default function CheckoutPage() {
       const result = await orderService.placeOrder({
         delivery_address_id: selectedAddressId,
         payment_method: paymentMethod,
-        coupon_code: appliedCoupon?.valid ? appliedCoupon.coupon?.code : undefined,
+        coupon_codes: Object.fromEntries(appliedCoupons.flatMap((coupon) => coupon.store_id && coupon.coupon?.code ? [[coupon.store_id, coupon.coupon.code]] : [])),
         points_to_redeem: appliedPoints || undefined,
+        idempotency_key: checkoutKey.current,
       });
       showToast('success', 'Order placed successfully! Redirecting...');
+      sessionStorage.removeItem('checkout_coupon_codes');
       setTimeout(() => router.push(`/orders/${result.order.id}`), 1000);
-    } catch (error: any) {
-      showToast('error', error.response?.data?.message || 'Failed to place order');
+    } catch (error: unknown) {
+      showToast('error', getAxiosErrorMessage(error));
       setPlacingOrder(false);
     }
   };
 
-  const handleCouponApplied = (validation: CouponValidation) => {
-    setAppliedCoupon(validation);
-  };
-
-  const handleCouponRemoved = () => {
-    setAppliedCoupon(null);
-  };
-
   const calculateTotal = () => {
-    let total = Number(cart.total || 0);
-    if (appliedCoupon?.valid && appliedCoupon.discount_amount) {
-      total -= appliedCoupon.discount_amount;
-    }
+    let total = Number(couponQuote?.final_before_shipping ?? cart?.total ?? 0);
     if (pointsDiscount > 0) {
       total -= pointsDiscount;
     }
@@ -134,19 +174,19 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 w-full">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Checkout</h1>
+    <div className="max-w-7xl mx-auto w-full px-3 py-4 sm:px-4 sm:py-8">
+        <h1 className="mb-5 text-2xl font-bold text-gray-900 sm:mb-6 sm:text-3xl">Checkout</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-2">
             {/* Delivery Address */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Delivery Address</h2>
+            <div className="rounded-2xl bg-white p-4 shadow sm:p-6">
+              <h2 className="mb-4 text-lg font-semibold sm:text-xl">Delivery Address</h2>
               {addresses.length === 0 ? (
                 <div>
                   <p className="text-gray-600 mb-4">No addresses found.</p>
                   <Link
-                    href="/profile/addresses/new"
+                    href="/profile/addresses/new?returnTo=%2Fcheckout"
                     className="text-[#0066CC] hover:underline"
                   >
                     Add Address
@@ -157,7 +197,7 @@ export default function CheckoutPage() {
                   {addresses.map((address) => (
                     <label
                       key={address.id}
-                      className={`block border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                      className={`block break-words border-2 rounded-xl p-3 cursor-pointer transition-colors sm:p-4 ${
                         selectedAddressId === address.id
                           ? 'border-[#0066CC] bg-blue-50'
                           : 'border-gray-200 hover:border-gray-300'
@@ -180,11 +220,16 @@ export default function CheckoutPage() {
                         {address.phone && (
                           <p className="text-sm text-gray-600">Phone: {address.phone}</p>
                         )}
+                        {(address.city_name || address.state_name || address.country_name) && (
+                          <p className="text-sm text-gray-600">
+                            {[address.city_name, address.state_name, address.country_name].filter(Boolean).join(', ')}
+                          </p>
+                        )}
                       </div>
                     </label>
                   ))}
                   <Link
-                    href="/profile/addresses/new"
+                    href="/profile/addresses/new?returnTo=%2Fcheckout"
                     className="text-[#0066CC] hover:underline text-sm"
                   >
                     + Add New Address
@@ -194,17 +239,16 @@ export default function CheckoutPage() {
             </div>
 
             {/* Coupon Code */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="rounded-2xl bg-white p-4 shadow sm:p-6">
               <CouponInput
-                orderTotal={Number(cart.total || 0)}
-                onCouponApplied={handleCouponApplied}
-                onCouponRemoved={handleCouponRemoved}
-                appliedCoupon={appliedCoupon || undefined}
+                appliedCoupons={appliedCoupons}
+                onCouponsChange={setAppliedCoupons}
+                stores={(cart.breakdown || []).map((store: { store_id: number; store_name: string }) => ({ store_id: store.store_id, store_name: store.store_name }))}
               />
             </div>
 
             {/* Points Redemption */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="rounded-2xl bg-white p-4 shadow sm:p-6">
               <PointsRedeemInput
                 orderTotal={Number(cart.total || 0)}
                 onPointsRedeemed={handlePointsRedeemed}
@@ -214,11 +258,11 @@ export default function CheckoutPage() {
             </div>
 
             {/* Payment Method */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Payment after seller review</h2>
+            <div className="rounded-2xl bg-white p-4 shadow sm:p-6">
+              <h2 className="mb-4 text-lg font-semibold sm:text-xl">Payment after seller review</h2>
               <p className="text-sm text-blue-700 mb-4">No payment is taken now. Each seller quotes delivery for your address. Review the updated total and pay from your order page.</p>
               <div className="space-y-3">
-                <label className="flex items-center border-2 rounded-lg p-4 cursor-pointer">
+                <label className="flex items-center border-2 rounded-xl p-3 cursor-pointer sm:p-4">
                   <input
                     type="radio"
                     name="payment"
@@ -229,7 +273,7 @@ export default function CheckoutPage() {
                   />
                   <span className="font-medium">Wallet</span>
                 </label>
-                <label className="flex items-center border-2 rounded-lg p-4 cursor-pointer">
+                <label className="flex items-center border-2 rounded-xl p-3 cursor-pointer sm:p-4">
                   <input
                     type="radio"
                     name="payment"
@@ -247,10 +291,10 @@ export default function CheckoutPage() {
 
           {/* Order Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow p-6 sticky top-4">
-              <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+            <div className="rounded-2xl bg-white p-4 shadow lg:sticky lg:top-4 sm:p-6">
+              <h2 className="mb-4 text-lg font-semibold sm:text-xl">Order Summary</h2>
               
-              <div className="space-y-4 mb-6 max-h-[420px] overflow-y-auto pr-1">
+              <div className="mb-6 max-h-[300px] space-y-4 overflow-y-auto pr-1 sm:max-h-[420px]">
                 {cart.breakdown?.map((store: { store_id: number; store_name: string; items: CartItem[]; subtotal: number }) => (
                   <div key={store.store_id} className="border-b pb-4 last:border-0">
                     <p className="font-semibold text-gray-900 mb-2">{store.store_name}</p>
@@ -281,12 +325,18 @@ export default function CheckoutPage() {
                   <span className="text-gray-600">Subtotal:</span>
                   <span className="font-semibold">€{Number(cart.total || 0).toFixed(2)}</span>
                 </div>
-                {appliedCoupon?.valid && appliedCoupon.discount_amount && (
+                {couponQuote && Number(couponQuote.automatic_campaign_discount) > 0 && (
                   <div className="flex justify-between text-green-600">
-                    <span className="text-gray-600">Discount ({appliedCoupon.coupon?.code}):</span>
-                    <span className="font-semibold">-€{appliedCoupon.discount_amount.toFixed(2)}</span>
+                    <span className="text-gray-600">Automatic campaign discount:</span>
+                    <span className="font-semibold">-€{Number(couponQuote.automatic_campaign_discount).toFixed(2)}</span>
                   </div>
                 )}
+                {appliedCoupons.map((coupon) => coupon.valid && coupon.discount_amount ? (
+                  <div key={`${coupon.store_id}-${coupon.coupon?.code}`} className="flex justify-between text-green-600">
+                    <span className="text-gray-600">{t('coupon.label')} ({coupon.coupon?.code}):</span>
+                    <span className="font-semibold">-€{Number(coupon.discount_amount).toFixed(2)}</span>
+                  </div>
+                ) : null)}
                 {pointsDiscount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span className="text-gray-600">Points Discount ({appliedPoints} pts):</span>

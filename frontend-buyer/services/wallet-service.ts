@@ -31,6 +31,7 @@ export interface WithdrawData {
 export const walletService = {
   async capabilities(): Promise<{ development_top_up: boolean; stripe_available: boolean }> { const res = await apiClient.get('/buyer/wallet/capabilities'); return res.data.data; },
   async developmentTopUp(amount: number, key: string) { const res = await apiClient.post('/buyer/wallet/development-top-up', { amount, idempotency_key: key }); return res.data.data; },
+  async directTopUp(amount: number, key: string) { const res = await apiClient.post('/buyer/wallet/top-up', { amount, idempotency_key: key }); return res.data.data; },
   async getBalance(): Promise<WalletBalance> {
     const res = await apiClient.get('/buyer/wallet/balance');
     return res.data.data;

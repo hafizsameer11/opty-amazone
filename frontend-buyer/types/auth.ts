@@ -21,7 +21,9 @@ export interface AuthResponse {
 export interface RegisterData {
   name: string;
   email: string;
-  phone?: string;
+  phone: string;
+  /** Collected by the registration form for the verification flow. */
+  verification_code?: string;
   password: string;
   password_confirmation: string;
   referral_attribution_token?: string;

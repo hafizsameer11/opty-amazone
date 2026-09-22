@@ -28,8 +28,10 @@ export class AuthService {
   /**
    * Logout buyer
    */
-  static async logout(): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.post('/buyer/auth/logout');
+  static async logout(token?: string | null): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.post('/buyer/auth/logout', undefined, token ? {
+      headers: { Authorization: `Bearer ${token}` },
+    } : undefined);
     return response.data;
   }
 

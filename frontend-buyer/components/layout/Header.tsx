@@ -1,541 +1,190 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { useRouter } from 'next/navigation';
-import { AuthService } from '@/services/auth-service';
-import { productService, type Category } from '@/services/product-service';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { productService, type Category } from '@/services/product-service';
+import { notificationService } from '@/services/notification-service';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 
+const mobileLinks = [
+  { href: '/', label: 'Home', icon: '⌂' },
+  { href: '/products', label: 'Shop products', icon: '◫' },
+  { href: '/categories', label: 'Browse categories', icon: '▦' },
+  { href: '/stores', label: 'Stores', icon: '⌂' },
+  { href: '/orders', label: 'My orders', icon: '▤' },
+];
+
+function CartIcon({ className = 'h-6 w-6' }: { className?: string }) {
+  return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13 5.4 5M7 13l-2.3 2.3A1 1 0 0 0 5.8 17H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm-8 2a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z" /></svg>;
+}
+
+function BellIcon({ className = 'h-6 w-6' }: { className?: string }) {
+  return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4-5.7V5a2 2 0 1 0-4 0v.3A6 6 0 0 0 6 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" /></svg>;
+}
+
+function SearchIcon() {
+  return <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-4.4-4.4m1.4-5.1a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" /></svg>;
+}
+
 export default function Header() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const { cartCount } = useCart();
-  const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [hoveredCategory, setHoveredCategory] = useState<number | null>(null);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-  const [clickedCategory, setClickedCategory] = useState<number | null>(null);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { t } = useLanguage();
-
-  const handleLogout = async () => {
-    try {
-      await AuthService.logout();
-      AuthService.clearAuth();
-      router.push('/');
-    } catch (error) {
-      // Even if API call fails, clear local storage
-      AuthService.clearAuth();
-      router.push('/');
-    }
-  };
+  const router = useRouter();
+  const [query, setQuery] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [hoveredCategory, setHoveredCategory] = useState<number | null>(null);
+  const [clickedCategory, setClickedCategory] = useState<number | null>(null);
+  const categoryCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    loadCategories();
+    productService.getCategories(true).then((rows) => setCategories(rows || [])).catch(() => setCategories([]));
   }, []);
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      // Check if click is outside any dropdown container
-      if (!target.closest('.category-dropdown-container')) {
+    const closeMenus = (event: MouseEvent) => {
+      if (!(event.target as HTMLElement).closest('.desktop-category-dropdown')) {
+        setHoveredCategory(null);
         setClickedCategory(null);
-        // Only clear hover on mobile or if not hovering over any category
-        if (window.innerWidth < 768) {
-          setHoveredCategory(null);
-        }
       }
     };
-
-    if (clickedCategory !== null || hoveredCategory !== null) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-  }, [clickedCategory, hoveredCategory]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
+    document.addEventListener('mousedown', closeMenus);
     return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
+      document.removeEventListener('mousedown', closeMenus);
+      if (categoryCloseTimer.current) clearTimeout(categoryCloseTimer.current);
     };
   }, []);
 
-  const loadCategories = async () => {
-    try {
-      // Get parent categories with their children (parentOnly = true gets only parents but includes children)
-      const data = await productService.getCategories(true);
-      console.log('🔍 Raw categories data from API:', data);
-      setCategories(data || []);
-      // Debug: Log categories to verify children are loaded
-      if (data && data.length > 0) {
-        const categoriesWithChildren = data.filter((c: any) => c.children && c.children.length > 0);
-        console.log(`📊 Total categories: ${data.length}, Categories with children: ${categoriesWithChildren.length}`);
-        if (categoriesWithChildren.length > 0) {
-          console.log('✅ Categories with children:', categoriesWithChildren.map((c: any) => ({ 
-            id: c.id,
-            name: c.name, 
-            childrenCount: c.children?.length || 0,
-            firstChild: c.children?.[0]?.name || 'none'
-          })));
-        } else {
-          console.warn('⚠️ No categories have children! Check backend API response.');
-        }
-      } else {
-        console.warn('⚠️ No categories loaded');
-      }
-    } catch (error) {
-      console.error('❌ Failed to load categories:', error);
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle('mobile-menu-open', menuOpen);
+    return () => document.body.classList.remove('mobile-menu-open');
+  }, [menuOpen]);
+
+  useLiveRefresh(async () => {
+    if (!isAuthenticated) {
+      setUnreadNotifications(0);
+      return;
     }
+    const result = await notificationService.list({ per_page: 20 });
+    setUnreadNotifications(result.unread_count || 0);
+  }, isAuthenticated, 15000, true);
+
+  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = query.trim();
+    if (!value) return;
+    const findCategory = (rows: Category[]): Category | undefined => {
+      for (const category of rows) {
+        if (category.id === selectedCategoryId) return category;
+        const child = category.children ? findCategory(category.children) : undefined;
+        if (child) return child;
+      }
+      return undefined;
+    };
+    const selected = findCategory(categories);
+    router.push(selected ? `/categories/${selected.slug}?search=${encodeURIComponent(value)}` : `/search?q=${encodeURIComponent(value)}`);
+    setMenuOpen(false);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      if (selectedCategoryId) {
-        const selectedCategory = findCategoryById(categories, selectedCategoryId);
-        if (selectedCategory) {
-          router.push(`/categories/${selectedCategory.slug}?search=${encodeURIComponent(searchQuery.trim())}`);
-        } else {
-          router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-        }
-      } else {
-        router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      }
-    }
+  const signOut = () => {
+    void logout();
+    setMenuOpen(false);
+    router.replace('/auth/login');
   };
 
-  const findCategoryById = (cats: Category[], id: number): Category | null => {
-    for (const cat of cats) {
-      if (cat.id === id) return cat;
-      if (cat.children) {
-        const found = findCategoryById(cat.children, id);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
+  const cartBadge = cartCount > 99 ? '99+' : cartCount;
+  const notificationBadge = unreadNotifications > 99 ? '99+' : unreadNotifications;
 
   return (
-    <header className="bg-[#131921] text-white sticky top-0 z-50 shadow-lg" style={{ overflow: 'visible', position: 'relative' }}>
-      {/* Top Navigation Bar - Hidden on mobile */}
-      <div className="hidden md:block bg-[#232f3e] border-b border-white/10 relative" style={{ overflow: 'visible', position: 'relative', zIndex: 50 }}>
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 relative" style={{ overflow: 'visible', position: 'relative', zIndex: 50 }}>
-          <div className="flex items-center justify-between py-2.5 relative" style={{ overflow: 'visible', position: 'relative', zIndex: 50 }}>
-            {/* Category Navigation */}
-            <nav className="flex items-center gap-4 sm:gap-6 overflow-x-auto scrollbar-hide" style={{ position: 'relative', zIndex: 50, overflowY: 'visible' }}>
-              <Link 
-                href="/" 
-                className="whitespace-nowrap hover:text-[#febd69] transition-colors text-sm font-medium flex items-center gap-1 group"
-              >
-                <span>{t('all')}</span>
-              </Link>
-              {categories.map((category) => {
-                const isOpen = hoveredCategory === category.id || clickedCategory === category.id;
-                const hasChildren = category.children && category.children.length > 0;
-                
-                // Debug log
-                if (hasChildren) {
-                  console.log(`Category "${category.name}" - hasChildren: ${hasChildren}, isOpen: ${isOpen}, hoveredCategory: ${hoveredCategory}, clickedCategory: ${clickedCategory}`);
-                }
-                
-                return (
-                  <div
-                    key={category.id}
-                    className="relative category-dropdown-container"
-                    onMouseEnter={(e) => {
-                      // Clear any pending timeout
-                      if (hoverTimeoutRef.current) {
-                        clearTimeout(hoverTimeoutRef.current);
-                        hoverTimeoutRef.current = null;
-                      }
-                      if (hasChildren) {
-                        setHoveredCategory(category.id);
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      // Add delay before closing to allow moving to dropdown
-                      hoverTimeoutRef.current = setTimeout(() => {
-                        // Only clear hover on mouse leave, keep clicked for mobile
-                        if (!clickedCategory || clickedCategory !== category.id) {
-                          setHoveredCategory(null);
-                        }
-                      }, 200); // 200ms delay
-                    }}
-                    style={{ position: 'relative', zIndex: isOpen ? 1000 : 'auto' }}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <Link
-                        href={`/categories/${category.slug}`}
-                        className="whitespace-nowrap hover:text-[#febd69] transition-colors text-sm font-medium flex items-center gap-1.5 relative z-10"
-                        onMouseEnter={(e) => {
-                          e.stopPropagation();
-                          // Clear any pending timeout
-                          if (hoverTimeoutRef.current) {
-                            clearTimeout(hoverTimeoutRef.current);
-                            hoverTimeoutRef.current = null;
-                          }
-                          if (hasChildren) {
-                            setHoveredCategory(category.id);
-                          }
-                        }}
-                      >
-                        <span className="lowercase first-letter:uppercase">{category.name}</span>
-                        {hasChildren && <span className="text-xs text-gray-400 ml-1">({category.children?.length || 0})</span>}
-                      </Link>
-                      {hasChildren && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log(`Clicked dropdown button for: ${category.name}`);
-                            const newClickedCategory = clickedCategory === category.id ? null : category.id;
-                            setClickedCategory(newClickedCategory);
-                            // Also set hovered to keep it open
-                            if (newClickedCategory) {
-                              setHoveredCategory(category.id);
-                            }
-                          }}
-                          className="hover:text-[#febd69] transition-colors p-1 -ml-1"
-                          aria-label="Toggle submenu"
-                          aria-expanded={isOpen}
-                        >
-                          <svg 
-                            className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
+    <header className="sticky top-0 z-50 border-b border-slate-800 bg-[#101b2d] text-white shadow-[0_6px_20px_rgba(15,23,42,0.22)]">
+      <div className="md:hidden">
+        <div className="flex h-10 items-center justify-between border-b border-white/10 bg-[#17263b] px-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-300">{t('common.marketplace')}</p>
+          <LanguageSwitcher />
+        </div>
+        <div className="px-3 pb-3 pt-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <Link href="/" className="flex min-w-0 items-center gap-2" aria-label="OpticalMarket home">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-blue-600 text-xs font-extrabold shadow-lg">OM</span>
+              <span className="truncate text-base font-bold tracking-tight">OpticalMarket</span>
+            </Link>
+            <div className="flex shrink-0 items-center gap-1">
+              {isAuthenticated && <Link href="/notifications" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-xl text-white transition hover:bg-white/10"><BellIcon />{unreadNotifications > 0 && <span className="absolute right-0.5 top-0.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold ring-2 ring-[#101b2d]">{notificationBadge}</span>}</Link>}
+              <Link href="/cart" aria-label="Cart" className="relative flex h-10 w-10 items-center justify-center rounded-xl text-white transition hover:bg-white/10"><CartIcon />{cartCount > 0 && <span className="absolute right-0.5 top-0.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[#febd69] px-1 text-[9px] font-bold text-slate-900 ring-2 ring-[#101b2d]">{cartBadge}</span>}</Link>
+              <button type="button" aria-label="Open navigation menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5 transition hover:bg-white/15"><svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg></button>
+            </div>
+          </div>
+          <form onSubmit={submitSearch} className="mt-3 flex h-11 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-white/10 focus-within:ring-2 focus-within:ring-[#febd69]">
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('searchPlaceholder')} className="min-w-0 flex-1 border-0 bg-white px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400" />
+            <button type="submit" aria-label={t('search')} className="flex w-12 items-center justify-center bg-[#febd69] text-slate-900 transition hover:bg-[#f3a847]"><SearchIcon /></button>
+          </form>
+        </div>
+      </div>
+
+      <div className="hidden md:block">
+        <div className="relative z-50 border-b border-white/10 bg-[#232f3e]">
+          <div className="relative mx-auto max-w-7xl px-6">
+            <div className="flex items-center justify-between py-2.5">
+              <nav className="flex min-w-0 items-center gap-4 overflow-visible text-sm font-medium">
+                <Link href="/" className="whitespace-nowrap transition-colors hover:text-[#febd69]">{t('all')}</Link>
+                {categories.map((category) => {
+                  const hasChildren = Boolean(category.children?.length);
+                  const isOpen = hoveredCategory === category.id || clickedCategory === category.id;
+                  const clearCloseTimer = () => {
+                    if (categoryCloseTimer.current) clearTimeout(categoryCloseTimer.current);
+                    categoryCloseTimer.current = null;
+                  };
+                  const scheduleClose = () => {
+                    clearCloseTimer();
+                    categoryCloseTimer.current = setTimeout(() => {
+                      if (clickedCategory !== category.id) setHoveredCategory(null);
+                    }, 180);
+                  };
+                  return (
+                    <div key={category.id} className="desktop-category-dropdown relative" onMouseEnter={() => { clearCloseTimer(); if (hasChildren) setHoveredCategory(category.id); }} onMouseLeave={scheduleClose}>
+                      <div className="flex items-center gap-0.5">
+                        <Link href={`/categories/${category.slug}`} className="whitespace-nowrap transition-colors hover:text-[#febd69]">{category.name}</Link>
+                        {hasChildren && <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); clearCloseTimer(); setClickedCategory((current) => current === category.id ? null : category.id); setHoveredCategory(category.id); }} aria-label={`Open ${category.name} categories`} aria-expanded={isOpen} className="rounded p-1 text-slate-300 transition hover:text-[#febd69]"><svg className={`h-3.5 w-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m19 9-7 7-7-7" /></svg></button>}
+                      </div>
+                      {hasChildren && isOpen && (
+                        <div className="absolute left-0 top-full z-[100] w-60 pt-2" onMouseEnter={clearCloseTimer} onMouseLeave={scheduleClose}>
+                          <div className="rounded-lg border border-slate-200 bg-white py-2 text-slate-800 shadow-2xl">
+                            {category.children?.map((child) => <div key={child.id} className="group/sub relative"><Link href={`/categories/${child.slug}`} onClick={() => setClickedCategory(null)} className="flex items-center justify-between px-5 py-2.5 text-sm font-medium transition hover:bg-[#febd69]/15 hover:text-slate-950"><span>{child.name}</span>{child.children?.length ? <span className="text-slate-400">›</span> : null}</Link>{child.children?.length ? <div className="invisible absolute left-full top-0 ml-1 w-56 rounded-lg border border-slate-200 bg-white py-2 opacity-0 shadow-2xl transition group-hover/sub:visible group-hover/sub:opacity-100">{child.children.map((grandchild) => <Link key={grandchild.id} href={`/categories/${grandchild.slug}`} onClick={() => setClickedCategory(null)} className="block px-5 py-2 text-sm text-slate-700 hover:bg-[#febd69]/15 hover:text-slate-950">{grandchild.name}</Link>)}</div> : null}</div>)}
+                          </div>
+                        </div>
                       )}
                     </div>
-                    
-                    {/* Dropdown Menu */}
-                    {hasChildren && isOpen && (
-                      <div 
-                        className="absolute top-full left-0 pt-2 min-w-[220px]"
-                        style={{ 
-                          zIndex: 10000, 
-                          position: 'absolute',
-                          marginTop: '0.5rem',
-                          pointerEvents: 'auto',
-                          top: '100%',
-                          left: 0,
-                          display: 'block',
-                          visibility: 'visible',
-                          opacity: 1,
-                          transform: 'translateZ(0)',
-                          willChange: 'transform',
-                          backgroundColor: 'white',
-                          boxShadow: '0 10px 25px rgba(0,0,0,0.3)'
-                        }}
-                        ref={(el) => {
-                          if (el) {
-                            const rect = el.getBoundingClientRect();
-                            console.log(`📍 Dropdown for ${category.name} - Position:`, {
-                              top: rect.top,
-                              left: rect.left,
-                              width: rect.width,
-                              height: rect.height,
-                              visible: rect.width > 0 && rect.height > 0
-                            });
-                            const styles = window.getComputedStyle(el);
-                            console.log(`   Styles:`, {
-                              display: styles.display,
-                              visibility: styles.visibility,
-                              opacity: styles.opacity,
-                              zIndex: styles.zIndex,
-                              position: styles.position,
-                              overflow: styles.overflow
-                            });
-                          }
-                        }}
-                        onMouseEnter={() => {
-                          // Clear any pending timeout
-                          if (hoverTimeoutRef.current) {
-                            clearTimeout(hoverTimeoutRef.current);
-                            hoverTimeoutRef.current = null;
-                          }
-                          setHoveredCategory(category.id);
-                        }}
-                        onMouseLeave={() => {
-                          // Add delay before closing
-                          hoverTimeoutRef.current = setTimeout(() => {
-                            // Only clear on desktop, keep on mobile if clicked
-                            if (window.innerWidth >= 768) {
-                              setHoveredCategory(null);
-                              setClickedCategory(null);
-                            }
-                          }, 200); // 200ms delay
-                        }}
-                      >
-                        <div 
-                          className="bg-white rounded-lg shadow-2xl border border-gray-200 py-2" 
-                          style={{ 
-                            position: 'relative', 
-                            zIndex: 10000,
-                            display: 'block',
-                            visibility: 'visible',
-                            opacity: 1
-                          }}
-                        >
-                          {category.children?.map((subCategory) => (
-                            <div key={subCategory.id} className="relative group/sub">
-                              <Link
-                                href={`/categories/${subCategory.slug}`}
-                                className="px-5 py-2.5 text-gray-900 hover:bg-[#febd69]/10 transition-colors flex items-center justify-between group-hover/sub:pl-6"
-                                onClick={() => setClickedCategory(null)}
-                              >
-                                <span className="font-medium text-sm">{subCategory.name}</span>
-                                {(subCategory.children && subCategory.children.length > 0) && (
-                                  <svg className="w-4 h-4 text-gray-400 group-hover/sub:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                  </svg>
-                                )}
-                              </Link>
-                              
-                              {/* Sub-Sub Categories */}
-                              {(subCategory.children && subCategory.children.length > 0) && (
-                                <div 
-                                  className="absolute left-full top-0 ml-1 bg-white rounded-lg shadow-2xl border border-gray-200 min-w-[200px] py-2 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200"
-                                  style={{ zIndex: 10001, position: 'absolute' }}
-                                  onMouseEnter={(e) => {
-                                    e.stopPropagation();
-                                    // Keep parent dropdown open
-                                    setHoveredCategory(category.id);
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.stopPropagation();
-                                  }}
-                                >
-                                  {subCategory.children.map((subSubCategory) => (
-                                    <Link
-                                      key={subSubCategory.id}
-                                      href={`/categories/${subSubCategory.slug}`}
-                                      className="block px-5 py-2 text-gray-700 hover:bg-[#febd69]/10 transition-colors text-sm"
-                                    >
-                                      {subSubCategory.name}
-                                    </Link>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </nav>
-
-            {/* Auth Links */}
-            <div className="flex items-center gap-4 ml-4 flex-shrink-0">
-              {isAuthenticated ? (
-                <>
-                  <Link 
-                    href="/profile" 
-                    className="text-sm hover:text-[#febd69] transition-colors font-medium whitespace-nowrap"
-                  >
-                    {user?.name?.split(' ')[0] || t('account')}
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="text-sm hover:text-[#febd69] transition-colors font-medium whitespace-nowrap"
-                  >
-                    {t('signOut')}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link 
-                    href="/auth/login" 
-                    className="text-sm hover:text-[#febd69] transition-colors font-medium whitespace-nowrap"
-                  >
-                    {t('signIn')}
-                  </Link>
-                  <Link 
-                    href="/auth/register" 
-                    className="text-sm hover:text-[#febd69] transition-colors font-medium whitespace-nowrap"
-                  >
-                    {t('register')}
-                  </Link>
-                </>
-              )}
-              <LanguageSwitcher />
+                  );
+                })}
+              </nav>
+              <div className="ml-4 flex shrink-0 items-center gap-4 text-sm font-medium"><LanguageSwitcher />{isAuthenticated ? <><Link href="/profile" className="whitespace-nowrap transition-colors hover:text-[#febd69]">{user?.name?.split(' ')[0] || t('account')}</Link><button type="button" onClick={signOut} className="whitespace-nowrap transition-colors hover:text-[#febd69]">{t('signOut')}</button></> : <><Link href="/auth/login" className="whitespace-nowrap transition-colors hover:text-[#febd69]">{t('signIn')}</Link><Link href="/auth/register" className="whitespace-nowrap transition-colors hover:text-[#febd69]">{t('register')}</Link></>}</div>
             </div>
           </div>
         </div>
+        <div className="bg-[#131921]"><div className="mx-auto flex max-w-7xl items-center gap-6 px-6 py-4">
+          <Link href="/" className="flex shrink-0 items-center gap-3" aria-label={`${t('common.brand')} home`}><span className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 via-teal-500 to-blue-600 text-base font-extrabold shadow-lg">OM</span><span><span className="block text-2xl font-bold tracking-tight">{t('common.brand')}</span><span className="block text-[10px] font-medium uppercase tracking-[0.16em] text-slate-300">{t('common.marketplace')}</span></span></Link>
+          <form onSubmit={submitSearch} className="flex h-11 min-w-0 max-w-3xl flex-1 overflow-hidden rounded-lg bg-white shadow-md focus-within:ring-2 focus-within:ring-[#febd69]"><select value={selectedCategoryId ?? ''} onChange={(event) => setSelectedCategoryId(event.target.value ? Number(event.target.value) : null)} className="max-w-44 border-0 border-r border-slate-300 bg-slate-50 px-3 text-sm font-medium text-slate-700 outline-none"><option value="">{t('allCategories')}</option>{categories.flatMap((category) => [<option key={category.id} value={category.id}>{category.name}</option>, ...(category.children || []).map((child) => <option key={child.id} value={child.id}>{category.name} → {child.name}</option>)])}</select><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('searchPlaceholder')} className="min-w-0 flex-1 border-0 px-4 text-sm text-slate-900 outline-none" /><button type="submit" className="flex w-16 items-center justify-center gap-2 bg-[#febd69] text-sm font-bold text-slate-900 transition hover:bg-[#f3a847]" aria-label={t('search')}><SearchIcon /><span>{t('search')}</span></button></form>
+          <div className="flex shrink-0 items-center gap-4"><Link href="/cart" className="relative flex flex-col items-center text-white transition hover:text-[#febd69]"><CartIcon className="h-7 w-7" /><span className="mt-0.5 text-xs font-medium">{t('cart')}</span>{cartCount > 0 && <span className="absolute -right-2 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#febd69] px-1 text-[10px] font-bold text-slate-900">{cartBadge}</span>}</Link>{isAuthenticated && <Link href="/notifications" aria-label="Notifications" className="relative rounded-lg p-2 text-white transition hover:bg-white/10 hover:text-[#febd69]"><BellIcon className="h-7 w-7" />{unreadNotifications > 0 && <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold">{notificationBadge}</span>}</Link>}<Link href={isAuthenticated ? '/profile' : '/auth/login'} className="flex flex-col items-start text-white transition hover:text-[#febd69]"><span className="text-[11px] text-slate-300">{t('hello')}, {isAuthenticated ? user?.name?.split(' ')[0] || t('account') : t('signIn')}</span><span className="flex items-center gap-1 text-sm font-semibold">{t('accountLists')}<svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m19 9-7 7-7-7" /></svg></span></Link></div>
+        </div></div>
       </div>
 
-      {/* Main Header with Logo, Search, and Actions */}
-      <div className="bg-[#131921]">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
-          <div className="flex items-center gap-4 lg:gap-6">
-            {/* Logo */}
-            <Link 
-              href="/" 
-              className="flex-shrink-0 flex items-center gap-2.5 sm:gap-3 group"
-            >
-              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-gradient-to-br from-teal-400 via-teal-500 to-blue-600 flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-lg group-hover:shadow-xl transition-shadow">
-                OM
-              </div>
-              <div className="flex flex-col leading-tight">
-                <span className="text-xl sm:text-2xl font-bold tracking-tight group-hover:text-[#febd69] transition-colors">
-                  OpticalMarket
-                </span>
-                <span className="text-[10px] sm:text-xs text-gray-300 uppercase tracking-wider font-medium">
-                  Optical Marketplace
-                </span>
-              </div>
-            </Link>
-
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-3xl hidden md:block">
-              <div className="flex rounded-lg overflow-hidden shadow-md bg-white hover:shadow-lg transition-shadow">
-                <div className="relative border-r border-gray-300">
-                  <select
-                    value={selectedCategoryId || ''}
-                    onChange={(e) => {
-                      const catId = e.target.value;
-                      setSelectedCategoryId(catId ? parseInt(catId) : null);
-                    }}
-                    className="bg-gray-50 text-gray-700 px-4 py-2.5 text-sm focus:outline-none appearance-none pr-8 cursor-pointer hover:bg-gray-100 transition-colors font-medium"
-                  >
-                    <option value="">{t('allCategories')}</option>
-                    {(() => {
-                      const renderOptions = (cat: Category, prefix = ''): React.ReactElement[] => {
-                        const options: React.ReactElement[] = [
-                          <option key={cat.id} value={cat.id}>
-                            {prefix}{cat.name}
-                          </option>
-                        ];
-                        if (cat.children) {
-                          cat.children.forEach((subCat) => {
-                            options.push(...renderOptions(subCat, `${cat.name} → `));
-                          });
-                        }
-                        return options;
-                      };
-                      const allOptions: React.ReactElement[] = [];
-                      categories.forEach((category) => {
-                        allOptions.push(...renderOptions(category));
-                      });
-                      return allOptions;
-                    })()}
-                  </select>
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('searchPlaceholder')}
-                  className="flex-1 px-4 py-2.5 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#febd69]/50"
-                />
-                <button
-                  type="submit"
-                  className="bg-[#febd69] hover:bg-[#f3a847] px-6 sm:px-8 py-2.5 text-sm font-semibold text-gray-900 transition-all duration-200 flex items-center justify-center gap-2 group"
-                >
-                  <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <span className="hidden sm:inline">{t('search')}</span>
-                </button>
-              </div>
-            </form>
-
-            {/* Mobile Search Button */}
-            <Link
-              href="/products"
-              className="md:hidden flex-1 flex items-center justify-center bg-white rounded-lg px-4 py-2.5 text-gray-500 text-sm"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <span>{t('search')}</span>
-            </Link>
-
-            {/* Cart & Account Section */}
-            <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 flex-shrink-0">
-              <div className="md:hidden">
-                <LanguageSwitcher />
-              </div>
-              {/* Cart - Mobile optimized */}
-              <Link
-                href="/cart"
-                className="relative hover:text-[#febd69] transition-colors group md:flex md:flex-col md:items-center"
-              >
-                <div className="relative">
-                  <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-[#febd69] text-[#131921] text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-md min-w-[20px]">
-                      {cartCount > 99 ? '99+' : cartCount}
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs sm:text-sm font-medium mt-0.5 hidden md:block">{t('cart')}</span>
-              </Link>
-
-              {/* Account - Mobile optimized */}
-              {isAuthenticated ? (
-                <Link
-                  href="/profile"
-                  className="hidden md:flex flex-col items-start hover:text-[#febd69] transition-colors group"
-                >
-                  <span className="text-[11px] text-gray-300 group-hover:text-gray-200">{t('hello')}, {user?.name?.split(' ')[0] || t('account')}</span>
-                  <span className="text-sm font-semibold flex items-center gap-1">
-                    {t('accountLists')}
-                    <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </span>
-                </Link>
-              ) : (
-                <Link
-                  href="/auth/login"
-                  className="hidden md:flex flex-col items-start hover:text-[#febd69] transition-colors group"
-                >
-                  <span className="text-[11px] text-gray-300 group-hover:text-gray-200">{t('hello')}, {t('signIn')}</span>
-                  <span className="text-sm font-semibold flex items-center gap-1">
-                    {t('accountLists')}
-                    <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </span>
-                </Link>
-              )}
-              
-              {/* Mobile Profile Icon */}
-              <Link
-                href={isAuthenticated ? "/profile" : "/auth/login"}
-                className="md:hidden hover:text-[#febd69] transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      {menuOpen && <div className="md:hidden"><button type="button" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-[60] bg-slate-950/50 backdrop-blur-[1px]" /><aside role="dialog" aria-modal="true" aria-label="Navigation menu" className="fixed inset-y-0 right-0 z-[70] flex w-[min(22rem,calc(100vw-1.25rem))] flex-col bg-white text-slate-900 shadow-2xl"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0066CC]">Your marketplace</p><p className="mt-1 font-bold">Menu</p></div><button type="button" onClick={() => setMenuOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700" aria-label="Close menu"><svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m6 6 12 12M18 6 6 18" /></svg></button></div><div className="flex-1 overflow-y-auto px-4 py-5"><Link href={isAuthenticated ? '/profile' : '/auth/login'} onClick={() => setMenuOpen(false)} className="mb-5 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-blue-50 to-cyan-50 p-4"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0066CC] font-bold text-white">{isAuthenticated ? user?.name?.charAt(0)?.toUpperCase() || 'U' : '↗'}</span><span className="min-w-0"><span className="block font-bold">{isAuthenticated ? user?.name || 'My profile' : 'Sign in to your account'}</span><span className="mt-0.5 block truncate text-xs text-slate-500">{isAuthenticated ? user?.email : 'Orders, saved items, and more'}</span></span><span className="ml-auto text-[#0066CC]">›</span></Link><nav className="space-y-1">{mobileLinks.map((item) => <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold hover:bg-slate-50"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-base text-[#0066CC]">{item.icon}</span>{item.label}<span className="ml-auto text-slate-400">›</span></Link>)}</nav><div className="my-5 border-t border-slate-200" /><p className="px-3 text-xs font-bold uppercase tracking-[0.13em] text-slate-400">Shop by category</p><div className="mt-2 grid grid-cols-2 gap-2">{categories.slice(0, 8).map((category) => <Link key={category.id} href={`/categories/${category.slug}`} onClick={() => setMenuOpen(false)} className="rounded-xl border border-slate-200 px-3 py-3 text-sm font-medium text-slate-700 hover:border-blue-200 hover:bg-blue-50">{category.name}</Link>)}</div></div><div className="border-t border-slate-200 p-4">{isAuthenticated ? <button type="button" onClick={signOut} className="flex w-full items-center justify-center rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-600">{t('signOut')}</button> : <Link href="/auth/register" onClick={() => setMenuOpen(false)} className="flex w-full items-center justify-center rounded-xl bg-[#0066CC] px-4 py-3 text-sm font-bold text-white">Create an account</Link>}</div></aside></div>}
     </header>
   );
 }

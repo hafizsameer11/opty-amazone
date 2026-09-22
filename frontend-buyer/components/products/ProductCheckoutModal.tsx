@@ -95,11 +95,9 @@ export default function ProductCheckoutModal({
   const [couponCode, setCouponCode] = useState<string>('');
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
-    discount_amount: number;
     message?: string;
   } | null>(null);
   const [couponError, setCouponError] = useState<string>('');
-  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   // Order summary
   const [orderSummary, setOrderSummary] = useState<OrderSummaryItem[]>([]);
@@ -420,35 +418,43 @@ export default function ProductCheckoutModal({
       .filter(item => item.type !== 'shipping')
       .reduce((sum, item) => sum + item.price, 0);
     const ship = orderSummary.find(item => item.type === 'shipping')?.price || 0;
-    const disc = appliedCoupon ? Number(appliedCoupon.discount_amount || 0) : 0;
+    // The official coupon quote is calculated only from persisted cart lines.
+    // This modal configures a product before it exists in the cart, so it must
+    // never present a client-calculated discount as a final amount.
+    const disc = 0;
     const tot = Math.max(0, sub + ship - disc);
     return { subtotal: sub, shipping: ship, discount: disc, total: tot };
   }, [orderSummary, appliedCoupon, campaignPrice, quantity]);
 
-  const handleApplyCoupon = async () => {
-    const code = couponCode.trim();
+  const handleApplyCoupon = () => {
+    const code = couponCode.trim().toUpperCase();
     if (!code) return;
     setCouponError('');
-    setApplyingCoupon(true);
+    setCouponCode(code);
+    setAppliedCoupon({
+      code,
+      message: 'This code will be securely validated after this item is added to your cart.',
+    });
+  };
+
+  /**
+   * A product configurator is not a cart. Persist the requested code only
+   * after its item is successfully added, then let Checkout quote it against
+   * the authenticated buyer's real cart and the product's seller store.
+   */
+  const queueCouponForCheckout = () => {
+    if (typeof window === 'undefined' || !appliedCoupon?.code || !product.store?.id) return;
+
     try {
-      const { couponService } = await import('@/services/coupon-service');
-      const result = await couponService.validate(code, subtotal);
-      if (!result.valid || result.discount_amount == null) {
-        setAppliedCoupon(null);
-        setCouponError(result.message || 'Invalid coupon code');
-        return;
-      }
-      setAppliedCoupon({
-        code: result.coupon?.code || code,
-        discount_amount: Number(result.discount_amount),
-        message: result.message,
-      });
-      setCouponError('');
+      const saved = JSON.parse(sessionStorage.getItem('checkout_coupon_codes') || '{}');
+      const existing = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+      sessionStorage.setItem('checkout_coupon_codes', JSON.stringify({
+        ...existing,
+        [product.store.id]: appliedCoupon.code.trim().toUpperCase(),
+      }));
     } catch {
-      setAppliedCoupon(null);
-      setCouponError('Could not validate coupon. Please try again.');
-    } finally {
-      setApplyingCoupon(false);
+      // Checkout can still accept the code manually if browser storage is
+      // unavailable. Do not block adding a product to cart for this.
     }
   };
 
@@ -559,6 +565,7 @@ export default function ProductCheckoutModal({
       } else {
         await cartService.addItem(cartData);
       }
+      queueCouponForCheckout();
       onClose();
     } catch (error: any) {
       console.error('Failed to add to cart:', error);
@@ -579,11 +586,11 @@ export default function ProductCheckoutModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg w-[90vw] max-h-[90vh] overflow-hidden border-2 border-gray-800 shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-0 sm:p-4">
+      <div className="flex max-h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:max-h-[90vh] sm:w-[90vw] sm:rounded-lg sm:border-2 sm:border-gray-800">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b-2 border-gray-800 px-6 py-4 flex items-center justify-between z-10 flex-shrink-0">
-          <h2 className="text-3xl font-bold text-gray-900">{product.name}</h2>
+        <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-3 border-b-2 border-gray-800 bg-white px-4 py-3 sm:px-6 sm:py-4">
+          <h2 className="truncate text-lg font-bold text-gray-900 sm:text-3xl">{product.name}</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -595,11 +602,11 @@ export default function ProductCheckoutModal({
         </div>
 
         {/* Main Content - 3 Column Layout */}
-        <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
-          <div className="flex gap-6 p-6 items-start">
+        <div className="max-h-[calc(100dvh-64px)] overflow-y-auto sm:max-h-[calc(90vh-80px)]">
+          <div className="flex flex-col gap-4 p-3 sm:gap-6 sm:p-6 xl:flex-row xl:items-start">
             {/* Left Column: Order Summary */}
-            <div className="w-80 flex-shrink-0 flex flex-col">
-              <div className="bg-white rounded-lg p-4 border border-gray-200 sticky top-4 flex-shrink-0">
+            <div className="flex w-full shrink-0 flex-col xl:w-80">
+              <div className="rounded-lg border border-gray-200 bg-white p-4 xl:sticky xl:top-4 flex-shrink-0">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Order Summary</h3>
                 
                 {/* Items List */}
@@ -656,11 +663,11 @@ export default function ProductCheckoutModal({
                     />
                     <button
                       type="button"
-                      onClick={() => void handleApplyCoupon()}
-                      disabled={!couponCode.trim() || applyingCoupon}
+                      onClick={handleApplyCoupon}
+                      disabled={!couponCode.trim()}
                       className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold"
                     >
-                      {applyingCoupon ? 'Applying…' : 'Apply'}
+                      Apply at checkout
                     </button>
                   </div>
                   {couponError && (
@@ -668,7 +675,7 @@ export default function ProductCheckoutModal({
                   )}
                   {appliedCoupon && !couponError && (
                     <p className="mt-2 text-xs text-green-600">
-                      {appliedCoupon.message || `Coupon ${appliedCoupon.code} applied`}
+                      {appliedCoupon.message || `Coupon ${appliedCoupon.code} saved for checkout`}
                       {' · '}
                       <button
                         type="button"
@@ -709,8 +716,8 @@ export default function ProductCheckoutModal({
             </div>
 
             {/* Center Column: Product Image */}
-            <div className="flex-1 flex flex-col items-center justify-center flex-shrink-0">
-              <div className="bg-gray-100 rounded-lg overflow-hidden relative cursor-crosshair group/preview" style={{ height: '500px', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '2rem' }}>
+            <div className="flex flex-1 flex-col items-center justify-center shrink-0">
+              <div className="group/preview relative h-64 w-full overflow-hidden rounded-lg bg-gray-100 sm:h-[500px] xl:max-w-[500px] cursor-crosshair" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '1rem' }}>
                 <LensColorOverlay
                   imageUrl={mainImage}
                   alt={product.name}
@@ -749,7 +756,7 @@ export default function ProductCheckoutModal({
             </div>
 
             {/* Right Column: Customization Steps */}
-            <div className="w-[600px] flex-shrink-0 flex flex-col overflow-hidden min-h-0">
+            <div className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden xl:w-[600px]">
             {loadingLensData ? (
               <div className="flex-1 flex items-center justify-center">
                 <Loader text="Loading options..." />

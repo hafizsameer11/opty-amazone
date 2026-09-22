@@ -15,13 +15,17 @@ import EditProfileForm from "@/components/profile/EditProfileForm";
 import OrderDetailsModal from "@/components/orders/OrderDetailsModal";
 import Badge from "@/components/ui/Badge";
 import FollowedStoresPanel from "@/components/profile/FollowedStoresPanel";
+import SavedItemsPanel from "@/components/profile/SavedItemsPanel";
 import ReviewsPanel from "@/components/profile/ReviewsPanel";
 import SupportPanel from "@/components/profile/SupportPanel";
 import ReferralPanel from "@/components/profile/ReferralPanel";
+import AddressesPanel from "@/components/profile/AddressesPanel";
+import { getFullImageUrl } from "@/lib/image-utils";
 
 type AccountTab =
   | "overview"
   | "edit-profile"
+  | "addresses"
   | "orders"
   | "wallet"
   | "saved"
@@ -30,6 +34,30 @@ type AccountTab =
   | "referrals"
   | "support"
   | "faqs";
+
+const accountTabs: AccountTab[] = ['overview', 'edit-profile', 'addresses', 'orders', 'wallet', 'saved', 'followed-stores', 'reviews', 'referrals', 'support', 'faqs'];
+
+function isAccountTab(value: string | null): value is AccountTab {
+  return Boolean(value && accountTabs.includes(value as AccountTab));
+}
+
+function AccountMenuIcon({ tab }: { tab: AccountTab }) {
+  const paths: Record<AccountTab, string> = {
+    overview: 'M20 21a8 8 0 0 0-16 0m12-14a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
+    'edit-profile': 'm4 20 4.5-1 9.8-9.8a2.2 2.2 0 0 0-3.1-3.1L5.4 15.9 4 20Z',
+    addresses: 'M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Zm-8 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
+    orders: 'M8 3h8l2 2v16H6V5l2-2Zm0 8h8m-8 4h8m-8-8h3',
+    wallet: 'M4 7h15a2 2 0 0 1 2 2v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h10v4M16 14h2',
+    saved: 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.9-8.6a5.5 5.5 0 0 0-.1-7.8Z',
+    'followed-stores': 'M4 21V5l8-3 8 3v16M9 21v-4h6v4M8 8h.01M16 8h.01M8 12h.01M16 12h.01',
+    reviews: 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z',
+    referrals: 'M16 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm10 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.6 7.5l4.8-2.8M8.6 8.5l4.8 2.8',
+    support: 'M4 18v-6a8 8 0 0 1 16 0v6M4 18h3v-5H4m13 5h3v-5h-3m-3 7h-4',
+    faqs: 'M9.1 9a3 3 0 1 1 5.8 1c0 2-2.9 2-2.9 4m.1 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  };
+
+  return <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={paths[tab]} /></svg>;
+}
 
 export default function ProfilePage() {
   return <Suspense fallback={<main className="mx-auto max-w-7xl p-6 text-gray-500">Loading your profile…</main>}><ProfilePageContent /></Suspense>;
@@ -43,6 +71,7 @@ function ProfilePageContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<AccountTab>("overview");
+  const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
@@ -51,17 +80,30 @@ function ProfilePageContent() {
   const [loadingBalance, setLoadingBalance] = useState(false);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [accountCounts, setAccountCounts] = useState({ orders: 0, saved_items: 0, followed_stores: 0 });
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'referrals') setActiveTab('referrals');
-    if (tab === 'wallet') setActiveTab('wallet');
+    if (isAccountTab(tab)) {
+      setActiveTab(tab);
+      setMobileSectionOpen(true);
+    }
   }, [searchParams]);
 
   useLiveRefresh(async () => {
     if (activeTab === 'orders') { const data = await orderService.getOrders(); setOrders(data.data || []); }
     if (activeTab === 'wallet') { const [balance, history] = await Promise.all([walletService.getBalance(), walletService.getTransactions({ per_page: 10 })]); setWalletBalance(balance.balance); setTransactions(history.data || []); }
   }, isAuthenticated && ['orders', 'wallet'].includes(activeTab));
+
+  useLiveRefresh(async () => {
+    if (!isAuthenticated) return;
+    const data = await userService.getProfile();
+    setAccountCounts({
+      orders: data.counts?.orders ?? 0,
+      saved_items: data.counts?.saved_items ?? 0,
+      followed_stores: data.counts?.followed_stores ?? 0,
+    });
+  }, isAuthenticated, 30000);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -76,6 +118,11 @@ function ProfilePageContent() {
           setLoading(true);
           const data = await userService.getProfile();
           setProfile(data.user);
+          setAccountCounts({
+            orders: data.counts?.orders ?? 0,
+            saved_items: data.counts?.saved_items ?? 0,
+            followed_stores: data.counts?.followed_stores ?? 0,
+          });
         } catch (e: any) {
           setError(e?.response?.data?.message ?? "Failed to load profile");
         } finally {
@@ -192,6 +239,12 @@ function ProfilePageContent() {
       colorClass: "from-[#22c55e] to-[#16a34a]",
     },
     {
+      id: "addresses",
+      label: "Addresses",
+      description: "Delivery details for checkout",
+      colorClass: "from-[#06b6d4] to-[#0891b2]",
+    },
+    {
       id: "wallet",
       label: "Wallet",
       description: "Balance, top-up & withdraw",
@@ -253,103 +306,89 @@ function ProfilePageContent() {
     }
 
     if (activeTab === "overview") {
+      const profileImageUrl = profile.profile_image_url ? getFullImageUrl(profile.profile_image_url) : null;
       return (
-        <div className="rounded-2xl bg-white shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-5 sm:px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">
-                Profile overview
-              </p>
-              <p className="text-xs text-gray-500">
-                Update your personal information and account security.
-              </p>
-            </div>
-          </div>
-          <div className="px-5 sm:px-6 py-6 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-[#0066CC]/10 flex items-center justify-center text-lg font-semibold text-[#0066CC] overflow-hidden">
-                  {profile.profile_image_url ? (
+        <>
+          <div className="space-y-4 lg:hidden">
+            <div className="rounded-2xl bg-gradient-to-br from-[#075985] to-[#0f766e] p-4 text-white shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15 text-xl font-bold ring-2 ring-white/30">
+                  {profileImageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={profile.profile_image_url}
-                      alt={profile.name}
-                      className="h-full w-full object-cover"
-                    />
+                    <img src={profileImageUrl} alt={profile.name} className="h-full w-full object-cover" />
                   ) : (
-                    <span>{profile.name?.charAt(0) ?? "U"}</span>
+                    profile.name?.charAt(0)?.toUpperCase() ?? 'U'
                   )}
                 </div>
-                <div>
-                  <p className="font-medium text-gray-900">{profile.name}</p>
-                  <p className="text-sm text-gray-600 break-all">
-                    {profile.email}
-                  </p>
-                  {profile.phone && (
-                    <p className="text-sm text-gray-600">
-                      Phone: {profile.phone}
-                    </p>
+                <div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100">Profile</p><h2 className="truncate text-lg font-bold">{profile.name}</h2><p className="truncate text-sm text-white/75">{profile.email}</p></div>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[{ label: 'Orders', value: accountCounts.orders }, { label: 'Saved', value: accountCounts.saved_items }, { label: 'Stores', value: accountCounts.followed_stores }].map((stat) => <div key={stat.label} className="rounded-xl border border-slate-200 bg-white p-3 text-center"><p className="text-lg font-bold text-slate-900">{stat.value}</p><p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{stat.label}</p></div>)}
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div className="border-b border-slate-100 px-4 py-3"><p className="text-sm font-bold text-slate-900">Personal details</p></div>
+              <dl className="divide-y divide-slate-100 text-sm"><div className="px-4 py-3"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Full name</dt><dd className="mt-1 font-semibold text-slate-900">{profile.name}</dd></div><div className="px-4 py-3"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Email</dt><dd className="mt-1 break-all font-semibold text-slate-900">{profile.email}</dd></div><div className="px-4 py-3"><dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Phone</dt><dd className="mt-1 font-semibold text-slate-900">{profile.phone || 'Not added yet'}</dd></div></dl>
+            </div>
+            <div className="grid grid-cols-2 gap-3"><Button onClick={() => setActiveTab('edit-profile')} size="sm">Edit profile</Button><Button onClick={() => router.push('/profile/change-password')} variant="outline" size="sm">Password</Button></div>
+          </div>
+          <div className="hidden space-y-5 lg:block">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#075985] via-[#087f8c] to-[#0f766e] p-6 text-white shadow-[0_20px_50px_rgba(8,127,140,0.2)] sm:p-8">
+            <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full border border-white/15" />
+            <div className="absolute -bottom-28 right-20 h-56 w-56 rounded-full border border-white/10" />
+            <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-5">
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-white/15 text-3xl font-bold ring-4 ring-white/20 shadow-xl">
+                  {profileImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={profileImageUrl} alt={profile.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <span>{profile.name?.charAt(0)?.toUpperCase() ?? "U"}</span>
                   )}
                 </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Full name
-                </p>
-                <p className="text-gray-900">{profile.name}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Email address
-                </p>
-                <p className="text-gray-900 break-all">{profile.email}</p>
-              </div>
-              {profile.phone && (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Phone number
-                  </p>
-                  <p className="text-gray-900">{profile.phone}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-100">Buyer profile</p>
+                  <h2 className="mt-1 truncate text-2xl font-bold sm:text-3xl">{profile.name}</h2>
+                  <p className="mt-1 truncate text-sm text-white/75">{profile.email}</p>
+                  <p className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-cyan-50">Member since {new Date(profile.created_at).toLocaleDateString()}</p>
                 </div>
-              )}
-              {(profile as any).city && (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    City
-                  </p>
-                  <p className="text-gray-900">{(profile as any).city}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
-              <Button
-                onClick={() => setActiveTab("edit-profile")}
-                variant="secondary"
-                size="md"
-              >
-                Edit profile
-              </Button>
-              <Button
-                onClick={() => router.push("/profile/change-password")}
-                variant="outline"
-                size="md"
-              >
-                Change password
-              </Button>
-              <Button
-                onClick={() => router.push("/profile/addresses")}
-                variant="outline"
-                size="md"
-              >
-                Manage addresses
-              </Button>
+              </div>
+              <Button onClick={() => setActiveTab("edit-profile")} variant="outline" size="md" className="!border-white/60 !bg-white !text-[#075985] hover:!bg-cyan-50">Edit profile</Button>
             </div>
           </div>
-        </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              { label: "Orders placed", value: accountCounts.orders, tone: "bg-emerald-50 text-emerald-700", icon: "↗" },
+              { label: "Saved items", value: accountCounts.saved_items, tone: "bg-orange-50 text-orange-700", icon: "♡" },
+              { label: "Followed stores", value: accountCounts.followed_stores, tone: "bg-violet-50 text-violet-700", icon: "✦" },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl text-lg font-bold ${stat.tone}`}>{stat.icon}</div>
+                <p className="mt-4 text-2xl font-bold text-slate-950">{stat.value}</p>
+                <p className="mt-1 text-sm text-slate-500">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+            <div className="flex items-center justify-between gap-4">
+              <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#087f8c]">Account details</p><h3 className="mt-1 text-xl font-bold text-slate-950">Your shopping identity</h3></div>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Active account</span>
+            </div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Full name</p><p className="mt-2 font-semibold text-slate-900">{profile.name}</p></div>
+              <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Email address</p><p className="mt-2 break-all font-semibold text-slate-900">{profile.email}</p><p className="mt-1 text-xs text-slate-500">Account email cannot be changed.</p></div>
+              <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Phone number</p><p className="mt-2 font-semibold text-slate-900">{profile.phone || "Not added yet"}</p></div>
+              <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Saved addresses</p><p className="mt-2 font-semibold text-slate-900">Ready to manage in one place</p></div>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3 border-t border-slate-100 pt-5">
+              <Button onClick={() => setActiveTab("addresses")} variant="secondary" size="md">Manage addresses</Button>
+              <Button onClick={() => router.push("/profile/change-password")} variant="outline" size="md">Change password</Button>
+            </div>
+          </div>
+          </div>
+        </>
       );
     }
 
@@ -362,15 +401,19 @@ function ProfilePageContent() {
                 Edit profile
               </p>
               <p className="text-xs text-gray-500">
-                Update your name, email address and phone number.
+                Update your name, contact number and profile picture.
               </p>
             </div>
           </div>
           <div className="px-5 sm:px-6 py-6">
-            <EditProfileForm />
+            <EditProfileForm onProfileUpdated={(updatedProfile) => setProfile(updatedProfile)} />
           </div>
         </div>
       );
+    }
+
+    if (activeTab === "addresses") {
+      return <AddressesPanel defaultName={profile.name} onBack={() => { setActiveTab("overview"); setMobileSectionOpen(false); }} />;
     }
 
     if (activeTab === "orders") {
@@ -698,7 +741,8 @@ function ProfilePageContent() {
       );
     }
 
-    if (activeTab === "saved") {
+    if (activeTab === "saved") return <SavedItemsPanel onCountChange={(saved_items) => setAccountCounts((current) => ({ ...current, saved_items }))} />;
+    /* Legacy saved placeholder retained below for reference only.
       return (
         <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-1">
@@ -707,18 +751,11 @@ function ProfilePageContent() {
           <p className="text-sm text-gray-600 mb-4">
             Products you’ve added to your wishlist or saved for later.
           </p>
-          <Button
-            onClick={() => router.push("/wishlist")}
-            variant="outline"
-            size="sm"
-          >
-            Go to wishlist
-          </Button>
         </div>
       );
-    }
+    */
 
-    if (String(activeTab) === "followed-stores") return <FollowedStoresPanel />;
+    if (String(activeTab) === "followed-stores") return <FollowedStoresPanel onCountChange={(followed_stores) => setAccountCounts((current) => ({ ...current, followed_stores }))} />;
     if (activeTab === "followed-stores") {
       return (
         <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
@@ -816,9 +853,49 @@ function ProfilePageContent() {
     );
   };
 
+  const openMobileSection = (tab: AccountTab) => {
+    setActiveTab(tab);
+    setMobileSectionOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const closeMobileSection = () => {
+    setActiveTab('overview');
+    setMobileSectionOpen(false);
+    router.replace('/profile', { scroll: false });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const countForTab = (tab: AccountTab) => {
+    if (tab === 'orders') return accountCounts.orders;
+    if (tab === 'saved') return accountCounts.saved_items;
+    if (tab === 'followed-stores') return accountCounts.followed_stores;
+    return null;
+  };
+
   return (
     <>
-      <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-0 py-8">
+      <div className="lg:hidden">
+        {mobileSectionOpen ? (
+          <section className="min-h-[calc(100vh-10rem)] bg-slate-50 pb-6">
+            <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200 bg-white/95 px-3 py-3 backdrop-blur">
+              <button type="button" onClick={closeMobileSection} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700" aria-label="Back to account menu"><svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m15 18-6-6 6-6" /></svg></button>
+              <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0066CC]">Your account</p><h1 className="truncate text-base font-bold text-slate-950">{activeTab === 'edit-profile' ? 'Edit profile' : menuItems.find((item) => item.id === activeTab)?.label || 'Profile'}</h1></div>
+            </div>
+            <div className="px-3 py-4">{error && <div className="mb-4"><Alert type="error" message={error} /></div>}{renderContent()}</div>
+          </section>
+        ) : (
+          <section className="min-h-[calc(100vh-10rem)] bg-slate-50 px-3 py-4">
+            <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.15em] text-[#0066CC]">Your account</p><h1 className="mt-1 text-2xl font-bold text-slate-950">Hello, {profile?.name?.split(' ')[0] || 'there'}</h1><p className="mt-1 text-sm text-slate-500">Manage your shopping account.</p></div><div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#0066CC] to-[#0f766e] font-bold text-white shadow-sm">{profile?.profile_image_url ? <img src={getFullImageUrl(profile.profile_image_url)} alt="Profile" className="h-full w-full object-cover" /> : profile?.name?.charAt(0)?.toUpperCase() || 'U'}</div></div>
+            {error && <div className="mb-4"><Alert type="error" message={error} /></div>}
+            <nav className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              {menuItems.map((item, index) => { const count = countForTab(item.id); return <button key={item.id} type="button" onClick={() => openMobileSection(item.id)} className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-slate-50 ${index ? 'border-t border-slate-100' : ''}`}><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm ${item.colorClass}`}><AccountMenuIcon tab={item.id} /></span><span className="min-w-0 flex-1"><span className="block font-semibold text-slate-900">{item.label}</span><span className="mt-0.5 block truncate text-xs text-slate-500">{item.description}</span></span>{count !== null && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{count}</span>}<span className="text-lg text-slate-400">›</span></button>; })}
+            </nav>
+          </section>
+        )}
+      </div>
+
+      <div className="hidden w-full max-w-6xl mx-auto px-3 py-8 sm:px-4 lg:block lg:px-0">
         <div className="mb-5 sm:mb-7">
             <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
               Your Account
@@ -839,8 +916,13 @@ function ProfilePageContent() {
             <aside className="lg:w-80 flex-shrink-0">
               <div className="rounded-2xl bg-white shadow-sm border border-gray-200 overflow-hidden mb-4">
                 <div className="px-4 py-4 bg-gradient-to-r from-[#0066CC] to-[#0052a3] text-white flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-white/10 flex items-center justify-center text-lg font-semibold">
-                    {profile?.name?.charAt(0) ?? "U"}
+                  <div className="h-12 w-12 overflow-hidden rounded-full bg-white/10 flex items-center justify-center text-lg font-semibold ring-2 ring-white/30">
+                    {profile?.profile_image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={getFullImageUrl(profile.profile_image_url)} alt={profile.name} className="h-full w-full object-cover" />
+                    ) : (
+                      profile?.name?.charAt(0)?.toUpperCase() ?? "U"
+                    )}
                   </div>
                   <div>
                     <p className="text-sm font-semibold">
@@ -851,18 +933,24 @@ function ProfilePageContent() {
                     </p>
                   </div>
                 </div>
-                <div className="px-3 py-3 grid grid-cols-2 gap-2 text-xs text-gray-700 bg-gray-50 border-t border-gray-100">
+                <div className="px-3 py-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-gray-700 bg-gray-50 border-t border-gray-100">
                   <div className="rounded-xl bg-white border border-gray-200 px-3 py-2">
                     <p className="font-semibold text-[11px] text-gray-500 uppercase tracking-wide">
                       Orders
                     </p>
-                    <p className="mt-1 text-sm font-semibold text-gray-900">0</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">{accountCounts.orders}</p>
                   </div>
                   <div className="rounded-xl bg-white border border-gray-200 px-3 py-2">
                     <p className="font-semibold text-[11px] text-gray-500 uppercase tracking-wide">
                       Saved items
                     </p>
-                    <p className="mt-1 text-sm font-semibold text-gray-900">0</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">{accountCounts.saved_items}</p>
+                  </div>
+                  <div className="rounded-xl bg-white border border-gray-200 px-3 py-2">
+                    <p className="font-semibold text-[11px] text-gray-500 uppercase tracking-wide">
+                      Followed stores
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">{accountCounts.followed_stores}</p>
                   </div>
                 </div>
               </div>

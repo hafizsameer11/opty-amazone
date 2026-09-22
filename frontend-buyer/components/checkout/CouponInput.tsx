@@ -1,118 +1,91 @@
 'use client';
 
-import { useState } from 'react';
-import { couponService, type CouponValidation } from '@/services/coupon-service';
+import { useEffect, useState } from 'react';
+import { couponService, type CouponCard, type CouponValidation } from '@/services/coupon-service';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface CouponInputProps {
-  orderTotal: number;
-  onCouponApplied: (validation: CouponValidation) => void;
-  onCouponRemoved: () => void;
-  appliedCoupon?: CouponValidation;
+  appliedCoupons: CouponValidation[];
+  onCouponsChange: (coupons: CouponValidation[]) => void;
+  stores?: Array<{ store_id: number; store_name: string }>;
 }
 
-export default function CouponInput({
-  orderTotal,
-  onCouponApplied,
-  onCouponRemoved,
-  appliedCoupon,
-}: CouponInputProps) {
+/** One coupon per seller store. The server determines the store from each code. */
+export default function CouponInput({ appliedCoupons, onCouponsChange, stores = [] }: CouponInputProps) {
   const [code, setCode] = useState('');
   const [validating, setValidating] = useState(false);
   const { showToast } = useToast();
+  const { t } = useLanguage();
+  const [available, setAvailable] = useState<Record<number, CouponCard[]>>({});
 
-  const handleApply = async () => {
-    if (!code.trim()) {
-      showToast('warning', 'Please enter a coupon code');
-      return;
-    }
+  useEffect(() => {
+    let active = true;
+    Promise.all(stores.map(async (store) => [store.store_id, await couponService.getStoreCoupons(store.store_id)] as const))
+      .then((entries) => { if (active) setAvailable(Object.fromEntries(entries)); })
+      .catch(() => { if (active) setAvailable({}); });
+    return () => { active = false; };
+  }, [stores]);
 
+  const handleApply = async (requestedCode = code, storeId?: number) => {
+    if (!requestedCode.trim()) return showToast('warning', t('coupon.enterCode'));
     setValidating(true);
     try {
-      const validation = await couponService.validate(code.trim(), orderTotal);
-      if (validation.valid) {
-        onCouponApplied(validation);
-        setCode('');
-        showToast('success', validation.message);
-      } else {
-        showToast('error', validation.message);
+      const existingCodes = Object.fromEntries(appliedCoupons.flatMap((coupon) => coupon.store_id && coupon.coupon?.code ? [[coupon.store_id, coupon.coupon.code]] : []));
+      const next = await couponService.validate(requestedCode.trim(), undefined, storeId, existingCodes);
+      if (!next.valid || !next.coupon || !next.store_id) return showToast('error', next.message);
+      const existingForStore = appliedCoupons.find((coupon) => coupon.store_id === next.store_id);
+      if (existingForStore && existingForStore.coupon?.code !== next.coupon.code) {
+        showToast('warning', t('coupon.onePerStore'));
+        return;
       }
-    } catch (error) {
-      showToast('error', 'Failed to validate coupon');
+      onCouponsChange([...appliedCoupons.filter((coupon) => coupon.store_id !== next.store_id), next]);
+      setCode('');
+      showToast('success', t('coupon.applied'));
     } finally {
       setValidating(false);
     }
   };
 
-  const handleRemove = () => {
-    setCode('');
-    onCouponRemoved();
-    showToast('success', 'Coupon removed');
+  const remove = (storeId?: number) => {
+    onCouponsChange(appliedCoupons.filter((coupon) => coupon.store_id !== storeId));
+    showToast('success', t('coupon.removed'));
   };
 
-  if (appliedCoupon?.valid) {
-    return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-green-800">
-                Coupon Applied: {appliedCoupon.coupon?.code}
-              </span>
-              <span className="text-sm text-green-600">
-                -€{appliedCoupon.discount_amount?.toFixed(2)}
-              </span>
+  return (
+    <div className="space-y-3">
+      {appliedCoupons.map((coupon) => (
+        <div key={coupon.store_id} className="rounded-lg border border-green-200 bg-green-50 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-green-800">{coupon.coupon?.code} {t('coupon.appliedToStore')}</p>
+              <p className="text-xs text-green-700">-€{Number(coupon.discount_amount || 0).toFixed(2)} {t('coupon.eligibleOnly')}</p>
             </div>
-            {appliedCoupon.coupon?.discount_type === 'percentage' && (
-              <p className="text-xs text-green-600 mt-1">
-                {appliedCoupon.coupon.discount_value}% discount
-              </p>
-            )}
+            <Button type="button" variant="outline" size="sm" onClick={() => remove(coupon.store_id)} className="border-red-300 text-red-600 hover:bg-red-50">{t('common.remove')}</Button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleRemove}
-            className="text-red-600 border-red-300 hover:bg-red-50"
-          >
-            Remove
-          </Button>
+        </div>
+      ))}
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <label className="mb-2 block text-sm font-medium text-gray-700">{t('coupon.applyCode')}</label>
+        <p className="mb-3 text-xs text-gray-500">{t('coupon.storeEligibility')}</p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input type="text" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder={t('coupon.enterCode')} className="w-full flex-1" onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void handleApply(); } }} />
+          <Button type="button" onClick={() => void handleApply()} disabled={validating || !code.trim()} size="sm" className="w-full sm:w-auto">{validating ? t('coupon.validating') : t('common.apply')}</Button>
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Have a coupon code?
-      </label>
-      <div className="flex gap-2">
-        <Input
-          type="text"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          placeholder="Enter coupon code"
-          className="flex-1"
-          onKeyPress={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              handleApply();
-            }
-          }}
-        />
-        <Button
-          type="button"
-          onClick={handleApply}
-          disabled={validating || !code.trim()}
-          size="sm"
-        >
-          {validating ? 'Validating...' : 'Apply'}
-        </Button>
-      </div>
+      {stores.some((store) => available[store.store_id]?.length) && (
+        <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-sm font-semibold text-gray-900">{t('coupon.availableByStore')}</p>
+          {stores.map((store) => available[store.store_id]?.length ? (
+            <div key={store.store_id} className="border-t border-gray-100 pt-3 first:border-t-0 first:pt-0">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{store.store_name}</p>
+              <div className="flex flex-wrap gap-2">{available[store.store_id].map((coupon) => <button key={coupon.id} type="button" onClick={() => void handleApply(coupon.code, store.store_id)} disabled={validating || appliedCoupons.some((applied) => applied.store_id === store.store_id)} className="rounded-full border border-[#0066CC]/30 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-[#0066CC] disabled:cursor-not-allowed disabled:opacity-50">{coupon.code} · {coupon.discount_type === 'percentage' ? `${coupon.discount_value}%` : coupon.discount_type === 'fixed_amount' ? `€${coupon.discount_value}` : t('coupon.freeShipping')}</button>)}</div>
+            </div>
+          ) : null)}
+        </div>
+      )}
     </div>
   );
 }

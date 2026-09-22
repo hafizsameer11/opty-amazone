@@ -239,8 +239,8 @@ export default function LensTypeModal({
 
   // Render Order Summary Column (Left)
   const renderOrderSummary = () => (
-    <div className="w-80 border-r border-gray-200 bg-gray-50 flex flex-col flex-shrink-0">
-      <div className="p-6 space-y-6">
+    <div className="w-full border-b border-gray-200 bg-gray-50 lg:w-80 lg:border-b-0 lg:border-r flex flex-col flex-shrink-0">
+      <div className="space-y-5 p-4 sm:p-6">
         {/* Order Summary */}
         <div>
           <h3 className="text-lg font-bold text-gray-900 mb-4">Order Summary</h3>
@@ -371,8 +371,8 @@ export default function LensTypeModal({
 
   // Render Product Image Column (Center)
   const renderProductImage = () => (
-    <div className="flex-1 flex flex-col items-center justify-center bg-white px-1 py-2 relative flex-shrink-0">
-      <div className="relative w-full max-w-md aspect-square mb-1">
+    <div className="relative flex flex-1 flex-col items-center justify-center bg-white px-3 py-4 lg:px-1 lg:py-2 flex-shrink-0">
+      <div className="relative mb-1 aspect-square w-full max-w-xs sm:max-w-md">
         <Image
           src={getFullImageUrl(productImage)}
           alt={productName}
@@ -392,7 +392,7 @@ export default function LensTypeModal({
   const renderRightColumn = () => {
     if (step === "prescription" && selectedLensType && prescription === null) {
       return (
-        <div className="w-[500px] border-l border-gray-200 bg-white flex flex-col flex-shrink-0">
+        <div className="w-full border-t border-gray-200 bg-white lg:w-[500px] lg:border-l lg:border-t-0 flex flex-col flex-shrink-0">
           <PrescriptionEntry
             lensTypeName={selectedLensType.name}
             onBack={handleBack}
@@ -408,7 +408,7 @@ export default function LensTypeModal({
 
     if (step === "thickness" && prescription) {
       return (
-        <div className="w-[500px] border-l border-gray-200 bg-white flex flex-col flex-shrink-0">
+        <div className="w-full border-t border-gray-200 bg-white lg:w-[500px] lg:border-l lg:border-t-0 flex flex-col flex-shrink-0">
           <LensThicknessStep
             prescription={prescription}
             lensMaterials={lensMaterials}
@@ -426,7 +426,7 @@ export default function LensTypeModal({
 
     if (step === "treatment") {
       return (
-        <div className="w-[500px] border-l border-gray-200 bg-white flex flex-col flex-shrink-0">
+        <div className="w-full border-t border-gray-200 bg-white lg:w-[500px] lg:border-l lg:border-t-0 flex flex-col flex-shrink-0">
           <TreatmentStep
             treatmentCategories={treatmentCategories}
             selectedTreatments={selectedTreatments}
@@ -440,7 +440,7 @@ export default function LensTypeModal({
 
     if (step === "summary") {
       return (
-        <div className="w-[500px] border-l border-gray-200 bg-white flex flex-col flex-shrink-0">
+        <div className="w-full border-t border-gray-200 bg-white lg:w-[500px] lg:border-l lg:border-t-0 flex flex-col flex-shrink-0">
           <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-6">
               <h3 className="text-xl font-bold text-gray-900">Review Your Selection</h3>
@@ -491,7 +491,7 @@ export default function LensTypeModal({
 
     // Default: Lens Selection
     return (
-      <div className="w-[500px] border-l border-gray-200 bg-white flex flex-col flex-shrink-0">
+      <div className="w-full border-t border-gray-200 bg-white lg:w-[500px] lg:border-l lg:border-t-0 flex flex-col flex-shrink-0">
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
             <h3 className="text-lg font-bold text-gray-900">Select Lens Type</h3>
@@ -578,15 +578,15 @@ export default function LensTypeModal({
       />
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex min-h-full items-center justify-center p-0 sm:p-4">
         <div
-          className={`relative bg-white rounded-2xl shadow-xl ${getModalWidth()} w-full max-h-[95vh] flex flex-col transition-all duration-200 ${
+          className={`relative flex w-full max-h-[100dvh] flex-col bg-white shadow-xl sm:max-h-[95vh] sm:rounded-2xl ${getModalWidth()} transition-all duration-200 ${
             isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
           }`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
-            <h2 className="text-xl font-bold text-gray-900">{getStepTitle()}</h2>
+          <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-4 flex-shrink-0">
+            <h2 className="truncate text-lg font-bold text-gray-900 sm:text-xl">{getStepTitle()}</h2>
             <button
               onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -604,7 +604,7 @@ export default function LensTypeModal({
           </div>
 
           {/* Three Column Layout */}
-          <div className="flex-1 overflow-y-auto flex min-h-0">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row">
             {renderOrderSummary()}
             {renderProductImage()}
             {renderRightColumn()}
@@ -612,7 +612,7 @@ export default function LensTypeModal({
 
           {/* Footer - Only show for lens-selection step */}
           {step === "lens-selection" && (
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 flex-shrink-0">
+            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3 sm:px-6 sm:py-4">
               <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>

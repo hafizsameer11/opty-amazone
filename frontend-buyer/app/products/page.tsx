@@ -1,7 +1,7 @@
 'use client';
 import PromotionalBanners from '@/components/campaigns/PromotionalBanners';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 // Layout components are now handled by app/template.tsx
@@ -33,6 +33,8 @@ const STOCK_OPTIONS = [
   { value: 'out_of_stock', label: 'Out of Stock' },
   { value: 'backorder', label: 'Backorder' },
 ];
+
+const PRODUCTS_PER_PAGE = 20;
 
 function ProductCard({ product }: { product: Product }) {
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
@@ -173,8 +175,9 @@ function ProductCard({ product }: { product: Product }) {
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMoreProducts, setLoadingMoreProducts] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasMoreProducts, setHasMoreProducts] = useState(false);
   const [total, setTotal] = useState(0);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   
@@ -200,10 +203,6 @@ export default function ProductsPage() {
     loadCategories();
   }, []);
 
-  useEffect(() => {
-    loadProducts();
-  }, [currentPage, selectedCategory, selectedType, selectedGender, selectedFrameShape, selectedFrameMaterial, selectedStockStatus, minRating, minPrice, maxPrice, sortBy, sortOrder, search]);
-
   const loadCategories = async () => {
     try {
       const data = await productService.getCategories(true);
@@ -213,12 +212,16 @@ export default function ProductsPage() {
     }
   };
 
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async (page = 1, append = false) => {
     try {
-      setLoading(true);
+      if (append) {
+        setLoadingMoreProducts(true);
+      } else {
+        setLoading(true);
+      }
       const params: ProductListParams = {
-        per_page: 24,
-        page: currentPage,
+        per_page: PRODUCTS_PER_PAGE,
+        page,
         sort_by: sortBy,
         sort_order: sortOrder,
       };
@@ -236,8 +239,13 @@ export default function ProductsPage() {
 
       const data = await productService.getAll(params);
       const productsData = data.data || [];
-      setProducts(productsData);
-      setTotalPages(data.last_page || 1);
+      setProducts((current) => {
+        if (!append) return productsData;
+        const knownIds = new Set(current.map((product) => product.id));
+        return [...current, ...productsData.filter((product: Product) => !knownIds.has(product.id))];
+      });
+      setCurrentPage(data.current_page || page);
+      setHasMoreProducts((data.current_page || page) < (data.last_page || page));
       setTotal(data.total || 0);
 
       // Extract unique frame shapes and materials from products
@@ -247,19 +255,35 @@ export default function ProductsPage() {
         if (product.frame_shape) shapes.add(product.frame_shape);
         if (product.frame_material) materials.add(product.frame_material);
       });
-      setAvailableFrameShapes(Array.from(shapes).sort());
-      setAvailableFrameMaterials(Array.from(materials).sort());
+      setAvailableFrameShapes((current) =>
+        append ? Array.from(new Set([...current, ...shapes])).sort() : Array.from(shapes).sort()
+      );
+      setAvailableFrameMaterials((current) =>
+        append ? Array.from(new Set([...current, ...materials])).sort() : Array.from(materials).sort()
+      );
     } catch (error) {
       console.error('Failed to load products:', error);
     } finally {
-      setLoading(false);
+      if (append) {
+        setLoadingMoreProducts(false);
+      } else {
+        setLoading(false);
+      }
     }
+  }, [search, selectedCategory, selectedType, selectedGender, selectedFrameShape, selectedFrameMaterial, selectedStockStatus, minRating, minPrice, maxPrice, sortBy, sortOrder]);
+
+  useEffect(() => {
+    void loadProducts(1);
+  }, [loadProducts]);
+
+  const loadMoreProducts = () => {
+    if (!hasMoreProducts || loadingMoreProducts) return;
+    void loadProducts(currentPage + 1, true);
   };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
-    loadProducts();
   };
 
   const clearFilters = () => {
@@ -646,28 +670,19 @@ export default function ProductsPage() {
                   ))}
                 </div>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="mt-8 flex items-center justify-center gap-2">
+                {hasMoreProducts && (
+                  <div className="mt-8 flex flex-col items-center gap-3">
                     <Button
                       variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
+                      size="md"
+                      onClick={loadMoreProducts}
+                      isLoading={loadingMoreProducts}
+                      disabled={loadingMoreProducts}
+                      className="min-w-48 rounded-full"
                     >
-                      Previous
+                      Show More Products
                     </Button>
-                    <span className="text-sm text-gray-600 px-4">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                    >
-                      Next
-                    </Button>
+                    <p className="text-xs text-gray-500">More products will appear below without leaving this page.</p>
                   </div>
                 )}
               </>

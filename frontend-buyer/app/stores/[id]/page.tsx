@@ -19,6 +19,8 @@ import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIn
 import StoreChatPanel from '@/components/stores/StoreChatPanel';
 import ReportStoreButton from '@/components/stores/ReportStoreButton';
 import ReviewForm from '@/components/reviews/ReviewForm';
+import { couponService, type CouponCard } from '@/services/coupon-service';
+import PublicCouponList from '@/components/coupons/PublicCouponList';
 
 function normalizeExternalUrl(url: string): string {
   const t = url.trim();
@@ -33,7 +35,9 @@ function socialPlatformLabel(platform: string): string {
     facebook: 'Facebook',
     instagram: 'Instagram',
     twitter: 'Twitter',
+    x: 'X',
     linkedin: 'LinkedIn',
+    tiktok: 'TikTok',
     youtube: 'YouTube',
     website: 'Website',
     other: 'Link',
@@ -213,6 +217,7 @@ export default function StorePage() {
   const [totalPages, setTotalPages] = useState(1);
   const [hasMoreProducts, setHasMoreProducts] = useState(false);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [publicCoupons, setPublicCoupons] = useState<CouponCard[]>([]);
 
   useEffect(() => {
     if (!params.id) return;
@@ -252,6 +257,15 @@ export default function StorePage() {
     syncFollowStatus();
   }, [params.id, isAuthenticated, user?.role]);
 
+  useEffect(() => {
+    const storeId = Number(params.id);
+    if (!isAuthenticated || user?.role !== 'buyer' || !Number.isFinite(storeId)) {
+      setPublicCoupons([]);
+      return;
+    }
+    couponService.getStoreCoupons(storeId).then(setPublicCoupons).catch(() => setPublicCoupons([]));
+  }, [params.id, isAuthenticated, user?.role]);
+
   const loadProducts = async (page = 1, append = false) => {
     try {
       setLoadingProducts(true);
@@ -286,6 +300,15 @@ export default function StorePage() {
       setReviews(data.reviews || []);
     } catch (error) {
       console.error('Failed to load reviews:', error);
+    }
+  };
+
+  const refreshStoreDetails = async () => {
+    try {
+      const data = await StoreService.getPublicStore(Number(params.id));
+      setStore(data.store);
+    } catch (error) {
+      console.error('Failed to refresh store details:', error);
     }
   };
 
@@ -480,6 +503,17 @@ export default function StorePage() {
                     </div>
                   </div>
 
+                  {store.phone && (
+                    <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.09l-4.423-1.106a1.125 1.125 0 00-1.173.417l-.97 1.293a1.125 1.125 0 01-1.21.38 12.035 12.035 0 01-7.212-7.212 1.125 1.125 0 01.38-1.21l1.293-.97c.363-.272.53-.73.417-1.173L6.894 3.04A1.125 1.125 0 005.804 2.19H4.5A2.25 2.25 0 002.25 4.44v2.31z" />
+                      </svg>
+                      <a href={`tel:${store.phone}`} className="font-medium text-[#0066CC] hover:underline">
+                        {store.phone}
+                      </a>
+                    </div>
+                  )}
+
                   {/* Follow + messages */}
                   {followMessage && (
                     <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 max-w-md">
@@ -514,6 +548,12 @@ export default function StorePage() {
                     >
                       Report store
                     </Button>
+                    <ReviewForm
+                      type="store"
+                      id={store.id}
+                      triggerLabel="Leave Review"
+                      onSaved={() => Promise.all([loadReviews(), refreshStoreDetails()]).then(() => undefined)}
+                    />
                   </div>
 
                   {reportMessage && (
@@ -597,6 +637,11 @@ export default function StorePage() {
         {/* Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <PromotionalBanners placement="store_page" storeId={Number(store.id)} />
+          {publicCoupons.length > 0 && (
+            <div className="mb-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+              <PublicCouponList coupons={publicCoupons} />
+            </div>
+          )}
           {/* Products Section */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
@@ -664,14 +709,18 @@ export default function StorePage() {
                 {store.rating != null ? ` · ${Number(store.rating).toFixed(1)}★` : ''})
               </span>
             </h2>
-            <ReviewForm type="store" id={store.id} onSaved={() => loadReviews()} />
             {reviews.length > 0 ? (
               <div className="space-y-4 mt-4">
                 {reviews.map((review) => (
                   <div key={review.id} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
                     <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0066CC] to-[#0052a3] flex items-center justify-center text-white font-bold">
-                        {review.user?.name?.charAt(0) || 'U'}
+                      <div className="w-10 h-10 overflow-hidden rounded-full bg-gradient-to-br from-[#0066CC] to-[#0052a3] flex items-center justify-center text-white font-bold">
+                        {review.user?.profile_image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={getFullImageUrl(review.user.profile_image_url)} alt={review.user.name || 'Verified customer'} className="h-full w-full object-cover" />
+                        ) : (
+                          review.user?.name?.charAt(0)?.toUpperCase() || 'U'
+                        )}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
@@ -690,6 +739,9 @@ export default function StorePage() {
                         </div>
                         {review.comment && (
                           <p className="text-gray-600 text-sm">{review.comment}</p>
+                        )}
+                        {review.is_verified_purchase && (
+                          <p className="text-xs text-green-700 mt-2">Verified purchase</p>
                         )}
                         <p className="text-xs text-gray-500 mt-2">
                           {new Date(review.created_at).toLocaleDateString()}

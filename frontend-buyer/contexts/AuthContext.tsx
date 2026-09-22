@@ -49,13 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    // Clear the client session before contacting the API so navigation and
+    // all dependent providers update immediately even if the network is slow.
+    const token = AuthService.getToken();
+    AuthService.clearAuth();
+    setUser(null);
+
     try {
-      await AuthService.logout();
+      await AuthService.logout(token);
     } catch (error) {
       // Even if API call fails, clear local storage
-    } finally {
-      AuthService.clearAuth();
-      setUser(null);
     }
   };
 

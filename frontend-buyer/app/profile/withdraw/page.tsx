@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { getAxiosErrorMessage } from '@/lib/api-client';
 import { walletService } from '@/services/wallet-service';
 import { useToast } from '@/components/ui/Toast';
 // Layout components are now handled by app/template.tsx
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Loader from '@/components/ui/Loader';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 
 export default function WithdrawPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -20,6 +22,8 @@ export default function WithdrawPage() {
   const [bankName, setBankName] = useState('');
   const [processing, setProcessing] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
+
+  useLiveRefresh(() => loadBalance(), isAuthenticated, 15000);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -84,8 +88,8 @@ export default function WithdrawPage() {
       setTimeout(() => {
         router.push('/profile?tab=wallet');
       }, 1500);
-    } catch (error: any) {
-      showToast('error', error.response?.data?.message || 'Withdrawal failed. Please try again.');
+    } catch (error: unknown) {
+      showToast('error', getAxiosErrorMessage(error) || 'Withdrawal failed. Please try again.');
     } finally {
       setProcessing(false);
     }

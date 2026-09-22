@@ -3,7 +3,6 @@ import type { User } from "../types/auth";
 
 export interface UpdateProfilePayload {
   name?: string;
-  email?: string;
   phone?: string | null;
 }
 
@@ -21,8 +20,11 @@ export interface AddressPayload {
   address_line_1: string;
   address_line_2?: string | null;
   country_id?: number | null;
+  country_name?: string | null;
   state_id?: number | null;
+  state_name?: string | null;
   city_id?: number | null;
+  city_name?: string | null;
   postal_code?: string | null;
   is_default?: boolean;
 }
@@ -38,6 +40,11 @@ export interface ProfileResponse {
   user: User & {
     phone_verified_at?: string | null;
     profile_image_url?: string | null;
+  };
+  counts?: {
+    orders: number;
+    saved_items: number;
+    followed_stores: number;
   };
 }
 
@@ -56,18 +63,18 @@ export const userService = {
     await apiClient.post("/buyer/profile/change-password", payload);
   },
 
-  async uploadProfileImage(file: File): Promise<ProfileResponse> {
+  async uploadProfileImage(file: File): Promise<ProfileResponse["user"]> {
     const formData = new FormData();
     formData.append("image", file);
     const res = await apiClient.post("/buyer/profile/upload-image", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    return res.data.data;
+    return res.data.data.user;
   },
 
-  async deleteProfileImage(): Promise<ProfileResponse> {
+  async deleteProfileImage(): Promise<ProfileResponse["user"]> {
     const res = await apiClient.delete("/buyer/profile/image");
-    return res.data.data;
+    return res.data.data.user;
   },
 
   async sendEmailVerification(): Promise<void> {

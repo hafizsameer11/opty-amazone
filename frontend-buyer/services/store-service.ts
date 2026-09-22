@@ -5,6 +5,7 @@ export interface StoreSocialLinkPublic {
   id: number;
   platform: string;
   url: string;
+  is_active?: boolean;
 }
 
 export interface PublicStore {
@@ -12,6 +13,7 @@ export interface PublicStore {
   name: string;
   slug: string;
   description?: string;
+  phone?: string | null;
   profile_image?: string;
   profile_image_url?: string;
   banner_image?: string;
@@ -110,9 +112,17 @@ export class StoreService {
   /**
    * Get followed stores
    */
-  static async getFollowedStores(): Promise<{ success: boolean; data: { stores: Store[] } }> {
+  static async getFollowedStores(): Promise<{ success: boolean; data: { stores: PublicStore[] } }> {
     const response = await apiClient.get('/buyer/stores/followed');
-    return response.data;
+    const root = response.data ?? {};
+    const payload = root.data ?? root;
+    const candidate = Array.isArray(payload) ? payload : payload?.stores ?? payload?.data?.stores;
+    const stores = Array.isArray(candidate)
+      ? candidate
+      : Array.isArray(candidate?.data)
+        ? candidate.data
+        : [];
+    return { success: response.data?.success ?? true, data: { stores } };
   }
 
   /**

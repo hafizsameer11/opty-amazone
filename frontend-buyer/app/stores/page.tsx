@@ -8,6 +8,7 @@ import { StoreService, type PublicStore } from '@/services/store-service';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 
 function StoreCard({ store }: { store: PublicStore }) {
   const bannerImageUrl = getFullImageUrl(store.banner_image_url || store.banner_image);
@@ -108,9 +109,11 @@ export default function StoresPage() {
     loadStores();
   }, [currentPage, search]);
 
-  const loadStores = async () => {
+  useLiveRefresh(() => loadStores(true), true, 60000);
+
+  const loadStores = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await StoreService.getAllStores({
         search: search || undefined,
         per_page: 12,
@@ -122,7 +125,7 @@ export default function StoresPage() {
     } catch (error) {
       console.error('Failed to load stores:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

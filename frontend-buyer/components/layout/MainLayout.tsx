@@ -22,7 +22,7 @@ export default function MainLayout({
     <div className="min-h-screen flex flex-col bg-gray-50">
       {showHeader && <Header />}
       
-      <main className="flex-1 pb-20 lg:pb-0">
+      <main className="min-w-0 flex-1 pb-24 lg:pb-0">
         {children}
       </main>
       

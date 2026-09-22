@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { orderService, type Order, type OrderItem } from '@/services/order-service';
 import OrderLineSelections from '@/components/orders/OrderLineSelections';
+import ReviewForm from '@/components/reviews/ReviewForm';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
@@ -242,6 +243,23 @@ export default function OrderDetailsModal({
                     {/* OTP Code Display */}
                     <DeliverySummary shipment={storeOrder} />
                     <OrderActions shipment={storeOrder} onUpdate={() => loadOrder(true)} />
+                    {storeOrder.status === 'delivered' && (
+                      <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3">
+                        <p className="text-sm font-semibold text-green-900">Review your completed purchase</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <ReviewForm type="store" id={storeOrder.store_id} storeOrderId={storeOrder.id} triggerLabel="Review Store" />
+                          {storeOrder.items.map((item: OrderItem) => (
+                            <ReviewForm
+                              key={`review-${item.id}`}
+                              type="product"
+                              id={item.product_id}
+                              orderItemId={item.id}
+                              triggerLabel={`Review ${item.product_name}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {storeOrder.delivery_code && (
                       <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-lg p-4 mb-4">
                         <div className="flex items-center gap-2 mb-2">
@@ -425,4 +443,3 @@ export default function OrderDetailsModal({
     </Modal>
   );
 }
-

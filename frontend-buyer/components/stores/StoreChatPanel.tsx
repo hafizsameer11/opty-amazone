@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
 import { getAxiosErrorMessage } from '@/lib/api-client';
@@ -11,6 +11,7 @@ import {
   storeChatService,
   type StoreChatMessage,
 } from '@/services/store-chat-service';
+import { orderService } from '@/services/order-service';
 
 interface StoreChatPanelProps {
   storeId: number;
@@ -19,6 +20,7 @@ interface StoreChatPanelProps {
 
 export default function StoreChatPanel({ storeId, storeName }: StoreChatPanelProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { isAuthenticated, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<StoreChatMessage[]>([]);
@@ -27,6 +29,7 @@ export default function StoreChatPanel({ storeId, storeName }: StoreChatPanelPro
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [deliveryPrompt, setDeliveryPrompt] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastMessageIdRef = useRef(0);
@@ -74,6 +77,24 @@ export default function StoreChatPanel({ storeId, storeName }: StoreChatPanelPro
       void loadChat();
     }
   }, [open, isAuthenticated, user?.role, loadChat]);
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'buyer' || searchParams.get('chat') !== '1') return;
+    setOpen(true);
+  }, [isAuthenticated, searchParams, user?.role]);
+
+  useEffect(() => {
+    const orderId = Number(searchParams.get('delivery_order_id'));
+    if (!isAuthenticated || user?.role !== 'buyer' || !Number.isFinite(orderId) || orderId <= 0) return;
+
+    void orderService.getStoreOrder(orderId).then((order) => {
+      if (Number(order.store_id) !== Number(storeId) || !order.delivery_code) return;
+      setDraft(`Delivery confirmation code for order #${order.id}: ${order.delivery_code}`);
+      setDeliveryPrompt(true);
+    }).catch(() => {
+      // The notification still opens the correct chat if the order has expired.
+    });
+  }, [isAuthenticated, searchParams, storeId, user?.role]);
 
   useEffect(() => {
     if (!open || !isAuthenticated || user?.role !== 'buyer') {
@@ -202,6 +223,11 @@ export default function StoreChatPanel({ storeId, storeName }: StoreChatPanelPro
           </p>
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-2">{error}</p>
+          )}
+          {deliveryPrompt && (
+            <p className="mb-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+              The seller requested your delivery confirmation code. Review the prepared message below and send it to the seller.
+            </p>
           )}
           <div
             ref={listRef}

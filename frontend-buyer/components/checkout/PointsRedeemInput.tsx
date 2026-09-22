@@ -93,8 +93,8 @@ export default function PointsRedeemInput({
     const discountAmount = appliedPoints / 100; // Assuming 100 points = €1
     return (
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-green-800">
                 Points Redeemed: {appliedPoints}
@@ -129,7 +129,7 @@ export default function PointsRedeemInput({
       <label className="block text-sm font-medium text-gray-700 mb-2">
         Redeem Points (Available: {balance.available.toFixed(0)})
       </label>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           type="number"
           value={pointsToRedeem}
@@ -141,7 +141,7 @@ export default function PointsRedeemInput({
             }
           }}
           placeholder={`Max: ${maxRedeemable.toFixed(0)} (€${maxDiscount.toFixed(2)})`}
-          className="flex-1"
+          className="w-full flex-1"
           min="0"
           max={maxRedeemable}
         />
@@ -150,6 +150,7 @@ export default function PointsRedeemInput({
           onClick={handleRedeem}
           disabled={loading || !pointsToRedeem || parseFloat(pointsToRedeem) <= 0}
           size="sm"
+          className="w-full sm:w-auto"
         >
           {loading ? 'Redeeming...' : 'Redeem'}
         </Button>

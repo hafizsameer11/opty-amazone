@@ -28,6 +28,10 @@ export interface StoreOrder {
   delivery_fee: number;
   total: number;
   discount_total?: number;
+  coupon_code?: string | null;
+  coupon_discount?: number;
+  coupon_shipping_discount?: number;
+  coupon_snapshot?: Record<string, unknown> | null;
   payment_status?: string;
   financial_version?: number;
   delivery_address_snapshot?: Record<string, string | number | null>;
@@ -71,7 +75,9 @@ export interface PlaceOrderData {
   delivery_address_id: number;
   payment_method?: 'card' | 'wallet';
   coupon_code?: string;
+  coupon_codes?: Record<string | number, string>;
   points_to_redeem?: number;
+  idempotency_key?: string;
 }
 
 export const orderService = {
@@ -119,4 +125,3 @@ export const orderService = {
     return res.data.data;
   },
 };
-

@@ -8,7 +8,7 @@ export default function LanguageSwitcher({
 }: {
   variant?: 'header' | 'dock';
 }) {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export default function LanguageSwitcher({
       : 'text-white hover:bg-white/20';
 
   return (
-    <div className={`${shell} notranslate`} role="group" aria-label="Language">
+    <div className={`${shell} notranslate`} role="group" aria-label={t('nav.language')}>
       <button
         type="button"
         onClick={() => setLanguage('en')}

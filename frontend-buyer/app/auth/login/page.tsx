@@ -1,19 +1,18 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Alert from '@/components/ui/Alert';
 import Link from 'next/link';
-import Image from 'next/image';
+import BuyerAuthShell, { BuyerAuthFeedback } from '@/components/auth/BuyerAuthShell';
+import BuyerAuthInput from '@/components/auth/BuyerAuthInput';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -23,137 +22,44 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-  });
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
 
   const onSubmit = async (data: LoginFormData) => {
     try {
       setIsLoading(true);
       setError('');
       await login(data);
-      // Redirect to the specified page or home
-      const redirect = searchParams.get('redirect') || '/';
-      router.push(redirect);
+      router.push(searchParams.get('redirect') || '/');
     } catch (err: any) {
-      // Prioritize field-specific errors over general message
-      const errorMessage = 
-        err.response?.data?.errors?.email?.[0] ||
-        err.response?.data?.errors?.password?.[0] ||
-        err.response?.data?.message ||
-        'Login failed. Please check your credentials.';
-      setError(errorMessage);
+      setError(err.response?.data?.errors?.email?.[0] || err.response?.data?.errors?.password?.[0] || err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        {/* Logo/Header */}
-        <div className="text-center mb-8">
-          <Image src="/vistaexpress-logo.png" alt="VistaExpress" width={300} height={150} className="mx-auto mb-2 h-20 w-auto object-contain" priority />
-          <p className="text-gray-600">Your trusted VistaExpress marketplace</p>
-        </div>
-
-        {/* Card */}
-        <div className="bg-white rounded-xl shadow-2xl border border-gray-200 p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Sign in to your account
-            </h2>
-            <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link href="/auth/register" className="font-semibold text-[#0066CC] hover:text-[#0052a3] transition-colors">
-                Create one
-              </Link>
-            </p>
-          </div>
-
-          <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-            {error && (
-              <Alert type="error" message={error} onClose={() => setError('')} />
-            )}
-
-            <div className="space-y-4">
-              <Input
-                label="Email Address"
-                type="email"
-                {...register('email')}
-                error={errors.email?.message}
-                placeholder="john@example.com"
-                autoComplete="email"
-                required
-              />
-
-              <Input
-                label="Password"
-                type="password"
-                {...register('password')}
-                error={errors.password?.message}
-                placeholder="••••••••"
-                autoComplete="current-password"
-                required
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-[#0066CC] focus:ring-[#0066CC] border-gray-300 rounded cursor-pointer"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer">
-                  Remember me
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <Link href="/auth/forgot-password" className="font-semibold text-[#0066CC] hover:text-[#0052a3] transition-colors">
-                  Forgot password?
-                </Link>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                isLoading={isLoading}
-                className="w-full"
-              >
-                Sign In
-              </Button>
-            </div>
-          </form>
-        </div>
+    <BuyerAuthShell eyebrow="Welcome back" title="See what’s waiting for you" description="Sign in to discover your saved items, follow your favorite stores, and keep every order within reach.">
+      <div className="mb-7 flex items-start justify-between gap-4">
+        <div><p className="text-lg font-bold text-slate-950">Sign in to your account</p><p className="mt-1 text-sm text-slate-500">Use the email linked to your VistaExpress account.</p></div>
+        <span className="hidden shrink-0 rounded-full bg-[#e5f7f4] px-3 py-1 text-xs font-bold text-[#087f8c] sm:inline-flex">Shop smarter</span>
       </div>
-    </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        {error && <BuyerAuthFeedback type="error" message={error} onClose={() => setError('')} />}
+        <BuyerAuthInput id="buyer-email" label="Email address" type="email" icon="mail" {...register('email')} error={errors.email?.message} placeholder="you@example.com" autoComplete="email" required />
+        <BuyerAuthInput id="buyer-password" label="Password" type="password" icon="lock" {...register('password')} error={errors.password?.message} placeholder="Enter your password" autoComplete="current-password" required />
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-600"><input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-[#087f8c] focus:ring-cyan-200" />Remember me</label>
+          <Link href="/auth/forgot-password" className="text-sm font-bold text-[#087f8c] hover:text-[#05616b]">Forgot password?</Link>
+        </div>
+        <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="mt-2 w-full !rounded-2xl !bg-[#087f8c] !py-3.5 hover:!bg-[#05616b]">Sign in</Button>
+      </form>
+      <div className="mt-7 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">New to VistaExpress? <Link href="/auth/choose" className="font-bold text-[#087f8c] hover:text-[#05616b]">Create an account</Link></div>
+    </BuyerAuthShell>
   );
 }
 
 export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    }>
-      <LoginForm />
-    </Suspense>
-  );
+  return <Suspense fallback={<main className="flex h-[100dvh] items-center justify-center bg-[#f2f7f8] text-slate-500">Loading your account…</main>}><LoginForm /></Suspense>;
 }

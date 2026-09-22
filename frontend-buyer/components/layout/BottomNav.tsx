@@ -68,18 +68,18 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 lg:hidden safe-area-bottom">
-      <div className="flex items-center justify-around h-16 px-2 max-w-md mx-auto">
+    <nav className="fixed bottom-3 left-3 right-3 z-40 mx-auto max-w-md rounded-2xl border border-slate-200 bg-white/95 shadow-[0_12px_30px_rgba(15,23,42,0.18)] backdrop-blur lg:hidden safe-area-bottom">
+      <div className="flex h-16 items-center justify-around gap-1 px-1.5">
         {navItems.map((item) => {
           const isCart = item.href === '/cart';
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+              className={`relative flex h-14 flex-1 flex-col items-center justify-center rounded-xl transition-colors ${
                 isActive(item.href)
-                  ? 'text-[#0066CC]'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-blue-50 text-[#0066CC]'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
               <div className="relative">
@@ -90,7 +90,7 @@ export default function BottomNav() {
                   </span>
                 )}
               </div>
-              <span className="text-xs mt-1 font-medium">{item.label}</span>
+              <span className="mt-1 text-[10px] font-bold">{item.label}</span>
             </Link>
           );
         })}

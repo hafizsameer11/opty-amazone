@@ -25,12 +25,12 @@ test('real buyer → seller → admin marketplace flow', async ({ browser, reque
   };
 
   await buyer.goto(buyerURL + '/profile/top-up');
-  await expect(buyer.getByText('Development testing mode:', { exact: false })).toBeVisible();
+  await expect(buyer.getByText('Wallet top-up', { exact: true })).toBeVisible();
   await buyer.getByRole('spinbutton').fill('200');
   await buyer.getByRole('button', { name: 'Top Up €200.00' }).click();
   await expect.poll(async () => (await get('buyer', '/buyer/wallet/balance')).balance).toBe(200);
   await expect(buyer).toHaveURL(buyerURL + '/profile/top-up');
-  expect((await get('buyer', '/buyer/wallet/transactions')).data[0].meta.payment_method).toBe('development');
+  expect((await get('buyer', '/buyer/wallet/transactions')).data[0].meta.payment_method).toBe('wallet_top_up');
 
   await buyer.goto(buyerURL + '/checkout');
   await expect(buyer.getByRole('button', { name: 'Place Order', exact: true })).toBeEnabled();

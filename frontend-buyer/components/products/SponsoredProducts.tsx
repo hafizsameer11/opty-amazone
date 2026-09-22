@@ -37,10 +37,10 @@ function SponsoredCard({ ad }: { ad: SponsoredAd }) {
         }
       } catch { /* Opening a product must not depend on tracking availability. */ }
       finally { window.location.assign(`/products/${ad.product.id}`); }
-    }} className="block rounded-xl border border-blue-100 bg-white p-4 shadow-sm focus-visible:outline-blue-600">
+    }} className="block min-w-0 rounded-xl border border-blue-100 bg-white p-3 shadow-sm focus-visible:outline-blue-600 sm:p-4">
     <span className="inline-block text-xs font-semibold text-slate-600 bg-slate-100 rounded px-2 py-1">Sponsored</span>
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={getFullImageUrl(ad.product.images?.[0] || '/file.svg')} alt={ad.product.name} className="h-36 w-full object-contain my-3" loading="lazy" />
+    <img src={getFullImageUrl(ad.product.images?.[0] || '/file.svg')} alt={ad.product.name} className="my-2 h-28 w-full object-contain sm:my-3 sm:h-36" loading="lazy" />
     <h3 className="text-sm font-semibold text-slate-900 line-clamp-2">{ad.product.name}</h3>
     <p className="text-blue-700 font-bold mt-2">€{Number(ad.product.price).toFixed(2)}</p>
   </Link>;
@@ -56,8 +56,8 @@ export default function SponsoredProducts({ placement, categoryId, query, exclud
     return () => { alive = false; };
   }, [placement, categoryId, query, excludeProductId]);
   if (!ads.length) return null;
-  return <section aria-label="Sponsored products" className="my-6 p-4 rounded-2xl bg-blue-50/60 border border-blue-100">
+  return <section aria-label="Sponsored products" className="my-5 rounded-2xl border border-blue-100 bg-blue-50/60 p-3 sm:my-6 sm:p-4">
     <div className="flex items-baseline justify-between mb-3"><h2 className="font-semibold text-slate-900">{placement === 'recommendations' ? 'Sponsored recommendations' : 'Sponsored products'}</h2><span className="text-xs text-slate-500">Ads</span></div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{ads.map(ad => <SponsoredCard key={ad.tracking_token} ad={ad} />)}</div>
+    <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3">{ads.map(ad => <SponsoredCard key={ad.tracking_token} ad={ad} />)}</div>
   </section>;
 }

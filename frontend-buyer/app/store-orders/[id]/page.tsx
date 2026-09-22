@@ -13,11 +13,14 @@ import Button from '@/components/ui/Button';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
+import ReviewForm from '@/components/reviews/ReviewForm';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function StoreOrderDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const [storeOrder, setStoreOrder] = useState<StoreOrder | null>(null);
   const [paying, setPaying] = useState(false);
   const [loadingOrder, setLoadingOrder] = useState(true);
@@ -121,6 +124,25 @@ export default function StoreOrderDetailsPage() {
             </span>
           </div>
 
+          {storeOrder.status === 'delivered' && (
+            <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4">
+              <h3 className="font-semibold text-green-900">Review your completed purchase</h3>
+              <p className="mt-1 text-sm text-green-800">Your delivery was confirmed. Share your experience with the store and products.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <ReviewForm type="store" id={storeOrder.store_id} storeOrderId={storeOrder.id} triggerLabel="Review Store" />
+                {storeOrder.items.map((item) => (
+                  <ReviewForm
+                    key={item.id}
+                    type="product"
+                    id={item.product_id}
+                    orderItemId={item.id}
+                    triggerLabel={`Review ${item.product_name}`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           <DeliverySummary shipment={storeOrder} />
           <OrderActions shipment={storeOrder} onUpdate={() => loadStoreOrder(true)} />
           {/* Delivery verification code */}
@@ -214,6 +236,18 @@ export default function StoreOrderDetailsPage() {
                 <span className="text-gray-600">Delivery Fee:</span>
                 <span className="font-semibold">€{Number(storeOrder.delivery_fee || 0).toFixed(2)}</span>
               </div>
+              {Number(storeOrder.coupon_discount || 0) > 0 && (
+                <div className="flex justify-between text-green-700">
+                  <span>{t('coupon.orderDiscount')} ({storeOrder.coupon_code}):</span>
+                  <span className="font-semibold">-€{Number(storeOrder.coupon_discount).toFixed(2)}</span>
+                </div>
+              )}
+              {Number(storeOrder.coupon_shipping_discount || 0) > 0 && (
+                <div className="flex justify-between text-green-700">
+                  <span>{t('coupon.shippingDiscount')} ({storeOrder.coupon_code}):</span>
+                  <span className="font-semibold">-€{Number(storeOrder.coupon_shipping_discount).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t pt-2 mt-2">
                 <span className="text-lg font-bold">Total:</span>
                 <span className="text-lg font-bold text-[#0066CC]">
@@ -236,4 +270,3 @@ export default function StoreOrderDetailsPage() {
     </div>
   );
 }
-

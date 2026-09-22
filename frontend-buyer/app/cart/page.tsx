@@ -91,11 +91,11 @@ export default function CartPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 w-full">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Shopping Cart</h1>
+    <div className="max-w-7xl mx-auto w-full px-3 py-4 sm:px-4 sm:py-8">
+        <h1 className="mb-5 text-2xl font-bold text-gray-900 sm:mb-6 sm:text-3xl">Shopping Cart</h1>
 
         {cart.items.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-8 text-center">
+          <div className="rounded-2xl bg-white p-6 text-center shadow sm:p-8">
             <p className="text-gray-600 mb-4">Your cart is empty. Start shopping to add items!</p>
             <Link
               href="/"
@@ -105,19 +105,19 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+            <div className="space-y-4 lg:col-span-2">
               {cart.breakdown?.map((store: any) => (
-                <div key={store.store_id} className="bg-white rounded-lg shadow p-6">
+                <div key={store.store_id} className="rounded-2xl bg-white p-3 shadow sm:p-6">
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">
                     {store.store_name}
                   </h2>
                   <div className="space-y-4">
                     {store.items.map((item: CartItem) => (
-                      <div key={item.id} className="flex gap-4 border-b border-gray-200 pb-4 last:border-0 hover:bg-gray-50/50 -mx-2 px-2 py-2 rounded-lg transition-colors">
+                      <div key={item.id} className="flex items-start gap-3 border-b border-gray-200 pb-4 last:border-0 hover:bg-gray-50/50 -mx-1 rounded-xl px-1 py-2 transition-colors sm:-mx-2 sm:gap-4 sm:px-2">
                         <Link
                           href={productPageHref(item)}
-                          className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-[#0066CC]/50 hover:shadow-md transition-all group cursor-pointer block"
+                          className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100 hover:ring-2 hover:ring-[#0066CC]/50 hover:shadow-md transition-all group cursor-pointer block sm:h-24 sm:w-24"
                           title="View product page"
                         >
                           {getFullImageUrl(
@@ -157,7 +157,7 @@ export default function CartPage() {
                             className="font-semibold text-gray-900 hover:text-[#0066CC] transition-colors text-left w-full group/item cursor-pointer block"
                             title="View product page"
                           >
-                            <span className="flex items-center gap-2">
+                            <span className="flex min-w-0 items-center gap-2">
                               {item.product.name}
                               <svg className="w-4 h-4 text-gray-400 opacity-0 group-hover/item:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -173,7 +173,7 @@ export default function CartPage() {
                           <p className="text-xs text-gray-500 mt-1">
                             Quantity: {item.quantity}
                           </p>
-                          <div className="flex items-center gap-4 mt-3">
+                          <div className="mt-3 flex flex-wrap items-center gap-3 sm:gap-4">
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() =>
@@ -219,8 +219,8 @@ export default function CartPage() {
                             </button>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-[#0066CC]">
+                        <div className="shrink-0 text-right">
+                          <p className="text-base font-bold text-[#0066CC] sm:text-lg">
                             €{(Number(item.price || 0) * item.quantity).toFixed(2)}
                           </p>
                         </div>
@@ -232,7 +232,7 @@ export default function CartPage() {
             </div>
 
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-md border border-gray-100 p-6 sticky top-4">
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-md lg:sticky lg:top-4 sm:p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Order Summary</h2>
                 <div className="space-y-2 mb-6">
                   <div className="flex justify-between">

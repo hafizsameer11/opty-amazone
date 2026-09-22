@@ -10,6 +10,7 @@ import { OrderSkeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import OrderDetailsModal from '@/components/orders/OrderDetailsModal';
 import Link from 'next/link';
+import ReviewForm from '@/components/reviews/ReviewForm';
 
 export default function OrdersPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -148,11 +149,11 @@ export default function OrdersPage() {
 
                 <div className="space-y-3">
                   {order.store_orders.map((storeOrder) => (
-                    <Link
+                    <div
                       key={storeOrder.id}
-                      href={`/store-orders/${storeOrder.id}`}
                       className="block border border-gray-200 rounded-lg p-4 hover:border-[#0066CC] transition-colors"
                     >
+                      <Link href={`/store-orders/${storeOrder.id}`} className="block">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <p className="font-semibold text-gray-900">{storeOrder.store.name}</p>
@@ -173,7 +174,22 @@ export default function OrdersPage() {
                           </p>
                         </div>
                       </div>
-                    </Link>
+                      </Link>
+                      {storeOrder.status === 'delivered' && (
+                        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+                          <ReviewForm type="store" id={storeOrder.store_id} storeOrderId={storeOrder.id} triggerLabel="Review Store" />
+                          {storeOrder.items.map((item) => (
+                            <ReviewForm
+                              key={item.id}
+                              type="product"
+                              id={item.product_id}
+                              orderItemId={item.id}
+                              triggerLabel={`Review ${item.product_name}`}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
 
