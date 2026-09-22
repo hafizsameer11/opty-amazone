@@ -138,7 +138,7 @@ class CommerceCampaignTest extends TestCase
     {
         $c=$this->discount(['usage_limit'=>1,'per_buyer_limit'=>1]); Sanctum::actingAs($this->buyer);
         $this->postJson('/api/buyer/cart/items',['product_id'=>$this->product->id,'quantity'=>2])->assertOk()->assertJsonPath('data.price','80.00');
-        $this->postJson('/api/buyer/checkout/preview')->assertOk()->assertJsonPath('data.items_total',160);
+        $this->postJson('/api/buyer/checkout/preview')->assertOk()->assertJsonPath('data.items_total','160.00');
         $c->update(['discount_value'=>30]);
         $country=Country::create(['name'=>'Germany','code'=>'DE','is_active'=>true]);
         $address=UserAddress::create(['user_id'=>$this->buyer->id,'label'=>'Home','full_name'=>'Buyer','phone'=>'123456789','address_line_1'=>'Test street','country_id'=>$country->id,'city'=>'Berlin','postal_code'=>'10000']);
@@ -155,7 +155,55 @@ class CommerceCampaignTest extends TestCase
         $c=$this->discount(); Sanctum::actingAs($this->buyer);
         $this->postJson('/api/buyer/cart/items',['product_id'=>$this->product->id,'quantity'=>1])->assertOk(); $this->travel(2)->days();
         $this->getJson('/api/buyer/cart')->assertOk()->assertJsonPath('data.total',100);
-        $this->postJson('/api/buyer/checkout/preview')->assertOk()->assertJsonPath('data.items_total',100);
+        $this->postJson('/api/buyer/checkout/preview')->assertOk()->assertJsonPath('data.items_total','100.00');
+        $this->assertSame('expired', $c->fresh()->status);
+    }
+
+    public function test_catalog_and_cart_return_current_campaign_price_and_selected_frame_size(): void
+    {
+        $variant = ProductVariant::create([
+            'product_id' => $this->product->id,
+            'color_name' => 'Blue',
+            'color_code' => '#0b67c2',
+            'price' => 120,
+            'stock_quantity' => 10,
+            'stock_status' => 'in_stock',
+            'is_default' => true,
+        ]);
+        $size = FrameSize::create([
+            'product_id' => $this->product->id,
+            'product_variant_id' => $variant->id,
+            'size_label' => '52-18-140',
+            'lens_width' => 52,
+            'bridge_width' => 18,
+            'temple_length' => 140,
+            'price' => 130,
+            'stock_quantity' => 8,
+            'stock_status' => 'in_stock',
+        ]);
+        $this->discount(['discount_value' => 10]);
+
+        $this->getJson('/api/buyer/product/get-all')
+            ->assertOk()
+            ->assertJsonPath('data.data.0.pricing.discounted_price', 90)
+            ->assertJsonPath('data.data.0.variants.0.pricing.discounted_price', 108);
+
+        Sanctum::actingAs($this->buyer);
+        $this->postJson('/api/buyer/cart/items', [
+            'product_id' => $this->product->id,
+            'variant_id' => $variant->id,
+            'frame_size_id' => $size->id,
+            'quantity' => 1,
+        ])->assertOk()
+            ->assertJsonPath('data.frame_size.size_label', '52-18-140')
+            ->assertJsonPath('data.product_variant.color_name', 'Blue')
+            ->assertJsonPath('data.product_variant.frame_size.size_label', '52-18-140')
+            ->assertJsonPath('data.price', '117.00');
+
+        $this->getJson('/api/buyer/cart')
+            ->assertOk()
+            ->assertJsonPath('data.items.0.frame_size.size_label', '52-18-140')
+            ->assertJsonPath('data.items.0.campaign_pricing.discounted_price', 117);
     }
     public function test_scheduler_is_idempotent_and_disables_invalid_products(): void
     {
@@ -232,14 +280,14 @@ class CommerceCampaignTest extends TestCase
     public function test_seller_and_admin_lifecycle_controls_are_available_before_a_schedule_starts(): void
     {
         $future = now()->addDay()->toIso8601String();
-        $banner = $this->banner(['starts_at' => $future]);
+        $banner = $this->banner(['starts_at' => $future, 'ends_at' => now()->addDays(2)->toIso8601String()]);
         Sanctum::actingAs($this->seller);
         $this->postJson('/api/seller/banner-campaigns/'.$banner->id.'/actions', ['action' => 'pause'])->assertOk()->assertJsonPath('data.status', 'paused');
         $this->postJson('/api/seller/banner-campaigns/'.$banner->id.'/actions', ['action' => 'resume'])->assertOk()->assertJsonPath('data.status', 'scheduled');
         $this->postJson('/api/seller/banner-campaigns/'.$banner->id.'/actions', ['action' => 'delete'])->assertOk();
         $this->assertSoftDeleted('banner_campaigns', ['id' => $banner->id]);
 
-        $discount = $this->discount(['starts_at' => $future]);
+        $discount = $this->discount(['starts_at' => $future, 'ends_at' => now()->addDays(2)->toIso8601String()]);
         Sanctum::actingAs($this->admin);
         $this->postJson('/api/admin/discount-campaigns/'.$discount->id.'/actions', ['action' => 'pause'])->assertOk()->assertJsonPath('data.status', 'paused');
         $this->postJson('/api/admin/discount-campaigns/'.$discount->id.'/actions', ['action' => 'resume'])->assertOk()->assertJsonPath('data.status', 'scheduled');

@@ -24,7 +24,7 @@ class BuyerCartController extends Controller
     {
         $user = Auth::user();
         $cart = Cart::where('user_id', $user->id)
-            ->with(['items.product', 'items.store', 'items.variant'])
+            ->with(['items.product', 'items.store', 'items.variant', 'items.frameSize'])
             ->first();
 
         if (!$cart) {
@@ -33,7 +33,7 @@ class BuyerCartController extends Controller
 
         app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
         // Group items by store
-        $itemsByStore = $cart->items()->with('product', 'store', 'variant')->get()->groupBy('store_id');
+        $itemsByStore = $cart->items()->with('product', 'store', 'variant', 'frameSize')->get()->groupBy('store_id');
         $breakdown = [];
 
         foreach ($itemsByStore as $storeId => $items) {
@@ -111,6 +111,7 @@ class BuyerCartController extends Controller
         }
 
         $variant = null;
+        $frameSize = null;
         $price = $product->price;
         $stockQuantity = $product->stock_quantity;
         $stockStatus = $product->stock_status;
@@ -234,7 +235,15 @@ class BuyerCartController extends Controller
                     'store_id' => $product->store_id,
                     'quantity' => $request->quantity,
                     'price' => $price,
-                    'product_variant' => $request->product_variant,
+                    // Keep a readable selection snapshot for carts and order
+                    // history. Relations provide the live data, while this
+                    // snapshot still describes the chosen colour/size if an
+                    // option is later changed by the seller.
+                    'product_variant' => $this->selectionSnapshot(
+                        $request->input('product_variant'),
+                        $variant,
+                        $frameSize,
+                    ),
                     'lens_configuration' => $request->lens_configuration,
                     'prescription_data' => $request->prescription_data,
                     // New specific fields
@@ -275,7 +284,7 @@ class BuyerCartController extends Controller
             DB::commit();
 
             app(\App\Services\Ads\AdTrackingService::class)->trackCart($request, (int) $product->id);
-            return ResponseHelper::success($item->load('product', 'store', 'variant'), 'Item added to cart');
+            return ResponseHelper::success($item->load('product', 'store', 'variant', 'frameSize'), 'Item added to cart');
         } catch (\Exception $e) {
             DB::rollBack();
             return ResponseHelper::error($e->getMessage());
@@ -296,8 +305,9 @@ class BuyerCartController extends Controller
         
         $item = $cart->items()->findOrFail($id);
         $product = $item->product;
+        $availableStock = $this->availableStockForItem($item, $product);
 
-        if ($product->stock_quantity < $request->quantity) {
+        if ($availableStock < $request->quantity) {
             return ResponseHelper::error('Insufficient stock', null, 400);
         }
 
@@ -305,7 +315,57 @@ class BuyerCartController extends Controller
         app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
         $item->refresh();
 
-        return ResponseHelper::success($item->load('product', 'store'), 'Cart item updated');
+        return ResponseHelper::success($item->load('product', 'store', 'variant', 'frameSize'), 'Cart item updated');
+    }
+
+    /** Persist human-readable option details without trusting client values. */
+    private function selectionSnapshot(?array $snapshot, ?ProductVariant $variant, ?FrameSize $frameSize): ?array
+    {
+        $snapshot ??= [];
+
+        if ($variant) {
+            $snapshot['color_name'] = $variant->color_name;
+            $snapshot['color_code'] = $variant->color_code;
+        }
+
+        if ($frameSize) {
+            $snapshot['frame_size'] = [
+                'id' => $frameSize->id,
+                'size_label' => $frameSize->size_label,
+                'lens_width' => $frameSize->lens_width,
+                'bridge_width' => $frameSize->bridge_width,
+                'temple_length' => $frameSize->temple_length,
+            ];
+        }
+
+        return $snapshot === [] ? null : $snapshot;
+    }
+
+    /**
+     * Quantity edits must respect the option that was actually added, not the
+     * parent product's aggregate stock. Exact numbers remain server-only.
+     */
+    private function availableStockForItem(CartItem $item, Product $product): int
+    {
+        if ($item->frame_size_id) {
+            return (int) FrameSize::where('product_id', $product->id)
+                ->where('id', $item->frame_size_id)
+                ->value('stock_quantity');
+        }
+
+        if ($item->variant_id) {
+            return (int) ProductVariant::where('product_id', $product->id)
+                ->where('id', $item->variant_id)
+                ->value('stock_quantity');
+        }
+
+        if ($item->product_size_volume_id) {
+            return (int) ProductSizeVolume::where('product_id', $product->id)
+                ->where('id', $item->product_size_volume_id)
+                ->value('stock_quantity');
+        }
+
+        return (int) $product->stock_quantity;
     }
 
     /**

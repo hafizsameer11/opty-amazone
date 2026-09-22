@@ -30,8 +30,14 @@ class BannerDeliveryService
     {
         abort_unless(in_array($placement,self::PLACEMENTS),404);
         $visitor = $this->visitor($request);
+        $now = now('UTC')->toImmutable();
+        app(CommerceCampaignLifecycleService::class)->refreshForStores(
+            BannerCampaign::query()->where('type', 'organic')->where('placement', $placement)->pluck('store_id')->all(),
+            $now,
+        );
+
         $all = BannerCampaign::with('store','creatives')->where('type','organic')->where('approval_status','approved')
-            ->whereIn('status',['active','scheduled'])->where('starts_at','<=',now())->where('ends_at','>',now())->where('placement',$placement)->get();
+            ->where('status', 'active')->where('starts_at','<=',$now)->where('ends_at','>',$now)->where('placement',$placement)->get();
         // Rotate fairly across stores; a store can occupy at most one slot per placement.
         $all = $all->filter(fn ($c) => $this->eligible($c)
             && (empty($c->targeting['category_id']) || (int) $c->targeting['category_id'] === (int) $request->input('category_id'))
@@ -45,7 +51,7 @@ class BannerDeliveryService
             $nonce = (string) Str::uuid();
             $token = Crypt::encryptString(json_encode(['campaign'=>$c->id,'creative'=>$creative->id,'revision'=>$c->revision,
                 'visitor'=>$visitor,'nonce'=>$nonce,'expires'=>now()->addMinutes(30)->timestamp,'placement'=>$placement]));
-            $out[] = ['id'=>$c->id,'name'=>$c->name,'placement'=>$placement,'creative'=>$creative,
+            $out[] = ['id'=>$c->id,'name'=>$c->name,'placement'=>$placement,'ends_at'=>$c->ends_at->utc()->toISOString(),'creative'=>$creative,
                 'destination'=>$this->destination->resolve($c),'tracking_token'=>$token];
             if (count($out) >= ($placement === 'homepage_hero' ? 1 : 6)) { break; }
         }

@@ -3,7 +3,9 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 
-\Illuminate\Support\Facades\Schedule::call(fn () => app(\App\Jobs\RefreshCommerceCampaigns::class)->handle())->name('refresh-commerce-campaigns')->everyMinute()->withoutOverlapping();
+// `everySecond` is honoured by `php artisan schedule:work`; a conventional
+// once-per-minute `schedule:run` cron still executes the task safely each run.
+\Illuminate\Support\Facades\Schedule::call(fn () => app(\App\Jobs\RefreshCommerceCampaigns::class)->handle())->name('refresh-commerce-campaigns')->everySecond()->withoutOverlapping();
 \Illuminate\Support\Facades\Schedule::call(fn () => app(\App\Jobs\AggregateCommerceCampaigns::class)->handle())->name('aggregate-commerce-campaigns')->everyFiveMinutes()->withoutOverlapping();
 Artisan::command('campaigns:import-legacy {--apply}', function () {
     if (!$this->option('apply')) { $this->info('Read-only: run with --apply to import preserved legacy snapshots. Product prices and legacy records are never modified.'); return; }

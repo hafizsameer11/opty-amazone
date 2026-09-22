@@ -4,6 +4,7 @@ namespace App\Services\Ads;
 
 use App\Models\AdCampaign;
 use App\Models\AdEvent;
+use App\Services\Campaigns\DiscountPricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
@@ -47,8 +48,16 @@ class AdDeliveryService
                 'placement' => $placement, 'location' => $location, 'issued' => now()->timestamp,
                 'expires' => now()->addMinutes(config('ads.token_minutes'))->timestamp];
 
+            // Ads are catalog cards too. Use the same central price quote as
+            // every other Buyer surface; never fall back to a stale product
+            // price just because the item is sponsored.
+            $product = app(DiscountPricingService::class)->product(
+                $c->product,
+                $request->user('sanctum')?->id,
+            );
+
             // Public payload deliberately excludes seller financial and moderation data.
-            return ['product' => $c->product->only(['id', 'name', 'images', 'price', 'category_id']),
+            return ['product' => collect($product)->only(['id', 'name', 'images', 'price', 'compare_at_price', 'pricing', 'category_id'])->all(),
                 'label' => 'Sponsored', 'placement' => $placement,
                 'tracking_token' => Crypt::encryptString(json_encode($claims))];
         })->values()->all();

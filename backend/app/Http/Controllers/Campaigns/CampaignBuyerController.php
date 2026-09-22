@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Campaigns;
 use App\Http\Controllers\Controller;
 use App\Helpers\ResponseHelper as R;
 use App\Models\{Product, DiscountCampaign};
-use App\Services\Campaigns\{DiscountPricingService, BannerDeliveryService};
+use App\Services\Campaigns\{CommerceCampaignLifecycleService, DiscountPricingService, BannerDeliveryService};
 use Illuminate\Http\Request;
 
 class CampaignBuyerController extends Controller
@@ -16,8 +16,10 @@ class CampaignBuyerController extends Controller
         $d=$r->validate(['quantity'=>'sometimes|integer|min:1|max:100000','selection'=>'sometimes|array']);
         return R::success($s->quote([['product'=>$product,'quantity'=>$d['quantity'] ?? 1,'selection'=>$d['selection'] ?? []]],$r->user('sanctum')?->id)[0]);
     }
-    public function discount(Request $r, DiscountCampaign $campaign, DiscountPricingService $s)
+    public function discount(Request $r, DiscountCampaign $campaign, DiscountPricingService $s, CommerceCampaignLifecycleService $lifecycle)
     {
+        $lifecycle->refreshForStores([(int) $campaign->store_id]);
+        $campaign->refresh()->load(['products', 'categories', 'variants']);
         abort_unless(in_array($campaign->status,['active','scheduled']) && !$campaign->starts_at->isFuture() && $campaign->ends_at->isFuture() && !$campaign->review_reason,404);
         $products=Product::where('store_id',$campaign->store_id)->visibleToBuyers()->get()->filter(function ($p) use ($campaign,$s) {
             return $campaign->scope === 'variants' ? $campaign->variants->contains('product_id',$p->id) : $s->matches($campaign,$p,[]);

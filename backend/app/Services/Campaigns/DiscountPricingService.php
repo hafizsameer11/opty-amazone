@@ -8,7 +8,10 @@ use Illuminate\Validation\ValidationException;
 
 class DiscountPricingService
 {
-    public function __construct(private ConfigurationPriceService $base) {}
+    public function __construct(
+        private ConfigurationPriceService $base,
+        private CommerceCampaignLifecycleService $lifecycle,
+    ) {}
 
     public function matches(DiscountCampaign $c, Product $p, array $selection): bool
     {
@@ -23,12 +26,25 @@ class DiscountPricingService
     }
 
     /** Minimums apply to the eligible store lines, before coupon calculation. */
-    public function quote(array $lines, ?int $buyerId = null, bool $lock = false): array
+    public function quote(array $lines, ?int $buyerId = null, bool $lock = false, bool $refreshLifecycle = true): array
     {
-        $storeIds = array_unique(array_map(fn ($l) => $l['product']->store_id, $lines));
+        if ($lines === []) {
+            return [];
+        }
+
+        $storeIds = array_values(array_unique(array_map(fn ($l) => (int) $l['product']->store_id, $lines)));
+        foreach ($lines as $line) {
+            $line['product']->loadMissing('store');
+        }
+
+        $now = now('UTC')->toImmutable();
+        if ($refreshLifecycle) {
+            $this->lifecycle->refreshForStores($storeIds, $now);
+        }
+
         $q = DiscountCampaign::with(['products', 'categories', 'variants'])->whereIn('store_id', $storeIds)
-            ->whereIn('status', ['active', 'scheduled'])->whereNull('review_reason')
-            ->where('starts_at', '<=', now('UTC'))->where('ends_at', '>', now('UTC'))->orderBy('id');
+            ->where('status', 'active')->whereNull('review_reason')
+            ->where('starts_at', '<=', $now)->where('ends_at', '>', $now)->orderBy('id');
         if ($lock) { $q->lockForUpdate(); }
         $campaigns = $q->get()->filter(function ($c) use ($buyerId, $lock) {
             if ($c->usage_limit && $c->usage_count >= $c->usage_limit) { return false; }
@@ -111,7 +127,7 @@ class DiscountPricingService
             $item->forceFill(['price' => $price['discounted_price'], 'original_price' => $price['original_price'],
                 'campaign_discount_amount' => $price['discount_amount'], 'campaign_pricing' => $price])->save();
         }
-        $cart->unsetRelation('items'); $cart->load('items.product', 'items.store', 'items.variant');
+        $cart->unsetRelation('items'); $cart->load('items.product', 'items.store', 'items.variant', 'items.frameSize');
     }
 
     /** Called in the same transaction as locked repricing and order creation. */
@@ -152,13 +168,13 @@ class DiscountPricingService
                 if (isset($variant['is_active']) && !$variant['is_active']) { unset($data[$relation][$i]); continue; }
                 $selection = [$key => $variant['id']];
                 if ($key === 'frame_size_id') { $selection['variant_id'] = $variant['product_variant_id']; }
-                $q = $this->quote([['product' => $product, 'selection' => $selection]], $buyerId)[0];
+                $q = $this->quote([['product' => $product, 'selection' => $selection]], $buyerId, false, false)[0];
                 $data[$relation][$i]['pricing'] = $q; $data[$relation][$i]['price'] = $q['discounted_price'];
             }
             if (isset($data[$relation])) { $data[$relation] = array_values($data[$relation]); }
         }
         foreach ($data['contact_lens_unit_config']['packs'] ?? [] as $i => $pack) {
-            $q = $this->quote([['product' => $product, 'selection' => ['contact_lens_pack_quantity' => $pack['quantity']]]], $buyerId)[0];
+            $q = $this->quote([['product' => $product, 'selection' => ['contact_lens_pack_quantity' => $pack['quantity']]]], $buyerId, false, false)[0];
             $data['contact_lens_unit_config']['packs'][$i]['price'] = $q['discounted_price'];
             $data['contact_lens_unit_config']['packs'][$i]['pricing'] = $q;
         }
