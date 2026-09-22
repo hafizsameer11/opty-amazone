@@ -4,6 +4,8 @@ import type {
   StoreSocialLink,
   StoreUser,
   StoreStatistic,
+  StoreFollower,
+  StoreFollowersPagination,
   UpdateStoreData,
   CreateSocialLinkData,
   InviteUserData,
@@ -225,6 +227,15 @@ export class StoreService {
     };
   }> {
     const response = await apiClient.get('/seller/store/dashboard');
+    return response.data;
+  }
+
+  /** Get people following the authenticated seller's store. */
+  static async getFollowers(params?: { page?: number; per_page?: number }): Promise<{
+    success: boolean;
+    data: { followers: StoreFollower[]; pagination: StoreFollowersPagination };
+  }> {
+    const response = await apiClient.get('/seller/store/followers', { params });
     return response.data;
   }
 

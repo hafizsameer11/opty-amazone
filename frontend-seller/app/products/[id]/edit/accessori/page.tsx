@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import ProductEditShell from '@/components/layout/ProductEditShell';
 import {
   productService,
@@ -21,6 +22,7 @@ export default function EditAccessoriProductPage() {
   const params = useParams();
   const router = useRouter();
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const productId = parseInt(String(params.id), 10);
 
   const [pageLoading, setPageLoading] = useState(true);
@@ -49,7 +51,7 @@ export default function EditAccessoriProductPage() {
         }
         setFormData(productToEditFormData(p));
       } catch {
-        if (!cancelled) setError('Failed to load product');
+        if (!cancelled) setError(t('products.loadFailed'));
       } finally {
         if (!cancelled) setPageLoading(false);
       }
@@ -67,13 +69,13 @@ export default function EditAccessoriProductPage() {
     setSaving(true);
     try {
       await productService.update(productId, formData);
-      setSuccess('Product updated successfully');
+      setSuccess(t('products.updated'));
     } catch (err: any) {
       setError(
         err.response?.data?.errors?.name?.[0] ||
           err.response?.data?.errors?.sku?.[0] ||
           err.response?.data?.message ||
-          'Failed to update product'
+            t('products.updateFailed')
       );
     } finally {
       setSaving(false);
@@ -129,7 +131,7 @@ export default function EditAccessoriProductPage() {
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.basicInformation')}</h2>
           <div className="space-y-4">
             <Input
               label="Product Name *"
@@ -139,7 +141,7 @@ export default function EditAccessoriProductPage() {
             />
             <Input label="SKU" value={formData.sku} disabled className="bg-gray-100" />
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Description</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">{t('form.description')}</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -157,7 +159,7 @@ export default function EditAccessoriProductPage() {
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Pricing & Inventory</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.pricingInventory')}</h2>
           <div className="grid grid-cols-3 gap-4">
             <Input
               label="Price *"
@@ -207,7 +209,7 @@ export default function EditAccessoriProductPage() {
               required
             />
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Stock Status *</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">{t('form.stockStatus')} *</label>
               <select
                 value={formData.stock_status}
                 onChange={(e) =>
@@ -216,16 +218,16 @@ export default function EditAccessoriProductPage() {
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
                 required
               >
-                <option value="in_stock">In Stock</option>
-                <option value="out_of_stock">Out of Stock</option>
-                <option value="backorder">Backorder</option>
+                <option value="in_stock">{t('form.inStock')}</option>
+                <option value="out_of_stock">{t('form.outOfStock')}</option>
+                <option value="backorder">{t('form.backorder')}</option>
               </select>
             </div>
           </div>
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Images</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.images')}</h2>
           <ProductImageUpload
             images={formData.images || []}
             onChange={(images) => setFormData({ ...formData, images })}
@@ -234,12 +236,12 @@ export default function EditAccessoriProductPage() {
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Options</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.options')}</h2>
           <SimplifiedProductOptions formData={formData} setFormData={patchFormData} productType="accessory" />
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Status</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('common.status')}</h2>
           <div className="space-y-2">
             <label className="flex items-center">
               <input
@@ -248,7 +250,7 @@ export default function EditAccessoriProductPage() {
                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                 className="mr-2"
               />
-              <span>Active</span>
+              <span>{t('form.active')}</span>
             </label>
             <label className="flex items-center">
               <input
@@ -257,17 +259,17 @@ export default function EditAccessoriProductPage() {
                 onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
                 className="mr-2"
               />
-              <span>Featured</span>
+              <span>{t('products.featured')}</span>
             </label>
           </div>
         </div>
 
         <div className="flex gap-4 pt-4">
           <Button type="submit" isLoading={saving} className="flex-1">
-            Save product
+            {t('form.updateProduct')}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.push('/products')}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       </form>

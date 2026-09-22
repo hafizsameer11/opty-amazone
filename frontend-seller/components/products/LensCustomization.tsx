@@ -1,6 +1,7 @@
 'use client';
 
 import { CreateProductData } from '@/services/product-service';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface LensCustomizationProps {
   formData: CreateProductData;
@@ -27,6 +28,7 @@ const TREATMENT_OPTIONS = [
 ];
 
 export default function LensCustomization({ formData, setFormData, compact = false }: LensCustomizationProps) {
+  const { t } = useLanguage();
   const lensIndexOptions = Array.isArray(formData.lens_index_options) 
     ? formData.lens_index_options 
     : (formData.lens_index_options ? [formData.lens_index_options] : []);
@@ -59,15 +61,15 @@ export default function LensCustomization({ formData, setFormData, compact = fal
   return (
     <div className={`${box} bg-slate-50 rounded-lg border border-gray-200`}>
       <div>
-        <h3 className={`${title} mb-0.5`}>Lens options for buyers</h3>
+        <h3 className={`${title} mb-0.5`}>{t('form.lensOptionsForBuyers')}</h3>
         <p className={compact ? 'text-[11px] text-gray-500' : 'text-sm text-gray-600'}>
-          Index and treatments available when they customize lenses (if enabled for your category).
+          {t('form.lensOptionsDescription')}
         </p>
       </div>
 
       <div>
         <label className={`block ${compact ? 'text-xs' : 'text-sm'} font-semibold text-gray-700 mb-2`}>
-          Lens index (thickness)
+          {t('form.lensIndexThickness')}
         </label>
         <div className={`grid ${grid}`}>
           {LENS_INDEX_OPTIONS.map((option) => (
@@ -85,7 +87,7 @@ export default function LensCustomization({ formData, setFormData, compact = fal
                 onChange={() => toggleLensIndex(option.value)}
                 className="w-3.5 h-3.5 text-[#0066CC] border-gray-300 rounded shrink-0"
               />
-              <span className="font-medium text-gray-700 leading-tight">{option.label}</span>
+              <span className="font-medium text-gray-700 leading-tight">{t(option.label)}</span>
             </label>
           ))}
         </div>
@@ -93,7 +95,7 @@ export default function LensCustomization({ formData, setFormData, compact = fal
 
       <div>
         <label className={`block ${compact ? 'text-xs' : 'text-sm'} font-semibold text-gray-700 mb-2`}>
-          Lens treatments
+          {t('form.lensTreatments')}
         </label>
         <div className={`grid ${grid}`}>
           {TREATMENT_OPTIONS.map((option) => (
@@ -111,7 +113,7 @@ export default function LensCustomization({ formData, setFormData, compact = fal
                 onChange={() => toggleTreatment(option.value)}
                 className="w-3.5 h-3.5 text-[#0066CC] border-gray-300 rounded shrink-0"
               />
-              <span className="font-medium text-gray-700 leading-tight">{option.label}</span>
+              <span className="font-medium text-gray-700 leading-tight">{t(option.label)}</span>
             </label>
           ))}
         </div>
@@ -119,7 +121,7 @@ export default function LensCustomization({ formData, setFormData, compact = fal
 
       <div>
         <label className={`block ${compact ? 'text-xs' : 'text-sm'} font-semibold text-gray-700 mb-1`}>
-          Lens type note (optional)
+          {t('form.lensTypeNote')}
         </label>
         <textarea
           value={formData.lens_type || ''}
@@ -128,7 +130,7 @@ export default function LensCustomization({ formData, setFormData, compact = fal
             compact ? 'px-2 py-1.5 text-sm' : 'px-4 py-3 border-2'
           }`}
           rows={compact ? 2 : 2}
-          placeholder="e.g. Single vision, progressive"
+          placeholder={t('e.g. Single vision, progressive')}
         />
       </div>
     </div>

@@ -6,11 +6,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import Link from 'next/link';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type GuideSection = 'overview' | 'category-lens' | 'products' | 'orders' | 'store' | 'all-menus';
 
 export default function GuidePage() {
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<GuideSection>('overview');
 
@@ -25,7 +27,7 @@ export default function GuidePage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('guide.loading')}</p>
         </div>
       </div>
     );
@@ -36,39 +38,39 @@ export default function GuidePage() {
   }
 
   const sections = [
-    { id: 'overview' as GuideSection, name: 'Overview', icon: '📚' },
-    { id: 'category-lens' as GuideSection, name: 'Lens Configuration', icon: '👓' },
-    { id: 'products' as GuideSection, name: 'Products', icon: '📦' },
-    { id: 'orders' as GuideSection, name: 'Orders', icon: '📋' },
-    { id: 'store' as GuideSection, name: 'Store Settings', icon: '🏪' },
-    { id: 'all-menus' as GuideSection, name: 'All Menu Items', icon: '📑' },
+    { id: 'overview' as GuideSection, name: t('guide.overview'), icon: '📚' },
+    { id: 'category-lens' as GuideSection, name: t('guide.categoryLens'), icon: '👓' },
+    { id: 'products' as GuideSection, name: t('guide.products'), icon: '📦' },
+    { id: 'orders' as GuideSection, name: t('guide.orders'), icon: '📋' },
+    { id: 'store' as GuideSection, name: t('guide.store'), icon: '🏪' },
+    { id: 'all-menus' as GuideSection, name: t('guide.allMenus'), icon: '📑' },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex">
+    <div className="seller-guide-page min-h-screen overflow-x-hidden bg-gray-50">
+      <div className="flex min-w-0">
         <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
           <Header />
-          <main className="flex-1 overflow-y-auto">
-            <div className="py-6">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <main className="min-w-0 flex-1 overflow-y-auto">
+            <div className="py-3 sm:py-6">
+              <div className="mx-auto min-w-0 max-w-7xl px-3 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-[#0066CC] to-[#0052A3] rounded-t-lg p-8 text-white">
-                  <h1 className="text-4xl font-bold mb-2">Seller Dashboard Documentation</h1>
-                  <p className="text-blue-100 text-lg">Complete guide to all features and how to use them effectively</p>
+                <div className="rounded-t-2xl bg-gradient-to-r from-[#0066CC] to-[#0052A3] p-4 text-white sm:rounded-t-lg sm:p-8">
+                  <h1 className="mb-1 text-2xl font-bold sm:mb-2 sm:text-4xl">{t('guide.title')}</h1>
+                  <p className="text-sm text-blue-100 sm:text-lg">{t('guide.subtitle')}</p>
                 </div>
 
-                <div className="bg-white rounded-b-lg shadow-lg">
+                <div className="rounded-b-2xl bg-white shadow-sm sm:rounded-b-lg sm:shadow-lg">
                   {/* Navigation Tabs */}
                   <div className="border-b border-gray-200">
-                    <nav className="flex overflow-x-auto px-6" aria-label="Tabs">
+                    <nav className="flex min-w-0 overflow-x-auto px-2 sm:px-6" aria-label={t('guide.tabs')}>
                       {sections.map((section) => (
                         <button
                           key={section.id}
                           onClick={() => setActiveSection(section.id)}
                           className={`
-                            flex items-center gap-2 px-4 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+                            flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-xs font-medium transition-colors whitespace-nowrap sm:px-4 sm:py-4 sm:text-sm
                             ${
                               activeSection === section.id
                                 ? 'border-[#0066CC] text-[#0066CC]'
@@ -84,53 +86,53 @@ export default function GuidePage() {
                   </div>
 
                   {/* Content Area */}
-                  <div className="p-8">
+                  <div className="seller-guide-content min-w-0 p-4 sm:p-8">
                     {/* Overview Section */}
                     {activeSection === 'overview' && (
                       <div className="space-y-6">
                         <div>
-                          <h2 className="text-3xl font-bold text-gray-900 mb-4">Welcome to Seller Dashboard</h2>
+                          <h2 className="text-3xl font-bold text-gray-900 mb-4">{t('guide.welcome')}</h2>
                           <p className="text-lg text-gray-700 mb-6">
-                            This comprehensive guide will help you understand and use all features of the seller dashboard effectively.
+                            {t('guide.welcomeDescription')}
                           </p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded-lg">
-                            <h3 className="text-xl font-semibold text-gray-900 mb-3">Getting Started</h3>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-3">{t('guide.gettingStarted')}</h3>
                             <ul className="space-y-2 text-gray-700">
-                              <li>• Complete your store profile setup</li>
-                              <li>• Configure lens options for your categories</li>
-                              <li>• Add your first products</li>
-                              <li>• Set up shipping and payment methods</li>
+                              <li>• {t('Complete your store profile setup')}</li>
+                              <li>• {t('Configure lens options for your categories')}</li>
+                              <li>• {t('Add your first products')}</li>
+                              <li>• {t('Set up shipping and payment methods')}</li>
                             </ul>
                           </div>
 
                           <div className="bg-green-50 border-l-4 border-green-400 p-6 rounded-lg">
-                            <h3 className="text-xl font-semibold text-gray-900 mb-3">Key Features</h3>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-3">{t('guide.keyFeatures')}</h3>
                             <ul className="space-y-2 text-gray-700">
-                              <li>• Category-specific lens configuration</li>
-                              <li>• Product management with variants</li>
-                              <li>• Order management and tracking</li>
-                              <li>• Analytics and reporting</li>
+                              <li>• {t('Category-specific lens configuration')}</li>
+                              <li>• {t('Product management with variants')}</li>
+                              <li>• {t('Order management and tracking')}</li>
+                              <li>• {t('Analytics and reporting')}</li>
                             </ul>
                           </div>
                         </div>
 
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-                          <h3 className="text-xl font-semibold text-yellow-900 mb-3">💡 Quick Tips</h3>
+                          <h3 className="text-xl font-semibold text-yellow-900 mb-3">{t('guide.quickTips')}</h3>
                           <ul className="space-y-2 text-yellow-800">
-                            <li>• Configure lens options before adding products for best results</li>
-                            <li>• Use high-quality product images to increase sales</li>
-                            <li>• Keep stock quantities updated to avoid overselling</li>
-                            <li>• Respond to orders quickly to maintain customer satisfaction</li>
+                            <li>• {t('Configure lens options before adding products for best results')}</li>
+                            <li>• {t('Use high-quality product images to increase sales')}</li>
+                            <li>• {t('Keep stock quantities updated to avoid overselling')}</li>
+                            <li>• {t('Respond to orders quickly to maintain customer satisfaction')}</li>
                           </ul>
                         </div>
 
                         <div>
-                          <h3 className="text-2xl font-bold text-gray-900 mb-4">Navigation Guide</h3>
+                          <h3 className="text-2xl font-bold text-gray-900 mb-4">{t('guide.navigation')}</h3>
                           <p className="text-gray-700 mb-4">
-                            Use the tabs above to navigate to different sections of this guide:
+                            {t('Use the tabs above to navigate to different sections of this guide:')}
                           </p>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {sections.filter(s => s.id !== 'overview').map((section) => (
@@ -141,7 +143,7 @@ export default function GuidePage() {
                               >
                                 <div className="text-2xl mb-2">{section.icon}</div>
                                 <div className="font-semibold text-gray-900">{section.name}</div>
-                                <div className="text-sm text-gray-600 mt-1">Click to learn more →</div>
+                                <div className="text-sm text-gray-600 mt-1">{t('guide.clickLearn')}</div>
                               </button>
                             ))}
                           </div>
@@ -153,26 +155,24 @@ export default function GuidePage() {
                     {activeSection === 'category-lens' && (
                       <div className="space-y-6">
                         <div>
-                          <h2 className="text-3xl font-bold text-gray-900 mb-2">Category Lens Configuration</h2>
-                          <p className="text-lg text-gray-600">Configure which lens customization options appear for products in each category</p>
+                          <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('guide.lensHeading')}</h2>
+                          <p className="text-lg text-gray-600">{t('guide.lensDescription')}</p>
                         </div>
 
                         <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded-lg">
-                          <h3 className="text-xl font-semibold text-gray-900 mb-3">What is Category Lens Configuration?</h3>
+                           <h3 className="text-xl font-semibold text-gray-900 mb-3">{t('guide.whatLens')}</h3>
                           <p className="text-gray-700 mb-4">
-                            This feature allows you to control which lens types, treatments, coatings, and thickness options are available 
-                            when buyers customize products in specific categories. Each category can have different lens options configured.
+                             {t('guide.lensWhatDescription')}
                           </p>
                           <div className="bg-white rounded p-4 mt-4">
                             <p className="text-sm text-gray-600">
-                              <strong>Example:</strong> You can configure "Eyeglasses" category to show Progressive, Distance Vision, and Near Vision options, 
-                              while "Sunglasses" category only shows Distance Vision options.
+                              <strong>{t('guide.example')}</strong> {t('guide.exampleText')}
                             </p>
                           </div>
                         </div>
 
                         <div>
-                          <h3 className="text-2xl font-bold text-gray-900 mb-4">Step-by-Step Guide</h3>
+                          <h3 className="text-2xl font-bold text-gray-900 mb-4">{t('guide.steps')}</h3>
                           <div className="space-y-4">
                             {[
                               {
@@ -230,9 +230,9 @@ export default function GuidePage() {
                                     {item.step}
                                   </div>
                                   <div className="flex-1">
-                                    <h4 className="text-lg font-semibold text-gray-900 mb-1">{item.title}</h4>
-                                    <p className="text-gray-700 mb-2">{item.description}</p>
-                                    <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded">{item.details}</p>
+                                    <h4 className="text-lg font-semibold text-gray-900 mb-1">{t(item.title)}</h4>
+                                    <p className="text-gray-700 mb-2">{t(item.description)}</p>
+                                    <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded">{t(item.details)}</p>
                                   </div>
                                 </div>
                               </div>
@@ -241,29 +241,29 @@ export default function GuidePage() {
                         </div>
 
                         <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                          <h3 className="text-xl font-semibold text-green-900 mb-3">Where These Options Appear</h3>
+                          <h3 className="text-xl font-semibold text-green-900 mb-3">{t('guide.whereOptions')}</h3>
                           <div className="space-y-3 text-green-800">
                             <div>
-                              <p className="font-semibold mb-2">In the Buyer Interface:</p>
+                              <p className="font-semibold mb-2">{t('guide.buyerInterface')}</p>
                               <ol className="list-decimal list-inside space-y-1 ml-4">
-                                <li>Buyer clicks on a product (e.g., eyeglasses)</li>
-                                <li>Buyer clicks "Add to Cart" or "Customize" button</li>
-                                <li>A customization popup modal opens</li>
-                                <li>The modal shows <strong>only</strong> the lens options you configured for that product's category</li>
-                                <li>Buyer selects options and adds to cart</li>
+                                <li>{t('Buyer clicks on a product (e.g., eyeglasses)')}</li>
+                                <li>{t('Buyer clicks "Add to Cart" or "Customize" button')}</li>
+                                <li>{t('A customization popup modal opens')}</li>
+                                <li>{t('The modal shows only the lens options you configured for that product\'s category')}</li>
+                                <li>{t('Buyer selects options and adds to cart')}</li>
                               </ol>
                             </div>
                           </div>
                         </div>
 
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-                          <h3 className="text-xl font-semibold text-yellow-900 mb-3">⚠️ Important Notes</h3>
+                          <h3 className="text-xl font-semibold text-yellow-900 mb-3">{t('⚠️ Important Notes')}</h3>
                           <ul className="space-y-2 text-yellow-800">
-                            <li>• Configure lens options <strong>before</strong> adding products for best results</li>
-                            <li>• Each category can have different configurations</li>
-                            <li>• If no configuration is set, all global lens options will be shown (fallback)</li>
-                            <li>• Changes take effect immediately after saving</li>
-                            <li>• Always test in buyer view to verify configuration</li>
+                            <li>• {t('Configure lens options before adding products for best results')}</li>
+                            <li>• {t('Each category can have different configurations')}</li>
+                            <li>• {t('If no configuration is set, all global lens options will be shown (fallback)')}</li>
+                            <li>• {t('Changes take effect immediately after saving')}</li>
+                            <li>• {t('Always test in buyer view to verify configuration')}</li>
                           </ul>
                         </div>
 
@@ -272,7 +272,7 @@ export default function GuidePage() {
                             href="/category-lens-config"
                             className="px-6 py-3 bg-[#0066CC] text-white rounded-lg font-semibold hover:bg-[#0052A3] transition-colors"
                           >
-                            Go to Lens Configuration →
+                            {t('Go to Lens Configuration →')}
                           </Link>
                         </div>
                       </div>
@@ -282,36 +282,36 @@ export default function GuidePage() {
                     {activeSection === 'products' && (
                       <div className="space-y-6">
                         <div>
-                          <h2 className="text-3xl font-bold text-gray-900 mb-2">Product Management</h2>
-                          <p className="text-lg text-gray-600">Create, edit, and manage all your products</p>
+                          <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('guide.productManagement')}</h2>
+                          <p className="text-lg text-gray-600">{t('guide.productManagementDescription')}</p>
                         </div>
 
                         <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded-lg">
-                          <h3 className="text-xl font-semibold text-gray-900 mb-3">Product Types</h3>
+                          <h3 className="text-xl font-semibold text-gray-900 mb-3">{t('Product Types')}</h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
                             <div>
-                              <p className="font-semibold mb-2">Supported Types:</p>
+                              <p className="font-semibold mb-2">{t('Supported Types:')}</p>
                               <ul className="space-y-1">
-                                <li>• Frames (Eyeglasses)</li>
-                                <li>• Sunglasses</li>
-                                <li>• Contact Lenses</li>
-                                <li>• Eye Hygiene Products</li>
-                                <li>• Accessories</li>
+                                <li>• {t('Frames (Eyeglasses)')}</li>
+                                <li>• {t('Sunglasses')}</li>
+                                <li>• {t('Contact Lenses')}</li>
+                                <li>• {t('Eye Hygiene Products')}</li>
+                                <li>• {t('Accessories')}</li>
                               </ul>
                             </div>
                             <div>
-                              <p className="font-semibold mb-2">Each type has specific fields:</p>
+                              <p className="font-semibold mb-2">{t('Each type has specific fields:')}</p>
                               <ul className="space-y-1">
-                                <li>• Frames: Shape, material, color, gender</li>
-                                <li>• Contact Lenses: Base curve, diameter, power range</li>
-                                <li>• Eye Hygiene: Size, volume, pack type</li>
+                                <li>• {t('Frames: Shape, material, color, gender')}</li>
+                                <li>• {t('Contact Lenses: Base curve, diameter, power range')}</li>
+                                <li>• {t('Eye Hygiene: Size, volume, pack type')}</li>
                               </ul>
                             </div>
                           </div>
                         </div>
 
                         <div>
-                          <h3 className="text-2xl font-bold text-gray-900 mb-4">Creating a Product</h3>
+                          <h3 className="text-2xl font-bold text-gray-900 mb-4">{t('guide.creatingProduct')}</h3>
                           <div className="space-y-4">
                             {[
                               { title: 'Basic Information', items: ['Product name', 'Description', 'Short description', 'SKU (unique identifier)', 'Category selection'] },
@@ -322,12 +322,12 @@ export default function GuidePage() {
                               { title: 'Activate Product', items: ['Set product as active', 'Save product', 'Product appears in buyer storefront'] }
                             ].map((section, idx) => (
                               <div key={idx} className="border border-gray-200 rounded-lg p-5">
-                                <h4 className="text-lg font-semibold text-gray-900 mb-3">{section.title}</h4>
+                                <h4 className="text-lg font-semibold text-gray-900 mb-3">{t(section.title)}</h4>
                                 <ul className="space-y-2">
                                   {section.items.map((item, i) => (
                                     <li key={i} className="flex items-start gap-2 text-gray-700">
                                       <span className="text-[#0066CC] mt-1">✓</span>
-                                      <span>{item}</span>
+                                      <span>{t(item)}</span>
                                     </li>
                                   ))}
                                 </ul>
@@ -337,14 +337,14 @@ export default function GuidePage() {
                         </div>
 
                         <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                          <h3 className="text-xl font-semibold text-green-900 mb-3">Best Practices</h3>
+                          <h3 className="text-xl font-semibold text-green-900 mb-3">{t('guide.bestPractices')}</h3>
                           <ul className="space-y-2 text-green-800">
-                            <li>• Use clear, descriptive product names</li>
-                            <li>• Write detailed descriptions with key features</li>
-                            <li>• Upload multiple high-quality images from different angles</li>
-                            <li>• Keep stock quantities updated</li>
-                            <li>• Set appropriate prices and compare-at prices for sales</li>
-                            <li>• Use variants for products with multiple options (sizes, colors)</li>
+                            <li>• {t('Use clear, descriptive product names')}</li>
+                            <li>• {t('Write detailed descriptions with key features')}</li>
+                            <li>• {t('Upload multiple high-quality images from different angles')}</li>
+                            <li>• {t('Keep stock quantities updated')}</li>
+                            <li>• {t('Set appropriate prices and compare-at prices for sales')}</li>
+                            <li>• {t('Use variants for products with multiple options (sizes, colors)')}</li>
                           </ul>
                         </div>
 
@@ -353,7 +353,7 @@ export default function GuidePage() {
                             href="/products"
                             className="px-6 py-3 bg-[#0066CC] text-white rounded-lg font-semibold hover:bg-[#0052A3] transition-colors"
                           >
-                            Go to Products →
+                            {t('Go to Products →')}
                           </Link>
                         </div>
                       </div>
@@ -363,12 +363,12 @@ export default function GuidePage() {
                     {activeSection === 'orders' && (
                       <div className="space-y-6">
                         <div>
-                          <h2 className="text-3xl font-bold text-gray-900 mb-2">Order Management</h2>
-                          <p className="text-lg text-gray-600">View, process, and track customer orders</p>
+                          <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('guide.orderManagement')}</h2>
+                          <p className="text-lg text-gray-600">{t('guide.orderManagementDescription')}</p>
                         </div>
 
                         <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded-lg">
-                          <h3 className="text-xl font-semibold text-gray-900 mb-3">Order Statuses</h3>
+                          <h3 className="text-xl font-semibold text-gray-900 mb-3">{t('guide.orderStatuses')}</h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {[
                               { status: 'Pending', desc: 'New order, awaiting processing', color: 'yellow' },
@@ -380,16 +380,16 @@ export default function GuidePage() {
                               <div key={item.status} className="bg-white rounded p-4 border-2 border-gray-200">
                                 <div className="flex items-center gap-2 mb-2">
                                   <div className={`w-3 h-3 rounded-full bg-${item.color}-500`}></div>
-                                  <span className="font-semibold text-gray-900">{item.status}</span>
+                                  <span className="font-semibold text-gray-900">{t(item.status)}</span>
                                 </div>
-                                <p className="text-sm text-gray-600">{item.desc}</p>
+                                <p className="text-sm text-gray-600">{t(item.desc)}</p>
                               </div>
                             ))}
                           </div>
                         </div>
 
                         <div>
-                          <h3 className="text-2xl font-bold text-gray-900 mb-4">Order Workflow</h3>
+                          <h3 className="text-2xl font-bold text-gray-900 mb-4">{t('guide.orderWorkflow')}</h3>
                           <div className="space-y-4">
                             {[
                               { step: 'View Orders', desc: 'See all orders in the orders list, filter by status, search by order number' },
@@ -399,20 +399,20 @@ export default function GuidePage() {
                               { step: 'Complete Order', desc: 'Order automatically moves to "Delivered" or you can mark it manually' }
                             ].map((item, idx) => (
                               <div key={idx} className="border-l-4 border-[#0066CC] pl-4 py-2">
-                                <h4 className="font-semibold text-gray-900">{item.step}</h4>
-                                <p className="text-gray-600">{item.desc}</p>
+                                <h4 className="font-semibold text-gray-900">{t(item.step)}</h4>
+                                <p className="text-gray-600">{t(item.desc)}</p>
                               </div>
                             ))}
                           </div>
                         </div>
 
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-                          <h3 className="text-xl font-semibold text-yellow-900 mb-3">💡 Tips</h3>
+                          <h3 className="text-xl font-semibold text-yellow-900 mb-3">{t('💡 Tips')}</h3>
                           <ul className="space-y-2 text-yellow-800">
-                            <li>• Process orders promptly to maintain customer satisfaction</li>
-                            <li>• Update order status regularly so customers can track their orders</li>
-                            <li>• Add tracking numbers when available</li>
-                            <li>• Contact customers if there are any issues with their orders</li>
+                            <li>• {t('Process orders promptly to maintain customer satisfaction')}</li>
+                            <li>• {t('Update order status regularly so customers can track their orders')}</li>
+                            <li>• {t('Add tracking numbers when available')}</li>
+                            <li>• {t('Contact customers if there are any issues with their orders')}</li>
                           </ul>
                         </div>
 
@@ -421,7 +421,7 @@ export default function GuidePage() {
                             href="/orders"
                             className="px-6 py-3 bg-[#0066CC] text-white rounded-lg font-semibold hover:bg-[#0052A3] transition-colors"
                           >
-                            Go to Orders →
+                            {t('Go to Orders →')}
                           </Link>
                         </div>
                       </div>
@@ -431,44 +431,44 @@ export default function GuidePage() {
                     {activeSection === 'store' && (
                       <div className="space-y-6">
                         <div>
-                          <h2 className="text-3xl font-bold text-gray-900 mb-2">Store Settings</h2>
-                          <p className="text-lg text-gray-600">Manage your store profile and configuration</p>
+                          <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('guide.storeSettings')}</h2>
+                          <p className="text-lg text-gray-600">{t('guide.storeDescription')}</p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded-lg">
-                            <h3 className="text-xl font-semibold text-gray-900 mb-3">Store Profile</h3>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-3">{t('guide.storeProfile')}</h3>
                             <ul className="space-y-2 text-gray-700">
-                              <li>• Store name and description</li>
-                              <li>• Contact email and phone</li>
-                              <li>• Store logo/profile image</li>
-                              <li>• Banner image</li>
-                              <li>• Theme colors</li>
+                              <li>• {t('Store name and description')}</li>
+                              <li>• {t('Contact email and phone')}</li>
+                              <li>• {t('Store logo/profile image')}</li>
+                              <li>• {t('Banner image')}</li>
+                              <li>• {t('Theme colors')}</li>
                             </ul>
                           </div>
 
                           <div className="bg-green-50 border-l-4 border-green-400 p-6 rounded-lg">
-                            <h3 className="text-xl font-semibold text-gray-900 mb-3">Store Settings</h3>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-3">{t('guide.storeSettingsCard')}</h3>
                             <ul className="space-y-2 text-gray-700">
-                              <li>• Social media links</li>
-                              <li>• Store policies</li>
-                              <li>• Shipping settings</li>
-                              <li>• Payment methods</li>
-                              <li>• Notification preferences</li>
+                              <li>• {t('Social media links')}</li>
+                              <li>• {t('Store policies')}</li>
+                              <li>• {t('Shipping settings')}</li>
+                              <li>• {t('Payment methods')}</li>
+                              <li>• {t('Notification preferences')}</li>
                             </ul>
                           </div>
                         </div>
 
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-                          <h3 className="text-xl font-semibold text-yellow-900 mb-3">Store Setup Checklist</h3>
+                          <h3 className="text-xl font-semibold text-yellow-900 mb-3">{t('guide.setupChecklist')}</h3>
                           <ul className="space-y-2 text-yellow-800">
-                            <li>✓ Complete store profile information</li>
-                            <li>✓ Upload store logo and banner</li>
-                            <li>✓ Set up contact information</li>
-                            <li>✓ Configure shipping options</li>
-                            <li>✓ Set up payment methods</li>
-                            <li>✓ Add social media links</li>
-                            <li>✓ Write store policies</li>
+                            <li>✓ {t('Complete store profile information')}</li>
+                            <li>✓ {t('Upload store logo and banner')}</li>
+                            <li>✓ {t('Set up contact information')}</li>
+                            <li>✓ {t('Configure shipping options')}</li>
+                            <li>✓ {t('Set up payment methods')}</li>
+                            <li>✓ {t('Add social media links')}</li>
+                            <li>✓ {t('Write store policies')}</li>
                           </ul>
                         </div>
 
@@ -477,7 +477,7 @@ export default function GuidePage() {
                             href="/store"
                             className="px-6 py-3 bg-[#0066CC] text-white rounded-lg font-semibold hover:bg-[#0052A3] transition-colors"
                           >
-                            Go to Store Settings →
+                            {t('Go to Store Settings →')}
                           </Link>
                         </div>
                       </div>
@@ -487,8 +487,8 @@ export default function GuidePage() {
                     {activeSection === 'all-menus' && (
                       <div className="space-y-6">
                         <div>
-                          <h2 className="text-3xl font-bold text-gray-900 mb-2">All Menu Items</h2>
-                          <p className="text-lg text-gray-600">Complete reference for all dashboard features</p>
+                          <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('guide.allMenuTitle')}</h2>
+                          <p className="text-lg text-gray-600">{t('guide.allMenuDescription')}</p>
                         </div>
 
                         <div className="space-y-4">
@@ -583,21 +583,21 @@ export default function GuidePage() {
                                 <div className="text-4xl">{item.icon}</div>
                                 <div className="flex-1">
                                   <div className="flex items-center gap-3 mb-2">
-                                    <h3 className="text-xl font-semibold text-gray-900">{item.name}</h3>
+                                    <h3 className="text-xl font-semibold text-gray-900">{t(item.name)}</h3>
                                     <Link 
                                       href={item.href}
                                       className="text-sm text-[#0066CC] hover:underline font-medium"
                                     >
-                                      Go to {item.name} →
+                                      {t('guide.goTo', { name: t(item.name) })}
                                     </Link>
                                   </div>
-                                  <p className="text-gray-700 mb-3">{item.description}</p>
+                                  <p className="text-gray-700 mb-3">{t(item.description)}</p>
                                   <div>
-                                    <p className="text-sm font-semibold text-gray-900 mb-2">Features:</p>
+                                    <p className="text-sm font-semibold text-gray-900 mb-2">{t('guide.features')}</p>
                                     <div className="flex flex-wrap gap-2">
                                       {item.features.map((feature, idx) => (
                                         <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                                          {feature}
+                                          {t(feature)}
                                         </span>
                                       ))}
                                     </div>

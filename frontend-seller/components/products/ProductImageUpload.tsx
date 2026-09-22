@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import apiClient, { getApiOrigin } from '@/lib/api-client';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ImageItem {
   id: string;
@@ -32,6 +33,7 @@ const getFullImageUrl = (url: string): string => {
 };
 
 export default function ProductImageUpload({ images, onChange, maxImages = 10 }: ProductImageUploadProps) {
+  const { t } = useLanguage();
   const [imageItems, setImageItems] = useState<ImageItem[]>(() => {
     return images.map((url, index) => ({
       id: `existing-${index}`,
@@ -124,11 +126,11 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
 
     const validFiles = Array.from(files).filter(file => {
       if (!file.type.startsWith('image/')) {
-        alert(`${file.name} is not an image file`);
+        alert(`${file.name}: ${t('form.notImageFile')}`);
         return false;
       }
       if (file.size > 5 * 1024 * 1024) {
-        alert(`${file.name} exceeds 5MB limit`);
+        alert(`${file.name}: ${t('form.fileExceeds5Mb')}`);
         return false;
       }
       return true;
@@ -137,7 +139,7 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
     if (validFiles.length === 0) return;
 
     if (imageItems.length + validFiles.length > maxImages) {
-      alert(`Maximum ${maxImages} images allowed`);
+      alert(t('form.maxImages', { count: maxImages }));
       return;
     }
 
@@ -176,7 +178,7 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
       updateImages([...imageItems, ...uploadedItems]);
     } catch (error: any) {
       console.error('Error uploading images:', error);
-      alert(error.message || 'Failed to upload images');
+      alert(error.message || t('form.uploadImagesFailed'));
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -238,10 +240,10 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
   };
 
   const handleAddUrl = () => {
-    const url = prompt('Enter image URL:');
+    const url = prompt(t('form.enterImageUrl'));
     if (url && url.trim()) {
       if (imageItems.length >= maxImages) {
-        alert(`Maximum ${maxImages} images allowed`);
+        alert(t('form.maxImages', { count: maxImages }));
         return;
       }
       const newItem: ImageItem = {
@@ -286,7 +288,7 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
               {/* Featured Badge */}
               {item.isFeatured && (
                 <div className="absolute top-2 left-2 bg-[#0066CC] text-white text-xs font-semibold px-2 py-1 rounded">
-                  Featured
+                  {t('products.featured')}
                 </div>
               )}
 
@@ -300,7 +302,7 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
                       ? 'bg-[#0066CC] text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-100'
                   }`}
-                  title={item.isFeatured ? 'Featured Image' : 'Set as Featured'}
+                  title={item.isFeatured ? t('form.featuredImage') : t('form.setFeatured')}
                 >
                   {item.isFeatured ? '✓ Featured' : 'Set Featured'}
                 </button>
@@ -308,7 +310,7 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
                   type="button"
                   onClick={() => handleRemove(item.id)}
                   className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600"
-                  title="Remove Image"
+                  title={t('form.removeImage')}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -350,7 +352,7 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
         {uploading ? (
           <div className="space-y-2">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0066CC] mx-auto"></div>
-            <p className="text-sm text-gray-600">Uploading images...</p>
+            <p className="text-sm text-gray-600">{t('form.uploading')}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -369,10 +371,10 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
                 />
               </svg>
               <p className="mt-2 text-sm text-gray-600">
-                <span className="font-semibold">Click to upload</span> or drag and drop
+                <span className="font-semibold">{t('form.clickUpload')}</span> {t('form.orDragDrop')}
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                PNG, JPG, JPEG, WEBP up to 5MB each
+                {t('form.imageTypes')}
               </p>
               <p className="text-xs text-gray-500">
                 {imageItems.length} / {maxImages} images
@@ -385,7 +387,7 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
                 onClick={() => fileInputRef.current?.click()}
                 disabled={imageItems.length >= maxImages}
               >
-                Select Images
+                {t('form.selectImages')}
               </Button>
               <Button
                 type="button"
@@ -393,7 +395,7 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
                 onClick={handleAddUrl}
                 disabled={imageItems.length >= maxImages}
               >
-                Add URL
+                {t('form.addUrl')}
               </Button>
             </div>
           </div>
@@ -404,12 +406,12 @@ export default function ProductImageUpload({ images, onChange, maxImages = 10 }:
       <div className="space-y-2">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p className="text-xs text-blue-800">
-            <strong>Tip:</strong> The first image will be used as the featured image. You can drag images to reorder them or click "Set Featured" on any image.
+            <strong>{t('form.tip')}</strong> {t('form.featuredTip')}
           </p>
         </div>
         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
           <p className="text-xs text-green-800">
-            <strong>✓ Images uploaded from your computer are automatically saved!</strong> You can also add images by URL using the "Add URL" button.
+            <strong>{t('form.imagesAutoSaved')}</strong>
           </p>
         </div>
       </div>

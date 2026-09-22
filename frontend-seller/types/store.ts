@@ -20,9 +20,29 @@ export interface Store {
   verification_submitted_at?: string | null;
   store_setup_completed_at?: string | null;
   can_sell?: boolean;
-  meta?: any;
+  meta?: {
+    profile?: StoreProfile;
+    kyc?: Record<string, unknown>;
+    [key: string]: unknown;
+  } | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface StoreProfile {
+  tagline?: string | null;
+  business_type?: string | null;
+  registration_number?: string | null;
+  tax_id?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
+  website?: string | null;
+  support_email?: string | null;
+  shipping_policy?: string | null;
+  return_policy?: string | null;
 }
 
 export interface StoreSocialLink {
@@ -70,6 +90,25 @@ export interface UpdateStoreData {
   description?: string;
   email?: string;
   phone?: string;
+  profile?: StoreProfile;
+}
+
+export interface StoreFollower {
+  id: number;
+  followed_at: string | null;
+  user: {
+    id: number;
+    name: string;
+    profile_image_url?: string | null;
+    created_at?: string | null;
+  };
+}
+
+export interface StoreFollowersPagination {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
 }
 
 export interface CreateSocialLinkData {

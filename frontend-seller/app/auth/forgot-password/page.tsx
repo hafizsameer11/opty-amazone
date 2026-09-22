@@ -5,30 +5,21 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AuthService } from '@/services/auth-service';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Alert from '@/components/ui/Alert';
 import Link from 'next/link';
-import Image from 'next/image';
+import Button from '@/components/ui/Button';
+import SellerAuthShell, { AuthFeedback } from '@/components/auth/SellerAuthShell';
+import SellerAuthInput from '@/components/auth/SellerAuthInput';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-const forgotPasswordSchema = z.object({
-  email: z.string().email('Invalid email address'),
-});
-
-type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+type ForgotPasswordFormData = { email: string };
 
 export default function ForgotPasswordPage() {
-  const [error, setError] = useState<string>('');
-  const [success, setSuccess] = useState<string>('');
+  const { t } = useLanguage();
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<ForgotPasswordFormData>({
-    resolver: zodResolver(forgotPasswordSchema),
-  });
+  const forgotPasswordSchema = z.object({ email: z.string().email(t('auth.validEmail')) });
+  const { register, handleSubmit, formState: { errors } } = useForm<ForgotPasswordFormData>({ resolver: zodResolver(forgotPasswordSchema) });
 
   const onSubmit = async (data: ForgotPasswordFormData) => {
     try {
@@ -36,79 +27,32 @@ export default function ForgotPasswordPage() {
       setError('');
       setSuccess('');
       const response = await AuthService.forgotPassword(data);
-      setSuccess(response.message || 'Password reset link sent to your email');
+      setSuccess(response.message || t('auth.resetEmailSent'));
     } catch (err: any) {
-      setError(
-        err.response?.data?.message ||
-        err.response?.data?.errors?.email?.[0] ||
-        'Failed to send password reset link. Please try again.'
-      );
+      setError(err.response?.data?.message || err.response?.data?.errors?.email?.[0] || t('auth.resetFailed'));
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        {/* Logo/Header */}
-        <div className="text-center mb-8">
-          <Image src="/vistaexpress-logo.png" alt="VistaExpress" width={300} height={150} className="mx-auto mb-2 h-20 w-auto object-contain" priority />
-          <p className="text-gray-600">Seller Dashboard</p>
-        </div>
-
-        {/* Card */}
-        <div className="bg-white rounded-xl shadow-2xl border border-gray-200 p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Reset your password
-            </h2>
-            <p className="text-sm text-gray-600">
-              Enter your email address and we'll send you a link to reset your password.
-            </p>
-          </div>
-
-          <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-            {error && (
-              <Alert type="error" message={error} onClose={() => setError('')} />
-            )}
-
-            {success && (
-              <Alert type="success" message={success} onClose={() => setSuccess('')} />
-            )}
-
-            <div>
-              <Input
-                label="Email Address"
-                type="email"
-                {...register('email')}
-                error={errors.email?.message}
-                placeholder="store@example.com"
-                autoComplete="email"
-                required
-              />
-            </div>
-
-            <div className="pt-2">
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                isLoading={isLoading}
-                className="w-full"
-              >
-                Send Reset Link
-              </Button>
-            </div>
-
-            <div className="text-center">
-              <Link href="/auth/login" className="font-semibold text-[#0066CC] hover:text-[#0052a3] transition-colors text-sm">
-                Back to login
-              </Link>
-            </div>
-          </form>
-        </div>
+    <SellerAuthShell
+      eyebrow={t('auth.recoveryEyebrow')}
+      title={t('auth.resetPassword')}
+      description={t('auth.resetDescription')}
+      sideTitle={t('auth.resetSideTitle')}
+      sideDescription={t('auth.resetSideDescription')}
+    >
+      <div className="mb-7 flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-50 text-2xl text-[#0789c5]">⌁</div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        {error && <AuthFeedback type="error" message={error} onClose={() => setError('')} />}
+        {success && <AuthFeedback type="success" message={success} onClose={() => setSuccess('')} />}
+        <SellerAuthInput id="reset-email" label={t('auth.businessEmail')} type="email" icon="mail" {...register('email')} error={errors.email?.message} placeholder={t('auth.emailPlaceholder')} autoComplete="email" required />
+        <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="w-full !rounded-xl !py-3.5">{t('auth.sendResetLink')}</Button>
+      </form>
+      <div className="mt-7 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
+        {t('auth.rememberedPassword')} <Link href="/auth/login" className="font-bold text-[#0789c5] hover:text-[#006b99]">{t('auth.backToSignIn')}</Link>
       </div>
-    </div>
+    </SellerAuthShell>
   );
 }

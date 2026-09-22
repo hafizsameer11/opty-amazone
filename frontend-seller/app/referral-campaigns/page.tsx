@@ -6,6 +6,8 @@ import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
 import { productService, type Category, type Product } from '@/services/product-service';
 import { referralService, type ReferralCampaign, type ReferralPayload } from '@/services/referral-service';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const euro = (value: unknown) => `€${Number(value || 0).toFixed(2)}`;
 const localDateTime = (date = new Date()) => new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
@@ -26,6 +28,7 @@ const errorMessage = (error: unknown, fallback: string) => {
 };
 
 export default function ReferralCampaignsPage() {
+  const { t } = useLanguage();
   const [campaigns, setCampaigns] = useState<ReferralCampaign[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -36,9 +39,11 @@ export default function ReferralCampaignsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
+  useLiveRefresh(() => load(true), true, 30000);
+
+  const load = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [all, productRows, categoryRows] = await Promise.all([
         referralService.list(), productService.getAll({ per_page: 100 }), productService.getCategories(),
       ]);
@@ -47,9 +52,9 @@ export default function ReferralCampaignsPage() {
       setCategories(categoryRows || []);
       setError('');
     } catch (caught: unknown) {
-      setError(errorMessage(caught, 'Unable to load referral campaigns.'));
+      setError(errorMessage(caught, t('referral.loadFailed')));
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -96,41 +101,50 @@ export default function ReferralCampaignsPage() {
       setForm(empty());
       await load();
     } catch (caught: unknown) {
-      setError(errorMessage(caught, 'Unable to save referral campaign.'));
+      setError(errorMessage(caught, t('referral.saveFailed')));
     } finally {
       setSaving(false);
     }
   };
 
   const action = async (campaign: ReferralCampaign, value: 'pause' | 'resume' | 'archive') => {
-    if (value === 'archive' && !window.confirm('Archive this campaign? Unused reserved campaign funds will be released to the Seller Wallet.')) return;
+    if (value === 'archive' && !window.confirm(t('referral.archiveConfirm'))) return;
     try {
       await referralService.action(campaign.id, value);
       await load();
     } catch (caught: unknown) {
-      setError(errorMessage(caught, 'Campaign action failed.'));
+      setError(errorMessage(caught, t('referral.actionFailed')));
     }
   };
 
   return <div className="min-h-screen bg-gray-50 pb-24"><Header /><div className="flex"><Sidebar /><main className="min-w-0 flex-1 space-y-6 p-5 lg:p-8">
-    <header className="flex flex-wrap justify-between gap-4"><div><h1 className="text-3xl font-bold">Referral Campaigns</h1><p className="mt-2 text-gray-600">Fund Buyer referral rewards from your existing Seller Wallet. Only selected store products can qualify.</p></div><button onClick={() => { setEditing(null); setForm(empty()); setOpen(true); }} className="rounded-lg bg-blue-700 px-5 py-3 font-medium text-white">Create campaign</button></header>
+    <header className="flex flex-wrap justify-between gap-4"><div><h1 className="text-3xl font-bold">{t('referral.title')}</h1><p className="mt-2 text-gray-600">{t('referral.subtitle')}</p></div><button onClick={() => { setEditing(null); setForm(empty()); setOpen(true); }} className="rounded-lg bg-blue-700 px-5 py-3 font-medium text-white">{t('referral.create')}</button></header>
     {error && <p role="alert" className="rounded-lg bg-red-50 p-4 text-red-700">{error}</p>}
-    {loading ? <p className="text-gray-500">Loading campaigns…</p> : campaigns.length === 0 ? <div className="rounded-xl border bg-white p-10 text-center text-gray-500">No referral campaigns yet. Create one to let buyers share eligible products.</div> : <div className="grid gap-5 xl:grid-cols-2">{campaigns.map((campaign) => <CampaignCard key={campaign.id} campaign={campaign} onEdit={() => edit(campaign)} onAction={(value) => void action(campaign, value)} />)}</div>}
+    {loading ? <p className="text-gray-500">{t('referral.loading')}</p> : campaigns.length === 0 ? <div className="rounded-xl border bg-white p-10 text-center text-gray-500">{t('referral.empty')}</div> : <div className="grid gap-5 xl:grid-cols-2">{campaigns.map((campaign) => <CampaignCard key={campaign.id} campaign={campaign} onEdit={() => edit(campaign)} onAction={(value) => void action(campaign, value)} />)}</div>}
     {open && <CampaignForm form={form} setForm={setForm} products={products} categories={categories} toggle={toggle} saving={saving} onClose={() => setOpen(false)} onSubmit={submit} editing={!!editing} />}
   </main></div><BottomNav /></div>;
 }
 
 function CampaignCard({ campaign, onEdit, onAction }: { campaign: ReferralCampaign; onEdit: () => void; onAction: (action: 'pause' | 'resume' | 'archive') => void }) {
+  const { t } = useLanguage();
   const analytics = campaign.analytics;
   const activation = campaign.activation_mode === 'scheduled'
-    ? `Scheduled: ${new Date(campaign.starts_at).toLocaleString()}`
-    : 'Runs immediately after approval';
-  return <article className="rounded-xl border bg-white p-5"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="text-lg font-bold">{campaign.name}</h2><p className="mt-1 text-sm text-gray-600">{campaign.identifier} · {campaign.scope_type} · {campaign.reward_type === 'percentage' ? `${campaign.reward_amount}%` : euro(campaign.reward_amount)}</p></div><span className="h-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{campaign.status.replaceAll('_', ' ')} / {campaign.approval_status}</span></div><p className="mt-2 text-sm text-gray-600">{activation}</p><p className="mt-3 text-sm text-gray-600">Budget: {euro(campaign.budget_spent)} used · {euro(campaign.budget_reserved)} remaining</p>{analytics && <div className="mt-4 grid grid-cols-3 gap-3 text-sm"><Metric name="Clicks" value={analytics.clicks} /><Metric name="Orders" value={analytics.orders} /><Metric name="Paid" value={analytics.rewarded_conversions} /><Metric name="Revenue" value={euro(analytics.revenue_generated)} /><Metric name="Commission" value={euro(analytics.referral_commission_cost)} /><Metric name="Net revenue" value={euro(analytics.net_revenue)} /></div>}<div className="mt-5 flex flex-wrap gap-2"><button onClick={onEdit} className="rounded border px-3 py-2 text-sm">Edit</button>{['active', 'scheduled'].includes(campaign.status) ? <button onClick={() => onAction('pause')} className="rounded border px-3 py-2 text-sm">Pause</button> : campaign.status === 'paused' ? <button onClick={() => onAction('resume')} className="rounded border px-3 py-2 text-sm">Resume</button> : null}<button onClick={() => onAction('archive')} className="rounded border border-red-200 px-3 py-2 text-sm text-red-700">Archive</button></div></article>;
+    ? t('referral.scheduled', { date: new Date(campaign.starts_at).toLocaleString() })
+    : t('referral.runsAfterApproval');
+  const scopeKey = `referral.scope.${campaign.scope_type}`;
+  const scope = t(scopeKey) === scopeKey ? campaign.scope_type.replaceAll('_', ' ') : t(scopeKey);
+  const approvalKey = `referral.approval.${campaign.approval_status || 'pending'}`;
+  const approval = t(approvalKey) === approvalKey ? (campaign.approval_status || t('referral.status.pending')) : t(approvalKey);
+  const reward = campaign.reward_type === 'percentage' ? `${campaign.reward_amount}%` : euro(campaign.reward_amount);
+  const statusKey = `referral.status.${campaign.status}`;
+  const status = t(statusKey) === statusKey ? campaign.status.replaceAll('_', ' ') : t(statusKey);
+  return <article className="rounded-xl border bg-white p-5"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="text-lg font-bold">{campaign.name}</h2><p className="mt-1 text-sm text-gray-600">{campaign.identifier} · {scope} · {reward}</p></div><span className="h-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{status} / {approval}</span></div><p className="mt-2 text-sm text-gray-600">{activation}</p><p className="mt-3 text-sm text-gray-600">{t('referral.budget', { spent: euro(campaign.budget_spent), remaining: euro(campaign.budget_reserved) })}</p>{analytics && <div className="mt-4 grid grid-cols-3 gap-3 text-sm"><Metric name={t('referral.clicks')} value={analytics.clicks} /><Metric name={t('referral.orders')} value={analytics.orders} /><Metric name={t('referral.paid')} value={analytics.rewarded_conversions} /><Metric name={t('referral.revenue')} value={euro(analytics.revenue_generated)} /><Metric name={t('referral.commission')} value={euro(analytics.referral_commission_cost)} /><Metric name={t('referral.netRevenue')} value={euro(analytics.net_revenue)} /></div>}<div className="mt-5 flex flex-wrap gap-2"><button onClick={onEdit} className="rounded border px-3 py-2 text-sm">{t('referral.edit')}</button>{['active', 'scheduled'].includes(campaign.status) ? <button onClick={() => onAction('pause')} className="rounded border px-3 py-2 text-sm">{t('referral.pause')}</button> : campaign.status === 'paused' ? <button onClick={() => onAction('resume')} className="rounded border px-3 py-2 text-sm">{t('referral.resume')}</button> : null}<button onClick={() => onAction('archive')} className="rounded border border-red-200 px-3 py-2 text-sm text-red-700">{t('referral.archive')}</button></div></article>;
 }
 
 function Metric({ name, value }: { name: string; value: string | number }) { return <div className="rounded bg-gray-50 p-3"><p className="text-xs text-gray-500">{name}</p><p className="mt-1 font-semibold">{value}</p></div>; }
 
 function CampaignForm({ form, setForm, products, categories, toggle, saving, onClose, onSubmit, editing }: { form: ReferralPayload; setForm: React.Dispatch<React.SetStateAction<ReferralPayload>>; products: Product[]; categories: Category[]; toggle: (key: 'product_ids' | 'category_ids', value: number) => void; saving: boolean; onClose: () => void; onSubmit: (event: React.FormEvent) => void; editing: boolean }) {
+  const { t } = useLanguage();
   const field = (key: keyof ReferralPayload, value: string | number | boolean | null) => setForm((current) => ({ ...current, [key]: value }));
   return <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4"><form onSubmit={onSubmit} className="mx-auto my-6 max-w-3xl rounded-2xl bg-white p-6 shadow-xl"><div className="flex justify-between gap-4"><div><h2 className="text-xl font-bold">{editing ? 'Edit referral campaign' : 'New referral campaign'}</h2><p className="mt-1 text-sm text-gray-600">Campaign budget is reserved from your Seller Wallet and released only on archive or rejection.</p></div><button type="button" onClick={onClose} aria-label="Close campaign form">✕</button></div>
     <div className="mt-6 grid gap-4 md:grid-cols-2"><Label name="Campaign name"><input required value={form.name} onChange={(event) => field('name', event.target.value)} /></Label><Label name="Scope"><select value={form.scope_type} onChange={(event) => field('scope_type', event.target.value as ReferralPayload['scope_type'])}><option value="store">Entire store</option><option value="products">Selected products</option><option value="categories">Selected categories</option><option value="mixed">Selected products or categories</option></select></Label><Label name="Reward"><select value={form.reward_type} onChange={(event) => field('reward_type', event.target.value as ReferralPayload['reward_type'])}><option value="fixed">Fixed EUR</option><option value="percentage">Percentage</option></select></Label><Label name={form.reward_type === 'percentage' ? 'Reward percentage' : 'Reward amount (EUR)'}><input required type="number" min="0.01" max={form.reward_type === 'percentage' ? 100 : 100000} step="0.01" value={form.reward_amount} onChange={(event) => field('reward_amount', Number(event.target.value))} /></Label><Label name="Maximum reward per order (optional)"><input type="number" min="0.01" step="0.01" value={form.max_reward_per_order ?? ''} onChange={(event) => field('max_reward_per_order', event.target.value ? Number(event.target.value) : null)} /></Label><Label name="Campaign budget (EUR)"><input required type="number" min="0.01" step="0.01" value={form.budget_amount} onChange={(event) => field('budget_amount', Number(event.target.value))} /></Label><Label name="Minimum eligible subtotal (EUR)"><input type="number" min="0" step="0.01" value={form.minimum_order_amount || 0} onChange={(event) => field('minimum_order_amount', Number(event.target.value))} /></Label><Label name="Minimum eligible quantity"><input type="number" min="1" value={form.minimum_quantity || 1} onChange={(event) => field('minimum_quantity', Number(event.target.value))} /></Label></div>

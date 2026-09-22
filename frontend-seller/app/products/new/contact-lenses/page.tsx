@@ -15,10 +15,12 @@ import ProductImageUpload from '@/components/products/ProductImageUpload';
 import SimplifiedProductOptions from '@/components/products/SimplifiedProductOptions';
 import ContactLensCategorySelect from '@/components/products/ContactLensCategorySelect';
 import { useSuggestedProductSku } from '@/lib/use-suggested-product-sku';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function ContactLensesProductPage() {
   const router = useRouter();
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState<number | undefined>();
   const [enabledFields, setEnabledFields] = useState<string[]>([]);
@@ -107,7 +109,7 @@ export default function ContactLensesProductPage() {
 
     try {
       await productService.create(formData);
-      setSuccessToast('Product created successfully');
+      setSuccessToast(t('products.created'));
       setTimeout(() => {
         router.push('/products');
       }, 700);
@@ -116,7 +118,7 @@ export default function ContactLensesProductPage() {
         error.response?.data?.errors?.name?.[0] ||
         error.response?.data?.errors?.sku?.[0] ||
         error.response?.data?.message ||
-        'Failed to save product';
+        t('products.createFailed');
       setError(errorMessage);
     } finally {
       setSaving(false);
@@ -135,7 +137,7 @@ export default function ContactLensesProductPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -160,9 +162,9 @@ export default function ContactLensesProductPage() {
                     onClick={() => router.back()}
                     className="text-[#0066CC] hover:underline mb-4"
                   >
-                    ← Back to Products
+                    {t('Back to Products')}
                   </button>
-                  <h1 className="text-3xl font-bold text-gray-900">Create Contact Lenses Product</h1>
+                  <h1 className="text-3xl font-bold text-gray-900">{t('form.createContactLenses')}</h1>
                 </div>
 
                 {error && (
@@ -173,7 +175,7 @@ export default function ContactLensesProductPage() {
 
                 <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.basicInformation')}</h2>
                     <div className="space-y-4">
                       <Input
                         label="Product Name *"
@@ -196,7 +198,7 @@ export default function ContactLensesProductPage() {
                         placeholder="Auto-generated when you open this form"
                       />
                       <p className="text-xs text-gray-500">
-                        SKU is generated automatically. Edit it only if you need a custom code.
+                        {t('form.skuAutoHint')}
                       </p>
                       <div>
                         <label className="block text-sm font-semibold text-gray-800 mb-2">
@@ -219,7 +221,7 @@ export default function ContactLensesProductPage() {
                   </div>
 
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Pricing & Inventory</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.pricingInventory')}</h2>
                     <div className="grid grid-cols-3 gap-4">
                       <Input
                         label="Price *"
@@ -258,7 +260,7 @@ export default function ContactLensesProductPage() {
                       />
                       <div>
                         <label className="block text-sm font-semibold text-gray-800 mb-2">
-                          Stock Status *
+                          {t('form.stockStatus')} *
                         </label>
                         <select
                           value={formData.stock_status}
@@ -266,16 +268,16 @@ export default function ContactLensesProductPage() {
                           className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
                           required
                         >
-                          <option value="in_stock">In Stock</option>
-                          <option value="out_of_stock">Out of Stock</option>
-                          <option value="backorder">Backorder</option>
+                          <option value="in_stock">{t('form.inStock')}</option>
+                          <option value="out_of_stock">{t('form.outOfStock')}</option>
+                          <option value="backorder">{t('form.backorder')}</option>
                         </select>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Images</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.images')}</h2>
                     <ProductImageUpload
                       images={formData.images || []}
                       onChange={handleImagesChange}
@@ -285,7 +287,7 @@ export default function ContactLensesProductPage() {
 
                   {/* Product Options */}
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Options</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.options')}</h2>
                     <SimplifiedProductOptions
                       formData={formData}
                       setFormData={setFormData}
@@ -294,7 +296,7 @@ export default function ContactLensesProductPage() {
                   </div>
 
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Status</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.productStatus')}</h2>
                     <div className="space-y-2">
                       <label className="flex items-center">
                         <input
@@ -303,7 +305,7 @@ export default function ContactLensesProductPage() {
                           onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                           className="mr-2"
                         />
-                        <span>Active</span>
+                        <span>{t('products.active')}</span>
                       </label>
                       <label className="flex items-center">
                         <input
@@ -312,21 +314,21 @@ export default function ContactLensesProductPage() {
                           onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
                           className="mr-2"
                         />
-                        <span>Featured</span>
+                        <span>{t('products.featured')}</span>
                       </label>
                     </div>
                   </div>
 
                   <div className="flex gap-4 pt-4">
                     <Button type="submit" isLoading={saving} className="flex-1">
-                      Create Product
+                      {t('form.createProduct')}
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => router.push('/products')}
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </Button>
                   </div>
                 </form>

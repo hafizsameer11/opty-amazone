@@ -5,6 +5,7 @@ import type { CreateProductData, EyeHygieneVariantRow, ProductSizeVolumeVariant 
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import apiClient, { getApiOrigin } from '@/lib/api-client';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 function displayImageUrl(url: string): string {
   if (!url) return url;
@@ -59,6 +60,7 @@ export default function EyeHygieneVariantsEditor({
   setFormData,
   compact = false,
 }: EyeHygieneVariantsEditorProps) {
+  const { t } = useLanguage();
   const sizeVolumes = formData.size_volume_variants ?? [];
   const named = formData.eye_hygiene_variants ?? [];
   const [uploading, setUploading] = useState<'size' | 'named' | null>(null);
@@ -86,11 +88,11 @@ export default function EyeHygieneVariantsEditor({
 
     const valid = Array.from(files).filter((file) => {
       if (!file.type.startsWith('image/')) {
-        window.alert(`${file.name} is not an image file`);
+        window.alert(`${file.name}: ${t('form.notImageFile')}`);
         return false;
       }
       if (file.size > 5 * 1024 * 1024) {
-        window.alert(`${file.name} exceeds 5MB limit`);
+        window.alert(`${file.name}: ${t('form.fileExceeds5Mb')}`);
         return false;
       }
       return true;
@@ -126,7 +128,7 @@ export default function EyeHygieneVariantsEditor({
       }
     } catch (e) {
       console.error(e);
-      window.alert('Image upload failed');
+      window.alert(t('form.imageUploadFailed'));
     } finally {
       setUploading(null);
       setUploadKey(null);
@@ -151,15 +153,12 @@ export default function EyeHygieneVariantsEditor({
 
       <div className={boxCls}>
         <div>
-          <h3 className={titleCls}>Size &amp; pack variants</h3>
-          <p className={subCls}>
-            Optional sellable SKUs (e.g. 10ml + Single) with their own price, stock, and image. Leave empty to use
-            only the product-level price and stock above.
-          </p>
+          <h3 className={titleCls}>{t('form.sizePackVariants')}</h3>
+          <p className={subCls}>{t('form.sizePackDescription')}</p>
         </div>
 
         {sizeVolumes.length === 0 ? (
-          <p className="text-xs text-gray-500">No variants yet.</p>
+          <p className="text-xs text-gray-500">{t('form.noVariants')}</p>
         ) : (
           <div className="space-y-3">
             {sizeVolumes.map((row, index) => (
@@ -250,7 +249,7 @@ export default function EyeHygieneVariantsEditor({
                     />
                   </div>
                   <div className="min-w-[120px]">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Stock status</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">{t('form.stockStatus')}</label>
                     <select
                       value={row.stock_status}
                       onChange={(e) => {
@@ -263,9 +262,9 @@ export default function EyeHygieneVariantsEditor({
                       }}
                       className="w-full px-2 py-2 text-sm border border-gray-300 rounded-md"
                     >
-                      <option value="in_stock">In stock</option>
-                      <option value="out_of_stock">Out of stock</option>
-                      <option value="backorder">Backorder</option>
+                      <option value="in_stock">{t('form.inStock')}</option>
+                      <option value="out_of_stock">{t('form.outOfStock')}</option>
+                      <option value="backorder">{t('form.backorder')}</option>
                     </select>
                   </div>
                   <div className="min-w-[100px] flex-1">
@@ -284,7 +283,7 @@ export default function EyeHygieneVariantsEditor({
                     />
                   </div>
                   <div className="w-[140px]">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Expiry</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">{t('form.expiry')}</label>
                     <input
                       type="date"
                       value={expiryToInputValue(row.expiry_date)}
@@ -311,7 +310,7 @@ export default function EyeHygieneVariantsEditor({
                         patchSizes(next);
                       }}
                     />
-                    Active (visible on storefront when wired)
+                    {t('form.activeOnStorefront')}
                   </label>
                   <Button
                     type="button"
@@ -321,7 +320,7 @@ export default function EyeHygieneVariantsEditor({
                     isLoading={uploading === 'size' && uploadKey === `size-${index}`}
                     onClick={() => triggerUpload('size', index)}
                   >
-                    Upload image
+                    {t('form.uploadImage')}
                   </Button>
                   {row.image_url ? (
                     <span className="text-[11px] text-gray-500 truncate max-w-[180px]">
@@ -343,7 +342,7 @@ export default function EyeHygieneVariantsEditor({
                     className="text-xs text-red-700 border-red-200 ml-auto"
                     onClick={() => patchSizes(sizeVolumes.filter((_, i) => i !== index))}
                   >
-                    Remove
+                    {t('form.remove')}
                   </Button>
                 </div>
               </div>
@@ -357,21 +356,20 @@ export default function EyeHygieneVariantsEditor({
           size="sm"
           onClick={() => patchSizes([...sizeVolumes, defaultSizeRow(sizeVolumes.length)])}
         >
-          + Add size / pack variant
+          {t('form.addSizePackVariant')}
         </Button>
       </div>
 
       <div className={boxCls}>
         <div>
-          <h3 className={titleCls}>Named variants</h3>
+          <h3 className={titleCls}>{t('form.namedVariants')}</h3>
           <p className={subCls}>
-            Optional simple named options (e.g. &quot;Twin pack — 20ml&quot;) with their own price and image. Use
-            either this pattern or size/pack rows, or both, depending on how you merchandise the SKU.
+            {t('form.namedVariantsDescription')}
           </p>
         </div>
 
         {named.length === 0 ? (
-          <p className="text-xs text-gray-500">No named variants yet.</p>
+          <p className="text-xs text-gray-500">{t('form.noNamedVariants')}</p>
         ) : (
           <div className="space-y-3">
             {named.map((row, index) => (
@@ -433,7 +431,7 @@ export default function EyeHygieneVariantsEditor({
                         patchNamed(next);
                       }}
                     />
-                    Active
+                    {t('form.active')}
                   </label>
                   <Button
                     type="button"
@@ -443,7 +441,7 @@ export default function EyeHygieneVariantsEditor({
                     isLoading={uploading === 'named' && uploadKey === `named-${index}`}
                     onClick={() => triggerUpload('named', index)}
                   >
-                    Upload image
+                    {t('form.uploadImage')}
                   </Button>
                   {row.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -460,7 +458,7 @@ export default function EyeHygieneVariantsEditor({
                     className="text-xs text-red-700 border-red-200 ml-auto"
                     onClick={() => patchNamed(named.filter((_, i) => i !== index))}
                   >
-                    Remove
+                    {t('form.remove')}
                   </Button>
                 </div>
               </div>
@@ -474,7 +472,7 @@ export default function EyeHygieneVariantsEditor({
           size="sm"
           onClick={() => patchNamed([...named, defaultNamedRow(named.length)])}
         >
-          + Add named variant
+          {t('form.addNamedVariant')}
         </Button>
       </div>
     </div>

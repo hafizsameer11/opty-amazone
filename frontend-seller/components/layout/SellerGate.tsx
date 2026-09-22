@@ -6,16 +6,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StoreService } from '@/services/store-service';
 import { getSellerGateState, sellerGateRedirect } from '@/lib/seller-profile-gate';
 
-const EXEMPT_PREFIXES = ['/auth/login', '/auth/register', '/auth/verification'];
+const EXEMPT_PREFIXES = ['/auth/login', '/auth/register', '/auth/verification', '/auth/pending-approval', '/store/edit'];
 
 export default function SellerGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, loading } = useAuth();
+  const isExempt = EXEMPT_PREFIXES.some((p) => pathname?.startsWith(p));
 
   useEffect(() => {
     if (loading || !isAuthenticated) return;
-    if (EXEMPT_PREFIXES.some((p) => pathname?.startsWith(p))) return;
+    if (isExempt) return;
 
     let cancelled = false;
     StoreService.getStore()
@@ -34,7 +35,7 @@ export default function SellerGate({ children }: { children: React.ReactNode }) 
     return () => {
       cancelled = true;
     };
-  }, [loading, isAuthenticated, pathname, router]);
+  }, [loading, isAuthenticated, isExempt, pathname, router]);
 
-  return <>{children}</>;
+  return <div className={isExempt ? undefined : 'seller-app-viewport'}>{children}</div>;
 }

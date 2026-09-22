@@ -13,6 +13,7 @@ import CategoryProductForm from '@/components/products/CategoryProductForm';
 import DiscountCalculator from '@/components/products/DiscountCalculator';
 import ColorVariationsManager from '@/components/products/ColorVariationsManager';
 import { useSuggestedProductSku } from '@/lib/use-suggested-product-sku';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface UnifiedProductFormProps {
   productId?: number;
@@ -25,6 +26,7 @@ interface UnifiedProductFormProps {
 
 export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }: UnifiedProductFormProps) {
   const router = useRouter();
+  const { t } = useLanguage();
   const isNew = !productId;
   
   const [product, setProduct] = useState<Product | null>(null);
@@ -155,7 +157,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
       setProduct(data);
       setFormData(productToEditFormData(data));
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to load product');
+      setError(error.response?.data?.message || t('products.loadFailed'));
     } finally {
       setLoadingProduct(false);
     }
@@ -170,7 +172,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
     try {
       if (isNew) {
         await productService.create(formData);
-        setSuccess('Product created successfully');
+        setSuccess(t('products.created'));
         setTimeout(() => {
           if (onSuccess) {
             onSuccess();
@@ -180,7 +182,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
         }, 1500);
       } else {
         await productService.update(productId!, formData);
-        setSuccess('Product updated successfully');
+        setSuccess(t('products.updated'));
         setTimeout(() => {
           if (onSuccess) {
             onSuccess();
@@ -194,7 +196,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
         error.response?.data?.errors?.name?.[0] ||
         error.response?.data?.errors?.sku?.[0] ||
         error.response?.data?.message ||
-        `Failed to ${isNew ? 'create' : 'update'} product`;
+        t(isNew ? 'products.createFailed' : 'products.updateFailed');
       setError(errorMessage);
     } finally {
       setSaving(false);
@@ -210,7 +212,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-8">
       {/* Alerts */}
       <div className="space-y-3">
         {error && <Alert type="error" message={error} onClose={() => setError('')} />}
@@ -220,25 +222,25 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
       {/* Basic Information */}
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
         {/* Section Header with Gradient */}
-        <div className="bg-gradient-to-r from-blue-500 to-indigo-500 px-8 py-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+        <div className="bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-4 sm:px-8 sm:py-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="rounded-xl bg-white/20 p-2.5 backdrop-blur-sm sm:p-3">
               <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">Basic Information</h2>
-              <p className="text-blue-100 mt-1">Essential product details and identification</p>
+              <h2 className="text-xl font-bold text-white sm:text-2xl">{t('form.basicInformation')}</h2>
+              <p className="mt-1 text-sm text-blue-100 sm:text-base">{t('form.basicDescription')}</p>
             </div>
           </div>
         </div>
         
-        <div className="p-8">
+        <div className="p-4 sm:p-8">
           <div className="space-y-6">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+            <div className="rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-6">
               <Input
-                label="Product Name *"
+                label={t('form.productName')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
@@ -250,7 +252,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
               <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
                 <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
                   <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-                  Category <span className="text-red-500">*</span>
+                  {t('form.category')}
                 </label>
                 <select
                   value={formData.category_id || ''}
@@ -262,7 +264,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
                   className="w-full px-4 py-3.5 bg-white border-2 border-purple-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-500 transition-all font-medium text-gray-700 shadow-sm hover:border-purple-300"
                   required
                 >
-                  <option value="">Select Category</option>
+                  <option value="">{t('form.selectCategory')}</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}
@@ -274,8 +276,8 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
               <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl p-5 border border-cyan-100">
                 <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
                   <span className="w-2 h-2 bg-cyan-500 rounded-full"></span>
-                  Sub Category
-                  {subCategories.length > 0 && <span className="text-gray-400 text-xs font-normal ml-2">(Optional)</span>}
+                  {t('form.subCategory')}
+                  {subCategories.length > 0 && <span className="text-gray-400 text-xs font-normal ml-2">{t('form.optional')}</span>}
                 </label>
                 <select
                   value={formData.sub_category_id || ''}
@@ -286,7 +288,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
                   className="w-full px-4 py-3.5 bg-white border-2 border-cyan-200 rounded-xl focus:ring-4 focus:ring-cyan-200 focus:border-cyan-500 transition-all font-medium text-gray-700 shadow-sm hover:border-cyan-300 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={!selectedCategory}
                 >
-                  <option value="">Select Sub Category</option>
+                  <option value="">{t('form.selectSubCategory')}</option>
                   {subCategories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}
@@ -298,7 +300,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
-                    Select a category first
+                     {t('form.selectCategoryFirst')}
                   </p>
                 )}
               </div>
@@ -306,16 +308,16 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
             
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-100">
               <Input
-                label="SKU"
+                label={t('form.sku')}
                 value={formData.sku}
                 onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                 disabled={!isNew}
                 className="bg-white"
-                placeholder="Auto-generated when you open this form"
+                placeholder={t('form.skuPlaceholder')}
               />
               {isNew && (
                 <p className="mt-2 text-xs text-amber-700">
-                  SKU is generated automatically. Edit it only if you need a custom code.
+                   {t('form.skuAutoHint')}
                 </p>
               )}
             </div>
@@ -323,7 +325,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
             <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-100">
               <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
                 <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                Product Type <span className="text-red-500">*</span>
+                  {t('form.productType')}
               </label>
               <select
                 value={formData.product_type}
@@ -331,41 +333,41 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
                 className="w-full px-4 py-3.5 bg-white border-2 border-emerald-200 rounded-xl focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500 transition-all font-medium text-gray-700 shadow-sm hover:border-emerald-300"
                 required
               >
-                <option value="frame">Frame</option>
-                <option value="sunglasses">Sunglasses</option>
-                <option value="contact_lens">Contact Lens</option>
-                <option value="eye_hygiene">Eye Hygiene</option>
-                <option value="accessory">Accessory</option>
+                  <option value="frame">{t('products.frames')}</option>
+                  <option value="sunglasses">{t('products.sunglasses')}</option>
+                  <option value="contact_lens">{t('products.contactLenses')}</option>
+                  <option value="eye_hygiene">{t('products.eyeHygiene')}</option>
+                  <option value="accessory">{t('form.accessory')}</option>
               </select>
             </div>
 
-            <p className="text-sm text-gray-600">Delivery is quoted when you review each order and its destination.</p>
+              <p className="text-sm text-gray-600">{t('form.deliveryHint')}</p>
 
             <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-xl p-6 border border-slate-200">
               <label className="block text-sm font-bold text-gray-800 mb-3">
-                Description
-                <span className="text-gray-400 text-xs font-normal ml-2">(Detailed product information)</span>
+                {t('form.description')}
+                <span className="text-gray-400 text-xs font-normal ml-2">{t('form.detailedInformation')}</span>
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-4 py-3 bg-white border-2 border-slate-300 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-all resize-none shadow-sm"
                 rows={5}
-                placeholder="Describe your product in detail... Include features, benefits, and any important information customers should know."
+                placeholder={t('form.descriptionPlaceholder')}
               />
             </div>
             
             <div className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl p-6 border border-violet-100">
               <Input
-                label="Short Description"
+                label={t('form.shortDescription')}
                 value={formData.short_description}
                 onChange={(e) => setFormData({ ...formData, short_description: e.target.value })}
                 maxLength={500}
                 className="bg-white"
-                placeholder="Brief summary (max 500 characters)"
+                placeholder={t('form.shortDescriptionPlaceholder')}
               />
               <p className="mt-2 text-xs text-gray-500">
-                {formData.short_description?.length || 0} / 500 characters
+                 {t('form.charactersCount', { count: formData.short_description?.length || 0 })}
               </p>
             </div>
           </div>
@@ -382,8 +384,8 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
               </svg>
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">Pricing & Inventory</h2>
-              <p className="text-green-100 mt-1">Set prices and manage stock levels</p>
+              <h2 className="text-2xl font-bold text-white">{t('form.pricingInventory')}</h2>
+              <p className="text-green-100 mt-1">{t('form.pricingDescription')}</p>
             </div>
           </div>
         </div>
@@ -392,7 +394,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-200">
               <Input
-                label="Price *"
+                label={t('form.price')}
                 type="number"
                 step="0.01"
                 min="0"
@@ -405,7 +407,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
             </div>
             <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-200">
               <Input
-                label="Compare At Price (Original)"
+                label={t('form.comparePrice')}
                 type="number"
                 step="0.01"
                 min="0"
@@ -420,7 +422,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
             </div>
             <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-5 border border-amber-200">
               <Input
-                label="Cost Price"
+                label={t('form.costPrice')}
                 type="number"
                 step="0.01"
                 min="0"
@@ -448,7 +450,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pt-8 border-t-2 border-gray-200">
             <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-xl p-5 border border-teal-200">
               <Input
-                label="Stock Quantity *"
+                label={t('form.stock')}
                 type="number"
                 min="0"
                 value={formData.stock_quantity}
@@ -461,7 +463,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
             <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl p-5 border border-rose-200">
               <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
                 <span className="w-2 h-2 bg-rose-500 rounded-full"></span>
-                Stock Status <span className="text-red-500">*</span>
+                  {t('form.stockStatus')}
               </label>
               <select
                 value={formData.stock_status}
@@ -469,9 +471,9 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
                 className="w-full px-4 py-3.5 bg-white border-2 border-rose-200 rounded-xl focus:ring-4 focus:ring-rose-200 focus:border-rose-500 transition-all font-medium text-gray-700 shadow-sm hover:border-rose-300"
                 required
               >
-                <option value="in_stock">In Stock</option>
-                <option value="out_of_stock">Out of Stock</option>
-                <option value="backorder">Backorder</option>
+                <option value="in_stock">{t('form.inStock')}</option>
+                <option value="out_of_stock">{t('form.outOfStock')}</option>
+                <option value="backorder">{t('form.backorder')}</option>
               </select>
             </div>
           </div>
@@ -488,8 +490,8 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
               </svg>
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">Product Images</h2>
-              <p className="text-purple-100 mt-1">Upload up to 10 high-quality images</p>
+              <h2 className="text-2xl font-bold text-white">{t('form.images')}</h2>
+              <p className="text-purple-100 mt-1">{t('form.imagesDescription')}</p>
             </div>
           </div>
         </div>
@@ -524,8 +526,8 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
               </svg>
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">Product Status</h2>
-              <p className="text-yellow-100 mt-1">Control product visibility and features</p>
+              <h2 className="text-2xl font-bold text-white">{t('form.productStatus')}</h2>
+              <p className="text-yellow-100 mt-1">{t('form.statusDescription')}</p>
             </div>
           </div>
         </div>
@@ -541,13 +543,13 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
               <div className="ml-4 flex-1">
                 <span className="text-base font-bold text-gray-900 flex items-center gap-2">
                   <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                  Active
+                  {t('products.active')}
                 </span>
-                <p className="text-sm text-gray-600 mt-1">Product will be visible to customers</p>
+                <p className="text-sm text-gray-600 mt-1">{t('form.visibleToCustomers')}</p>
               </div>
               {formData.is_active && (
                 <div className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
-                  ON
+                  {t('form.on')}
                 </div>
               )}
             </label>
@@ -561,13 +563,13 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
               <div className="ml-4 flex-1">
                 <span className="text-base font-bold text-gray-900 flex items-center gap-2">
                   <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  Featured
+                  {t('products.featured')}
                 </span>
-                <p className="text-sm text-gray-600 mt-1">Show this product in featured sections</p>
+                <p className="text-sm text-gray-600 mt-1">{t('form.featuredDescription')}</p>
               </div>
               {formData.is_featured && (
                 <div className="px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full">
-                  FEATURED
+                  {t('products.featured').toUpperCase()}
                 </div>
               )}
             </label>
@@ -600,14 +602,14 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
                 <svg className="w-6 h-6 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Create Product
+                {t('form.createProduct')}
               </>
             ) : (
               <>
                 <svg className="w-6 h-6 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Update Product
+                {t('form.updateProduct')}
               </>
             )}
           </Button>
@@ -618,11 +620,10 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
             onClick={() => router.push('/products')}
             className="px-8 py-4 text-lg border-2 border-gray-400 rounded-xl hover:bg-gray-700 hover:border-gray-500 font-semibold transition-all text-white"
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       </div>
     </form>
   );
 }
-

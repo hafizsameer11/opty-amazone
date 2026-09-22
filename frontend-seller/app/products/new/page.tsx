@@ -10,6 +10,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { productService, type Category } from '@/services/product-service';
 import Button from '@/components/ui/Button';
 import SectionBackLink from '@/components/ui/SectionBackLink';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const categoryRoutes: Record<string, string> = {
   'eye-glasses': '/products/new/eye-glasses',
@@ -30,6 +31,7 @@ const categoryIcons: Record<string, string> = {
 export default function NewProductPage() {
   const router = useRouter();
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
 
@@ -65,7 +67,7 @@ export default function NewProductPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -86,10 +88,10 @@ export default function NewProductPage() {
               <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-6">
                   <SectionBackLink href="/products" className="mb-3">
-                    Back to Products
+                    {t('Back to Products')}
                   </SectionBackLink>
-                  <h1 className="text-3xl font-bold text-gray-900">Create New Product</h1>
-                  <p className="text-gray-600 mt-2">Select a category to create a product</p>
+                  <h1 className="text-3xl font-bold text-gray-900">{t('form.createNewProduct')}</h1>
+                  <p className="text-gray-600 mt-2">{t('form.selectCategoryDescription')}</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -106,10 +108,10 @@ export default function NewProductPage() {
                               {category.name}
                             </h3>
                             <p className="text-sm text-gray-500 mb-4">
-                              Create a new {category.name.toLowerCase()} product
+                              {t('form.createCategoryProduct', { category: category.name.toLowerCase() })}
                             </p>
                             <Button variant="outline" className="w-full">
-                              Create Product
+                              {t('form.createProduct')}
                             </Button>
                           </div>
                         </div>
@@ -120,7 +122,7 @@ export default function NewProductPage() {
 
                 {categories.length === 0 && (
                   <div className="bg-white rounded-lg shadow p-12 text-center">
-                    <p className="text-gray-500">No categories available. Please contact support.</p>
+                    <p className="text-gray-500">{t('form.noCategoriesSupport')}</p>
                   </div>
                 )}
               </div>

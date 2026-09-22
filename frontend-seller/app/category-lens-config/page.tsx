@@ -8,9 +8,11 @@ import Sidebar from '@/components/layout/Sidebar';
 import Button from '@/components/ui/Button';
 import Alert from '@/components/ui/Alert';
 import { categoryLensConfigService, type CategoryLensConfig, type CategoryLensConfigDetail } from '@/services/category-lens-config-service';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function CategoryLensConfigPage() {
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryLensConfig[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<number | null>(null);
@@ -46,7 +48,7 @@ export default function CategoryLensConfigPage() {
       const data = await categoryLensConfigService.getCategoryConfigs();
       setCategories(data);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to load categories');
+      setError(error.response?.data?.message || t('config.noCategories'));
     } finally {
       setLoadingCategories(false);
     }
@@ -63,7 +65,7 @@ export default function CategoryLensConfigPage() {
       setSelectedThicknessMaterials(detail.configured.thickness_materials);
       setSelectedThicknessOptions(detail.configured.thickness_options);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to load category details');
+      setError(error.response?.data?.message || t('config.loadDetailsFailed'));
     } finally {
       setLoadingDetail(false);
     }
@@ -93,7 +95,7 @@ export default function CategoryLensConfigPage() {
         lens_thickness_option_ids: selectedThicknessOptions,
       });
 
-      setSuccess('Configuration saved successfully');
+       setSuccess(t('config.saveSuccess'));
       // Reload categories to update the list
       await loadCategories();
       // Reload detail to refresh
@@ -101,7 +103,7 @@ export default function CategoryLensConfigPage() {
       
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to save configuration');
+       setError(error.response?.data?.message || t('config.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -124,7 +126,7 @@ export default function CategoryLensConfigPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -141,13 +143,12 @@ export default function CategoryLensConfigPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header />
           <main className="flex-1 overflow-y-auto">
-            <div className="py-6">
-              <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="py-4 sm:py-6">
+              <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8">
                 <div className="mb-6">
-                  <h1 className="text-3xl font-bold text-gray-900">Category Lens Configuration</h1>
+                   <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('config.lensTitle')}</h1>
                   <p className="mt-2 text-gray-600">
-                    Configure lens options (types, treatments, coatings, thickness) for each category. 
-                    Products in these categories will use these lens options in the customization popup.
+                     {t('config.lensDescription')}
                   </p>
                 </div>
 
@@ -166,21 +167,20 @@ export default function CategoryLensConfigPage() {
                 <div className="bg-white rounded-lg shadow">
                   <div className="divide-y divide-gray-200">
                     {categories.map((category) => (
-                      <div key={category.id} className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
+                      <div key={category.id} className="p-4 sm:p-6">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0 flex-1">
                             <h3 className="text-lg font-semibold text-gray-900">{category.name}</h3>
                             <p className="text-sm text-gray-500 mt-1">
-                              {category.lens_types.length} lens types, {category.lens_treatments.length} treatments, 
-                              {category.lens_coatings.length} coatings configured
+                               {category.lens_types.length} {t('form.lensType').toLowerCase()}, {category.lens_treatments.length} {t('form.treatments').toLowerCase()}, {category.lens_coatings.length} {t('config.configured').toLowerCase()}
                             </p>
                           </div>
                           <Button
                             variant="outline"
                             onClick={() => handleCategoryExpand(category.id)}
-                            className="ml-4"
+                            className="w-full sm:ml-4 sm:w-auto"
                           >
-                            {expandedCategory === category.id ? 'Collapse' : 'Configure'}
+                             {expandedCategory === category.id ? t('common.collapse') : t('common.configure')}
                           </Button>
                         </div>
 
@@ -189,14 +189,14 @@ export default function CategoryLensConfigPage() {
                             {loadingDetail ? (
                               <div className="text-center py-8">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0066CC] mx-auto"></div>
-                                <p className="mt-2 text-gray-600">Loading options...</p>
+                                 <p className="mt-2 text-gray-600">{t('common.loading')}</p>
                               </div>
                             ) : categoryDetail ? (
                               <>
                                 {/* Lens Types */}
                                 <div>
                                   <label className="block text-sm font-semibold text-gray-900 mb-3">
-                                    Lens Types
+                                     {t('form.lensType')}
                                   </label>
                                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-3 border border-gray-200 rounded-lg">
                                     {categoryDetail.available.lens_types.map((lensType) => (
@@ -226,7 +226,7 @@ export default function CategoryLensConfigPage() {
                                 {/* Treatments */}
                                 <div>
                                   <label className="block text-sm font-semibold text-gray-900 mb-3">
-                                    Treatments
+                                     {t('form.treatments')}
                                   </label>
                                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-3 border border-gray-200 rounded-lg">
                                     {categoryDetail.available.treatments.map((treatment) => (
@@ -256,7 +256,7 @@ export default function CategoryLensConfigPage() {
                                 {/* Coatings */}
                                 <div>
                                   <label className="block text-sm font-semibold text-gray-900 mb-3">
-                                    Coatings
+                                     {t('config.coatings')}
                                   </label>
                                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-3 border border-gray-200 rounded-lg">
                                     {categoryDetail.available.coatings.map((coating) => (
@@ -286,7 +286,7 @@ export default function CategoryLensConfigPage() {
                                 {/* Thickness Materials */}
                                 <div>
                                   <label className="block text-sm font-semibold text-gray-900 mb-3">
-                                    Thickness Materials
+                                     {t('config.thicknessMaterials')}
                                   </label>
                                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-3 border border-gray-200 rounded-lg">
                                     {categoryDetail.available.thickness_materials.map((material) => (
@@ -316,7 +316,7 @@ export default function CategoryLensConfigPage() {
                                 {/* Thickness Options */}
                                 <div>
                                   <label className="block text-sm font-semibold text-gray-900 mb-3">
-                                    Thickness Options
+                                     {t('config.thicknessOptions')}
                                   </label>
                                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto p-3 border border-gray-200 rounded-lg">
                                     {categoryDetail.available.thickness_options.map((option) => (
@@ -349,13 +349,13 @@ export default function CategoryLensConfigPage() {
                                     onClick={() => handleSave(category.id)}
                                     isLoading={saving}
                                   >
-                                    Save Configuration
+                                     {t('config.save')}
                                   </Button>
                                 </div>
                               </>
                             ) : (
                               <div className="text-center py-8 text-gray-500">
-                                Failed to load category details
+                                 {t('config.failedLoadDetails')}
                               </div>
                             )}
                           </div>

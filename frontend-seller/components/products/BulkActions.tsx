@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface BulkActionsProps {
   selectedCount: number;
@@ -20,6 +21,7 @@ export default function BulkActions({
   onBulkEdit,
   processing = false,
 }: BulkActionsProps) {
+  const { t } = useLanguage();
   const [showMenu, setShowMenu] = useState(false);
 
   if (selectedCount === 0) {
@@ -30,7 +32,7 @@ export default function BulkActions({
     <div className="bg-[#0066CC] text-white rounded-lg p-4 mb-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <span className="font-semibold">
-          {selectedCount} product{selectedCount !== 1 ? 's' : ''} selected
+          {t('products.selectedCount', { count: selectedCount })}
         </span>
       </div>
       <div className="flex items-center gap-2">
@@ -41,7 +43,7 @@ export default function BulkActions({
           disabled={processing}
           className="bg-white text-[#0066CC] hover:bg-gray-100 border-white"
         >
-          Activate
+          {t('products.activate')}
         </Button>
         <Button
           variant="outline"
@@ -50,7 +52,7 @@ export default function BulkActions({
           disabled={processing}
           className="bg-white text-[#0066CC] hover:bg-gray-100 border-white"
         >
-          Deactivate
+          {t('products.deactivate')}
         </Button>
         {onBulkEdit && (
           <Button
@@ -60,7 +62,7 @@ export default function BulkActions({
             disabled={processing}
             className="bg-white text-[#0066CC] hover:bg-gray-100 border-white"
           >
-            Edit
+            {t('form.edit')}
           </Button>
         )}
         <Button
@@ -70,7 +72,7 @@ export default function BulkActions({
           disabled={processing}
           className="bg-red-500 text-white hover:bg-red-600 border-red-500"
         >
-          Delete
+          {t('products.delete')}
         </Button>
       </div>
     </div>

@@ -12,6 +12,7 @@ import {
   type ProductPrescriptionConfigDetail,
   type PrescriptionDropdownValue,
 } from '@/services/prescription-dropdown-service';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type ClFieldType = 'pwr' | 'sph' | 'cyl' | 'axis' | 'base_curve' | 'diameter';
 type EyeFilterTab = 'all' | 'right' | 'left';
@@ -63,6 +64,7 @@ const emptyDraft = (): DraftValue => ({
 });
 
 export default function ContactLensSpecificationEditor({ productId }: ContactLensSpecificationEditorProps) {
+  const { t } = useLanguage();
   const [config, setConfig] = useState<ProductPrescriptionConfigDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -87,8 +89,8 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
         typeof apiMsg === 'string' && apiMsg.trim()
           ? apiMsg
           : ax.response?.status === 404
-            ? 'Not found. If other product APIs work, open this request in the Network tab → Response: the JSON message explains whether the product/store is missing on the API.'
-            : 'Failed to load contact lens specifications'
+            ? t('form.prescriptionNotFound')
+            : t('form.prescriptionLoadFailed')
       );
       setConfig(null);
     } finally {
@@ -98,7 +100,7 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
 
   useEffect(() => {
     load();
-  }, [productId]);
+  }, [productId, t]);
 
   useEffect(() => {
     if (!usesEyeTabs(activeField)) {
@@ -362,11 +364,11 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
           sort_order: v.sort_order,
         })),
       });
-      setSuccess('Contact lens specifications saved');
+      setSuccess(t('form.prescriptionSaved'));
       await load();
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { message?: string } } };
-      setError(ax.response?.data?.message || 'Failed to save specifications');
+      setError(ax.response?.data?.message || t('form.prescriptionSaveFailed'));
     } finally {
       setSaving(false);
     }
@@ -385,7 +387,7 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 space-y-4">
         {error && <Alert type="error" message={error} onClose={() => setError('')} />}
         <Button type="button" onClick={load} className="bg-teal-600 hover:bg-teal-700 text-white">
-          Retry
+          {t('form.retry')}
         </Button>
       </div>
     );
@@ -394,19 +396,16 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
   const unitHint = FIELD_UNITS[activeField];
   const modalTitle =
     editingIndex === null
-      ? `Add ${FIELD_LABELS[activeField]}`
-      : `Edit ${FIELD_LABELS[activeField]}`;
+      ? `${t('form.add')} ${t(FIELD_LABELS[activeField])}`
+      : `${t('form.edit')} ${t(FIELD_LABELS[activeField])}`;
 
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
       <div className="bg-gradient-to-r from-cyan-600 to-teal-600 px-6 py-5 sm:px-8">
-        <h2 className="text-xl sm:text-2xl font-bold text-white">Contact lens prescription options</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-white">{t('form.contactPrescriptionOptions')}</h2>
         <p className="text-cyan-100 mt-1 text-sm">
-          Per-product dropdowns for the buyer configurator. Use tabs by field, then (for power / cylinder / axis) by
-          eye. Values use the units shown (D = diopters, mm, degrees).
-          {hideSphTab
-            ? ' Spherical / non-toric lenses: use PWR for sphere power — SPH is only shown for astigmatism (toric).'
-            : ''}
+          {t('form.prescriptionDescription')}
+          {hideSphTab && <> {t('form.sphericalPrescriptionHint')}</>}
         </p>
       </div>
 
@@ -428,7 +427,7 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
                     : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
-                <span className="hidden sm:inline">{FIELD_LABELS[ft]}</span>
+                <span className="hidden sm:inline">{t(FIELD_LABELS[ft])}</span>
                 <span className="sm:hidden">{ft.toUpperCase()}</span>
                 <span className="ml-1 text-xs text-gray-400">({config.values[ft]?.length || 0})</span>
               </button>
@@ -438,19 +437,19 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
           {/* Eye tabs (power / cyl / axis only) */}
           {usesEyeTabs(activeField) && (
             <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-200 bg-white">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-1">Eye</span>
-              {(['all', 'right', 'left'] as const).map((t) => (
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-1">{t('form.eye')}</span>
+                {(['all', 'right', 'left'] as const).map((tab) => (
                 <button
-                  key={t}
+                    key={tab}
                   type="button"
-                  onClick={() => setEyeTab(t)}
+                    onClick={() => setEyeTab(tab)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize ${
-                    eyeTab === t
+                      eyeTab === tab
                       ? 'bg-teal-600 text-white shadow-sm'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  {t}
+                  {tab === 'all' ? t('common.all') : tab === 'right' ? t('form.rightEye') : t('form.leftEye')}
                 </button>
               ))}
               <button
@@ -459,7 +458,7 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
                 className="ml-auto text-sm font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
               >
                 <span aria-hidden>⎘</span>
-                Copy right → left
+                {t('form.copyRightLeft')}
               </button>
             </div>
           )}
@@ -467,14 +466,14 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
           <div className="p-4 sm:p-5 space-y-4 bg-white">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">{FIELD_LABELS[activeField]}</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t(FIELD_LABELS[activeField])}</h3>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  Unit for numeric values: <strong>{unitHint}</strong>
+                  {t('form.unitForNumeric')} <strong>{unitHint}</strong>
                   {activeField === 'sph' || activeField === 'cyl'
-                    ? ' (diopters; negative values allowed, e.g. -2.25)'
+                    ? t('form.dioptersHint')
                     : activeField === 'axis'
-                      ? ' (0–180 typically)'
-                      : ' (millimetres)'}
+                      ? t('form.axisHint')
+                      : t('form.millimetresHint')}
                 </p>
               </div>
               <Button
@@ -482,14 +481,14 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
                 onClick={openAddModal}
                 className="bg-teal-600 hover:bg-teal-700 text-white shrink-0"
               >
-                + Add value
+                {t('form.addValue')}
               </Button>
             </div>
 
             <details className="group rounded-lg border border-dashed border-gray-300 bg-gray-50/50">
               <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-gray-700 list-none flex items-center gap-2">
                 <span className="text-teal-600">▸</span>
-                Bulk import (comma or newline separated)
+                 {t('form.bulkImport')}
               </summary>
               <div className="px-4 pb-4">
                 <textarea
@@ -497,8 +496,8 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
                   rows={3}
                   placeholder={
                     usesEyeTabs(activeField) && eyeTab !== 'all'
-                      ? `Imports into the current eye filter (${eyeTab}). Example: -1.00, -0.75, -0.50`
-                      : '-1.00, -0.75, -0.50…'
+                      ? t('form.bulkImportCurrentEye', { eye: eyeTab })
+                      : t('form.bulkImportExample')
                   }
                   onBlur={(e) => {
                     if (e.target.value.trim()) {
@@ -512,7 +511,7 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
 
             {filteredIndices.length === 0 ? (
               <p className="text-gray-500 text-center py-10 text-sm rounded-xl border border-gray-100 bg-gray-50/30">
-                No values in this view — add one or switch eye filter.
+                {t('form.noPrescriptionValues')}
               </p>
             ) : (
               <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -540,7 +539,7 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400">Sort: {v.sort_order}</p>
+                      <p className="text-xs text-gray-400">{t('form.sort')}: {v.sort_order}</p>
                       <div className="flex gap-2 mt-auto pt-2">
                         <Button
                           type="button"
@@ -548,14 +547,14 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
                           className="flex-1 text-sm py-1.5"
                           onClick={() => openEditModal(idx)}
                         >
-                          Edit
+                          {t('form.edit')}
                         </Button>
                         <Button
                           type="button"
                           onClick={() => handleDeleteValue(idx)}
                           className="bg-red-600 hover:bg-red-700 text-white text-sm py-1.5 px-3"
                         >
-                          Remove
+                          {t('form.remove')}
                         </Button>
                       </div>
                     </li>
@@ -573,7 +572,7 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
             disabled={saving}
             className="bg-teal-600 hover:bg-teal-700 text-white min-w-[180px]"
           >
-            {saving ? 'Saving…' : 'Save specifications'}
+            {saving ? t('common.saving') : t('form.saveSpecifications')}
           </Button>
         </div>
       </div>
@@ -581,23 +580,23 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
       <Modal isOpen={modalOpen} onClose={closeModal} title={modalTitle} size="md">
         <div className="space-y-4">
           <div className="rounded-lg bg-sky-50 border border-sky-100 px-3 py-2 text-sm text-sky-900">
-            Product #{config.product.id} · {config.product.name}
+            {t('form.productReference', { id: config.product.id })} · {config.product.name}
           </div>
           <Input
-            label={`Value (${unitHint})`}
+            label={t('form.valueWithUnit', { unit: unitHint })}
             value={draft.value}
             onChange={(e) => setDraft((d) => ({ ...d, value: e.target.value }))}
-            placeholder={activeField === 'axis' ? 'e.g. 90' : 'e.g. -2.25'}
+            placeholder={t(activeField === 'axis' ? 'form.axisExample' : 'form.powerExample')}
             required
           />
           <Input
-            label="Label (optional, shown to buyer if set)"
+            label={t('form.labelOptionalBuyer')}
             value={draft.label}
             onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
           />
           {usesEyeTabs(activeField) && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Eye</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.eye')}</label>
               <select
                 value={draft.eye_type === 'left' || draft.eye_type === 'right' ? draft.eye_type : 'right'}
                 onChange={(e) =>
@@ -608,23 +607,23 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
               >
-                {EYE_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                {EYE_TYPES.map((eye) => (
+                  <option key={eye} value={eye}>
+                    {eye === 'right' ? t('form.rightEye') : t('form.leftEye')}
                   </option>
                 ))}
               </select>
             </div>
           )}
           <Input
-            label="Sort order"
+            label={t('form.sortOrder')}
             type="number"
             value={draft.sort_order}
             onChange={(e) => setDraft((d) => ({ ...d, sort_order: parseInt(e.target.value, 10) || 0 }))}
           />
           <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
             <Button type="button" variant="outline" onClick={closeModal}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="button"
@@ -632,7 +631,7 @@ export default function ContactLensSpecificationEditor({ productId }: ContactLen
               disabled={!draft.value.trim()}
               className="bg-teal-600 hover:bg-teal-700 text-white"
             >
-              {editingIndex === null ? 'Add' : 'Save'}
+              {editingIndex === null ? t('form.add') : t('common.save')}
             </Button>
           </div>
         </div>

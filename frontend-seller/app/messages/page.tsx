@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
@@ -14,6 +14,8 @@ import {
   type SellerChatConversationListItem,
   type StoreChatMessage,
 } from '@/services/store-chat-service';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 function MessageBubble({
   mine,
@@ -32,6 +34,7 @@ function MessageBubble({
   senderName?: string | null;
   createdAt: string;
 }) {
+  const { t, language } = useLanguage();
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
       <div
@@ -46,7 +49,7 @@ function MessageBubble({
         {attachmentUrl && attachmentType === 'image' && (
           <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mt-1">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={attachmentUrl} alt={attachmentName || 'Attachment'} className="max-h-40 rounded-lg" />
+            <img src={attachmentUrl} alt={attachmentName || t('messages.attachment')} className="max-h-40 rounded-lg" />
           </a>
         )}
         {attachmentUrl && attachmentType !== 'image' && (
@@ -56,20 +59,22 @@ function MessageBubble({
             rel="noopener noreferrer"
             className={`mt-1 inline-flex text-xs underline ${mine ? 'text-blue-100' : 'text-[#0066CC]'}`}
           >
-            {attachmentName || 'Download file'}
+            {attachmentName || t('messages.downloadFile')}
           </a>
         )}
         <p className={`text-[10px] mt-1 ${mine ? 'text-blue-100' : 'text-gray-400'}`}>
-          {new Date(createdAt).toLocaleString()}
+          {new Date(createdAt).toLocaleString(language === 'it' ? 'it-IT' : 'en-US')}
         </p>
       </div>
     </div>
   );
 }
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const { isAuthenticated, loading, user } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<'buyers' | 'admin'>('buyers');
   const [conversations, setConversations] = useState<SellerChatConversationListItem[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -85,6 +90,7 @@ export default function MessagesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastMessageIdRef = useRef(0);
   const lastAdminIdRef = useRef(0);
+  const openedQueryConversationRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -92,8 +98,8 @@ export default function MessagesPage() {
     }
   }, [isAuthenticated, loading, router]);
 
-  const loadConversations = useCallback(async () => {
-    setListLoading(true);
+  const loadConversations = useCallback(async (silent = false) => {
+    if (!silent) setListLoading(true);
     setError(null);
     try {
       const data = await storeChatService.listConversations(1, 50);
@@ -110,6 +116,8 @@ export default function MessagesPage() {
       void loadConversations();
     }
   }, [isAuthenticated, loadConversations]);
+
+  useLiveRefresh(() => loadConversations(true), isAuthenticated, 5000);
 
   const scrollThread = useCallback(() => {
     requestAnimationFrame(() => {
@@ -139,6 +147,17 @@ export default function MessagesPage() {
       setThreadLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!isAuthenticated || mode !== 'buyers') return;
+    const requestedId = Number(searchParams.get('conversation_id'));
+    if (!Number.isFinite(requestedId) || requestedId <= 0) return;
+    if (openedQueryConversationRef.current === requestedId) return;
+    if (!conversations.some((conversation) => conversation.id === requestedId)) return;
+
+    openedQueryConversationRef.current = requestedId;
+    void openConversation(requestedId);
+  }, [conversations, isAuthenticated, mode, searchParams]);
 
   const loadAdminChat = useCallback(async () => {
     setThreadLoading(true);
@@ -264,7 +283,7 @@ export default function MessagesPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('messages.loading')}</p>
         </div>
       </div>
     );
@@ -275,12 +294,12 @@ export default function MessagesPage() {
   }
 
   const composer = (
-    <div className="p-4 border-t border-gray-100 flex flex-col gap-2 bg-white">
+    <div className="shrink-0 border-t border-gray-100 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
       {file && (
         <p className="text-xs text-gray-600">
           Attached: {file.name}{' '}
           <button type="button" className="text-red-600 underline" onClick={() => setFile(null)}>
-            Remove
+            {t('messages.remove')}
           </button>
         </p>
       )}
@@ -288,7 +307,7 @@ export default function MessagesPage() {
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder={mode === 'admin' ? 'Message Vista Express admin…' : 'Write a reply…'}
+          placeholder={mode === 'admin' ? t('messages.adminPlaceholder') : t('messages.replyPlaceholder')}
           rows={2}
           className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-[#0066CC]/30 focus:border-[#0066CC] outline-none resize-none"
           maxLength={5000}
@@ -309,14 +328,14 @@ export default function MessagesPage() {
             onChange={(e) => setFile(e.target.files?.[0] || null)}
           />
           <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={sending}>
-            File
+            {t('messages.file')}
           </Button>
           <Button
             variant="primary"
             disabled={sending || (!draft.trim() && !file) || (mode === 'buyers' && !selectedId)}
             onClick={() => void handleSend()}
           >
-            {sending ? 'Sending…' : 'Send'}
+            {sending ? t('messages.sending') : t('messages.send')}
           </Button>
         </div>
       </div>
@@ -324,18 +343,18 @@ export default function MessagesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex">
+    <div className="seller-message-page min-h-screen overflow-x-hidden bg-gray-50">
+      <div className="flex min-w-0">
         <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="seller-message-layout flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
           <Header />
-          <main className="flex-1 overflow-y-auto">
-            <div className="py-6">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <main className="seller-message-shell flex-1 min-h-[calc(100dvh-6.25rem)] min-w-0 overflow-hidden lg:min-h-0">
+            <div className="min-h-[calc(100dvh-6.25rem)] flex flex-col py-4 lg:h-full lg:min-h-0 lg:py-6">
+              <div className="mx-auto flex min-h-[calc(100dvh-6.25rem)] w-full max-w-7xl flex-col px-3 sm:px-6 lg:h-full lg:min-h-0 lg:px-8">
+                <div className="shrink-0 mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
-                    <p className="text-gray-600 mt-1">Chat with buyers or contact Vista Express admin.</p>
+                    <h1 className="text-3xl font-bold text-gray-900">{t('messages.title')}</h1>
+                    <p className="text-gray-600 mt-1">{t('messages.subtitle')}</p>
                   </div>
                   <div className="inline-flex rounded-lg border border-gray-200 p-1 bg-white">
                     <button
@@ -345,7 +364,7 @@ export default function MessagesPage() {
                         mode === 'buyers' ? 'bg-[#0066CC] text-white' : 'text-gray-600'
                       }`}
                     >
-                      Buyers
+                      {t('messages.buyers')}
                     </button>
                     <button
                       type="button"
@@ -354,7 +373,7 @@ export default function MessagesPage() {
                         mode === 'admin' ? 'bg-[#0066CC] text-white' : 'text-gray-600'
                       }`}
                     >
-                      Contact Vista Express Admin
+                      {t('messages.contactAdmin')}
                     </button>
                   </div>
                 </div>
@@ -366,16 +385,16 @@ export default function MessagesPage() {
                 )}
 
                 {mode === 'admin' ? (
-                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col min-h-[420px]">
-                    <div className="px-4 py-3 border-b border-gray-100 font-semibold text-gray-900">
-                      Contact Vista Express Admin
+                  <div className="flex-1 min-h-0 min-w-0 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
+                    <div className="shrink-0 px-4 py-3 border-b border-gray-100 font-semibold text-gray-900">
+                      {t('messages.contactAdmin')}
                     </div>
-                    <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50 min-h-[240px]">
+                    <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2 bg-gray-50">
                       {threadLoading ? (
-                        <p className="text-sm text-gray-500 text-center py-12">Loading…</p>
+                        <p className="text-sm text-gray-500 text-center py-12">{t('common.loading')}</p>
                       ) : adminThread.length === 0 ? (
                         <p className="text-sm text-gray-500 text-center py-12">
-                          No messages yet. Ask admin anything about your store.
+                          {t('messages.adminEmpty')}
                         </p>
                       ) : (
                         adminThread.map((m) => (
@@ -395,14 +414,14 @@ export default function MessagesPage() {
                     {composer}
                   </div>
                 ) : (
-                  <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
-                    <aside className="w-full lg:w-80 shrink-0 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col max-h-72 lg:max-h-[calc(100vh-220px)]">
-                      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Conversations</p>
+                  <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-0 lg:gap-4 lg:items-stretch">
+                    <aside className={`w-full lg:w-80 shrink-0 min-h-0 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col max-h-none lg:max-h-none lg:h-full ${selectedId ? 'hidden lg:flex' : 'flex'}`}>
+                      <div className="shrink-0 px-4 py-3 border-b border-gray-100 bg-gray-50">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('messages.conversations')}</p>
                       </div>
-                      <div className="overflow-y-auto flex-1">
+                      <div className="min-h-0 overflow-y-auto flex-1">
                         {listLoading ? (
-                          <div className="p-6 text-center text-sm text-gray-500">Loading…</div>
+                          <div className="p-6 text-center text-sm text-gray-500">{t('common.loading')}</div>
                         ) : conversations.length === 0 ? (
                           <div className="p-6 text-center text-sm text-gray-500">
                             No conversations yet. When a signed-in buyer messages your store, it will appear here.
@@ -419,7 +438,7 @@ export default function MessagesPage() {
                                   }`}
                                 >
                                   <div className="flex items-start justify-between gap-2">
-                                    <p className="font-medium text-gray-900 truncate">{c.buyer?.name || 'Buyer'}</p>
+                                    <p className="font-medium text-gray-900 truncate">{c.buyer?.name || t('messages.buyers')}</p>
                                     {c.seller_unread_count > 0 && (
                                       <span className="shrink-0 text-[10px] font-bold text-white bg-[#0066CC] rounded-full min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center">
                                         {c.seller_unread_count > 9 ? '9+' : c.seller_unread_count}
@@ -437,31 +456,32 @@ export default function MessagesPage() {
                       </div>
                     </aside>
 
-                    <section className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col min-h-[420px] lg:min-h-[calc(100vh-220px)]">
+                    <section className={`flex-1 min-h-0 min-w-0 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col ${selectedId ? 'seller-mobile-thread fixed inset-x-0 bottom-0 top-[6.25rem] z-40 h-auto rounded-none border-x-0 shadow-none lg:static lg:z-auto lg:h-auto lg:rounded-2xl lg:border-x lg:shadow-sm' : 'hidden lg:flex'}`}>
                       {!selectedId ? (
                         <div className="flex-1 flex items-center justify-center p-8 text-center text-gray-500 text-sm">
-                          Select a conversation to read and reply.
+                          {t('messages.selectConversation')}
                         </div>
                       ) : (
                         <>
-                          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-2">
+                          <div className="shrink-0 px-3 py-3 border-b border-gray-100 flex items-center justify-between gap-2 sm:px-4">
+                            <button type="button" onClick={() => setSelectedId(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 lg:hidden" aria-label={t('messages.conversations')}><svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 18l-6-6 6-6" /></svg></button>
                             <div className="min-w-0">
                               <p className="font-semibold text-gray-900 truncate">
-                                {conversations.find((x) => x.id === selectedId)?.buyer?.name || 'Buyer'}
+                                {conversations.find((x) => x.id === selectedId)?.buyer?.name || t('messages.buyers')}
                               </p>
                               <p className="text-xs text-gray-500 truncate">
                                 {conversations.find((x) => x.id === selectedId)?.buyer?.email || ''}
                               </p>
                             </div>
                             <Button variant="outline" size="sm" onClick={() => void loadConversations()}>
-                              Refresh list
+                              {t('messages.refreshList')}
                             </Button>
                           </div>
-                          <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50 min-h-[200px]">
+                          <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2 bg-gray-50">
                             {threadLoading ? (
-                              <div className="flex items-center justify-center h-40 text-sm text-gray-500">Loading…</div>
+                              <div className="flex items-center justify-center h-40 text-sm text-gray-500">{t('common.loading')}</div>
                             ) : thread.length === 0 ? (
-                              <div className="flex items-center justify-center h-40 text-sm text-gray-500">No messages yet.</div>
+                              <div className="flex items-center justify-center h-40 text-sm text-gray-500">{t('messages.noMessages')}</div>
                             ) : (
                               thread.map((m) => (
                                 <MessageBubble
@@ -491,4 +511,8 @@ export default function MessagesPage() {
       <BottomNav />
     </div>
   );
+}
+
+export default function MessagesPage() {
+  return <Suspense fallback={<main className="p-8">Loading messages…</main>}><MessagesPageContent /></Suspense>;
 }

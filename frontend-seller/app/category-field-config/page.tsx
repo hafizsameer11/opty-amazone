@@ -9,6 +9,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import Button from '@/components/ui/Button';
 import Alert from '@/components/ui/Alert';
 import { categoryFieldConfigService, type CategoryFieldConfig, type CategoryFieldConfigDetail } from '@/services/category-field-config-service';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // Field labels for display
 const FIELD_LABELS: Record<string, string> = {
@@ -42,6 +43,7 @@ const FIELD_LABELS: Record<string, string> = {
 
 export default function CategoryFieldConfigPage() {
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryFieldConfig[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<number | null>(null);
@@ -52,6 +54,17 @@ export default function CategoryFieldConfigPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const productTypeLabel = (productType: string) => {
+    const labels: Record<string, string> = {
+      frame: t('products.frames'),
+      sunglasses: t('products.sunglasses'),
+      contact_lens: t('products.contactLenses'),
+      eye_hygiene: t('products.eyeHygiene'),
+      accessory: t('products.accessories'),
+    };
+    return labels[productType] ?? productType.replaceAll('_', ' ');
+  };
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -71,7 +84,7 @@ export default function CategoryFieldConfigPage() {
       const data = await categoryFieldConfigService.getAll();
       setCategories(data);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to load categories');
+      setError(error.response?.data?.message || t('config.noCategories'));
     } finally {
       setLoadingCategories(false);
     }
@@ -84,7 +97,7 @@ export default function CategoryFieldConfigPage() {
       setCategoryDetail(detail);
       setFieldConfig(detail.field_config);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to load category details');
+      setError(error.response?.data?.message || t('config.loadDetailsFailed'));
     } finally {
       setLoadingDetail(false);
     }
@@ -118,13 +131,13 @@ export default function CategoryFieldConfigPage() {
         field_config: fieldConfig,
       });
 
-      setSuccess('Configuration saved successfully');
+       setSuccess(t('config.saveSuccess'));
       await loadCategories();
       await loadCategoryDetail(categoryId);
       
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to save configuration');
+       setError(error.response?.data?.message || t('config.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -139,7 +152,7 @@ export default function CategoryFieldConfigPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -156,13 +169,12 @@ export default function CategoryFieldConfigPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header />
           <main className="flex-1 overflow-y-auto">
-            <div className="py-6">
-              <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="py-4 sm:py-6">
+              <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8">
                 <div className="mb-6">
-                  <h1 className="text-3xl font-bold text-gray-900">Category Field Configuration</h1>
+                   <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('config.fieldTitle')}</h1>
                   <p className="mt-2 text-gray-600">
-                    Configure which product specification fields are available for each category. 
-                    Only enabled fields will appear in the product creation form for that category.
+                     {t('config.fieldDescription')}
                   </p>
                 </div>
 
@@ -183,21 +195,21 @@ export default function CategoryFieldConfigPage() {
                     {categories.map((category) => {
                       const enabledCount = getEnabledCount(category.field_config);
                       return (
-                        <div key={category.id} className="p-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
+                        <div key={category.id} className="p-4 sm:p-6">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0 flex-1">
                               <h3 className="text-lg font-semibold text-gray-900">{category.name}</h3>
                               <p className="text-sm text-gray-500 mt-1">
-                                Product Type: <span className="capitalize">{category.product_type.replace('_', ' ')}</span> • 
-                                {enabledCount} of {Object.keys(category.field_config).length} fields enabled
+                                {t('config.productType')}: <span className="capitalize">{productTypeLabel(category.product_type)}</span> ·{' '}
+                                {t('config.fieldsEnabled', { enabled: enabledCount, total: Object.keys(category.field_config).length })}
                               </p>
                             </div>
                             <Button
                               variant="outline"
                               onClick={() => handleCategoryExpand(category.id)}
-                              className="ml-4"
+                              className="w-full sm:ml-4 sm:w-auto"
                             >
-                              {expandedCategory === category.id ? 'Collapse' : 'Configure'}
+                               {expandedCategory === category.id ? t('common.collapse') : t('common.configure')}
                             </Button>
                           </div>
 
@@ -206,11 +218,11 @@ export default function CategoryFieldConfigPage() {
                               {loadingDetail ? (
                                 <div className="text-center py-8">
                                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0066CC] mx-auto"></div>
-                                  <p className="mt-2 text-gray-600">Loading configuration...</p>
+                                   <p className="mt-2 text-gray-600">{t('config.loadingConfig')}</p>
                                 </div>
                               ) : categoryDetail ? (
                                 <>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
                                     {categoryDetail.available_fields.map((field) => (
                                       <label
                                         key={field}
@@ -223,7 +235,7 @@ export default function CategoryFieldConfigPage() {
                                           className="w-5 h-5 text-[#0066CC] border-gray-300 rounded focus:ring-[#0066CC]"
                                         />
                                         <span className="text-sm font-medium text-gray-700 flex-1">
-                                          {FIELD_LABELS[field] || field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                          {FIELD_LABELS[field] ? t(FIELD_LABELS[field]) : field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                         </span>
                                       </label>
                                     ))}
@@ -235,13 +247,13 @@ export default function CategoryFieldConfigPage() {
                                       onClick={() => handleSave(category.id)}
                                       isLoading={saving}
                                     >
-                                      Save Configuration
+                                       {t('config.save')}
                                     </Button>
                                   </div>
                                 </>
                               ) : (
                                 <div className="text-center py-8 text-gray-500">
-                                  Failed to load category details
+                                   {t('config.failedLoadDetails')}
                                 </div>
                               )}
                             </div>

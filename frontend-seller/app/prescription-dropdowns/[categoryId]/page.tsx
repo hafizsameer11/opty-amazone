@@ -18,6 +18,7 @@ import {
   type CategoryPrescriptionConfigDetail,
   type PrescriptionDropdownValue,
 } from '@/services/prescription-dropdown-service';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type FieldType = 'sph' | 'cyl' | 'axis' | 'pd' | 'h' | 'year_of_birth' | 'add' | 'base_curve' | 'diameter';
 
@@ -41,6 +42,7 @@ export default function CategoryPrescriptionConfigPage() {
   const params = useParams();
   const categoryId = Number(params.categoryId);
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   
   const [config, setConfig] = useState<CategoryPrescriptionConfigDetail | null>(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
@@ -59,7 +61,7 @@ export default function CategoryPrescriptionConfigPage() {
     if (isAuthenticated && categoryId) {
       loadConfig();
     }
-  }, [isAuthenticated, categoryId]);
+  }, [isAuthenticated, categoryId, t]);
 
   const loadConfig = async () => {
     try {
@@ -68,7 +70,7 @@ export default function CategoryPrescriptionConfigPage() {
       const data = await getCategoryConfig(categoryId);
       setConfig(data);
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Failed to load configuration';
+      const errorMessage = err.response?.data?.message || t('prescription.loadFailed');
       const parentCategoryId = err.response?.data?.data?.parent_category_id;
       
       if (parentCategoryId && err.response?.status === 400) {
@@ -138,7 +140,7 @@ export default function CategoryPrescriptionConfigPage() {
       try {
         await deleteValue(value.id);
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to delete value');
+        setError(err.response?.data?.message || t('prescription.deleteFailed'));
         return;
       }
     }
@@ -209,10 +211,10 @@ export default function CategoryPrescriptionConfigPage() {
         })),
       });
 
-      setSuccess('Configuration saved successfully');
+      setSuccess(t('prescription.saved'));
       await loadConfig(); // Reload to get updated IDs
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save configuration');
+      setError(err.response?.data?.message || t('prescription.saveFailed'));
       console.error('Failed to save:', err);
     } finally {
       setSaving(false);
@@ -241,7 +243,7 @@ export default function CategoryPrescriptionConfigPage() {
         <div className="flex">
           <Sidebar />
           <main className="flex-1 p-6">
-            <Alert type="error" message="Category not found" />
+            <Alert type="error" message={t('prescription.categoryNotFound')} />
           </main>
         </div>
         <BottomNav />
@@ -253,21 +255,21 @@ export default function CategoryPrescriptionConfigPage() {
   const currentValues = config.values[activeTab] || [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen overflow-x-hidden bg-gray-50">
       <Header />
-      <div className="flex">
+      <div className="flex min-w-0">
         <Sidebar />
-        <main className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto">
-            <div className="mb-6">
+        <main className="min-w-0 flex-1 p-3 sm:p-6">
+          <div className="mx-auto min-w-0 max-w-7xl">
+            <div className="mb-5 sm:mb-6">
               <SectionBackLink href="/prescription-dropdowns" className="mb-3">
-                Back to Categories
+                {t('prescription.backToCategories')}
               </SectionBackLink>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Prescription Options: {config.category.name}
+              <h1 className="mb-2 break-words text-2xl font-bold text-gray-900 sm:text-3xl">
+                {t('config.prescriptionTitle')}: {config.category.name}
               </h1>
               <p className="text-gray-600">
-                Configure dropdown values for prescription fields. These will appear in buyer prescription forms.
+                {t('prescription.detailDescription')}
               </p>
             </div>
 
@@ -284,20 +286,20 @@ export default function CategoryPrescriptionConfigPage() {
             )}
 
             {/* Tabs */}
-            <div className="bg-white rounded-lg shadow mb-6">
+            <div className="mb-5 min-w-0 rounded-2xl bg-white shadow-sm sm:mb-6 sm:rounded-lg sm:shadow">
               <div className="border-b border-gray-200">
-                <nav className="flex -mb-px overflow-x-auto">
+                <nav className="grid -mb-px grid-cols-2 sm:flex sm:overflow-x-auto" aria-label={t('config.prescriptionTitle')}>
                   {fieldTypes.map((fieldType) => (
                     <button
                       key={fieldType}
                       onClick={() => setActiveTab(fieldType)}
-                      className={`px-6 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${
+                      className={`min-w-0 border-b-2 px-3 py-2.5 text-left text-xs font-medium leading-snug sm:px-6 sm:py-3 sm:text-sm sm:whitespace-nowrap ${
                         activeTab === fieldType
                           ? 'border-blue-500 text-blue-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
-                      {FIELD_LABELS[fieldType]}
+                      {t(FIELD_LABELS[fieldType])}
                       <span className="ml-2 text-xs text-gray-400">
                         ({config.values[fieldType]?.length || 0})
                       </span>
@@ -307,30 +309,30 @@ export default function CategoryPrescriptionConfigPage() {
               </div>
 
               {/* Tab Content */}
-              <div className="p-6">
-                <div className="mb-4 flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {FIELD_LABELS[activeTab]} Values
+              <div className="p-3 sm:p-6">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="break-words text-lg font-semibold text-gray-900 sm:text-xl">
+                    {t(FIELD_LABELS[activeTab])} {t('common.values')}
                   </h2>
                   <div className="flex gap-2">
                     <Button
                       onClick={() => handleAddValue(activeTab)}
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      className="w-full bg-green-600 text-white hover:bg-green-700 sm:w-auto"
                     >
-                      + Add Value
+                      {t('form.addValue')}
                     </Button>
                   </div>
                 </div>
 
                 {/* Bulk Import */}
-                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <div className="mb-4 rounded-xl bg-gray-50 p-3 sm:rounded-lg sm:p-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Bulk Import (comma or newline separated)
+                    {t('form.bulkImport')}
                   </label>
                   <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="block w-full max-w-full px-3 py-2 border border-gray-300 rounded-md"
                     rows={3}
-                    placeholder="50.00, 50.50, 51.00, 51.50..."
+                    placeholder={t('form.prescriptionBulkExample')}
                     onBlur={(e) => {
                       if (e.target.value.trim()) {
                         handleBulkImport(activeTab, e.target.value);
@@ -343,16 +345,16 @@ export default function CategoryPrescriptionConfigPage() {
                 {/* Values List */}
                 <div className="space-y-2">
                   {currentValues.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">No values configured</p>
+                    <p className="py-8 text-center text-gray-500">{t('form.noPrescriptionValues')}</p>
                   ) : (
                     currentValues.map((value, index) => (
                       <div
                         key={value.id || index}
-                        className="flex gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                        className="flex min-w-0 flex-col gap-3 rounded-xl border border-gray-200 p-3 hover:bg-gray-50 sm:flex-row sm:gap-4 sm:rounded-lg sm:p-4"
                       >
-                        <div className="flex-1 grid grid-cols-2 gap-4">
+                        <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                           <Input
-                            label="Value"
+                            label={t('form.value')}
                             value={value.value}
                             onChange={(e) =>
                               handleUpdateValue(activeTab, index, { value: e.target.value })
@@ -360,7 +362,7 @@ export default function CategoryPrescriptionConfigPage() {
                             required
                           />
                           <Input
-                            label="Label (optional)"
+                            label={t('form.labelOptional')}
                             value={value.label || ''}
                             onChange={(e) =>
                               handleUpdateValue(activeTab, index, { label: e.target.value })
@@ -369,7 +371,7 @@ export default function CategoryPrescriptionConfigPage() {
                           {(activeTab === 'sph' || activeTab === 'cyl' || activeTab === 'axis') && (
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Eye Type
+                                {t('form.eyeType')}
                               </label>
                               <select
                                 value={value.eye_type || 'both'}
@@ -382,7 +384,7 @@ export default function CategoryPrescriptionConfigPage() {
                               >
                                 {EYE_TYPES.map((type) => (
                                   <option key={type} value={type}>
-                                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                                    {type === 'left' ? t('form.leftEye') : type === 'right' ? t('form.rightEye') : t('common.both')}
                                   </option>
                                 ))}
                               </select>
@@ -390,7 +392,7 @@ export default function CategoryPrescriptionConfigPage() {
                           )}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Sort Order
+                              {t('form.sortOrder')}
                             </label>
                             <Input
                               type="number"
@@ -406,9 +408,9 @@ export default function CategoryPrescriptionConfigPage() {
                         <div className="flex items-end">
                           <Button
                             onClick={() => handleDeleteValue(activeTab, index)}
-                            className="bg-red-600 hover:bg-red-700 text-white"
+                            className="w-full bg-red-600 text-white hover:bg-red-700 sm:w-auto"
                           >
-                            Delete
+                            {t('form.delete')}
                           </Button>
                         </div>
                       </div>
@@ -419,19 +421,19 @@ export default function CategoryPrescriptionConfigPage() {
             </div>
 
             {/* Save Button */}
-            <div className="flex justify-end gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:justify-end sm:gap-4">
               <Button
                 onClick={() => router.push('/prescription-dropdowns')}
-                className="bg-gray-600 hover:bg-gray-700 text-white"
+                className="w-full bg-gray-600 text-white hover:bg-gray-700 sm:w-auto"
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
               >
-                {saving ? 'Saving...' : 'Save Configuration'}
+                {saving ? t('common.saving') : t('config.save')}
               </Button>
             </div>
           </div>

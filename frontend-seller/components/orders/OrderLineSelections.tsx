@@ -1,6 +1,7 @@
 'use client';
 
 import type { OrderLineSelections as OrderLineSelectionsType } from '@/types/order-line';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 function SelectionRow({
   label,
@@ -24,6 +25,7 @@ export default function OrderLineSelections({
   line: OrderLineSelectionsType;
   className?: string;
 }) {
+  const { t } = useLanguage();
   const pv = line.product_variant;
   const frameName = line.variant?.color_name ?? pv?.color_name;
   const frameCode = line.variant?.color_code ?? pv?.color_code;
@@ -56,7 +58,7 @@ export default function OrderLineSelections({
 
   if (frameName) {
     rows.push(
-      <SelectionRow key="frame" label="Frame color">
+      <SelectionRow key="frame" label={t('orderDetails.frameColor')}>
         {frameCode && (
           <span
             className="inline-block w-4 h-4 rounded-full border border-gray-300 shrink-0"
@@ -71,7 +73,7 @@ export default function OrderLineSelections({
 
   if (lensTint?.name) {
     rows.push(
-      <SelectionRow key="tint" label="Lens tint">
+      <SelectionRow key="tint" label={t('orderDetails.lensTint')}>
         {lensTint.color_code && (
           <span
             className="inline-block w-4 h-4 rounded-full border border-gray-300 shrink-0"
@@ -84,8 +86,8 @@ export default function OrderLineSelections({
     );
   } else if (line.lens_color_id != null) {
     rows.push(
-      <SelectionRow key="tint-id" label="Lens tint">
-        <span>Option #{line.lens_color_id}</span>
+      <SelectionRow key="tint-id" label={t('orderDetails.lensTint')}>
+        <span>{t('orderDetails.option')} #{line.lens_color_id}</span>
       </SelectionRow>
     );
   }
@@ -93,7 +95,7 @@ export default function OrderLineSelections({
   const eyeOpt = pv?.eye_hygiene;
   if (eyeOpt?.label) {
     rows.push(
-      <SelectionRow key="eye-hygiene" label="Eye hygiene option">
+      <SelectionRow key="eye-hygiene" label={t('orderDetails.eyeHygieneOption')}>
         <span>{eyeOpt.label}</span>
       </SelectionRow>
     );
@@ -101,7 +103,7 @@ export default function OrderLineSelections({
 
   if (line.lens_type) {
     rows.push(
-      <SelectionRow key="lens-type" label="Lens type">
+      <SelectionRow key="lens-type" label={t('form.lensType')}>
         <span>{line.lens_type}</span>
       </SelectionRow>
     );
@@ -109,7 +111,7 @@ export default function OrderLineSelections({
 
   if (line.lens_index != null && line.lens_index !== '') {
     rows.push(
-      <SelectionRow key="lens-index" label="Lens index">
+      <SelectionRow key="lens-index" label={t('orderDetails.lensIndex')}>
         <span>{String(line.lens_index)}</span>
       </SelectionRow>
     );
@@ -117,7 +119,7 @@ export default function OrderLineSelections({
 
   if (line.frame_size_id) {
     rows.push(
-      <SelectionRow key="frame-size" label="Frame size">
+      <SelectionRow key="frame-size" label={t('orderDetails.frameSize')}>
         <span>#{line.frame_size_id}</span>
       </SelectionRow>
     );
@@ -129,7 +131,7 @@ export default function OrderLineSelections({
       line.lens_thickness_option_id && `Thickness #${line.lens_thickness_option_id}`,
     ].filter(Boolean);
     rows.push(
-      <SelectionRow key="thickness" label="Lens thickness">
+      <SelectionRow key="thickness" label={t('orderDetails.lensThickness')}>
         <span>{parts.join(' · ')}</span>
       </SelectionRow>
     );
@@ -137,7 +139,7 @@ export default function OrderLineSelections({
 
   if (line.treatment_ids && line.treatment_ids.length > 0) {
     rows.push(
-      <SelectionRow key="treatments" label="Treatments">
+      <SelectionRow key="treatments" label={t('form.treatments')}>
         <span>{line.treatment_ids.join(', ')}</span>
       </SelectionRow>
     );
@@ -145,7 +147,7 @@ export default function OrderLineSelections({
 
   if (line.lens_coatings) {
     rows.push(
-      <SelectionRow key="coatings" label="Coatings">
+      <SelectionRow key="coatings" label={t('config.coatings')}>
         <span>{line.lens_coatings}</span>
       </SelectionRow>
     );
@@ -153,7 +155,7 @@ export default function OrderLineSelections({
 
   if (line.progressive_variant_id) {
     rows.push(
-      <SelectionRow key="prog" label="Progressive">
+      <SelectionRow key="prog" label={t('orderDetails.progressive')}>
         <span>#{line.progressive_variant_id}</span>
       </SelectionRow>
     );
@@ -161,7 +163,7 @@ export default function OrderLineSelections({
 
   if (line.photochromic_color_id) {
     rows.push(
-      <SelectionRow key="photo" label="Photochromic">
+      <SelectionRow key="photo" label={t('orderDetails.photochromic')}>
         <span>#{line.photochromic_color_id}</span>
       </SelectionRow>
     );
@@ -169,7 +171,7 @@ export default function OrderLineSelections({
 
   if (line.prescription_sun_color_id) {
     rows.push(
-      <SelectionRow key="sun" label="Sun lens color">
+      <SelectionRow key="sun" label={t('orderDetails.sunLensColor')}>
         <span>#{line.prescription_sun_color_id}</span>
       </SelectionRow>
     );
@@ -183,7 +185,7 @@ export default function OrderLineSelections({
     if (re?.sph) bits.push(`R SPH ${re.sph}`);
     if (le?.sph) bits.push(`L SPH ${le.sph}`);
     rows.push(
-      <SelectionRow key="rx" label="Prescription">
+      <SelectionRow key="rx" label={t('orderDetails.prescription')}>
         <span className="break-words">{bits.length ? bits.join(' · ') : 'Provided'}</span>
       </SelectionRow>
     );
@@ -191,7 +193,7 @@ export default function OrderLineSelections({
 
   if (line.lens_configuration && Object.keys(line.lens_configuration).length > 0) {
     rows.push(
-      <SelectionRow key="lens-cfg" label="Lens options">
+      <SelectionRow key="lens-cfg" label={t('form.lensOptions')}>
         <span className="break-all opacity-90">
           {JSON.stringify(line.lens_configuration)}
         </span>
@@ -202,8 +204,8 @@ export default function OrderLineSelections({
   if (hasContact) {
     if (line.contact_lens_pack_quantity != null) {
       rows.push(
-        <SelectionRow key="cl-pack" label="Pack size">
-          <span>×{line.contact_lens_pack_quantity} lenses per box</span>
+        <SelectionRow key="cl-pack" label={t('orderDetails.packSize')}>
+          <span>×{line.contact_lens_pack_quantity} {t('orderDetails.lensesPerBox')}</span>
         </SelectionRow>
       );
     }
@@ -212,7 +214,7 @@ export default function OrderLineSelections({
       (line.product_variant as { color_name?: string } | undefined)?.color_name;
     if (colourLabel) {
       rows.push(
-        <SelectionRow key="cl-colour" label="Lens colour">
+        <SelectionRow key="cl-colour" label={t('orderDetails.lensColor')}>
           <span>{colourLabel}</span>
         </SelectionRow>
       );
@@ -266,7 +268,7 @@ export default function OrderLineSelections({
     );
     if (left || right) {
       rows.push(
-        <SelectionRow key="cl" label="Contact lenses">
+      <SelectionRow key="cl" label={t('config.contactLenses')}>
           <span className="flex flex-col gap-0.5">
             {left && <span>{left}</span>}
             {right && <span>{right}</span>}

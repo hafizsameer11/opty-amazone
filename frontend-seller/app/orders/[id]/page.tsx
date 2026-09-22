@@ -13,11 +13,13 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import SectionBackLink from '@/components/ui/SectionBackLink';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function SellerOrderDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const [storeOrder, setStoreOrder] = useState<StoreOrder | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(true);
   const [showAcceptForm, setShowAcceptForm] = useState(false);
@@ -70,11 +72,11 @@ export default function SellerOrderDetailsPage() {
         delivery_method: deliveryMethod || undefined,
         delivery_notes: deliveryNotes || undefined,
       });
-      setSuccess('Order accepted successfully');
+      setSuccess(t('orderDetails.orderUpdated'));
       setShowAcceptForm(false);
       loadOrder();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to accept order');
+      setError(error.response?.data?.message || t('orderDetails.updateFailed'));
     }
   };
 
@@ -85,11 +87,11 @@ export default function SellerOrderDetailsPage() {
     try {
       setError('');
       await orderService.rejectOrder(storeOrder.id, rejectionReason);
-      setSuccess('Order rejected');
+      setSuccess(t('orders.rejected'));
       setShowRejectForm(false);
       loadOrder();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to reject order');
+      setError(error.response?.data?.message || t('orderDetails.updateFailed'));
     }
   };
 
@@ -99,10 +101,20 @@ export default function SellerOrderDetailsPage() {
     try {
       setError('');
       await orderService.markOutForDelivery(storeOrder.id);
-      setSuccess('Order marked as out for delivery');
+      setSuccess(t('orders.outForDelivery'));
       loadOrder();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to update order');
+      setError(error.response?.data?.message || t('orderDetails.updateFailed'));
+    }
+  };
+
+  const handleDeliveryRequest = async () => {
+    if (!storeOrder) return;
+    setShowDeliveredForm(true);
+    try {
+      await orderService.requestDeliveryCode(storeOrder.id);
+    } catch (error: any) {
+      setError(error.response?.data?.message || t('orderDetails.deliveryRequested'));
     }
   };
 
@@ -113,13 +125,27 @@ export default function SellerOrderDetailsPage() {
     try {
       setError('');
       await orderService.markDelivered(storeOrder.id, otpCode);
-      setSuccess('Order marked as delivered');
+      setSuccess(t('orderDetails.orderUpdated'));
       setShowDeliveredForm(false);
       setOtpCode('');
       loadOrder();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Invalid delivery code');
+      setError(error.response?.data?.message || t('orderDetails.invalidCode'));
     }
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: t('orders.pending'),
+      awaiting_payment: t('orders.awaitingPayment'),
+      paid: t('orders.paid'),
+      processing: t('orderDetails.processing'),
+      out_for_delivery: t('orders.outForDelivery'),
+      delivered: t('orders.delivered'),
+      rejected: t('orders.rejected'),
+      cancelled: t('orders.cancelled'),
+    };
+    return labels[status] || status;
   };
 
   if (loading || loadingOrder) {
@@ -127,7 +153,7 @@ export default function SellerOrderDetailsPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -143,10 +169,10 @@ export default function SellerOrderDetailsPage() {
       <main className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
         <div className="mb-6">
           <SectionBackLink href="/orders" className="mb-3">
-            Back to Orders
+             {t('orders.title')}
           </SectionBackLink>
-          <h1 className="text-3xl font-bold text-gray-900">Order Details</h1>
-          <p className="text-gray-600 mt-1">Order #{storeOrder.order.order_no}</p>
+           <h1 className="text-3xl font-bold text-gray-900">{t('orderDetails.details')}</h1>
+          <p className="text-gray-600 mt-1">{t('orderDetails.order')} #{storeOrder.order.order_no}</p>
         </div>
 
         {error && (
@@ -165,7 +191,7 @@ export default function SellerOrderDetailsPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                Customer: {storeOrder.order.user.name}
+                 {t('orderDetails.customer')}: {storeOrder.order.user.name}
               </h2>
               <p className="text-sm text-gray-600">{storeOrder.order.user.email}</p>
             </div>
@@ -184,22 +210,22 @@ export default function SellerOrderDetailsPage() {
                   : 'bg-red-100 text-red-800'
               }`}
             >
-              {storeOrder.status.replace('_', ' ').toUpperCase()}
+              {getStatusLabel(storeOrder.status)}
             </span>
           </div>
 
           <DeliverySummary shipment={storeOrder} />
             {/* Order Items */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h3>
+             <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('orderDetails.items')}</h3>
             <div className="space-y-3">
               {storeOrder.items.map((item: OrderItem) => (
                 <div key={item.id} className="border-b pb-4 last:border-0">
                   <div className="flex justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-gray-900">{item.product_name}</p>
-                      <p className="text-sm text-gray-600">SKU: {item.product_sku}</p>
-                      <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+          <p className="text-sm text-gray-600">{t('form.sku')}: {item.product_sku}</p>
+                       <p className="text-sm text-gray-600">{t('orderDetails.quantity')}: {item.quantity}</p>
                       <OrderLineSelections line={item} className="mt-2" />
                     </div>
                     <p className="text-sm font-semibold text-[#0066CC] shrink-0">
@@ -215,15 +241,27 @@ export default function SellerOrderDetailsPage() {
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-600">Subtotal:</span>
+                 <span className="text-gray-600">{t('orderDetails.subtotal')}:</span>
                 <span className="font-semibold">€{Number(storeOrder.subtotal || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Delivery Fee:</span>
+                 <span className="text-gray-600">{t('orderDetails.shipping')}:</span>
                 <span className="font-semibold">€{Number(storeOrder.delivery_fee || 0).toFixed(2)}</span>
               </div>
+              {Number(storeOrder.coupon_discount || 0) > 0 && (
+                <div className="flex justify-between text-green-700">
+                  <span>Coupon ({storeOrder.coupon_code})</span>
+                  <span className="font-semibold">-€{Number(storeOrder.coupon_discount).toFixed(2)}</span>
+                </div>
+              )}
+              {Number(storeOrder.coupon_shipping_discount || 0) > 0 && (
+                <div className="flex justify-between text-green-700">
+                  <span>Coupon shipping ({storeOrder.coupon_code})</span>
+                  <span className="font-semibold">-€{Number(storeOrder.coupon_shipping_discount).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t pt-2">
-                <span className="font-bold">Total:</span>
+                 <span className="font-bold">{t('orderDetails.total')}:</span>
                 <span className="font-bold text-[#0066CC]">
                   €{Number(storeOrder.total || 0).toFixed(2)}
                 </span>
@@ -243,7 +281,7 @@ export default function SellerOrderDetailsPage() {
                     }}
                     className="flex-1"
                   >
-                    Accept Order
+                     {t('orderDetails.accept')}
                   </Button>
                   <Button
                     onClick={() => {
@@ -253,17 +291,17 @@ export default function SellerOrderDetailsPage() {
                     variant="outline"
                     className="flex-1"
                   >
-                    Reject Order
+                     {t('orderDetails.reject')}
                   </Button>
                 </div>
               )}
 
               {showAcceptForm && (
                 <form onSubmit={handleAccept} className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold mb-4">Accept Order</h3>
+                   <h3 className="text-lg font-semibold mb-4">{t('orderDetails.accept')}</h3>
                   <div className="space-y-4">
                     <Input
-                      label="Delivery Fee" aria-label="Delivery Fee"
+                       label={t('orderDetails.shipping')} aria-label={t('orderDetails.shipping')}
                       type="number"
                       step="0.01"
                       value={deliveryFee}
@@ -271,26 +309,26 @@ export default function SellerOrderDetailsPage() {
                       required
                     />
                     <Input
-                      label="Estimated Delivery Date" aria-label="Estimated Delivery Date"
+                       label={t('orderDetails.estimatedDate')} aria-label={t('orderDetails.estimatedDate')}
                       required
                       type="date"
                       value={estimatedDeliveryDate}
                       onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
                     />
                     <Input
-                      label="Delivery Method" aria-label="Delivery Method"
+                       label={t('orderDetails.deliveryMethod')} aria-label={t('orderDetails.deliveryMethod')}
                       required
                       type="text"
                       value={deliveryMethod}
                       onChange={(e) => setDeliveryMethod(e.target.value)}
-                      placeholder="e.g., Express, Standard"
+                      placeholder={t('orderDetails.deliveryMethodPlaceholder')}
                     />
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Delivery Notes
+                         {t('orderDetails.deliveryNotes')}
                       </label>
                       <textarea
-                        aria-label="Delivery Notes"
+                        aria-label={t('orderDetails.deliveryNotes')}
                         value={deliveryNotes}
                         onChange={(e) => setDeliveryNotes(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-transparent"
@@ -299,7 +337,7 @@ export default function SellerOrderDetailsPage() {
                     </div>
                     <div className="flex gap-4">
                       <Button type="submit" className="flex-1">
-                        Accept
+                         {t('orderDetails.confirm')}
                       </Button>
                       <Button
                         type="button"
@@ -307,7 +345,7 @@ export default function SellerOrderDetailsPage() {
                         onClick={() => setShowAcceptForm(false)}
                         className="flex-1"
                       >
-                        Cancel
+                         {t('common.cancel')}
                       </Button>
                     </div>
                   </div>
@@ -316,11 +354,11 @@ export default function SellerOrderDetailsPage() {
 
               {showRejectForm && (
                 <form onSubmit={handleReject} className="bg-red-50 border border-red-200 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold mb-4">Reject Order</h3>
+                   <h3 className="text-lg font-semibold mb-4">{t('orderDetails.reject')}</h3>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Reason for Rejection
+                         {t('orderDetails.reason')}
                       </label>
                       <textarea
                         value={rejectionReason}
@@ -332,14 +370,14 @@ export default function SellerOrderDetailsPage() {
                     </div>
                     <div className="flex gap-4">
                       <Button type="submit" variant="outline" className="flex-1">
-                        Reject
+                         {t('orderDetails.reject')}
                       </Button>
                       <Button
                         type="button"
                         onClick={() => setShowRejectForm(false)}
                         className="flex-1"
                       >
-                        Cancel
+                         {t('common.cancel')}
                       </Button>
                     </div>
                   </div>
@@ -350,7 +388,7 @@ export default function SellerOrderDetailsPage() {
 
           {['paid', 'processing'].includes(storeOrder.status) && (
             <Button onClick={handleOutForDelivery} className="w-full">
-              Mark as Out for Delivery
+               {t('orderDetails.ship')}
             </Button>
           )}
 
@@ -358,30 +396,30 @@ export default function SellerOrderDetailsPage() {
             <div>
               {!showDeliveredForm ? (
                 <Button
-                  onClick={() => setShowDeliveredForm(true)}
+                  onClick={() => void handleDeliveryRequest()}
                   className="w-full"
                 >
-                  Mark as Delivered
+                   {t('orderDetails.deliver')}
                 </Button>
               ) : (
                 <form onSubmit={handleDelivered} className="bg-green-50 border border-green-200 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold mb-4">Mark as Delivered</h3>
+                   <h3 className="text-lg font-semibold mb-4">{t('orderDetails.deliver')}</h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Please enter the delivery code (OTP) provided by the customer.
+                     {t('orderDetails.deliveryInstructions')}
                   </p>
                   <div className="space-y-4">
                     <Input
-                      label="Delivery Code (OTP)" aria-label="Delivery Code (OTP)"
+                       label={`${t('orderDetails.deliveryCode')} (OTP)`} aria-label={`${t('orderDetails.deliveryCode')} (OTP)`}
                       type="text"
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
-                      placeholder="Enter 6-digit code"
+                       placeholder={t('orderDetails.enterCode')}
                       maxLength={6}
                       required
                     />
                     <div className="flex gap-4">
                       <Button type="submit" className="flex-1">
-                        Confirm Delivery
+                         {t('orderDetails.confirmDelivery')}
                       </Button>
                       <Button
                         type="button"
@@ -392,7 +430,7 @@ export default function SellerOrderDetailsPage() {
                         }}
                         className="flex-1"
                       >
-                        Cancel
+                         {t('common.cancel')}
                       </Button>
                     </div>
                   </div>

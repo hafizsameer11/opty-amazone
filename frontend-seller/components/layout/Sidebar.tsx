@@ -11,7 +11,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ReactNode;
-  badgeKey?: 'orders' | 'messages';
+  badgeKey?: 'orders' | 'messages' | 'notifications';
 }
 
 const POLL_MS = 30000;
@@ -20,7 +20,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user, isAuthenticated } = useAuth();
   const { t } = useLanguage();
-  const [badges, setBadges] = useState({ orders: 0, messages: 0 });
+  const [badges, setBadges] = useState({ orders: 0, messages: 0, notifications: 0 });
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -32,6 +32,7 @@ export default function Sidebar() {
           setBadges({
             orders: pathname?.startsWith('/orders') ? 0 : data.orders,
             messages: pathname?.startsWith('/messages') ? 0 : data.messages,
+            notifications: pathname?.startsWith('/notifications') ? 0 : data.notifications,
           });
         })
         .catch(() => {});
@@ -45,7 +46,7 @@ export default function Sidebar() {
   const navigation: NavItem[] = useMemo(() => [
     { name: "Seller Wallet", href: "/wallet", icon: <span className="text-xl">€</span> },
     {
-      name: t('guide'),
+      name: t('nav.guide'),
       href: '/guide',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,7 +55,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: t('dashboard'),
+      name: t('nav.dashboard'),
       href: '/',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -63,7 +64,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: t('store'),
+      name: t('nav.store'),
       href: '/store',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +73,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: t('products'),
+      name: t('nav.products'),
       href: '/products',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +82,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: t('lensConfiguration'),
+      name: t('nav.lensConfiguration'),
       href: '/category-lens-config',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,7 +92,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: t('prescriptionOptions'),
+      name: t('nav.prescriptionOptions'),
       href: '/prescription-dropdowns',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,7 +101,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: t('fieldConfiguration'),
+      name: t('nav.fieldConfiguration'),
       href: '/category-field-config',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -109,7 +110,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: t('orders'),
+      name: t('nav.orders'),
       href: '/orders',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,7 +120,7 @@ export default function Sidebar() {
       badgeKey: 'orders',
     },
     {
-      name: t('discountCampaigns'),
+      name: t('nav.discountCampaigns'),
       href: '/promotions',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,9 +128,37 @@ export default function Sidebar() {
         </svg>
       ),
     },
+    {
+      name: 'Warehouse',
+      href: '/warehouse',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21V9l9-6 9 6v12M3 9l9 6 9-6M8 21v-6h8v6" />
+        </svg>
+      ),
+    },
+    {
+      name: t('nav.coupons'),
+      href: '/coupons',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2m8-8h2a2 2 0 012 2v8a2 2 0 01-2 2h-8a2 2 0 01-2-2v-2m6-6h.01M9 14h.01" />
+        </svg>
+      ),
+    },
+    {
+      name: t('nav.notifications'),
+      href: '/notifications',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      ),
+      badgeKey: 'notifications',
+    },
     { name: 'Referral Campaigns', href: '/referral-campaigns', icon: <span className="text-xl">↗</span> },
     {
-      name: t('boostAds'),
+      name: t('nav.boostAds'),
       href: '/boost-ads',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -138,7 +167,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: t('announcements'),
+      name: t('nav.announcements'),
       href: '/announcements',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,7 +176,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: t('banners'),
+      name: t('nav.banners'),
       href: '/banners',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,7 +185,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: t('analytics'),
+      name: t('nav.analytics'),
       href: '/analytics',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,7 +194,7 @@ export default function Sidebar() {
       ),
     },
     {
-      name: t('messages'),
+      name: t('nav.messages'),
       href: '/messages',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,6 +205,14 @@ export default function Sidebar() {
     },
   ], [t]);
 
+  const localizedNavigation = navigation.map((item) => (
+    item.href === '/wallet'
+      ? { ...item, name: t('nav.sellerWallet') }
+      : item.href === '/referral-campaigns'
+        ? { ...item, name: t('nav.referralCampaigns') }
+        : item
+  ));
+
   const isActive = (href: string) => {
     if (href === '/') {
       return pathname === '/';
@@ -184,9 +221,9 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="hidden lg:flex lg:flex-shrink-0">
-      <div className="flex flex-col w-64">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200 pt-5 pb-4 overflow-y-auto">
+    <div className="hidden lg:flex lg:flex-shrink-0 h-full min-h-0">
+      <div className="flex flex-col w-64 h-full min-h-0">
+        <div className="flex flex-col flex-grow min-h-0 bg-white border-r border-gray-200 pt-5 pb-4 overflow-y-auto overscroll-contain">
           {/* Logo */}
           <div className="flex items-center flex-shrink-0 px-6 mb-8">
             <div className="flex items-center gap-3">
@@ -202,7 +239,7 @@ export default function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 space-y-1">
-            {navigation.map((item) => (
+            {localizedNavigation.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
@@ -237,9 +274,9 @@ export default function Sidebar() {
                 </div>
                 <div className="ml-3 flex-1">
                   <p className="text-sm font-semibold text-gray-900 group-hover:text-[#0066CC] transition-colors">
-                    {user?.name || t('user')}
+                    {user?.name || t('nav.user')}
                   </p>
-                  <p className="text-xs text-gray-500">{t('viewProfile')}</p>
+                  <p className="text-xs text-gray-500">{t('nav.viewProfile')}</p>
                 </div>
                 <svg className="ml-2 h-5 w-5 text-gray-400 group-hover:text-[#0066CC] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

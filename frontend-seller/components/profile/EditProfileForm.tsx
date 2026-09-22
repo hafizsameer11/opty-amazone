@@ -16,6 +16,7 @@ import { displayProfileImageUrl } from "@/lib/profile-image-url";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const schema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -36,6 +37,7 @@ export default function EditProfileForm({
   onProfileSynced,
 }: EditProfileFormProps) {
   const router = useRouter();
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { updateSessionUser } = useAuth();
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +72,7 @@ export default function EditProfileForm({
           data.user.name?.trim()?.charAt(0)?.toUpperCase() || "S"
         );
       } catch (e: any) {
-        setError(e?.response?.data?.message ?? "Failed to load profile");
+        setError(e?.response?.data?.message ?? t('editProfile.loadFailed'));
       }
     };
     load();
@@ -83,20 +85,19 @@ export default function EditProfileForm({
     try {
       const payload: UpdateProfilePayload = {
         name: values.name,
-        email: values.email,
         phone: values.phone.trim() || null,
       };
       const updated = await userService.updateProfile(payload);
       const nextUser = updated.user as User;
       updateSessionUser(nextUser);
       onProfileSynced?.(nextUser);
-      setSuccess("Profile updated successfully.");
+      setSuccess(t('editProfile.updated'));
       if (isSellerProfileComplete(nextUser)) {
         router.replace("/profile");
       }
     } catch (e: any) {
       const apiError = e?.response?.data;
-      setError(apiError?.message ?? "Failed to update profile");
+      setError(apiError?.message ?? t('editProfile.updateFailed'));
     } finally {
       setLoading(false);
     }
@@ -118,11 +119,11 @@ export default function EditProfileForm({
         displayProfileImageUrl(nextUser.profile_image_url ?? null)
       );
       setAvatarInitial(nextUser.name?.trim()?.charAt(0)?.toUpperCase() || "S");
-      setSuccess("Profile photo updated.");
+      setSuccess(t('editProfile.photoUpdated'));
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? "Failed to upload image (max 2MB, JPG/PNG/WebP/GIF).";
+          ?.message ?? t('editProfile.uploadFailed');
       setError(msg);
     } finally {
       setImageUploading(false);
@@ -139,11 +140,11 @@ export default function EditProfileForm({
       updateSessionUser(nextUser);
       onProfileSynced?.(nextUser);
       setProfileImageUrl(null);
-      setSuccess("Profile photo removed.");
+      setSuccess(t('editProfile.photoRemoved'));
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? "Failed to remove image.";
+          ?.message ?? t('editProfile.removeFailed');
       setError(msg);
     } finally {
       setImageUploading(false);
@@ -168,10 +169,8 @@ export default function EditProfileForm({
           )}
         </div>
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-gray-900">Profile photo</p>
-          <p className="text-xs text-gray-500">
-            JPG, PNG, WebP or GIF. Max 2 MB.
-          </p>
+          <p className="text-sm font-medium text-gray-900">{t('editProfile.photo')}</p>
+          <p className="text-xs text-gray-500">{t('editProfile.photoHint')}</p>
           <input
             ref={fileInputRef}
             type="file"
@@ -187,7 +186,7 @@ export default function EditProfileForm({
               disabled={imageUploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              {imageUploading ? "Working…" : "Upload photo"}
+              {imageUploading ? t('editProfile.working') : t('editProfile.upload')}
             </Button>
             {profileImageUrl && (
               <Button
@@ -198,7 +197,7 @@ export default function EditProfileForm({
                 onClick={handleRemoveImage}
                 className="text-red-600 border-red-200 hover:bg-red-50"
               >
-                Remove photo
+                {t('editProfile.remove')}
               </Button>
             )}
           </div>
@@ -206,23 +205,26 @@ export default function EditProfileForm({
       </div>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input
-          label="Full name"
+          label={t('editProfile.name')}
           {...register("name")}
           error={errors.name?.message}
         />
         <Input
-          label="Email address"
+          label={t('editProfile.email')}
           type="email"
           {...register("email")}
           error={errors.email?.message}
+          disabled
+          readOnly
         />
+        <p className="-mt-2 text-xs text-gray-500">{t('editProfile.emailHint')}</p>
         <Input
-          label="Phone number"
+          label={t('editProfile.phone')}
           {...register("phone")}
           error={errors.phone?.message}
         />
         <Button type="submit" disabled={loading}>
-          {loading ? "Saving..." : "Save changes"}
+          {loading ? t('editProfile.saving') : t('editProfile.save')}
         </Button>
       </form>
     </div>

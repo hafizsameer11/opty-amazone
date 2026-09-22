@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Input from '@/components/ui/Input';
 import { CreateProductData } from '@/services/product-service';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface CategoryProductFormProps {
   formData: CreateProductData;
@@ -20,24 +21,25 @@ export default function CategoryProductForm({
   productType,
   omitFrameSunglassesCore = false,
 }: CategoryProductFormProps) {
+  const { t } = useLanguage();
   const isFieldEnabled = (field: string) => enabledFields.includes(field);
 
   return (
     <div>
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 px-8 py-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-4 sm:px-8 sm:py-6">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="rounded-xl bg-white/20 p-2.5 backdrop-blur-sm sm:p-3">
             <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
             </svg>
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">Product Options</h2>
-            <p className="text-indigo-100 mt-1">Category-specific customization options</p>
+            <h2 className="text-xl font-bold text-white sm:text-2xl">{t('form.options')}</h2>
+            <p className="mt-1 text-sm text-indigo-100 sm:text-base">{t('form.optionsDescription')}</p>
           </div>
         </div>
       </div>
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
       
       {/* Frame/Sunglasses Fields */}
       {(productType === 'frame' || productType === 'sunglasses') && !omitFrameSunglassesCore && (
@@ -45,13 +47,13 @@ export default function CategoryProductForm({
           <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl p-6 border-2 border-blue-200 shadow-sm">
             <h3 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
               <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-              Frame Details
+              {t('form.frameDetails')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {isFieldEnabled('frame_shape') && (
                 <div className="bg-white rounded-lg p-4 border border-blue-100">
                   <Input
-                    label="Frame Shape"
+                    label={t('form.frameShape')}
                     value={formData.frame_shape || ''}
                     onChange={(e) => setFormData({ ...formData, frame_shape: e.target.value })}
                     placeholder="e.g., Round, Square, Aviator"
@@ -63,7 +65,7 @@ export default function CategoryProductForm({
               {isFieldEnabled('frame_material') && (
                 <div className="bg-white rounded-lg p-4 border border-indigo-100">
                   <Input
-                    label="Frame Material"
+                    label={t('form.frameMaterial')}
                     value={formData.frame_material || ''}
                     onChange={(e) => setFormData({ ...formData, frame_material: e.target.value })}
                     placeholder="e.g., Acetate, Metal, Titanium"
@@ -75,7 +77,7 @@ export default function CategoryProductForm({
               {isFieldEnabled('frame_color') && (
                 <div className="bg-white rounded-lg p-4 border border-purple-100">
                   <Input
-                    label="Frame Color"
+                    label={t('form.frameColor')}
                     value={formData.frame_color || ''}
                     onChange={(e) => setFormData({ ...formData, frame_color: e.target.value })}
                     placeholder="e.g., Black, Brown, Tortoise"
@@ -88,17 +90,17 @@ export default function CategoryProductForm({
               <div className="mt-5 bg-white rounded-lg p-5 border border-blue-200">
                 <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
                   <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                  Gender
+                  {t('form.gender')}
                 </label>
                 <select
                   value={formData.gender}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
                   className="w-full px-4 py-3.5 border-2 border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-all font-medium text-gray-700 shadow-sm hover:border-blue-300"
                 >
-                  <option value="unisex">Unisex</option>
-                  <option value="men">Men</option>
-                  <option value="women">Women</option>
-                  <option value="kids">Kids</option>
+                  <option value="unisex">{t('form.unisex')}</option>
+                  <option value="men">{t('form.men')}</option>
+                  <option value="women">{t('form.women')}</option>
+                  <option value="kids">{t('form.kids')}</option>
                 </select>
               </div>
             )}
@@ -108,14 +110,14 @@ export default function CategoryProductForm({
             <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 rounded-xl p-6 border-2 border-emerald-200 shadow-sm">
               <h3 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
                 <span className="w-3 h-3 bg-emerald-500 rounded-full"></span>
-                Lens Options
+                {t('form.lensOptions')}
               </h3>
               <div className="space-y-5">
           
                 {isFieldEnabled('lens_type') && (
                   <div className="bg-white rounded-lg p-5 border border-emerald-200">
                     <label className="block text-sm font-bold text-gray-800 mb-3">
-                      Lens Type
+                      {t('form.lensType')}
                     </label>
                     <textarea
                       value={formData.lens_type || ''}
@@ -130,8 +132,8 @@ export default function CategoryProductForm({
                 {isFieldEnabled('lens_index_options') && (
                   <div className="bg-white rounded-lg p-5 border border-teal-200">
                     <label className="block text-sm font-bold text-gray-800 mb-3">
-                      Lens Index Options
-                      <span className="text-gray-400 text-xs font-normal ml-2">(comma-separated)</span>
+                      {t('form.lensIndex')}
+                      <span className="text-gray-400 text-xs font-normal ml-2">{t('form.commaSeparated')}</span>
                     </label>
                     <textarea
                       value={Array.isArray(formData.lens_index_options) ? formData.lens_index_options.join(', ') : (formData.lens_index_options || '')}
@@ -150,8 +152,8 @@ export default function CategoryProductForm({
                 {isFieldEnabled('treatment_options') && (
                   <div className="bg-white rounded-lg p-5 border border-cyan-200">
                     <label className="block text-sm font-bold text-gray-800 mb-3">
-                      Treatment Options
-                      <span className="text-gray-400 text-xs font-normal ml-2">(comma-separated)</span>
+                      {t('form.treatments')}
+                      <span className="text-gray-400 text-xs font-normal ml-2">{t('form.commaSeparated')}</span>
                     </label>
                     <textarea
                       value={Array.isArray(formData.treatment_options) ? formData.treatment_options.join(', ') : (formData.treatment_options || '')}
@@ -174,14 +176,14 @@ export default function CategoryProductForm({
             <div className="bg-gradient-to-br from-rose-50 via-pink-50 to-fuchsia-50 rounded-xl p-6 border-2 border-rose-200 shadow-sm">
               <h3 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
                 <span className="w-3 h-3 bg-rose-500 rounded-full"></span>
-                Visual Assets
+                {t('form.visualAssets')}
               </h3>
               <div className="space-y-5">
           
                 {isFieldEnabled('model_3d_url') && (
                   <div className="bg-white rounded-lg p-5 border border-rose-200">
                     <Input
-                      label="3D Model URL"
+                      label={t('form.model3d')}
                       value={formData.model_3d_url || ''}
                       onChange={(e) => setFormData({ ...formData, model_3d_url: e.target.value })}
                       placeholder="https://example.com/model.glb"
@@ -193,7 +195,7 @@ export default function CategoryProductForm({
                 {isFieldEnabled('try_on_image') && (
                   <div className="bg-white rounded-lg p-5 border border-pink-200">
                     <Input
-                      label="Try-On Image URL"
+                      label={t('form.tryOn')}
                       value={formData.try_on_image || ''}
                       onChange={(e) => setFormData({ ...formData, try_on_image: e.target.value })}
                       placeholder="https://example.com/try-on.jpg"
@@ -205,8 +207,8 @@ export default function CategoryProductForm({
                 {isFieldEnabled('color_images') && (
                   <div className="bg-white rounded-lg p-5 border border-fuchsia-200">
                     <label className="block text-sm font-bold text-gray-800 mb-3">
-                      Color Images
-                      <span className="text-gray-400 text-xs font-normal ml-2">(URLs, one per line)</span>
+                      {t('form.colorImages')}
+                      <span className="text-gray-400 text-xs font-normal ml-2">{t('form.urlsOneLine')}</span>
                     </label>
                     <textarea
                       value={Array.isArray(formData.color_images) ? formData.color_images.join('\n') : ''}
@@ -231,7 +233,7 @@ export default function CategoryProductForm({
         <div className="space-y-4">
           {isFieldEnabled('contact_lens_brand') && (
             <Input
-              label="Contact Lens Brand"
+              label={t('form.contactBrand')}
               value={formData.contact_lens_brand || ''}
               onChange={(e) => setFormData({ ...formData, contact_lens_brand: e.target.value })}
             />
@@ -239,7 +241,7 @@ export default function CategoryProductForm({
           
           {isFieldEnabled('contact_lens_type') && (
             <Input
-              label="Contact Lens Type"
+              label={t('form.contactType')}
               value={formData.contact_lens_type || ''}
               onChange={(e) => setFormData({ ...formData, contact_lens_type: e.target.value })}
             />
@@ -247,7 +249,7 @@ export default function CategoryProductForm({
           
           {isFieldEnabled('contact_lens_color') && (
             <Input
-              label="Contact Lens Color"
+              label={t('form.contactColor')}
               value={formData.contact_lens_color || ''}
               onChange={(e) => setFormData({ ...formData, contact_lens_color: e.target.value })}
             />
@@ -255,7 +257,7 @@ export default function CategoryProductForm({
           
           {isFieldEnabled('contact_lens_material') && (
             <Input
-              label="Contact Lens Material"
+              label={t('form.contactMaterial')}
               value={formData.contact_lens_material || ''}
               onChange={(e) => setFormData({ ...formData, contact_lens_material: e.target.value })}
             />
@@ -264,25 +266,25 @@ export default function CategoryProductForm({
           {isFieldEnabled('replacement_frequency') && (
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Replacement Frequency
+                {t('form.replacementFrequency')}
               </label>
               <select
                 value={formData.replacement_frequency || ''}
                 onChange={(e) => setFormData({ ...formData, replacement_frequency: e.target.value })}
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
               >
-                <option value="">Select Frequency</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
+                <option value="">{t('form.selectFrequency')}</option>
+                <option value="daily">{t('form.daily')}</option>
+                <option value="weekly">{t('form.weekly')}</option>
+                <option value="monthly">{t('form.monthly')}</option>
+                <option value="yearly">{t('form.yearly')}</option>
               </select>
             </div>
           )}
           
           {isFieldEnabled('water_content') && (
             <Input
-              label="Water Content (%)"
+              label={t('form.waterContent')}
               value={formData.water_content || ''}
               onChange={(e) => setFormData({ ...formData, water_content: e.target.value })}
               placeholder="e.g., 38%, 55%"
@@ -292,7 +294,7 @@ export default function CategoryProductForm({
           {isFieldEnabled('base_curve_options') && (
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Base Curve Options (comma-separated)
+                {t('form.baseCurve')}
               </label>
               <textarea
                 value={Array.isArray(formData.base_curve_options) ? formData.base_curve_options.join(', ') : (formData.base_curve_options || '')}
@@ -311,7 +313,7 @@ export default function CategoryProductForm({
           {isFieldEnabled('diameter_options') && (
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Diameter Options (comma-separated)
+                {t('form.diameter')}
               </label>
               <textarea
                 value={Array.isArray(formData.diameter_options) ? formData.diameter_options.join(', ') : (formData.diameter_options || '')}
@@ -330,7 +332,7 @@ export default function CategoryProductForm({
           {isFieldEnabled('powers_range') && (
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Powers Range (JSON or text)
+                {t('form.powersRange')}
               </label>
               <textarea
                 value={formData.powers_range || ''}
@@ -350,7 +352,7 @@ export default function CategoryProductForm({
                 onChange={(e) => setFormData({ ...formData, has_uv_filter: e.target.checked })}
                 className="mr-2"
               />
-              <span>Has UV Filter</span>
+              <span>{t('form.uvFilter')}</span>
             </label>
           )}
           
@@ -362,7 +364,7 @@ export default function CategoryProductForm({
                 onChange={(e) => setFormData({ ...formData, can_sleep_with: e.target.checked })}
                 className="mr-2"
               />
-              <span>Can Sleep With (Extended Wear)</span>
+              <span>{t('form.sleepWith')}</span>
             </label>
           )}
           
@@ -374,7 +376,7 @@ export default function CategoryProductForm({
                 onChange={(e) => setFormData({ ...formData, is_medical_device: e.target.checked })}
                 className="mr-2"
               />
-              <span>Medical Device (Requires Prescription)</span>
+              <span>{t('form.medicalDevice')}</span>
             </label>
           )}
         </div>
@@ -385,7 +387,7 @@ export default function CategoryProductForm({
         <div className="space-y-4">
           {isFieldEnabled('size_volume') && (
             <Input
-              label="Size/Volume"
+              label={t('form.sizeVolume')}
               value={formData.size_volume || ''}
               onChange={(e) => setFormData({ ...formData, size_volume: e.target.value })}
               placeholder="e.g., 100ml, 200ml, 500ml"
@@ -394,7 +396,7 @@ export default function CategoryProductForm({
           
           {isFieldEnabled('pack_type') && (
             <Input
-              label="Pack Type"
+              label={t('form.packType')}
               value={formData.pack_type || ''}
               onChange={(e) => setFormData({ ...formData, pack_type: e.target.value })}
               placeholder="e.g., Single, Multi-pack, Bulk"
@@ -404,7 +406,7 @@ export default function CategoryProductForm({
           {isFieldEnabled('expiry_date') && (
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Expiry Date
+                {t('form.expiry')}
               </label>
               <Input
                 type="date"
@@ -422,17 +424,17 @@ export default function CategoryProductForm({
           {isFieldEnabled('gender') && (
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Gender
+                {t('form.gender')}
               </label>
               <select
                 value={formData.gender}
                 onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
               >
-                <option value="unisex">Unisex</option>
-                <option value="men">Men</option>
-                <option value="women">Women</option>
-                <option value="kids">Kids</option>
+                <option value="unisex">{t('form.unisex')}</option>
+                <option value="men">{t('form.men')}</option>
+                <option value="women">{t('form.women')}</option>
+                <option value="kids">{t('form.kids')}</option>
               </select>
             </div>
           )}
@@ -443,7 +445,7 @@ export default function CategoryProductForm({
       {isFieldEnabled('mm_calibers') && (
         <div className="mt-4">
           <label className="block text-sm font-semibold text-gray-800 mb-2">
-            MM Calibers (JSON)
+            {t('form.mmCalibers')}
           </label>
           <textarea
             value={typeof formData.mm_calibers === 'string' ? formData.mm_calibers : JSON.stringify(formData.mm_calibers || {})}

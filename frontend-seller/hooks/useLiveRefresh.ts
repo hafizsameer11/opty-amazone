@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useRef } from 'react';
+import { WAREHOUSE_UPDATED_EVENT } from '@/services/warehouse-service';
 
-export function useLiveRefresh(refresh: () => Promise<unknown>, enabled = true, interval = 5000) {
+export function useLiveRefresh(refresh: () => Promise<unknown>, enabled = true, interval = 5000, runImmediately = false) {
   const latest = useRef(refresh);
   useEffect(() => { latest.current = refresh; });
   useEffect(() => {
@@ -16,7 +17,9 @@ export function useLiveRefresh(refresh: () => Promise<unknown>, enabled = true, 
     };
     const timer = window.setInterval(run, interval);
     window.addEventListener('focus', run);
+    window.addEventListener(WAREHOUSE_UPDATED_EVENT, run);
     document.addEventListener('visibilitychange', run);
-    return () => { stopped = true; clearInterval(timer); window.removeEventListener('focus', run); document.removeEventListener('visibilitychange', run); };
-  }, [enabled, interval]);
+    if (runImmediately) void run();
+    return () => { stopped = true; clearInterval(timer); window.removeEventListener('focus', run); window.removeEventListener(WAREHOUSE_UPDATED_EVENT, run); document.removeEventListener('visibilitychange', run); };
+  }, [enabled, interval, runImmediately]);
 }

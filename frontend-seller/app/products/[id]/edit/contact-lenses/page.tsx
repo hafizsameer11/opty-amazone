@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import ProductEditShell from '@/components/layout/ProductEditShell';
 import {
   productService,
@@ -27,6 +28,7 @@ export default function EditContactLensesProductPage() {
   const params = useParams();
   const router = useRouter();
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const productId = parseInt(String(params.id), 10);
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -72,7 +74,7 @@ export default function EditContactLensesProductPage() {
           setCategoryId(cid);
         }
       } catch {
-        if (!cancelled) setError('Failed to load product');
+        if (!cancelled) setError(t('products.loadFailed'));
       } finally {
         if (!cancelled) setPageLoading(false);
       }
@@ -97,13 +99,13 @@ export default function EditContactLensesProductPage() {
     setSaving(true);
     try {
       await productService.update(productId, formData);
-      setSuccessToast('Product updated successfully');
+      setSuccessToast(t('products.updated'));
     } catch (err: any) {
       setError(
         err.response?.data?.errors?.name?.[0] ||
           err.response?.data?.errors?.sku?.[0] ||
           err.response?.data?.message ||
-          'Failed to update product'
+          t('products.updateFailed')
       );
     } finally {
       setSaving(false);
@@ -157,9 +159,9 @@ export default function EditContactLensesProductPage() {
         <nav className="flex flex-wrap gap-0 border-b border-gray-200">
           {(
             [
-              { id: 'details' as const, label: 'Product details' },
-              { id: 'prescription' as const, label: 'Prescription options' },
-              { id: 'packs' as const, label: 'Pack units & pricing' },
+              { id: 'details' as const, label: t('form.productDetails') },
+              { id: 'prescription' as const, label: t('form.prescriptionTab') },
+              { id: 'packs' as const, label: t('form.packPricingTab') },
             ] as const
           ).map((t) => (
             <button
@@ -201,7 +203,7 @@ export default function EditContactLensesProductPage() {
       {mainTab === 'details' && (
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.basicInformation')}</h2>
           <div className="space-y-4">
             <Input
               label="Product Name *"
@@ -219,7 +221,7 @@ export default function EditContactLensesProductPage() {
             />
             <Input label="SKU" value={formData.sku} disabled className="bg-gray-100" />
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Description</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">{t('form.description')}</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -237,7 +239,7 @@ export default function EditContactLensesProductPage() {
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Pricing & Inventory</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.pricingInventory')}</h2>
           <div className="grid grid-cols-3 gap-4">
             <Input
               label="Price *"
@@ -287,7 +289,7 @@ export default function EditContactLensesProductPage() {
               required
             />
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Stock Status *</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">{t('form.stockStatus')} *</label>
               <select
                 value={formData.stock_status}
                 onChange={(e) =>
@@ -296,16 +298,16 @@ export default function EditContactLensesProductPage() {
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
                 required
               >
-                <option value="in_stock">In Stock</option>
-                <option value="out_of_stock">Out of Stock</option>
-                <option value="backorder">Backorder</option>
+                <option value="in_stock">{t('form.inStock')}</option>
+                <option value="out_of_stock">{t('form.outOfStock')}</option>
+                <option value="backorder">{t('form.backorder')}</option>
               </select>
             </div>
           </div>
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Images</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.images')}</h2>
           <ProductImageUpload
             images={formData.images || []}
             onChange={(images) => setFormData({ ...formData, images })}
@@ -314,12 +316,12 @@ export default function EditContactLensesProductPage() {
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Options</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.options')}</h2>
           <SimplifiedProductOptions formData={formData} setFormData={patchFormData} productType="contact_lens" />
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Status</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('common.status')}</h2>
           <div className="space-y-2">
             <label className="flex items-center">
               <input
@@ -328,7 +330,7 @@ export default function EditContactLensesProductPage() {
                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                 className="mr-2"
               />
-              <span>Active</span>
+              <span>{t('form.active')}</span>
             </label>
             <label className="flex items-center">
               <input
@@ -337,17 +339,17 @@ export default function EditContactLensesProductPage() {
                 onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
                 className="mr-2"
               />
-              <span>Featured</span>
+              <span>{t('products.featured')}</span>
             </label>
           </div>
         </div>
 
         <div className="flex gap-4 pt-4">
           <Button type="submit" isLoading={saving} className="flex-1">
-            Save product
+            {t('form.updateProduct')}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.push('/products')}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       </form>

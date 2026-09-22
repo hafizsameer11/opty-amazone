@@ -12,6 +12,7 @@ import {
   type ContactLensColourStockRow,
   type ProductVariant,
 } from '@/services/product-service';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 function displayImageUrl(url: string): string {
   if (!url) return url;
@@ -58,6 +59,7 @@ export default function ContactLensPackUnitsEditor({
   onChange,
   onSave,
 }: ContactLensPackUnitsEditorProps) {
+  const { t } = useLanguage();
   const packs = value?.packs ?? [];
   const colourStock = value?.colour_stock ?? [];
   const [unitsInput, setUnitsInput] = useState(() => packs.map((p) => p.quantity).join(', '));
@@ -158,11 +160,11 @@ export default function ContactLensPackUnitsEditor({
     if (!files?.length) return;
     const valid = Array.from(files).filter((file) => {
       if (!file.type.startsWith('image/')) {
-        window.alert(`${file.name} is not an image file`);
+        window.alert(`${file.name}: ${t('form.notImageFile')}`);
         return false;
       }
       if (file.size > 5 * 1024 * 1024) {
-        window.alert(`${file.name} exceeds 5MB limit`);
+        window.alert(`${file.name}: ${t('form.fileExceeds5Mb')}`);
         return false;
       }
       return true;
@@ -181,7 +183,7 @@ export default function ContactLensPackUnitsEditor({
           fd
         );
         const rawUrl = response.data.success && response.data.data?.url ? response.data.data.url : null;
-        if (!rawUrl) throw new Error('Upload failed');
+        if (!rawUrl) throw new Error(t('form.uploadFailed'));
         const absolute =
           rawUrl.startsWith('http://') || rawUrl.startsWith('https://')
             ? rawUrl
@@ -197,7 +199,7 @@ export default function ContactLensPackUnitsEditor({
       }
     } catch (e: unknown) {
       const ax = e as { response?: { data?: { message?: string } }; message?: string };
-      window.alert(ax.response?.data?.message || ax.message || 'Upload failed');
+      window.alert(ax.response?.data?.message || ax.message || t('form.uploadFailed'));
     } finally {
       setUploadingQty(null);
       const input = fileInputsRef.current[quantity];
@@ -217,10 +219,10 @@ export default function ContactLensPackUnitsEditor({
     setSaveErr('');
     try {
       await onSave(next);
-      setSaveMsg('Pack units saved');
+      setSaveMsg(t('form.packUnitsSaved'));
     } catch (e: unknown) {
       const ax = e as { response?: { data?: { message?: string } } };
-      setSaveErr(ax.response?.data?.message || 'Failed to save pack units');
+      setSaveErr(ax.response?.data?.message || t('form.savePackUnitsFailed'));
     } finally {
       setSaving(false);
     }
@@ -231,11 +233,9 @@ export default function ContactLensPackUnitsEditor({
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
       <div className="bg-gradient-to-r from-slate-700 to-slate-900 px-6 py-5 sm:px-8">
-        <h2 className="text-xl sm:text-2xl font-bold text-white">Pack units (per lens product)</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-white">{t('form.packUnits')}</h2>
         <p className="text-slate-300 mt-1 text-sm">
-          Units are pack sizes (e.g. 10 / 30 lenses per box). Optional price per pack overrides the product base
-          price. For coloured lenses, set available colours and optional pack×colour stock. Qty options feed the
-          buyer prescription quantity control.
+          {t('form.packUnitsDescription')}
         </p>
       </div>
 
@@ -244,17 +244,17 @@ export default function ContactLensPackUnitsEditor({
         {saveMsg && <Alert type="success" message={saveMsg} onClose={() => setSaveMsg('')} />}
 
         <div className="rounded-xl border border-sky-200 bg-sky-50/80 p-4 text-sm text-sky-950 space-y-2">
-          <p className="font-semibold">How it works</p>
+          <p className="font-semibold">{t('form.howItWorks')}</p>
           <ol className="list-decimal list-inside space-y-1 text-sky-900/90">
             <li>
-              List pack sizes in <strong>Available units</strong> (comma-separated), e.g. <code>10, 20, 30</code>.
+              {t('form.packUnitsHelp1')}
             </li>
-            <li>Set an optional price per pack; leave empty to use the product base price ({basePrice.toFixed(2)}).</li>
+            <li>{t('form.packUnitsHelp2', { price: basePrice.toFixed(2) })}</li>
             <li>
-              Optional <strong>Qty options</strong> (boxes per eye) load on the buyer page, e.g. <code>1, 2, 3, 4</code>.
+              {t('form.packUnitsHelp3')}
             </li>
             <li>
-              For coloured lenses, tick which colours apply to each pack and set pack×colour stock when needed.
+              {t('form.packUnitsHelp4')}
             </li>
           </ol>
         </div>
@@ -266,9 +266,9 @@ export default function ContactLensPackUnitsEditor({
               value={unitsInput}
               onChange={(e) => setUnitsInput(e.target.value)}
               onBlur={syncPacksFromInput}
-              placeholder="e.g. 10, 20, 30"
+              placeholder={t('e.g., 10, 20, 30')}
             />
-            <p className="text-xs text-gray-500 mt-1">Change this list, then blur the field or save — rows below update.</p>
+            <p className="text-xs text-gray-500 mt-1">{t('form.availableUnitsHelp')}</p>
           </div>
           <div>
             <Input
@@ -278,17 +278,17 @@ export default function ContactLensPackUnitsEditor({
               onBlur={syncPacksFromInput}
               placeholder="e.g. 1, 2, 3, 4"
             />
-            <p className="text-xs text-gray-500 mt-1">Leave empty for free ±1 quantity controls on the buyer page.</p>
+            <p className="text-xs text-gray-500 mt-1">{t('form.qtyOptionsHelp')}</p>
           </div>
         </div>
 
         <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-sm text-indigo-950">
-          Product #{productId} · {productName}
+          {t('form.productReference', { id: productId })} · {productName}
         </div>
 
         {displayPacks.length === 0 ? (
           <p className="text-center text-gray-500 text-sm py-8 border border-dashed border-gray-200 rounded-xl">
-            Add pack sizes above to configure per-unit price and images.
+            {t('form.addPackSizesHint')}
           </p>
         ) : (
           <div className="space-y-4">
@@ -303,11 +303,11 @@ export default function ContactLensPackUnitsEditor({
                   className="rounded-xl border border-gray-200 p-4 space-y-3 bg-gray-50/40"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-semibold text-gray-900">Pack × {pack.quantity}</h3>
-                    <span className="text-xs text-gray-500">lenses per box</span>
+                    <h3 className="font-semibold text-gray-900">{t('form.pack')} × {pack.quantity}</h3>
+                    <span className="text-xs text-gray-500">{t('form.lensesPerBox')}</span>
                   </div>
                   <Input
-                    label={`Price override (empty = base ${basePrice.toFixed(2)})`}
+                    label={t('form.packPriceOverride', { price: basePrice.toFixed(2) })}
                     type="number"
                     step="0.01"
                     min="0"
@@ -320,7 +320,7 @@ export default function ContactLensPackUnitsEditor({
                     }}
                   />
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">Pack images (optional)</label>
+                    <label className="block text-sm font-medium text-gray-700">{t('form.packImages')}</label>
                     <div className="flex flex-wrap gap-2">
                       {(pack.images || []).map((url, imgIdx) => (
                         <div
@@ -338,7 +338,7 @@ export default function ContactLensPackUnitsEditor({
                             onClick={() => removePackImageAt(pack.quantity, imgIdx)}
                             className="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity"
                           >
-                            Remove
+                            {t('form.remove')}
                           </button>
                         </div>
                       ))}
@@ -361,28 +361,28 @@ export default function ContactLensPackUnitsEditor({
                         disabled={uploadingQty === pack.quantity}
                         onClick={() => fileInputsRef.current[pack.quantity]?.click()}
                       >
-                        {uploadingQty === pack.quantity ? 'Uploading…' : '+ Upload images'}
+                        {uploadingQty === pack.quantity ? t('form.uploading') : `+ ${t('form.uploadImages')}`}
                       </Button>
-                      <span className="text-xs text-gray-500">JPEG/PNG/WebP, max 5MB each</span>
+                      <span className="text-xs text-gray-500">{t('form.imageFormats')}</span>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Or paste image URLs (one per line or comma-separated)
+                        {t('form.pasteImageUrls')}
                       </label>
                       <textarea
                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[72px]"
                         value={(pack.images || []).join('\n')}
                         onChange={(e) => setPackImagesFromText(pack.quantity, e.target.value)}
-                        placeholder="https://…"
+                        placeholder={t('https://…')}
                       />
                     </div>
                   </div>
 
                   {colourVariants.length > 0 && (
                     <div className="space-y-2 pt-2 border-t border-gray-200">
-                      <p className="text-sm font-medium text-gray-800">Colours available for this pack</p>
+                      <p className="text-sm font-medium text-gray-800">{t('form.coloursAvailable')}</p>
                       <p className="text-xs text-gray-500">
-                        Untick to hide a colour for this pack size. Leave all ticked (default) to allow every colour.
+                        {t('form.coloursHint')}
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {colourVariants.map((v) => {
@@ -407,14 +407,14 @@ export default function ContactLensPackUnitsEditor({
                         })}
                       </div>
 
-                      <p className="text-sm font-medium text-gray-800 pt-2">Pack × colour stock (optional)</p>
+                      <p className="text-sm font-medium text-gray-800 pt-2">{t('form.packColourStock')}</p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {colourVariants
                           .filter((v) => allowed == null || allowed.has(v.id))
                           .map((v) => (
                             <Input
                               key={`${pack.quantity}-stock-${v.id}`}
-                              label={`${v.color_name} stock`}
+                              label={`${v.color_name} ${t('form.stock')}`}
                               type="number"
                               min="0"
                               value={String(getColourStock(pack.quantity, v.id))}
@@ -443,7 +443,7 @@ export default function ContactLensPackUnitsEditor({
             disabled={saving}
             className="bg-slate-800 hover:bg-slate-900 text-white min-w-[200px]"
           >
-            {saving ? 'Saving…' : 'Save pack units'}
+            {saving ? t('common.saving') : t('form.savePackUnits')}
           </Button>
         </div>
       </div>

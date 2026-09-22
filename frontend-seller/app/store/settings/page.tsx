@@ -11,9 +11,11 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
 import SectionBackLink from '@/components/ui/SectionBackLink';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function StoreSettingsPage() {
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,9 +58,9 @@ export default function StoreSettingsPage() {
 
     try {
       await StoreService.updatePhoneVisibility(phoneVisibility);
-      setSuccess('Settings updated successfully');
+      setSuccess(t('store.updated'));
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to update settings');
+      setError(error.response?.data?.message || t('store.updateFailed'));
     } finally {
       setSaving(false);
     }
@@ -69,7 +71,7 @@ export default function StoreSettingsPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -86,30 +88,30 @@ export default function StoreSettingsPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header />
           <main className="flex-1 overflow-y-auto">
-            <div className="py-6">
-              <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="py-4 sm:py-6">
+              <div className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8">
                 {/* Page Header */}
                 <div className="mb-6">
                   <SectionBackLink href="/store" className="mb-3">
-                    Back to Store
+                    {t('store.back')}
                   </SectionBackLink>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2">Store Settings</h1>
-                  <p className="text-gray-600">Configure your store preferences and privacy settings</p>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('nav.storeSettings')}</h1>
+                  <p className="text-gray-600">{t('store.settingsSubtitle')}</p>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:p-8">
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:rounded-xl sm:p-6 lg:p-8">
                   {error && <Alert type="error" message={error} className="mb-6" />}
                   {success && <Alert type="success" message={success} className="mb-6" />}
 
                   <div className="mb-6 pb-6 border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-1">Privacy & Visibility Settings</h2>
-                    <p className="text-sm text-gray-600">Control how your contact information is displayed to customers</p>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-1">{t('store.privacy')}</h2>
+                    <p className="text-sm text-gray-600">{t('store.privacyDescription')}</p>
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Phone Visibility
+                        {t('store.phoneVisibility')}
                       </label>
                       <div className="space-y-3">
                         <label className={`flex items-start p-4 rounded-lg border-2 cursor-pointer transition-all ${
@@ -125,8 +127,8 @@ export default function StoreSettingsPage() {
                             className="mt-1 mr-3"
                           />
                           <div>
-                            <div className="font-medium text-gray-900">Public</div>
-                            <div className="text-sm text-gray-600">Anyone can see your phone number</div>
+                            <div className="font-medium text-gray-900">{t('store.public')}</div>
+                            <div className="text-sm text-gray-600">{t('store.publicDescription')}</div>
                           </div>
                         </label>
 
@@ -143,8 +145,8 @@ export default function StoreSettingsPage() {
                             className="mt-1 mr-3"
                           />
                           <div>
-                            <div className="font-medium text-gray-900">Request Required</div>
-                            <div className="text-sm text-gray-600">Buyers must request to see your phone number</div>
+                            <div className="font-medium text-gray-900">{t('store.requestRequired')}</div>
+                            <div className="text-sm text-gray-600">{t('store.requestDescription')}</div>
                           </div>
                         </label>
 
@@ -161,24 +163,24 @@ export default function StoreSettingsPage() {
                             className="mt-1 mr-3"
                           />
                           <div>
-                            <div className="font-medium text-gray-900">Hidden</div>
-                            <div className="text-sm text-gray-600">Phone number is not visible to anyone</div>
+                            <div className="font-medium text-gray-900">{t('store.hidden')}</div>
+                            <div className="text-sm text-gray-600">{t('store.hiddenDescription')}</div>
                           </div>
                         </label>
                       </div>
                     </div>
 
-                    <div className="flex gap-4 pt-4 border-t border-gray-200">
+                    <div className="flex flex-col gap-2 border-t border-gray-200 pt-4 sm:flex-row sm:gap-4">
                       <Button 
                         type="submit" 
                         disabled={saving}
-                        className="bg-[#0066CC] hover:bg-[#0052a3] text-white font-semibold px-6"
+                        className="w-full bg-[#0066CC] px-6 font-semibold text-white hover:bg-[#0052a3] sm:w-auto"
                       >
-                        {saving ? 'Saving...' : 'Save Settings'}
+                        {saving ? t('common.loading') : t('store.saveSettings')}
                       </Button>
-                      <Link href="/store">
-                        <Button type="button" variant="outline" className="px-6">
-                          Cancel
+                      <Link href="/store" className="w-full sm:w-auto">
+                        <Button type="button" variant="outline" className="w-full px-6 sm:w-auto">
+                          {t('common.cancel')}
                         </Button>
                       </Link>
                     </div>

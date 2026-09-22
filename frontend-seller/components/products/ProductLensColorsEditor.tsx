@@ -2,6 +2,7 @@
 
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export interface ProductLensColorRow {
   id: number;
@@ -34,6 +35,7 @@ export default function ProductLensColorsEditor({
   onChange,
   compact = false,
 }: ProductLensColorsEditorProps) {
+  const { t } = useLanguage();
   const rows = Array.isArray(value) ? value : [];
   const pad = compact ? 'p-3' : 'p-5';
   const titleCls = compact ? 'text-sm font-semibold text-gray-900 mb-2' : 'text-base font-semibold text-gray-900 mb-3';
@@ -71,13 +73,13 @@ export default function ProductLensColorsEditor({
     <div className={`bg-white ${pad} rounded-lg border border-gray-200`}>
       <div className={`flex flex-wrap items-start justify-between gap-2 ${compact ? 'mb-2' : 'mb-4'}`}>
         <div>
-          <h3 className={titleCls}>Lens tint colors</h3>
+          <h3 className={titleCls}>{t('form.lensTintColors')}</h3>
           <p className={compact ? 'text-[11px] text-gray-500' : 'text-sm text-gray-500'}>
-            Optional tints buyers can pick at checkout (clear, blue, brown, etc.).
+            {t('form.lensTintDescription')}
           </p>
         </div>
         <Button type="button" size="sm" variant="outline" onClick={addRow}>
-          Add color
+          {t('form.addColor')}
         </Button>
       </div>
 
@@ -115,14 +117,14 @@ export default function ProductLensColorsEditor({
               placeholder="Blue, Brown…"
             />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hex</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.hex')}</label>
               <div className="flex items-center gap-2">
                 <input
                   type="color"
                   value={/^#[0-9A-Fa-f]{6}$/.test(row.color_code) ? row.color_code : '#4A90E2'}
                   onChange={(e) => updateRow(index, { color_code: e.target.value })}
                   className="h-10 w-12 rounded border border-gray-300 cursor-pointer"
-                  aria-label="Pick lens tint color"
+                  aria-label={t('form.pickLensColor')}
                 />
                 <Input
                   value={row.color_code}
@@ -132,13 +134,13 @@ export default function ProductLensColorsEditor({
               </div>
             </div>
             <Input
-              label="Description (optional)"
+              label={t('form.description')}
               value={row.description || ''}
               onChange={(e) => updateRow(index, { description: e.target.value })}
-              placeholder="Short note for buyers"
+              placeholder={t('form.shortBuyerNote')}
             />
             <Button type="button" variant="danger" size="sm" onClick={() => removeRow(index)}>
-              Remove
+              {t('form.remove')}
             </Button>
           </div>
         ))}

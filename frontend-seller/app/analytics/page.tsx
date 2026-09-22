@@ -7,9 +7,12 @@ import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
 import { StoreService } from '@/services/store-service';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function AnalyticsPage() {
   const { isAuthenticated, loading } = useAuth();
+  const { t, language } = useLanguage();
   const router = useRouter();
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loadingData, setLoadingData] = useState(true);
@@ -26,9 +29,11 @@ export default function AnalyticsPage() {
     }
   }, [isAuthenticated]);
 
-  const loadAnalytics = async () => {
+  useLiveRefresh(() => loadAnalytics(true), isAuthenticated, 30000);
+
+  const loadAnalytics = async (silent = false) => {
     try {
-      setLoadingData(true);
+      if (!silent) setLoadingData(true);
       const response = await StoreService.getDashboard();
       if (response.success && response.data) {
         setDashboardData(response.data);
@@ -36,7 +41,7 @@ export default function AnalyticsPage() {
     } catch (error) {
       console.error('Failed to load analytics:', error);
     } finally {
-      setLoadingData(false);
+      if (!silent) setLoadingData(false);
     }
   };
 
@@ -45,7 +50,7 @@ export default function AnalyticsPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('analytics.loading')}</p>
         </div>
       </div>
     );
@@ -56,7 +61,7 @@ export default function AnalyticsPage() {
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(language === 'it' ? 'it-IT' : 'en-US', {
       style: 'currency',
       currency: 'EUR',
       minimumFractionDigits: 0,
@@ -71,15 +76,15 @@ export default function AnalyticsPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header />
           <main className="flex-1 overflow-y-auto">
-            <div className="py-6">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="py-4 sm:py-6">
+              <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
                 <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-gray-900">Analytics</h1>
-                  <p className="text-gray-600 mt-1">View detailed store performance metrics</p>
+                  <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('analytics.title')}</h1>
+                  <p className="text-gray-600 mt-1">{t('analytics.subtitle')}</p>
                 </div>
 
                 {/* Overview Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4 mb-7 sm:mb-8">
                   <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
                     <div className="flex items-center justify-between mb-4">
                       <div className="p-3 rounded-lg bg-blue-50">
@@ -88,7 +93,7 @@ export default function AnalyticsPage() {
                         </svg>
                       </div>
                     </div>
-                    <h3 className="text-sm font-medium text-gray-600 mb-1">Total Products</h3>
+                    <h3 className="text-sm font-medium text-gray-600 mb-1">{t('analytics.totalProducts')}</h3>
                     <p className="text-3xl font-bold text-gray-900">
                       {dashboardData?.total_products || 0}
                     </p>
@@ -102,7 +107,7 @@ export default function AnalyticsPage() {
                         </svg>
                       </div>
                     </div>
-                    <h3 className="text-sm font-medium text-gray-600 mb-1">Total Orders</h3>
+                    <h3 className="text-sm font-medium text-gray-600 mb-1">{t('analytics.totalOrders')}</h3>
                     <p className="text-3xl font-bold text-gray-900">
                       {dashboardData?.total_orders || 0}
                     </p>
@@ -116,7 +121,7 @@ export default function AnalyticsPage() {
                         </svg>
                       </div>
                     </div>
-                    <h3 className="text-sm font-medium text-gray-600 mb-1">Followers</h3>
+                    <h3 className="text-sm font-medium text-gray-600 mb-1">{t('analytics.followers')}</h3>
                     <p className="text-3xl font-bold text-gray-900">
                       {dashboardData?.total_followers || 0}
                     </p>
@@ -130,7 +135,7 @@ export default function AnalyticsPage() {
                         </svg>
                       </div>
                     </div>
-                    <h3 className="text-sm font-medium text-gray-600 mb-1">Total Revenue</h3>
+                    <h3 className="text-sm font-medium text-gray-600 mb-1">{t('analytics.totalRevenue')}</h3>
                     <p className="text-3xl font-bold text-gray-900">
                       {formatCurrency(dashboardData?.total_revenue || 0)}
                     </p>
@@ -141,11 +146,11 @@ export default function AnalyticsPage() {
                 {dashboardData?.statistics && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                      <h2 className="text-xl font-bold text-gray-900 mb-4">Monthly Trends</h2>
+                      <h2 className="text-xl font-bold text-gray-900 mb-4">{t('analytics.monthlyTrends')}</h2>
                       <div className="space-y-4">
                         <div>
                           <div className="flex justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">Products</span>
+                            <span className="text-sm font-medium text-gray-700">{t('analytics.products')}</span>
                             <span className={`text-sm font-semibold ${
                               Number(dashboardData.statistics.products.change) >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>
@@ -154,15 +159,15 @@ export default function AnalyticsPage() {
                             </span>
                           </div>
                           <div className="flex gap-2 text-xs text-gray-500">
-                            <span>This month: {dashboardData.statistics.products.current}</span>
+                            <span>{t('analytics.thisMonth')}: {dashboardData.statistics.products.current}</span>
                             <span>•</span>
-                            <span>Last month: {dashboardData.statistics.products.last}</span>
+                            <span>{t('analytics.lastMonth')}: {dashboardData.statistics.products.last}</span>
                           </div>
                         </div>
 
                         <div>
                           <div className="flex justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">Orders</span>
+                            <span className="text-sm font-medium text-gray-700">{t('analytics.orders')}</span>
                             <span className={`text-sm font-semibold ${
                               Number(dashboardData.statistics.orders.change) >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>
@@ -171,15 +176,15 @@ export default function AnalyticsPage() {
                             </span>
                           </div>
                           <div className="flex gap-2 text-xs text-gray-500">
-                            <span>This month: {dashboardData.statistics.orders.current}</span>
+                            <span>{t('analytics.thisMonth')}: {dashboardData.statistics.orders.current}</span>
                             <span>•</span>
-                            <span>Last month: {dashboardData.statistics.orders.last}</span>
+                            <span>{t('analytics.lastMonth')}: {dashboardData.statistics.orders.last}</span>
                           </div>
                         </div>
 
                         <div>
                           <div className="flex justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">Followers</span>
+                            <span className="text-sm font-medium text-gray-700">{t('analytics.followersLabel')}</span>
                             <span className={`text-sm font-semibold ${
                               Number(dashboardData.statistics.followers.change) >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>
@@ -188,15 +193,15 @@ export default function AnalyticsPage() {
                             </span>
                           </div>
                           <div className="flex gap-2 text-xs text-gray-500">
-                            <span>This month: {dashboardData.statistics.followers.current}</span>
+                            <span>{t('analytics.thisMonth')}: {dashboardData.statistics.followers.current}</span>
                             <span>•</span>
-                            <span>Last month: {dashboardData.statistics.followers.last}</span>
+                            <span>{t('analytics.lastMonth')}: {dashboardData.statistics.followers.last}</span>
                           </div>
                         </div>
 
                         <div>
                           <div className="flex justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">Revenue</span>
+                            <span className="text-sm font-medium text-gray-700">{t('analytics.revenue')}</span>
                             <span className={`text-sm font-semibold ${
                               Number(dashboardData.statistics.revenue.change) >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>
@@ -205,31 +210,31 @@ export default function AnalyticsPage() {
                             </span>
                           </div>
                           <div className="flex gap-2 text-xs text-gray-500">
-                            <span>This month: {formatCurrency(dashboardData.statistics.revenue.current)}</span>
+                            <span>{t('analytics.thisMonth')}: {formatCurrency(dashboardData.statistics.revenue.current)}</span>
                             <span>•</span>
-                            <span>Last month: {formatCurrency(dashboardData.statistics.revenue.last)}</span>
+                            <span>{t('analytics.lastMonth')}: {formatCurrency(dashboardData.statistics.revenue.last)}</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                      <h2 className="text-xl font-bold text-gray-900 mb-4">Order Status Breakdown</h2>
+                      <h2 className="text-xl font-bold text-gray-900 mb-4">{t('analytics.orderStatusBreakdown')}</h2>
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Pending Orders</span>
+                          <span className="text-sm text-gray-600">{t('analytics.pendingOrders')}</span>
                           <span className="text-lg font-bold text-yellow-600">
                             {dashboardData?.pending_orders || 0}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Paid Orders</span>
+                          <span className="text-sm text-gray-600">{t('analytics.paidOrders')}</span>
                           <span className="text-lg font-bold text-green-600">
                             {dashboardData?.paid_orders || 0}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Total Orders</span>
+                          <span className="text-sm text-gray-600">{t('analytics.totalOrders')}</span>
                           <span className="text-lg font-bold text-gray-900">
                             {dashboardData?.total_orders || 0}
                           </span>
@@ -242,12 +247,12 @@ export default function AnalyticsPage() {
                 {/* Recent Activity */}
                 {dashboardData?.recent_orders && dashboardData.recent_orders.length > 0 && (
                   <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Orders</h2>
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">{t('analytics.recentOrders')}</h2>
                     <div className="space-y-3">
                       {dashboardData.recent_orders.slice(0, 5).map((order: any) => (
                         <div key={order.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
                           <div>
-                            <p className="font-medium text-gray-900">Order #{order.order_no}</p>
+                            <p className="font-medium text-gray-900">{t('analytics.order', { id: order.order_no })}</p>
                             <p className="text-sm text-gray-500">{order.customer_name}</p>
                           </div>
                           <div className="text-right">

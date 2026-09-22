@@ -1,6 +1,7 @@
 'use client';
 
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +15,7 @@ import Badge from '@/components/ui/Badge';
 
 export default function SellerOrdersPage() {
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [orders, setOrders] = useState<StoreOrder[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -64,7 +66,7 @@ export default function SellerOrdersPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('orders.loading')}</p>
         </div>
       </div>
     );
@@ -88,18 +90,33 @@ export default function SellerOrdersPage() {
     loadOrders();
   };
 
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: t('orders.pending'),
+      awaiting_payment: t('orders.awaitingPayment'),
+      rejected: t('orders.rejected'),
+      paid: t('orders.paid'),
+      processing: t('orderDetails.processing'),
+      out_for_delivery: t('orders.outForDelivery'),
+      delivered: t('orders.delivered'),
+      cancelled: t('orders.cancelled'),
+    };
+    return labels[status] ?? status.replaceAll('_', ' ');
+  };
+
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: 'default' | 'success' | 'warning' | 'error' | 'info' | 'primary' | 'secondary'; label: string }> = {
-      pending: { variant: 'warning', label: 'Pending' },
-      awaiting_payment: { variant: 'info', label: 'Awaiting payment' },
-      rejected: { variant: 'error', label: 'Rejected' },
-      paid: { variant: 'success', label: 'Paid' },
-      out_for_delivery: { variant: 'primary', label: 'Out for Delivery' },
-      delivered: { variant: 'default', label: 'Delivered' },
-      cancelled: { variant: 'error', label: 'Cancelled' },
+      pending: { variant: 'warning', label: t('orders.pending') },
+      awaiting_payment: { variant: 'info', label: t('orders.awaitingPayment') },
+      rejected: { variant: 'error', label: t('orders.rejected') },
+      paid: { variant: 'success', label: t('orders.paid') },
+      processing: { variant: 'info', label: t('orderDetails.processing') },
+      out_for_delivery: { variant: 'primary', label: t('orders.outForDelivery') },
+      delivered: { variant: 'default', label: t('orders.delivered') },
+      cancelled: { variant: 'error', label: t('orders.cancelled') },
     };
 
-    const config = statusConfig[status] || { variant: 'default' as const, label: status };
+    const config = statusConfig[status] || { variant: 'default' as const, label: getStatusLabel(status) };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -108,11 +125,11 @@ export default function SellerOrdersPage() {
       <Header />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto px-4 py-8 w-full">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Orders</h1>
+        <main className="flex-1 overflow-y-auto w-full px-3 py-4 sm:px-4 sm:py-8">
+        <div className="mb-4 flex items-center justify-between gap-3 sm:mb-6"><div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#0066CC]">Sales workspace</p><h1 className="mt-0.5 text-2xl font-bold text-gray-900 sm:text-3xl">{t('orders.title')}</h1></div><span className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-[#0066CC]">{orders.length} {orders.length === 1 ? t('orders.item') : t('orders.items')}</span></div>
 
         {/* Status Filter */}
-        <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
+        <div className="-mx-3 mb-5 flex gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:mb-6 sm:px-0">
           <button
             onClick={() => setStatusFilter('')}
             className={`px-4 py-2.5 rounded-lg whitespace-nowrap font-medium transition-all duration-200 ${
@@ -121,7 +138,7 @@ export default function SellerOrdersPage() {
                 : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[#0066CC] hover:text-[#0066CC]'
             }`}
           >
-            All
+            {t('orders.all')}
           </button>
           <button
             onClick={() => setStatusFilter('pending')}
@@ -131,7 +148,7 @@ export default function SellerOrdersPage() {
                 : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[#0066CC] hover:text-[#0066CC]'
             }`}
           >
-            Pending
+            {t('orders.pending')}
           </button>
           <button
             onClick={() => setStatusFilter('awaiting_payment')}
@@ -141,7 +158,7 @@ export default function SellerOrdersPage() {
                 : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[#0066CC] hover:text-[#0066CC]'
             }`}
           >
-            Awaiting payment
+            {t('orders.awaitingPayment')}
           </button>
           <button
             onClick={() => setStatusFilter('paid')}
@@ -151,7 +168,7 @@ export default function SellerOrdersPage() {
                 : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[#0066CC] hover:text-[#0066CC]'
             }`}
           >
-            Paid
+            {t('orders.paid')}
           </button>
           <button
             onClick={() => setStatusFilter('out_for_delivery')}
@@ -161,7 +178,7 @@ export default function SellerOrdersPage() {
                 : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[#0066CC] hover:text-[#0066CC]'
             }`}
           >
-            Out for Delivery
+            {t('orders.outForDelivery')}
           </button>
         </div>
 
@@ -180,9 +197,9 @@ export default function SellerOrdersPage() {
                 d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
               />
             </svg>
-            <p className="text-gray-600 text-lg">No orders found</p>
+            <p className="text-gray-600 text-lg">{t('orders.empty')}</p>
             <p className="text-gray-500 text-sm mt-2">
-              {statusFilter ? `No orders with status "${statusFilter}"` : 'You don\'t have any orders yet'}
+              {statusFilter ? t('orders.emptyFiltered', { status: getStatusLabel(statusFilter) }) : t('orders.emptyDefault')}
             </p>
           </Card>
         ) : (
@@ -194,16 +211,16 @@ export default function SellerOrdersPage() {
                 onClick={() => handleOrderClick(order.id)}
                 className="animate-fade-in"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h2 className="text-lg font-bold text-gray-900">
-                        Order #{order.order.order_no}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h2 className="truncate text-base font-bold text-gray-900 sm:text-lg">
+                        {t('orderDetails.order')} #{order.order.order_no}
                       </h2>
                       {getStatusBadge(order.status)}
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                      <p className="flex min-w-0 items-center gap-2 truncate text-sm text-gray-600">
                         <svg
                           className="w-4 h-4 text-gray-400"
                           fill="none"
@@ -219,7 +236,7 @@ export default function SellerOrdersPage() {
                         </svg>
                         {order.order.user.name}
                       </p>
-                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                      <p className="flex items-center gap-2 text-sm text-gray-600">
                         <svg
                           className="w-4 h-4 text-gray-400"
                           fill="none"
@@ -233,15 +250,15 @@ export default function SellerOrdersPage() {
                             d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
                           />
                         </svg>
-                        {order.items.length} item{order.items.length > 1 ? 's' : ''}
+                        {order.items.length} {order.items.length > 1 ? t('orders.items') : t('orders.item')}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right ml-4">
-                    <p className="text-2xl font-bold text-[#0066CC] mb-1">
+                  <div className="flex items-end justify-between border-t border-slate-100 pt-3 text-right sm:ml-4 sm:block sm:border-0 sm:pt-0">
+                    <p className="order-2 text-xl font-bold text-[#0066CC] sm:text-2xl">
                       €{Number(order.total || 0).toFixed(2)}
                     </p>
-                    <p className="text-xs text-gray-500">Total</p>
+                    <p className="order-1 text-xs text-gray-500 sm:mt-1">{t('orders.total')}</p>
                   </div>
                 </div>
               </Card>
@@ -264,4 +281,3 @@ export default function SellerOrdersPage() {
     </div>
   );
 }
-

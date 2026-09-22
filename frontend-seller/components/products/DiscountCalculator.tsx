@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Input from '@/components/ui/Input';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface DiscountCalculatorProps {
   price: number;
@@ -14,6 +15,7 @@ export default function DiscountCalculator({
   compareAtPrice,
   onCompareAtPriceChange,
 }: DiscountCalculatorProps) {
+  const { t } = useLanguage();
   const priceN = Number(price);
   const safePrice = Number.isFinite(priceN) ? priceN : 0;
   const compareN =
@@ -80,7 +82,7 @@ export default function DiscountCalculator({
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-900">Discount Calculator</h3>
+        <h3 className="text-sm font-semibold text-gray-900">{t('form.discountCalculator')}</h3>
         {discountPercentage > 0 && (
           <span className="px-3 py-1 bg-red-500 text-white text-sm font-bold rounded-full">
             {discountPercentage}% OFF
@@ -91,7 +93,7 @@ export default function DiscountCalculator({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            Discount Percentage
+            {t('form.discountPercentage')}
           </label>
           <div className="relative">
             <Input
@@ -110,7 +112,7 @@ export default function DiscountCalculator({
         
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            Discount Amount
+            {t('form.discountAmount')}
           </label>
           <div className="relative">
             <Input
@@ -132,17 +134,17 @@ export default function DiscountCalculator({
         safeCompare > safePrice && (
         <div className="mt-3 pt-3 border-t border-blue-200">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Original Price:</span>
+            <span className="text-gray-600">{t('form.originalPrice')}</span>
             <span className="text-gray-400 line-through">
               €{safeCompare.toFixed(2)}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm mt-1">
-            <span className="text-gray-600">Sale Price:</span>
+            <span className="text-gray-600">{t('form.salePrice')}</span>
             <span className="text-[#0066CC] font-bold">€{safePrice.toFixed(2)}</span>
           </div>
           <div className="flex items-center justify-between text-sm mt-1">
-            <span className="text-gray-600">You Save:</span>
+            <span className="text-gray-600">{t('form.youSave')}</span>
             <span className="text-green-600 font-semibold">
               €{(safeCompare - safePrice).toFixed(2)}
             </span>
@@ -159,7 +161,7 @@ export default function DiscountCalculator({
         }}
         className="mt-3 text-xs text-red-600 hover:text-red-800 font-medium"
       >
-        Clear Discount
+        {t('form.clearDiscount')}
       </button>
     </div>
   );

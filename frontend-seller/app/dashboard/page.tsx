@@ -11,6 +11,8 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Link from 'next/link';
 import { inventoryService, type LowStockResponse } from '@/services/inventory-service';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface DashboardData {
   total_products: number;
@@ -38,10 +40,13 @@ interface DashboardData {
 
 export default function SellerDashboardPage() {
   const { isAuthenticated, loading, user } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [lowStock, setLowStock] = useState<LowStockResponse | null>(null);
+  const [showStoreSetup, setShowStoreSetup] = useState(false);
+  const [storeSetupDismissed, setStoreSetupDismissed] = useState(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -55,19 +60,24 @@ export default function SellerDashboardPage() {
     }
   }, [isAuthenticated]);
 
-  const loadDashboard = async () => {
+  useLiveRefresh(() => loadDashboard(true), isAuthenticated, 15000);
+
+  const loadDashboard = async (silent = false) => {
     try {
-      setLoadingData(true);
+      if (!silent) setLoadingData(true);
       const response = await StoreService.getDashboard();
       if (response.success && response.data) {
         setDashboardData(response.data);
       }
       const low = await inventoryService.getLowStock();
       setLowStock(low);
+      const storeResponse = await StoreService.getStore();
+      const nextStore = storeResponse.data?.store ?? null;
+      setShowStoreSetup(!storeSetupDismissed && nextStore?.onboarding_status === 'approved' && !nextStore.store_setup_completed_at);
     } catch (error) {
       console.error('Failed to load dashboard:', error);
     } finally {
-      setLoadingData(false);
+      if (!silent) setLoadingData(false);
     }
   };
 
@@ -76,7 +86,7 @@ export default function SellerDashboardPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -117,31 +127,45 @@ export default function SellerDashboardPage() {
       <Header />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto px-4 py-8 w-full">
+        <main className="flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-8 w-full">
+          {showStoreSetup && (
+            <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/50 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="store-setup-title">
+              <div className="w-full max-w-lg rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-8">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-100 text-2xl text-cyan-700">✦</div>
+                <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-cyan-700">{t('dashboard.approved')}</p>
+                <h2 id="store-setup-title" className="mt-2 text-2xl font-bold text-slate-950">{t('dashboard.completeStoreProfile')}</h2>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{t('dashboard.setupDescription')}</p>
+                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                  <button type="button" onClick={() => { setStoreSetupDismissed(true); setShowStoreSetup(false); }} className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 hover:bg-slate-50">{t('dashboard.doLater')}</button>
+                  <button type="button" onClick={() => router.push('/store/edit?setup=1')} className="rounded-xl bg-[#0066CC] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#0052a3]">{t('dashboard.completeStoreProfile')}</button>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Welcome Section */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome back, {user?.name?.split(' ')[0] || 'Seller'}! 👋
+              {t('dashboard.welcome', { name: user?.name?.split(' ')[0] || t('nav.seller') })}
             </h1>
-            <p className="text-gray-600">Here's what's happening with your store today.</p>
+            <p className="text-gray-600">{t('dashboard.today')}</p>
           </div>
 
           {lowStock && lowStock.count > 0 && (
             <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-5">
               <div className="flex items-center justify-between gap-4 mb-3">
-                <h2 className="text-lg font-semibold text-amber-900">Low stock alert</h2>
+                <h2 className="text-lg font-semibold text-amber-900">{t('dashboard.lowStock')}</h2>
                 <Link href="/products" className="text-sm font-medium text-[#0066CC] hover:underline">
-                  View products
+                  {t('dashboard.viewProducts')}
                 </Link>
               </div>
               <p className="text-sm text-amber-800 mb-3">
-                {lowStock.count} product{lowStock.count === 1 ? '' : 's'} at or below {lowStock.threshold} units.
+                {t(lowStock.count === 1 ? 'dashboard.lowStockCount' : 'dashboard.lowStockCountPlural', { count: lowStock.count, threshold: lowStock.threshold })}
               </p>
               <ul className="text-sm space-y-1">
                 {lowStock.products.slice(0, 5).map((p) => (
                   <li key={p.id} className="flex justify-between text-gray-800">
                     <span>{p.name}</span>
-                    <span className="font-medium">{p.stock_quantity} left</span>
+                    <span className="font-medium">{t('dashboard.left', { count: p.stock_quantity })}</span>
                   </li>
                 ))}
               </ul>
@@ -149,7 +173,7 @@ export default function SellerDashboardPage() {
           )}
 
           {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4 mb-7 sm:mb-8">
             {/* Total Products */}
             <Link
               href="/products"
@@ -165,7 +189,7 @@ export default function SellerDashboardPage() {
                       </svg>
                     </div>
                   </div>
-                  <h3 className="text-sm font-medium text-gray-600 mb-1">Total Products</h3>
+                  <h3 className="text-sm font-medium text-gray-600 mb-1">{t('dashboard.totalProducts')}</h3>
                   <p className="text-3xl font-bold text-gray-900 mb-2">
                     {dashboardData?.total_products || 0}
                   </p>
@@ -182,7 +206,7 @@ export default function SellerDashboardPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
                         </svg>
                       )}
-                      {formatChange(dashboardData.statistics.products.change)} vs last month
+                      {formatChange(dashboardData.statistics.products.change)} {t('dashboard.vsLastMonth')}
                     </p>
                   )}
                 </div>
@@ -204,7 +228,7 @@ export default function SellerDashboardPage() {
                       </svg>
                     </div>
                   </div>
-                  <h3 className="text-sm font-medium text-gray-600 mb-1">Total Orders</h3>
+                  <h3 className="text-sm font-medium text-gray-600 mb-1">{t('dashboard.totalOrders')}</h3>
                   <p className="text-3xl font-bold text-gray-900 mb-2">
                     {dashboardData?.total_orders || 0}
                   </p>
@@ -221,7 +245,7 @@ export default function SellerDashboardPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
                         </svg>
                       )}
-                      {formatChange(dashboardData.statistics.orders.change)} vs last month
+                      {formatChange(dashboardData.statistics.orders.change)} {t('dashboard.vsLastMonth')}
                     </p>
                   )}
                 </div>
@@ -230,7 +254,7 @@ export default function SellerDashboardPage() {
 
             {/* Followers */}
             <Link
-              href="/store"
+              href="/profile?tab=followers"
               className="group"
             >
               <Card hover className="relative overflow-hidden animate-fade-in" style={{ animationDelay: '0.2s' }}>
@@ -243,7 +267,7 @@ export default function SellerDashboardPage() {
                       </svg>
                     </div>
                   </div>
-                  <h3 className="text-sm font-medium text-gray-600 mb-1">Followers</h3>
+                  <h3 className="text-sm font-medium text-gray-600 mb-1">{t('dashboard.followers')}</h3>
                   <p className="text-3xl font-bold text-gray-900 mb-2">
                     {dashboardData?.total_followers || 0}
                   </p>
@@ -260,7 +284,7 @@ export default function SellerDashboardPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
                         </svg>
                       )}
-                      {formatChange(dashboardData.statistics.followers.change)} vs last month
+                      {formatChange(dashboardData.statistics.followers.change)} {t('dashboard.vsLastMonth')}
                     </p>
                   )}
                 </div>
@@ -278,7 +302,7 @@ export default function SellerDashboardPage() {
                     </svg>
                   </div>
                 </div>
-                <h3 className="text-sm font-medium text-gray-600 mb-1">Revenue</h3>
+                <h3 className="text-sm font-medium text-gray-600 mb-1">{t('dashboard.revenue')}</h3>
                 <p className="text-3xl font-bold text-gray-900 mb-2">
                   {formatCurrency(dashboardData?.total_revenue || 0)}
                 </p>
@@ -295,7 +319,7 @@ export default function SellerDashboardPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
                       </svg>
                     )}
-                    {formatChange(dashboardData.statistics.revenue.change)} vs last month
+                    {formatChange(dashboardData.statistics.revenue.change)} {t('dashboard.vsLastMonth')}
                   </p>
                 )}
               </div>
@@ -304,8 +328,8 @@ export default function SellerDashboardPage() {
 
           {/* Quick Actions */}
           <div className="mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">{t('dashboard.quickActions')}</h2>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <Link href="/store" className="group">
                 <Card hover className="animate-fade-in">
                   <div className="flex items-center justify-between mb-3">
@@ -315,10 +339,10 @@ export default function SellerDashboardPage() {
                       </svg>
                     </div>
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-1">Manage Store</h3>
-                  <p className="text-sm text-gray-600 mb-2">Update your store profile and settings</p>
+                  <h3 className="font-bold text-gray-900 mb-1">{t('dashboard.manageStore')}</h3>
+                  <p className="text-sm text-gray-600 mb-2">{t('dashboard.manageStoreHint')}</p>
                   <span className="text-sm text-[#0066CC] font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">
-                    Get started
+                    {t('dashboard.getStarted')}
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
@@ -335,10 +359,10 @@ export default function SellerDashboardPage() {
                       </svg>
                     </div>
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-1">Add Products</h3>
-                  <p className="text-sm text-gray-600 mb-2">Create and manage your product listings</p>
+                  <h3 className="font-bold text-gray-900 mb-1">{t('dashboard.addProducts')}</h3>
+                  <p className="text-sm text-gray-600 mb-2">{t('dashboard.addProductsHint')}</p>
                   <span className="text-sm text-[#0066CC] font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">
-                    Get started
+                    {t('dashboard.getStarted')}
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
@@ -355,10 +379,10 @@ export default function SellerDashboardPage() {
                       </svg>
                     </div>
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-1">View Orders</h3>
-                  <p className="text-sm text-gray-600 mb-2">Track and manage customer orders</p>
+                  <h3 className="font-bold text-gray-900 mb-1">{t('dashboard.viewOrders')}</h3>
+                  <p className="text-sm text-gray-600 mb-2">{t('dashboard.viewOrdersHint')}</p>
                   <span className="text-sm text-[#0066CC] font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">
-                    Get started
+                    {t('dashboard.getStarted')}
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
@@ -375,10 +399,10 @@ export default function SellerDashboardPage() {
                       </svg>
                     </div>
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-1">Analytics</h3>
-                  <p className="text-sm text-gray-600 mb-2">View detailed store performance metrics</p>
+                  <h3 className="font-bold text-gray-900 mb-1">{t('nav.analytics')}</h3>
+                  <p className="text-sm text-gray-600 mb-2">{t('dashboard.analyticsHint')}</p>
                   <span className="text-sm text-[#0066CC] font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">
-                    Get started
+                    {t('dashboard.getStarted')}
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
@@ -392,9 +416,9 @@ export default function SellerDashboardPage() {
           {dashboardData?.recent_orders && dashboardData.recent_orders.length > 0 && (
             <Card>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Recent Orders</h2>
+                <h2 className="text-xl font-bold text-gray-900">{t('dashboard.recentOrders')}</h2>
                 <Link href="/orders" className="text-sm font-semibold text-[#0066CC] hover:text-[#0052A3] flex items-center gap-1 transition-colors">
-                  View all
+                  {t('dashboard.viewAll')}
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -410,7 +434,7 @@ export default function SellerDashboardPage() {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-bold text-gray-900">Order #{order.order_no}</p>
+                        <p className="font-bold text-gray-900">{t('dashboard.orderNumber', { number: order.order_no })}</p>
                         <p className="text-sm text-gray-600 mt-1">{order.customer_name}</p>
                         <p className="text-xs text-gray-500 mt-1">
                           {new Date(order.created_at).toLocaleDateString()}

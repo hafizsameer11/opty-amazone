@@ -11,6 +11,7 @@ import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import apiClient from '@/lib/api-client';
 import { resolveMediaUrl } from '@/lib/media-url';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface FrameSizesEditorProps {
   productId: number;
@@ -34,13 +35,13 @@ const emptyForm = (variantId: number): CreateFrameSizeData => ({
   stock_status: 'in_stock',
 });
 
-function displaySize(size: FrameSize) {
+function displaySize(size: FrameSize, fallback: string) {
   if (size.size_label?.trim()) return size.size_label.trim();
   const lw = Number(size.lens_width);
   const bw = Number(size.bridge_width);
   const tl = Number(size.temple_length);
   if (lw || bw || tl) return `${lw}-${bw}-${tl}`;
-  return 'Size';
+  return fallback;
 }
 
 export default function FrameSizesEditor({
@@ -51,6 +52,7 @@ export default function FrameSizesEditor({
   compact = false,
   onChanged,
 }: FrameSizesEditorProps) {
+  const { t } = useLanguage();
   const [sizes, setSizes] = useState<FrameSize[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,11 +67,11 @@ export default function FrameSizesEditor({
       const data = await productService.getFrameSizes(productId, productVariantId);
       setSizes(data);
     } catch {
-      setAlert({ type: 'error', message: 'Failed to load frame sizes' });
+      setAlert({ type: 'error', message: t('form.frameSizeLoadFailed') });
     } finally {
       setLoading(false);
     }
-  }, [productId, productVariantId]);
+  }, [productId, productVariantId, t]);
 
   useEffect(() => {
     void loadSizes();
@@ -106,11 +108,11 @@ export default function FrameSizesEditor({
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setAlert({ type: 'error', message: 'Please select an image file' });
+      setAlert({ type: 'error', message: t('form.selectImageFile') });
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setAlert({ type: 'error', message: 'Image must be under 5MB' });
+      setAlert({ type: 'error', message: t('form.imageUnder5Mb') });
       return;
     }
     try {
@@ -123,7 +125,7 @@ export default function FrameSizesEditor({
       if (!url) throw new Error('Upload failed');
       setForm((prev) => ({ ...prev, image: resolveMediaUrl(url) }));
     } catch {
-      setAlert({ type: 'error', message: 'Failed to upload size image' });
+      setAlert({ type: 'error', message: t('form.uploadSizeImageFailed') });
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -135,7 +137,7 @@ export default function FrameSizesEditor({
     try {
       const label = form.size_label?.trim() || '';
       if (!label) {
-        setAlert({ type: 'error', message: 'Enter a size name (e.g. 12mm)' });
+        setAlert({ type: 'error', message: t('form.enterSizeName') });
         setSaving(false);
         return;
       }
@@ -150,10 +152,10 @@ export default function FrameSizesEditor({
       };
       if (editingId) {
         await productService.updateFrameSize(editingId, payload);
-        setAlert({ type: 'success', message: 'Frame size updated' });
+        setAlert({ type: 'success', message: t('form.frameSizeUpdated') });
       } else {
         await productService.createFrameSize(productId, payload);
-        setAlert({ type: 'success', message: 'Frame size added' });
+        setAlert({ type: 'success', message: t('form.frameSizeAdded') });
       }
       resetForm();
       await loadSizes();
@@ -161,7 +163,7 @@ export default function FrameSizesEditor({
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Failed to save frame size';
+        t('form.saveFrameSizeFailed');
       setAlert({ type: 'error', message });
     } finally {
       setSaving(false);
@@ -169,29 +171,29 @@ export default function FrameSizesEditor({
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this frame size?')) return;
+    if (!window.confirm(t('form.deleteFrameSize'))) return;
     try {
       await productService.deleteFrameSize(id);
       if (editingId === id) resetForm();
       await loadSizes();
       onChanged?.();
     } catch {
-      setAlert({ type: 'error', message: 'Failed to delete frame size' });
+      setAlert({ type: 'error', message: t('form.frameSizeDeletedFailed') });
     }
   };
 
   return (
     <div className={`bg-white rounded-xl shadow border border-gray-100 overflow-hidden ${compact ? 'border-dashed' : ''}`}>
       <div className={`px-4 py-3 border-b border-gray-100 ${compact ? 'bg-white' : 'bg-gray-50'}`}>
-        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-        <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+        <h2 className="text-sm font-semibold text-gray-900">{t(title)}</h2>
+        <p className="text-xs text-gray-500 mt-0.5">{t(description)}</p>
       </div>
 
       <div className="p-4 space-y-4">
         {alert && <Alert type={alert.type} message={alert.message} onClose={() => setAlert(null)} />}
 
         {loading ? (
-          <p className="text-sm text-gray-500">Loading sizes…</p>
+          <p className="text-sm text-gray-500">{t('form.loadingSizes')}</p>
         ) : sizes.length > 0 ? (
           <ul className="space-y-2">
             {sizes.map((size) => (
@@ -200,25 +202,25 @@ export default function FrameSizesEditor({
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"
               >
                 <div>
-                  <span className="font-semibold text-gray-900">{displaySize(size)}</span>
-                  <span className="text-gray-500 ml-2">Qty: {size.stock_quantity}</span>
+                  <span className="font-semibold text-gray-900">{displaySize(size, t('form.size'))}</span>
+                  <span className="text-gray-500 ml-2">{t('form.qtyLabel')} {size.stock_quantity}</span>
                   {size.price != null && (
                     <span className="text-[#0066CC] ml-2">€{Number(size.price).toFixed(2)}</span>
                   )}
                 </div>
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={() => handleEdit(size)}>
-                    Edit
+                    {t('form.edit')}
                   </Button>
                   <Button type="button" variant="danger" size="sm" onClick={() => void handleDelete(size.id)}>
-                    Delete
+                    {t('form.delete')}
                   </Button>
                 </div>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-gray-500">No sizes yet for this color.</p>
+          <p className="text-sm text-gray-500">{t('form.noSizesForColor')}</p>
         )}
 
         <div
@@ -230,7 +232,7 @@ export default function FrameSizesEditor({
           }}
         >
           <p className="text-xs font-semibold text-gray-700">
-            {editingId ? 'Edit size' : 'Add size'}
+            {editingId ? t('form.editSize') : t('form.addSize')}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             <Input
@@ -249,7 +251,7 @@ export default function FrameSizesEditor({
               }
             />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Stock status</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('form.stockStatus')}</label>
               <select
                 value={form.stock_status}
                 onChange={(e) =>
@@ -257,9 +259,9 @@ export default function FrameSizesEditor({
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               >
-                <option value="in_stock">In stock</option>
-                <option value="out_of_stock">Out of stock</option>
-                <option value="backorder">Backorder</option>
+                <option value="in_stock">{t('form.inStock')}</option>
+                <option value="out_of_stock">{t('form.outOfStock')}</option>
+                <option value="backorder">{t('form.backorder')}</option>
               </select>
             </div>
           </div>
@@ -281,7 +283,7 @@ export default function FrameSizesEditor({
           <div className="flex flex-wrap items-end gap-2">
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => void handleImageUpload(e)} />
             <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-              Upload size image
+              {t('form.uploadFrameSizeImage')}
             </Button>
             {form.image && (
               <span className="text-xs text-gray-500 truncate max-w-xs">{form.image}</span>
@@ -289,11 +291,11 @@ export default function FrameSizesEditor({
           </div>
           <div className="flex gap-2">
             <Button type="button" size="sm" disabled={saving} onClick={() => void handleSubmit()}>
-              {saving ? 'Saving…' : editingId ? 'Update size' : 'Add size'}
+              {saving ? t('common.saving') : editingId ? t('form.updateSize') : t('form.addSize')}
             </Button>
             {editingId && (
               <Button type="button" variant="outline" size="sm" onClick={resetForm}>
-                Cancel edit
+                {t('form.cancelEdit')}
               </Button>
             )}
           </div>

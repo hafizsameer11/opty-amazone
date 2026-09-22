@@ -7,10 +7,12 @@ import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
 import Sidebar from '@/components/layout/Sidebar';
 import UnifiedProductForm from '@/components/products/UnifiedProductForm';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function SunGlassesProductPage() {
   const router = useRouter();
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -23,7 +25,7 @@ export default function SunGlassesProductPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto" />
-          <p className="mt-4 text-gray-600 text-sm">Loading...</p>
+          <p className="mt-4 text-gray-600 text-sm">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -48,11 +50,11 @@ export default function SunGlassesProductPage() {
                     onClick={() => router.back()}
                     className="text-[#0066CC] hover:underline text-sm mb-2"
                   >
-                    ← Back to Products
+                    {t('Back to Products')}
                   </button>
-                  <h1 className="text-xl font-bold text-gray-900">Create sunglasses</h1>
+                  <h1 className="text-xl font-bold text-gray-900">{t('form.createSunglasses')}</h1>
                   <p className="text-xs text-gray-500 mt-1">
-                    Frame photos, lens options, lens tint colors — same fields as the sunglasses edit page.
+                    {t('form.sunglassesDescription')}
                   </p>
                 </div>
                 <UnifiedProductForm

@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ProductDetailsModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export default function ProductDetailsModal({
   onProductUpdate,
 }: ProductDetailsModalProps) {
   const router = useRouter();
+  const { t } = useLanguage();
   const [product, setProduct] = useState<Product | null>(null);
   const [loadingProduct, setLoadingProduct] = useState(true);
   const [error, setError] = useState('');
@@ -41,7 +43,7 @@ export default function ProductDetailsModal({
       setProduct(data);
     } catch (error) {
       console.error('Failed to load product:', error);
-      setError('Failed to load product details');
+       setError(t('products.loadFailed'));
     } finally {
       setLoadingProduct(false);
     }
@@ -67,18 +69,38 @@ export default function ProductDetailsModal({
     }
   };
 
+  const productTypeLabel = (productType: string) => {
+    const labels: Record<string, string> = {
+      frame: t('products.frames'),
+      sunglasses: t('products.sunglasses'),
+      contact_lens: t('products.contactLenses'),
+      eye_hygiene: t('products.eyeHygiene'),
+      accessory: t('products.accessories'),
+    };
+    return labels[productType] ?? productType.replaceAll('_', ' ');
+  };
+
+  const stockStatusLabel = (stockStatus: string) => {
+    const labels: Record<string, string> = {
+      in_stock: t('form.inStock'),
+      out_of_stock: t('form.outOfStock'),
+      backorder: t('form.backorder'),
+    };
+    return labels[stockStatus] ?? stockStatus.replaceAll('_', ' ');
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={product ? product.name : 'Product Details'}
+       title={product ? product.name : t('products.productDetails')}
       size="xl"
     >
       {loadingProduct ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading product details...</p>
+            <p className="mt-4 text-gray-600">{t('common.loading')}</p>
           </div>
         </div>
       ) : error ? (
@@ -87,7 +109,7 @@ export default function ProductDetailsModal({
         </div>
       ) : !product ? (
         <div className="py-12 text-center">
-          <p className="text-gray-600">Product not found</p>
+           <p className="text-gray-600">{t('products.emptyTitle')}</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -113,13 +135,13 @@ export default function ProductDetailsModal({
                 <div className="flex items-center gap-3 mb-2">
                   <h3 className="text-2xl font-bold text-gray-900">{product.name}</h3>
                   {product.is_featured && (
-                    <Badge variant="primary">Featured</Badge>
+                     <Badge variant="primary">{t('products.featured')}</Badge>
                   )}
                   <Badge variant={product.is_active ? 'success' : 'default'}>
-                    {product.is_active ? 'Active' : 'Inactive'}
+                     {product.is_active ? t('products.active') : t('products.inactive')}
                   </Badge>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">SKU: {product.sku}</p>
+                <p className="text-sm text-gray-600 mb-4">{t('form.sku')}: {product.sku}</p>
                 {product.short_description && (
                   <p className="text-gray-700 mb-4">{product.short_description}</p>
                 )}
@@ -128,33 +150,33 @@ export default function ProductDetailsModal({
 
             {product.description && (
               <div className="mb-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Description</h4>
+                 <h4 className="text-sm font-semibold text-gray-700 mb-2">{t('common.description')}</h4>
                 <p className="text-gray-600 whitespace-pre-wrap">{product.description}</p>
               </div>
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Product Type</p>
+                 <p className="text-xs text-gray-500 mb-1">{t('form.productType')}</p>
                 <p className="font-semibold text-gray-900 capitalize">
-                  {product.product_type.replace('_', ' ')}
+                  {productTypeLabel(product.product_type)}
                 </p>
               </div>
               {product.category && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Category</p>
+                   <p className="text-xs text-gray-500 mb-1">{t('common.category')}</p>
                   <p className="font-semibold text-gray-900">{product.category.name}</p>
                 </div>
               )}
               {product.sub_category && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Sub Category</p>
+                   <p className="text-xs text-gray-500 mb-1">{t('form.subCategory')}</p>
                   <p className="font-semibold text-gray-900">{product.sub_category.name}</p>
                 </div>
               )}
               {product.gender && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Gender</p>
+                   <p className="text-xs text-gray-500 mb-1">{t('form.gender')}</p>
                   <p className="font-semibold text-gray-900 capitalize">{product.gender}</p>
                 </div>
               )}
@@ -164,17 +186,17 @@ export default function ProductDetailsModal({
           {/* Pricing & Inventory */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Pricing</h4>
+               <h4 className="text-lg font-semibold text-gray-900 mb-4">{t('form.pricing')}</h4>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Price</span>
+                   <span className="text-gray-600">{t('form.price')}</span>
                   <span className="text-2xl font-bold text-[#0066CC]">
                     €{Number(product.price || 0).toFixed(2)}
                   </span>
                 </div>
                 {product.compare_at_price && (
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Compare At Price</span>
+                     <span className="text-gray-600">{t('form.comparePrice')}</span>
                     <span className="text-lg font-semibold text-gray-500 line-through">
                       €{Number(product.compare_at_price).toFixed(2)}
                     </span>
@@ -182,7 +204,7 @@ export default function ProductDetailsModal({
                 )}
                 {product.cost_price && (
                   <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                    <span className="text-gray-600">Cost Price</span>
+                     <span className="text-gray-600">{t('form.costPrice')}</span>
                     <span className="text-lg font-semibold text-gray-700">
                       €{Number(product.cost_price).toFixed(2)}
                     </span>
@@ -192,16 +214,16 @@ export default function ProductDetailsModal({
             </Card>
 
             <Card>
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Inventory</h4>
+               <h4 className="text-lg font-semibold text-gray-900 mb-4">{t('form.stock')}</h4>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Stock Quantity</span>
+                   <span className="text-gray-600">{t('form.stock')}</span>
                   <span className="text-xl font-bold text-gray-900">
                     {product.stock_quantity}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Stock Status</span>
+                   <span className="text-gray-600">{t('form.stockStatus')}</span>
                   <Badge
                     variant={
                       product.stock_status === 'in_stock'
@@ -211,7 +233,7 @@ export default function ProductDetailsModal({
                         : 'warning'
                     }
                   >
-                    {product.stock_status.replace('_', ' ')}
+                    {stockStatusLabel(product.stock_status)}
                   </Badge>
                 </div>
               </div>
@@ -224,29 +246,29 @@ export default function ProductDetailsModal({
             product.frame_color ||
             product.lens_type) && (
             <Card>
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Specifications</h4>
+               <h4 className="text-lg font-semibold text-gray-900 mb-4">{t('form.specifications')}</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {product.frame_shape && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Frame Shape</p>
+                   <p className="text-xs text-gray-500 mb-1">{t('form.frameShape')}</p>
                     <p className="font-semibold text-gray-900">{product.frame_shape}</p>
                   </div>
                 )}
                 {product.frame_material && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Frame Material</p>
+                   <p className="text-xs text-gray-500 mb-1">{t('form.frameMaterial')}</p>
                     <p className="font-semibold text-gray-900">{product.frame_material}</p>
                   </div>
                 )}
                 {product.frame_color && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Frame Color</p>
+                   <p className="text-xs text-gray-500 mb-1">{t('form.frameColor')}</p>
                     <p className="font-semibold text-gray-900">{product.frame_color}</p>
                   </div>
                 )}
                 {product.lens_type && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Lens Type</p>
+                   <p className="text-xs text-gray-500 mb-1">{t('form.lensType')}</p>
                     <p className="font-semibold text-gray-900">{product.lens_type}</p>
                   </div>
                 )}
@@ -256,19 +278,19 @@ export default function ProductDetailsModal({
 
           {/* Statistics */}
           <Card className="bg-gradient-to-br from-gray-50 to-gray-100">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">Statistics</h4>
+             <h4 className="text-lg font-semibold text-gray-900 mb-4">{t('form.statistics')}</h4>
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center">
                 <p className="text-2xl font-bold text-[#0066CC]">{product.rating || 0}</p>
-                <p className="text-xs text-gray-600 mt-1">Rating</p>
+                 <p className="text-xs text-gray-600 mt-1">{t('form.rating')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-[#0066CC]">{product.review_count || 0}</p>
-                <p className="text-xs text-gray-600 mt-1">Reviews</p>
+                 <p className="text-xs text-gray-600 mt-1">{t('store.reviews')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-[#0066CC]">{product.view_count || 0}</p>
-                <p className="text-xs text-gray-600 mt-1">Views</p>
+                 <p className="text-xs text-gray-600 mt-1">{t('products.views')}</p>
               </div>
             </div>
           </Card>
@@ -276,14 +298,14 @@ export default function ProductDetailsModal({
           {/* Actions */}
           <div className="flex gap-4 pt-4">
             <Button onClick={handleEdit} className="flex-1">
-              Edit Product
+               {t('store.edit')}
             </Button>
             <Button
               variant="outline"
               onClick={handleToggleStatus}
               className="flex-1"
             >
-              {product.is_active ? 'Deactivate' : 'Activate'}
+               {product.is_active ? t('products.deactivate') : t('products.activate')}
             </Button>
           </div>
         </div>

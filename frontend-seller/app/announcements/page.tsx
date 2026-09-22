@@ -10,9 +10,12 @@ import { announcementService, type Announcement } from '@/services/announcement-
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function AnnouncementsPage() {
   const { isAuthenticated, loading } = useAuth();
+  const { t, language } = useLanguage();
   const router = useRouter();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
@@ -40,9 +43,11 @@ export default function AnnouncementsPage() {
     }
   }, [isAuthenticated]);
 
-  const loadAnnouncements = async () => {
+  useLiveRefresh(() => loadAnnouncements(true), isAuthenticated, 30000);
+
+  const loadAnnouncements = async (silent = false) => {
     try {
-      setLoadingAnnouncements(true);
+      if (!silent) setLoadingAnnouncements(true);
       const response = await announcementService.getAll();
       // Handle both paginated and non-paginated responses
       if (Array.isArray(response)) {
@@ -54,9 +59,9 @@ export default function AnnouncementsPage() {
       }
     } catch (error) {
       console.error('Failed to load announcements:', error);
-      setError('Failed to load announcements');
+      setError(t('announcements.loadFailed'));
     } finally {
-      setLoadingAnnouncements(false);
+      if (!silent) setLoadingAnnouncements(false);
     }
   };
 
@@ -76,16 +81,16 @@ export default function AnnouncementsPage() {
 
       if (editingAnnouncement) {
         await announcementService.update(editingAnnouncement.id, data);
-        setSuccess('Announcement updated successfully');
+        setSuccess(t('announcements.updated'));
       } else {
         await announcementService.create(data);
-        setSuccess('Announcement created successfully');
+        setSuccess(t('announcements.created'));
       }
 
       resetForm();
       loadAnnouncements();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to save announcement');
+      setError(error.response?.data?.message || t('announcements.saveFailed'));
     }
   };
 
@@ -102,16 +107,16 @@ export default function AnnouncementsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this announcement?')) {
+    if (!confirm(t('announcements.deleteConfirm'))) {
       return;
     }
 
     try {
       await announcementService.delete(id);
-      setSuccess('Announcement deleted successfully');
+      setSuccess(t('announcements.deleted'));
       loadAnnouncements();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to delete announcement');
+      setError(error.response?.data?.message || t('announcements.deleteFailed'));
     }
   };
 
@@ -120,7 +125,7 @@ export default function AnnouncementsPage() {
       await announcementService.toggle(id);
       loadAnnouncements();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to toggle announcement');
+      setError(error.response?.data?.message || t('announcements.toggleFailed'));
     }
   };
 
@@ -141,7 +146,7 @@ export default function AnnouncementsPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('announcements.loading')}</p>
         </div>
       </div>
     );
@@ -158,18 +163,18 @@ export default function AnnouncementsPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header />
           <main className="flex-1 overflow-y-auto">
-            <div className="py-6">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="mb-6 flex items-center justify-between">
+            <div className="py-4 sm:py-6">
+              <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+                <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Announcements</h1>
-                    <p className="text-gray-600 mt-1">Manage your store announcements</p>
+                    <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('announcements.title')}</h1>
+                    <p className="text-gray-600 mt-1">{t('announcements.subtitle')}</p>
                   </div>
-                  <Button onClick={() => setShowForm(true)}>
+                  <Button onClick={() => setShowForm(true)} className="w-full sm:w-auto">
                     <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
-                    Add Announcement
+                    {t('announcements.add')}
                   </Button>
                 </div>
 
@@ -186,13 +191,13 @@ export default function AnnouncementsPage() {
                 )}
 
                 {showForm && (
-                  <div className="bg-white rounded-lg shadow p-6 mb-6">
+                  <div className="mb-6 rounded-2xl bg-white p-4 shadow sm:rounded-lg sm:p-6">
                     <h2 className="text-xl font-semibold mb-4">
-                      {editingAnnouncement ? 'Edit Announcement' : 'Create Announcement'}
+                      {editingAnnouncement ? t('announcements.edit') : t('announcements.create')}
                     </h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <Input
-                        label="Title *"
+                        label={t('announcements.titleRequired')}
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         required
@@ -200,7 +205,7 @@ export default function AnnouncementsPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Message *
+                          {t('announcements.messageRequired')}
                         </label>
                         <textarea
                           value={formData.message}
@@ -211,16 +216,16 @@ export default function AnnouncementsPage() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <Input
-                          label="Start Date"
+                          label={t('announcements.startDate')}
                           type="date"
                           value={formData.start_date}
                           onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                         />
 
                         <Input
-                          label="End Date"
+                          label={t('announcements.endDate')}
                           type="date"
                           value={formData.end_date}
                           onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
@@ -237,16 +242,16 @@ export default function AnnouncementsPage() {
                           className="mr-2"
                         />
                         <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-                          Active
+                          {t('announcements.active')}
                         </label>
                       </div>
 
-                      <div className="flex gap-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
                         <Button type="submit" className="flex-1">
-                          {editingAnnouncement ? 'Update Announcement' : 'Create Announcement'}
+                          {editingAnnouncement ? t('announcements.update') : t('announcements.create')}
                         </Button>
                         <Button type="button" variant="outline" onClick={resetForm}>
-                          Cancel
+                          {t('announcements.cancel')}
                         </Button>
                       </div>
                     </form>
@@ -258,57 +263,57 @@ export default function AnnouncementsPage() {
                     <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
                     </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No announcements</h3>
-                    <p className="mt-1 text-sm text-gray-500">Get started by creating a new announcement.</p>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">{t('announcements.noAnnouncements')}</h3>
+                    <p className="mt-1 text-sm text-gray-500">{t('announcements.getStarted')}</p>
                     <div className="mt-6">
-                      <Button onClick={() => setShowForm(true)}>Add Announcement</Button>
+                      <Button onClick={() => setShowForm(true)}>{t('announcements.add')}</Button>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {announcements.map((announcement) => (
                       <div key={announcement.id} className="bg-white rounded-lg shadow p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
                               <h3 className="text-lg font-semibold text-gray-900">{announcement.title}</h3>
                               <span className={`px-2 py-1 rounded text-xs font-semibold ${
                                 announcement.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                               }`}>
-                                {announcement.is_active ? 'Active' : 'Inactive'}
+                                {announcement.is_active ? t('announcements.active') : t('announcements.inactive')}
                               </span>
                             </div>
                             <p className="text-gray-600 mb-3 whitespace-pre-wrap">{announcement.message}</p>
-                            <div className="flex gap-4 text-sm text-gray-500">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
                               {announcement.start_date && (
-                                <span>Start: {new Date(announcement.start_date).toLocaleDateString()}</span>
+                                <span>{t('announcements.start', { date: new Date(announcement.start_date).toLocaleDateString(language === 'it' ? 'it-IT' : 'en-US') })}</span>
                               )}
                               {announcement.end_date && (
-                                <span>End: {new Date(announcement.end_date).toLocaleDateString()}</span>
+                                <span>{t('announcements.end', { date: new Date(announcement.end_date).toLocaleDateString(language === 'it' ? 'it-IT' : 'en-US') })}</span>
                               )}
                             </div>
                           </div>
-                          <div className="flex gap-2 ml-4">
+                          <div className="flex flex-wrap gap-2 sm:ml-4">
                             <Button
                               variant="outline"
                               onClick={() => handleEdit(announcement)}
                               className="text-sm"
                             >
-                              Edit
+                              {t('announcements.editAction')}
                             </Button>
                             <Button
                               variant="outline"
                               onClick={() => handleToggle(announcement.id)}
                               className="text-sm"
                             >
-                              {announcement.is_active ? 'Deactivate' : 'Activate'}
+                              {announcement.is_active ? t('announcements.deactivate') : t('announcements.activate')}
                             </Button>
                             <Button
                               variant="outline"
                               onClick={() => handleDelete(announcement.id)}
                               className="text-red-600 hover:text-red-700 text-sm"
                             >
-                              Delete
+                              {t('announcements.delete')}
                             </Button>
                           </div>
                         </div>

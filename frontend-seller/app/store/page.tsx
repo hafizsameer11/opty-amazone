@@ -10,9 +10,12 @@ import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function StorePage() {
   const { isAuthenticated, loading, user } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [store, setStore] = useState<Store | null>(null);
   const [loadingStore, setLoadingStore] = useState(true);
@@ -36,9 +39,13 @@ export default function StorePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.updated_at, user?.name, user?.email, user?.phone]);
 
-  const loadStore = async () => {
+  useLiveRefresh(async () => {
+    await Promise.all([loadStore(true), loadStats()]);
+  }, isAuthenticated, 30000);
+
+  const loadStore = async (silent = false) => {
     try {
-      setLoadingStore(true);
+      if (!silent) setLoadingStore(true);
       const response = await StoreService.getStore();
       if (response.success && response.data?.store) {
         setStore(response.data.store);
@@ -58,7 +65,7 @@ export default function StorePage() {
         }, 500);
       }
     } finally {
-      setLoadingStore(false);
+      if (!silent) setLoadingStore(false);
     }
   };
 
@@ -83,7 +90,7 @@ export default function StorePage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -100,30 +107,30 @@ export default function StorePage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header />
           <main className="flex-1 overflow-y-auto">
-            <div className="py-6">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="py-4 sm:py-6">
+              <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         {store ? (
           <>
                 {/* Page Header */}
                 <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Store Management</h1>
-                  <p className="text-gray-600">Manage your store profile, settings, and preferences</p>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2 sm:text-3xl">{t('store.title')}</h1>
+                  <p className="text-gray-600">{t('store.subtitle')}</p>
                 </div>
 
                 {/* Store Header Card */}
-                <div className="bg-gradient-to-r from-[#0066CC] to-[#0052a3] rounded-xl shadow-lg p-8 mb-8 text-white relative overflow-hidden">
+                <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-r from-[#0066CC] to-[#0052a3] p-4 text-white shadow-lg sm:mb-8 sm:rounded-xl sm:p-8">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
                   <div className="relative z-10">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <h2 className="text-2xl font-bold">{store.name}</h2>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                          <h2 className="break-words text-xl font-bold sm:text-2xl">{store.name}</h2>
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             store.status === 'active' ? 'bg-green-500' : 
                             store.status === 'pending' ? 'bg-yellow-500' : 
                             'bg-gray-500'
                           }`}>
-                            {store.status.charAt(0).toUpperCase() + store.status.slice(1)}
+                           {store.status === 'active' ? t('store.active') : store.status === 'pending' ? t('orders.pending') : store.status}
                           </span>
                         </div>
                         {store.description && (
@@ -148,12 +155,12 @@ export default function StorePage() {
                           )}
                         </div>
                       </div>
-                      <Link href="/store/edit">
-                        <Button className="bg-[#0066CC] text-white hover:bg-[#0052a3] font-semibold shadow-lg">
+                      <Link href="/store/edit" className="w-full sm:w-auto">
+                        <Button className="w-full bg-[#0066CC] text-white hover:bg-[#0052a3] font-semibold shadow-lg sm:w-auto">
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
-                          Edit Store
+                           {t('store.edit')}
                         </Button>
                       </Link>
                     </div>
@@ -161,7 +168,7 @@ export default function StorePage() {
                 </div>
 
                 {/* Quick Actions Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3 mb-7 sm:mb-8">
                   <Link href="/store/edit" className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 p-6 border border-gray-200 hover:border-[#0066CC]">
                     <div className="flex items-start justify-between mb-4">
                       <div className="p-3 rounded-lg bg-blue-50 text-blue-600">
@@ -174,9 +181,9 @@ export default function StorePage() {
                       </svg>
                     </div>
                     <h3 className="font-semibold text-lg text-gray-900 mb-2 group-hover:text-[#0066CC] transition-colors">
-                      Store Profile
+                       {t('store.profile')}
                     </h3>
-                    <p className="text-sm text-gray-600">Manage your store information, description, and contact details</p>
+                     <p className="text-sm text-gray-600">{t('store.profileDescription')}</p>
                   </Link>
 
                   <Link href="/store/settings" className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 p-6 border border-gray-200 hover:border-purple-500">
@@ -192,9 +199,9 @@ export default function StorePage() {
                       </svg>
                     </div>
                     <h3 className="font-semibold text-lg text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
-                      Settings
+                       {t('store.settings')}
                     </h3>
-                    <p className="text-sm text-gray-600">Configure store settings, visibility, and preferences</p>
+                     <p className="text-sm text-gray-600">{t('store.settingsDescription')}</p>
                   </Link>
 
                   <Link href="/store/social-links" className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 p-6 border border-gray-200 hover:border-green-500">
@@ -209,31 +216,33 @@ export default function StorePage() {
                       </svg>
                     </div>
                     <h3 className="font-semibold text-lg text-gray-900 mb-2 group-hover:text-green-600 transition-colors">
-                      Social Links
+                       {t('store.socialLinks')}
                     </h3>
-                    <p className="text-sm text-gray-600">Add and manage your social media profiles</p>
+                     <p className="text-sm text-gray-600">{t('store.socialLinksDescription')}</p>
                   </Link>
                 </div>
 
                 {/* Stats Cards */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">Store Statistics</h3>
+                   <h3 className="text-lg font-semibold text-gray-900 mb-6">{t('store.statistics')}</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-5 text-center border border-blue-200">
                       <div className="text-2xl font-bold text-blue-600 mb-1">{stats.total_products}</div>
-                      <div className="text-sm font-medium text-gray-700">Products</div>
+                       <div className="text-sm font-medium text-gray-700">{t('store.products')}</div>
                     </div>
                     <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-5 text-center border border-green-200">
                       <div className="text-2xl font-bold text-green-600 mb-1">{stats.total_orders}</div>
-                      <div className="text-sm font-medium text-gray-700">Orders</div>
+                       <div className="text-sm font-medium text-gray-700">{t('store.orders')}</div>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-5 text-center border border-purple-200">
+                    <Link href="/profile?tab=followers" className="block rounded-lg focus:outline-none focus:ring-4 focus:ring-purple-200">
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-5 text-center border border-purple-200 transition hover:border-purple-400 hover:shadow-sm">
                       <div className="text-2xl font-bold text-purple-600 mb-1">{stats.total_followers}</div>
-                      <div className="text-sm font-medium text-gray-700">Followers</div>
+                       <div className="text-sm font-medium text-gray-700">{t('store.followers')} <span className="text-xs text-purple-600">{t('store.viewList')}</span></div>
                     </div>
+                    </Link>
                     <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-5 text-center border border-orange-200">
                       <div className="text-2xl font-bold text-orange-600 mb-1">{stats.total_reviews}</div>
-                      <div className="text-sm font-medium text-gray-700">Reviews</div>
+                       <div className="text-sm font-medium text-gray-700">{t('store.reviews')}</div>
                     </div>
                   </div>
                 </div>
@@ -245,12 +254,12 @@ export default function StorePage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">No Store Found</h3>
+                 <h3 className="text-xl font-bold text-gray-900 mb-2">{t('store.noStore')}</h3>
                 <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                  Get started by creating your store. Set up your profile and start selling!
+                   {t('store.createPrompt')}
                 </p>
                 <Button className="bg-[#0066CC] hover:bg-[#0052a3] text-white font-semibold">
-                  Create Store
+                   {t('store.create')}
                 </Button>
               </div>
             )}

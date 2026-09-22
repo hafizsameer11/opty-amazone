@@ -41,7 +41,7 @@ export default function BottomNav() {
     { href: "/wallet", label: "Wallet", badgeKey: undefined, icon: <span className="text-xl">€</span> },
     {
       href: '/dashboard',
-      label: t('dashboard'),
+      label: t('nav.dashboard'),
       badgeKey: undefined as undefined | 'orders' | 'messages',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,7 +51,7 @@ export default function BottomNav() {
     },
     {
       href: '/products',
-      label: t('products'),
+      label: t('nav.products'),
       badgeKey: undefined as undefined | 'orders' | 'messages',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,7 +61,7 @@ export default function BottomNav() {
     },
     {
       href: '/orders',
-      label: t('orders'),
+      label: t('nav.orders'),
       badgeKey: 'orders' as const,
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,7 +71,7 @@ export default function BottomNav() {
     },
     {
       href: '/promotions',
-      label: t('discounts'),
+      label: t('nav.discounts'),
       badgeKey: undefined as undefined | 'orders' | 'messages',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +81,7 @@ export default function BottomNav() {
     },
     {
       href: '/profile',
-      label: t('profile'),
+      label: t('nav.profile'),
       badgeKey: undefined as undefined | 'orders' | 'messages',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,6 +91,8 @@ export default function BottomNav() {
     },
   ];
 
+  const localizedNavItems = navItems.map((item) => item.href === '/wallet' ? { ...item, label: t('nav.sellerWallet') } : item);
+
   const isActive = (href: string) => {
     if (href === '/dashboard') {
       return pathname === '/dashboard' || pathname === '/';
@@ -99,9 +101,9 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 lg:hidden">
+    <nav className="hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 lg:hidden">
       <div className="flex items-center justify-around h-16 px-2">
-        {navItems.map((item) => {
+        {localizedNavItems.map((item) => {
           const active = isActive(item.href);
           const locked = navLocked && item.href !== '/profile';
           const count = item.badgeKey ? badges[item.badgeKey] : 0;

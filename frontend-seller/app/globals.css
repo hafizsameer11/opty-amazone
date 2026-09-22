@@ -38,6 +38,202 @@ body {
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+body.seller-mobile-menu-open {
+  overflow: hidden;
+}
+
+/* Auth pages retain normal document flow. Authenticated seller pages use a
+   fixed viewport with two deliberate scroll owners: the sidebar and main
+   content area. This prevents long pages or menus from moving the whole body. */
+.seller-app-viewport {
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+.seller-app-viewport > * {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.seller-app-viewport > * > .flex {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.seller-app-viewport > *:not(.flex) {
+  display: flex;
+  flex-direction: column;
+}
+
+.seller-app-viewport > *:not(.flex) > .flex {
+  flex: 1 1 auto;
+  height: auto;
+}
+
+/* Promotions and banners use the page root itself as the sidebar/content row. */
+.seller-app-viewport > *.flex:not(.flex-col) > div.flex-1 {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.seller-app-viewport > * > .flex > div.flex-1 {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.seller-app-viewport main {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Messages owns its scrollbars inside the conversation panes. */
+.seller-app-viewport main.overflow-hidden {
+  overflow: hidden;
+}
+
+/* Warehouse uses a shared seller shell on all of its nested routes. Keep its
+   header fixed in the workspace while the dedicated right-side panel owns
+   vertical scrolling, just like the main Seller dashboard. */
+.seller-app-viewport .seller-warehouse-shell {
+  height: 100%;
+  min-height: 0;
+}
+
+.seller-app-viewport > .seller-warehouse-shell > div.flex-1 > .seller-warehouse-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.seller-app-viewport .seller-warehouse-content > main {
+  min-height: 100%;
+  overflow: visible;
+}
+
+/* Seller authentication keeps the brand panel inside the viewport. Its
+   content scales with the available screen height instead of being pushed
+   below the fold when a form on the right is longer. */
+.seller-auth-panel {
+  padding-block: clamp(1.25rem, 4vh, 2.5rem);
+}
+
+.seller-auth-panel-content {
+  margin-top: clamp(1.25rem, 5vh, 4rem);
+}
+
+.seller-auth-panel-badge {
+  margin-bottom: clamp(0.8rem, 2vh, 1.25rem);
+  padding-block: clamp(0.35rem, 0.8vh, 0.375rem);
+}
+
+.seller-auth-panel-title {
+  font-size: clamp(1.82rem, 4.6vh, 2.75rem);
+}
+
+.seller-auth-panel-description {
+  margin-top: clamp(0.55rem, 1.8vh, 1.25rem);
+  font-size: clamp(0.86rem, 2.1vh, 1.12rem);
+  line-height: 1.5;
+}
+
+.seller-auth-illustration {
+  margin-top: clamp(0.85rem, 2.5vh, 2rem);
+  border-radius: clamp(1rem, 2.5vh, 2rem);
+  padding: clamp(1rem, 2vh, 1.5rem);
+}
+
+.seller-auth-illustration-art {
+  height: clamp(5.4rem, 17.5vh, 12rem);
+}
+
+.seller-auth-illustration-copy {
+  margin-top: clamp(0.35rem, 1vh, 0.5rem);
+  padding-top: clamp(0.75rem, 1.5vh, 1.25rem);
+}
+
+.seller-auth-illustration-copy p:first-child {
+  font-size: clamp(0.8rem, 2vh, 1.02rem);
+}
+
+.seller-auth-illustration-copy p:last-child {
+  margin-top: clamp(0.35rem, 1vh, 0.5rem);
+  font-size: clamp(0.72rem, 1.8vh, 0.96rem);
+  line-height: 1.5;
+}
+
+.seller-auth-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.4rem, 1.2vh, 0.65rem);
+  margin-top: clamp(0.75rem, 2.5vh, 1.25rem);
+}
+
+.seller-auth-highlight {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: rgb(226 232 240);
+  font-size: clamp(0.7rem, 1.7vh, 0.85rem);
+  line-height: 1.35;
+}
+
+.seller-auth-highlight-icon {
+  display: flex;
+  height: clamp(1.5rem, 3.2vh, 1.75rem);
+  width: clamp(1.5rem, 3.2vh, 1.75rem);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(103 232 249 / 0.25);
+  border-radius: 0.55rem;
+  background: rgb(34 211 238 / 0.1);
+  color: rgb(103 232 249);
+}
+
+.seller-auth-steps {
+  gap: clamp(0.5rem, 1.7vh, 0.75rem);
+  margin-top: clamp(0.85rem, 3vh, 1.75rem);
+}
+
+.seller-auth-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: clamp(0.75rem, 2vw, 1.5rem);
+  row-gap: clamp(0.5rem, 1.7vh, 0.75rem);
+}
+
+.seller-auth-steps-grid .seller-auth-step:nth-child(3) {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.seller-auth-step {
+  font-size: clamp(0.78rem, 2vh, 0.96rem);
+}
+
+.seller-auth-step-dot {
+  height: clamp(1.7rem, 4.2vh, 1.95rem);
+  width: clamp(1.7rem, 4.2vh, 1.95rem);
+  font-size: clamp(0.72rem, 1.8vh, 0.84rem);
 }
 
 @layer utilities {
@@ -135,5 +331,214 @@ body {
 .skiptranslate > iframe {
   display: none !important;
   height: 0 !important;
+}
+
+/* Mobile seller pages should use the document as the scroll owner. The desktop
+   workspace intentionally keeps independent sidebar/content scroll areas; that
+   model is cramped and clips long forms on phones. */
+@media (max-width: 1023px) {
+  html,
+  body {
+    min-height: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .seller-app-viewport,
+  .seller-app-viewport > *,
+  .seller-app-viewport > * > .flex,
+  .seller-app-viewport > * > .flex > div.flex-1,
+  .seller-app-viewport > *.flex:not(.flex-col) > div.flex-1 {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .seller-app-viewport > *:not(.flex) {
+    display: block;
+  }
+
+  .seller-app-viewport > *:not(.flex) > .flex {
+    display: flex;
+    height: auto;
+  }
+
+  .seller-app-viewport main,
+  .seller-app-viewport main.overflow-hidden {
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .seller-app-viewport .seller-warehouse-shell,
+  .seller-app-viewport .seller-warehouse-content {
+    height: auto;
+    min-height: auto;
+    overflow: visible !important;
+  }
+
+  .seller-app-viewport main.seller-message-shell {
+    overflow: hidden;
+  }
+
+  /* Native dialog styles have browser-set max widths and margins. Reset those
+     defaults for the remaining custom seller dialogs so each is a genuine
+     edge-to-edge phone sheet, while their existing sm: classes keep desktop
+     dialogs centered. */
+  dialog.seller-mobile-sheet {
+    position: fixed !important;
+    inset: auto 0 0 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: min(92dvh, 48rem);
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 1.5rem 1.5rem 0 0 !important;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    animation: seller-mobile-sheet-enter 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  dialog.seller-mobile-sheet::backdrop {
+    background: rgb(15 23 42 / 0.52);
+    backdrop-filter: blur(2px);
+  }
+
+  /* The active thread becomes an app-like screen below the mobile header.
+     The thread list is the only scrolling child and the composer is therefore
+     always visible at the bottom of the viewport. */
+  .seller-message-page {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .seller-message-page > .flex,
+  .seller-message-layout,
+  .seller-message-shell {
+    min-height: 0;
+  }
+
+  .seller-message-page .seller-message-shell {
+    height: calc(100dvh - 6.25rem);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .seller-mobile-thread {
+    height: calc(100dvh - 6.25rem);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .seller-social-links-page .min-w-0 {
+    min-width: 0;
+  }
+
+  /* Guide content has many explanatory cards written for desktop. Keep its
+     long labels and card rows inside the phone viewport without weakening the
+     spacious desktop version. */
+  .seller-guide-page,
+  .seller-guide-page .seller-guide-content {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .seller-guide-page .seller-guide-content .p-8,
+  .seller-guide-page .seller-guide-content .p-6 {
+    padding: 1rem;
+  }
+
+  .seller-guide-page .seller-guide-content .px-6 {
+    padding-inline: 1rem;
+  }
+
+  .seller-guide-page .seller-guide-content .text-3xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .seller-guide-page .seller-guide-content .text-2xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  .seller-guide-page .seller-guide-content .flex-1,
+  .seller-guide-page .seller-guide-content .min-w-0 {
+    min-width: 0;
+  }
+
+  .seller-guide-page .seller-guide-content .flex.gap-4 {
+    flex-wrap: wrap;
+  }
+
+  .seller-app-viewport .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Dense desktop forms become readable, touch-safe sections on phones. */
+  .seller-app-viewport .p-8 {
+    padding: 1rem;
+  }
+
+  .seller-app-viewport .px-8 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .seller-app-viewport .py-8 {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .seller-app-viewport .p-6 {
+    padding: 1rem;
+  }
+
+  .seller-app-viewport .px-6 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .seller-app-viewport .py-6 {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .seller-app-viewport input:not([type='checkbox']):not([type='radio']),
+  .seller-app-viewport select,
+  .seller-app-viewport textarea {
+    max-width: 100%;
+  }
+
+  .seller-app-viewport .max-w-7xl,
+  .seller-app-viewport .max-w-6xl,
+  .seller-app-viewport .max-w-5xl,
+  .seller-app-viewport .max-w-4xl {
+    width: 100%;
+  }
+
+  /* Legacy campaign forms that own their own overlay use the same bottom-sheet
+     interaction as the shared Modal component. */
+  .seller-app-viewport div.fixed.inset-0[class~="bg-black/40"] {
+    display: flex;
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .seller-app-viewport div.fixed.inset-0[class~="bg-black/40"] > form {
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    margin: 0;
+    overflow-y: auto;
+    border-radius: 1.5rem 1.5rem 0 0;
+    padding: 1rem;
+  }
+}
+
+@keyframes seller-mobile-sheet-enter {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 

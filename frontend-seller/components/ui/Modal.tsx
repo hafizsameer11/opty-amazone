@@ -75,7 +75,7 @@ export default function Modal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-[100] overflow-hidden">
       {/* Backdrop */}
       <div
         className={`fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${
@@ -86,18 +86,19 @@ export default function Modal({
       />
 
       {/* Modal Container */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex h-full items-end justify-center p-0 sm:min-h-full sm:items-center sm:p-4">
         <div
-          className={`relative w-full ${sizeClasses[size]} transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all duration-200 ${
-            isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
+          className={`relative flex max-h-[92dvh] w-full flex-col ${sizeClasses[size]} transform overflow-hidden rounded-t-[1.75rem] bg-white shadow-2xl transition-all duration-200 sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl ${
+            isClosing ? 'translate-y-8 opacity-0 sm:scale-95 sm:translate-y-0' : 'translate-y-0 opacity-100 sm:scale-100'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3.5 sm:px-6 sm:py-4">
+              <span className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-slate-200 sm:hidden" aria-hidden="true" />
               {title && (
-                <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+                <h2 className="min-w-0 truncate pr-3 text-lg font-bold text-gray-900 sm:text-xl">{title}</h2>
               )}
               {showCloseButton && (
                 <button
@@ -124,7 +125,7 @@ export default function Modal({
           )}
 
           {/* Content */}
-          <div className="max-h-[calc(100vh-8rem)] overflow-y-auto px-6 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6">
             {children}
           </div>
         </div>

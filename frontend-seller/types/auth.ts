@@ -2,7 +2,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  phone?: string;
+  phone: string;
   city?: string;
   profile_image_url?: string | null;
   role: 'buyer' | 'seller' | 'admin';
@@ -23,7 +23,7 @@ export interface AuthResponse {
 export interface RegisterData {
   name: string;
   email: string;
-  phone?: string;
+  phone: string;
   password: string;
   password_confirmation: string;
 }

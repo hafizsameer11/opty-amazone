@@ -12,9 +12,11 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import SectionBackLink from '@/components/ui/SectionBackLink';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function SocialLinksPage() {
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [socialLinks, setSocialLinks] = useState<StoreSocialLink[]>([]);
   const [loadingLinks, setLoadingLinks] = useState(true);
@@ -49,7 +51,7 @@ export default function SocialLinksPage() {
       }
     } catch (error) {
       console.error('Failed to load social links:', error);
-      setError('Failed to load social links');
+      setError(t('store.socialLoadFailed'));
     } finally {
       setLoadingLinks(false);
     }
@@ -63,16 +65,16 @@ export default function SocialLinksPage() {
     try {
       if (editingLink) {
         await StoreService.updateSocialLink(editingLink.id, formData);
-        setSuccess('Social link updated successfully');
+         setSuccess(t('store.socialUpdated'));
       } else {
         await StoreService.createSocialLink(formData);
-        setSuccess('Social link created successfully');
+         setSuccess(t('store.socialCreated'));
       }
 
       resetForm();
       loadSocialLinks();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to save social link');
+      setError(error.response?.data?.message || t('store.socialSaveFailed'));
     }
   };
 
@@ -87,16 +89,16 @@ export default function SocialLinksPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this social link?')) {
+    if (!confirm(t('store.confirmDeleteSocial'))) {
       return;
     }
 
     try {
       await StoreService.deleteSocialLink(id);
-      setSuccess('Social link deleted successfully');
+      setSuccess(t('store.socialDeleted'));
       loadSocialLinks();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to delete social link');
+      setError(error.response?.data?.message || t('store.socialDeleteFailed'));
     }
   };
 
@@ -105,7 +107,7 @@ export default function SocialLinksPage() {
       await StoreService.toggleSocialLink(id);
       loadSocialLinks();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to toggle social link');
+      setError(error.response?.data?.message || t('store.socialSaveFailed'));
     }
   };
 
@@ -178,7 +180,7 @@ export default function SocialLinksPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -189,27 +191,27 @@ export default function SocialLinksPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex">
+    <div className="seller-social-links-page min-h-screen overflow-x-hidden bg-gray-50">
+      <div className="flex min-w-0">
         <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
           <Header />
-          <main className="flex-1 overflow-y-auto">
-            <div className="py-6">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
+          <main className="min-w-0 flex-1 overflow-y-auto">
+            <div className="py-4 sm:py-6">
+              <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
+                <div className="mb-5 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
                     <SectionBackLink href="/store" className="mb-3">
-                      Back to Store
+                      {t('store.back')}
                     </SectionBackLink>
-                    <h1 className="text-3xl font-bold text-gray-900">Social Links</h1>
-                    <p className="text-gray-600 mt-1">Add and manage your social media profiles</p>
+                    <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('store.socialLinks')}</h1>
+                    <p className="mt-1 text-sm text-gray-600 sm:text-base">{t('store.socialLinksDescription')}</p>
                   </div>
-                  <Button onClick={() => setShowForm(true)} className="shrink-0 self-start">
+                  <Button onClick={() => setShowForm(true)} className="w-full shrink-0 sm:w-auto sm:self-start">
                     <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
-                    Add Social Link
+                    {t('store.addSocial')}
                   </Button>
                 </div>
 
@@ -226,14 +228,14 @@ export default function SocialLinksPage() {
                 )}
 
                 {showForm && (
-                  <div className="bg-white rounded-lg shadow p-6 mb-6">
-                    <h2 className="text-xl font-semibold mb-4">
-                      {editingLink ? 'Edit Social Link' : 'Add Social Link'}
+                  <div className="mb-5 rounded-2xl bg-white p-4 shadow-sm sm:mb-6 sm:rounded-lg sm:p-6">
+                    <h2 className="mb-4 text-lg font-semibold sm:text-xl">
+                       {editingLink ? t('store.editSocial') : t('store.addSocial')}
                     </h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Platform *
+                           {t('store.platform')} *
                         </label>
                         <select
                           value={formData.platform}
@@ -247,16 +249,16 @@ export default function SocialLinksPage() {
                           <option value="linkedin">LinkedIn</option>
                           <option value="youtube">YouTube</option>
                           <option value="website">Website</option>
-                          <option value="other">Other</option>
+                          <option value="other">{t('common.other')}</option>
                         </select>
                       </div>
 
                       <Input
-                        label="URL *"
+                         label={`${t('store.url')} *`}
                         type="url"
                         value={formData.url}
                         onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                        placeholder="https://example.com"
+                        placeholder={t('store.urlPlaceholder')}
                         required
                       />
 
@@ -269,16 +271,16 @@ export default function SocialLinksPage() {
                           className="mr-2"
                         />
                         <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-                          Active
+                           {t('store.active')}
                         </label>
                       </div>
 
-                      <div className="flex gap-4">
-                        <Button type="submit" className="flex-1">
-                          {editingLink ? 'Update Social Link' : 'Add Social Link'}
+                      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-4">
+                        <Button type="submit" className="w-full sm:flex-1">
+                           {editingLink ? t('store.updateLink') : t('store.addSocial')}
                         </Button>
-                        <Button type="button" variant="outline" onClick={resetForm}>
-                          Cancel
+                        <Button type="button" variant="outline" onClick={resetForm} className="w-full sm:w-auto">
+                          {t('common.cancel')}
                         </Button>
                       </div>
                     </form>
@@ -286,25 +288,44 @@ export default function SocialLinksPage() {
                 )}
 
                 {socialLinks.length === 0 ? (
-                  <div className="bg-white rounded-lg shadow p-12 text-center">
+                  <div className="rounded-2xl bg-white p-6 text-center shadow-sm sm:rounded-lg sm:p-12">
                     <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                     </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No social links</h3>
-                    <p className="mt-1 text-sm text-gray-500">Get started by adding your first social media profile.</p>
+                     <h3 className="mt-2 text-sm font-medium text-gray-900">{t('store.noSocial')}</h3>
+                     <p className="mt-1 text-sm text-gray-500">{t('store.addFirstSocial')}</p>
                     <div className="mt-6">
-                      <Button onClick={() => setShowForm(true)}>Add Social Link</Button>
+                       <Button onClick={() => setShowForm(true)}>{t('store.addSocial')}</Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <>
+                  <div className="space-y-3 md:hidden">
+                    {socialLinks.map((link) => (
+                      <article key={link.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0066CC]">{getPlatformIcon(link.platform)}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2"><p className="font-semibold text-slate-900">{getPlatformName(link.platform)}</p><span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${link.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>{link.is_active ? t('store.active') : t('store.inactive')}</span></div>
+                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="mt-1 block break-all text-sm text-[#0066CC] hover:underline">{link.url}</a>
+                          </div>
+                        </div>
+                        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-sm font-semibold">
+                          <button onClick={() => handleEdit(link)} className="rounded-lg bg-blue-50 px-2 py-2 text-[#0066CC]">{t('store.edit')}</button>
+                          <button onClick={() => handleToggle(link.id)} className="rounded-lg bg-slate-100 px-2 py-2 text-slate-700">{link.is_active ? t('products.deactivate') : t('products.activate')}</button>
+                          <button onClick={() => handleDelete(link.id)} className="rounded-lg bg-red-50 px-2 py-2 text-red-600">{t('store.delete')}</button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                  <div className="hidden overflow-hidden rounded-lg bg-white shadow md:block">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Platform</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('store.platform')}</th>
+                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('store.url')}</th>
+                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('common.status')}</th>
+                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{t('common.actions')}</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -334,7 +355,7 @@ export default function SocialLinksPage() {
                               <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                                 link.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                               }`}>
-                                {link.is_active ? 'Active' : 'Inactive'}
+                                 {link.is_active ? t('store.active') : t('store.inactive')}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -343,19 +364,19 @@ export default function SocialLinksPage() {
                                   onClick={() => handleEdit(link)}
                                   className="text-[#0066CC] hover:text-[#0052a3]"
                                 >
-                                  Edit
+                                   {t('store.edit')}
                                 </button>
                                 <button
                                   onClick={() => handleToggle(link.id)}
                                   className="text-gray-600 hover:text-gray-900"
                                 >
-                                  {link.is_active ? 'Deactivate' : 'Activate'}
+                                   {link.is_active ? t('products.deactivate') : t('products.activate')}
                                 </button>
                                 <button
                                   onClick={() => handleDelete(link.id)}
                                   className="text-red-600 hover:text-red-900"
                                 >
-                                  Delete
+                                   {t('store.delete')}
                                 </button>
                               </div>
                             </td>
@@ -364,6 +385,7 @@ export default function SocialLinksPage() {
                       </tbody>
                     </table>
                   </div>
+                  </>
                 )}
               </div>
             </div>

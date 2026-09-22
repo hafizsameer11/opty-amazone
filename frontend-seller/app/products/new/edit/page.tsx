@@ -8,12 +8,14 @@ import BottomNav from '@/components/layout/BottomNav';
 import Sidebar from '@/components/layout/Sidebar';
 import UnifiedProductForm from '@/components/products/UnifiedProductForm';
 import SectionBackLink from '@/components/ui/SectionBackLink';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // This page is specifically for creating new products
 // It uses the unified form component
 export default function NewProductEditPage() {
   const router = useRouter();
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -26,7 +28,7 @@ export default function NewProductEditPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -48,7 +50,7 @@ export default function NewProductEditPage() {
                 {/* Header Section with Gradient */}
                 <div className="mb-8">
                   <SectionBackLink href="/products" className="mb-4">
-                    Back to Products
+                    {t('Back to Products')}
                   </SectionBackLink>
                   <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-xl p-8 text-white">
                     <div className="flex items-center gap-4">
@@ -58,8 +60,8 @@ export default function NewProductEditPage() {
                         </svg>
                       </div>
                       <div>
-                        <h1 className="text-4xl font-bold mb-2">Create New Product</h1>
-                        <p className="text-blue-100 text-lg">Fill in the details below to add a new product to your store</p>
+                        <h1 className="text-4xl font-bold mb-2">{t('form.createNewProduct')}</h1>
+                        <p className="text-blue-100 text-lg">{t('form.createNewProductDescription')}</p>
                       </div>
                     </div>
                   </div>

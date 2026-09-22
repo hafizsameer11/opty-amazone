@@ -6,6 +6,7 @@ import { productService, type Product } from '@/services/product-service';
 import { getProductEditPath } from '@/lib/product-edit-routes';
 import Loader from '@/components/ui/Loader';
 import Alert from '@/components/ui/Alert';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ProductEditTypeGuardProps {
   productId: number;
@@ -15,6 +16,7 @@ interface ProductEditTypeGuardProps {
 
 export default function ProductEditTypeGuard({ productId, expectedType, children }: ProductEditTypeGuardProps) {
   const router = useRouter();
+  const { t } = useLanguage();
   const [error, setError] = useState('');
   const [verified, setVerified] = useState(false);
 
@@ -36,14 +38,14 @@ export default function ProductEditTypeGuard({ productId, expectedType, children
         setVerified(true);
       } catch {
         if (!cancelled) {
-          setError('Could not load this product.');
+          setError(t('products.loadFailed'));
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [productId, expectedType, router]);
+  }, [productId, expectedType, router, t]);
 
   if (error) {
     return <Alert type="error" message={error} />;

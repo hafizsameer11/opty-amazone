@@ -57,10 +57,11 @@ export function sellerGateRedirect(state: SellerGateState): string | null {
     case 'rejected':
       return '/auth/verification';
     case 'needs_store_setup':
-      return '/store/edit?setup=1';
+      return '/dashboard?setup=1';
     case 'awaiting_approval':
+      return '/auth/pending-approval';
     case 'suspended':
-      return '/dashboard';
+      return '/auth/pending-approval';
     default:
       return null;
   }

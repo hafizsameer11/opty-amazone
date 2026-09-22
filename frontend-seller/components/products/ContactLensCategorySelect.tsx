@@ -7,6 +7,7 @@ import {
   mergeContactLensSubCategory,
   splitContactLensSubCategory,
 } from '@/lib/contact-lens-categories';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ContactLensCategorySelectProps {
   categories: Category[];
@@ -21,6 +22,7 @@ export default function ContactLensCategorySelect({
   value,
   onChange,
 }: ContactLensCategorySelectProps) {
+  const { t } = useLanguage();
   const subCategories = useMemo(
     () => getContactLensSubCategories(categories, mainCategoryId),
     [categories, mainCategoryId]
@@ -41,7 +43,7 @@ export default function ContactLensCategorySelect({
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-semibold text-gray-800 mb-2">Sub Category</label>
+        <label className="block text-sm font-semibold text-gray-800 mb-2">{t('form.subCategory')}</label>
         <select
           value={subCategoryId ?? ''}
           onChange={(e) => {
@@ -50,7 +52,7 @@ export default function ContactLensCategorySelect({
           }}
           className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
         >
-          <option value="">Select Sub Category</option>
+          <option value="">{t('form.selectSubCategory')}</option>
           {subCategories.map((cat) => (
             <option key={cat.id} value={cat.id}>
               {cat.name}
@@ -61,7 +63,7 @@ export default function ContactLensCategorySelect({
 
       {showSubSub && (
         <div>
-          <label className="block text-sm font-semibold text-gray-800 mb-2">Lens Type</label>
+          <label className="block text-sm font-semibold text-gray-800 mb-2">{t('form.lensType')}</label>
           <select
             value={subSubCategoryId ?? ''}
             onChange={(e) => {
@@ -71,7 +73,7 @@ export default function ContactLensCategorySelect({
             className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
             required={showSubSub}
           >
-            <option value="">Select lens type</option>
+            <option value="">{t('form.selectLensType')}</option>
             {subSubCategories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.name}
@@ -79,7 +81,7 @@ export default function ContactLensCategorySelect({
             ))}
           </select>
           <p className="mt-1 text-xs text-gray-500">
-            Choose Spherical, Astigmatism, or another type for the selected wear schedule.
+            {t('form.contactLensTypeHint')}
           </p>
         </div>
       )}

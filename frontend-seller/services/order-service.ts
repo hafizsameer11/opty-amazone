@@ -27,6 +27,10 @@ export interface StoreOrder {
   delivery_fee: number;
   total: number;
   discount_total?: number;
+  coupon_code?: string | null;
+  coupon_discount?: number;
+  coupon_shipping_discount?: number;
+  coupon_snapshot?: Record<string, unknown> | null;
   payment_status?: string;
   financial_version?: number;
   delivery_address_snapshot?: Record<string, string | number | null>;
@@ -105,6 +109,11 @@ export const orderService = {
 
   async markOutForDelivery(id: number): Promise<StoreOrder> {
     const res = await apiClient.post(`/seller/store-orders/${id}/out-for-delivery`);
+    return res.data.data;
+  },
+
+  async requestDeliveryCode(id: number): Promise<StoreOrder> {
+    const res = await apiClient.post(`/seller/store-orders/${id}/delivery-code-request`);
     return res.data.data;
   },
 

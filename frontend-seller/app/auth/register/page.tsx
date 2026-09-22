@@ -7,160 +7,111 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Alert from '@/components/ui/Alert';
 import Link from 'next/link';
+import SellerAuthShell, { AuthFeedback } from '@/components/auth/SellerAuthShell';
+import SellerAuthInput from '@/components/auth/SellerAuthInput';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-const registerSchema = z.object({
-  name: z.string().min(3, 'Name must be at least 3 characters'),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().optional(),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  password_confirmation: z.string(),
-}).refine((data) => data.password === data.password_confirmation, {
-  message: "Passwords don't match",
-  path: ['password_confirmation'],
-});
+type RegisterFormData = { name: string; email: string; phone_country_code: string; phone: string; password: string; password_confirmation: string };
 
-type RegisterFormData = z.infer<typeof registerSchema>;
+const PHONE_COUNTRIES = [
+  ['+1', 'United States / Canada'], ['+44', 'United Kingdom'], ['+33', 'France'],
+  ['+39', 'Italy'], ['+49', 'Germany'], ['+34', 'Spain'], ['+31', 'Netherlands'],
+  ['+32', 'Belgium'], ['+41', 'Switzerland'], ['+43', 'Austria'], ['+45', 'Denmark'],
+  ['+46', 'Sweden'], ['+47', 'Norway'], ['+48', 'Poland'], ['+351', 'Portugal'],
+  ['+30', 'Greece'], ['+90', 'Turkey'], ['+91', 'India'], ['+971', 'United Arab Emirates'],
+  ['+966', 'Saudi Arabia'], ['+20', 'Egypt'], ['+27', 'South Africa'], ['+61', 'Australia'],
+  ['+64', 'New Zealand'], ['+81', 'Japan'], ['+82', 'South Korea'], ['+86', 'China'],
+  ['+55', 'Brazil'], ['+52', 'Mexico'],
+] as const;
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register: registerUser } = useAuth();
-  const [error, setError] = useState<string>('');
+  const { t } = useLanguage();
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
-  });
+  const registerSchema = z.object({
+    name: z.string().min(3, t('auth.storeNameMin')), email: z.string().email(t('auth.validEmail')),
+    phone_country_code: z.string().min(1, t('auth.countryCodeRequired')), phone: z.string().min(5, t('auth.validPhone')),
+    password: z.string().min(8, t('auth.passwordMin')), password_confirmation: z.string(),
+  }).refine((data) => data.password === data.password_confirmation, { message: t('auth.passwordsMismatch'), path: ['password_confirmation'] });
+  const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormData>({ resolver: zodResolver(registerSchema), defaultValues: { phone_country_code: '+39' } });
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
       setIsLoading(true);
       setError('');
-      await registerUser(data);
-      router.push('/');
+      const localPhone = data.phone.replace(/[^0-9]/g, '');
+      await registerUser({ ...data, phone: `${data.phone_country_code}${localPhone}` });
+      router.push('/auth/verification');
     } catch (err: any) {
-      // Prioritize field-specific errors over general message
       const apiErrors = err.response?.data?.errors as Record<string, string[]> | undefined;
-      const firstFieldError = apiErrors
-        ? Object.values(apiErrors).find((v) => Array.isArray(v) && v.length)?.[0]
-        : undefined;
-      const errorMessage =
-        apiErrors?.email?.[0] ||
-        apiErrors?.password?.[0] ||
-        apiErrors?.name?.[0] ||
-        apiErrors?.phone?.[0] ||
-        firstFieldError ||
-        err.response?.data?.message ||
-        'Registration failed. Please try again.';
-      setError(errorMessage);
+      const firstFieldError = apiErrors ? Object.values(apiErrors).find((value) => Array.isArray(value) && value.length)?.[0] : undefined;
+      setError(apiErrors?.email?.[0] || apiErrors?.password?.[0] || apiErrors?.name?.[0] || apiErrors?.phone?.[0] || firstFieldError || err.response?.data?.message || t('auth.registrationFailed'));
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        {/* Logo/Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-[#0066CC] mb-2">OpticalMarket</h1>
-          <p className="text-gray-600">Seller Dashboard</p>
+    <SellerAuthShell
+      eyebrow={t('auth.registerEyebrow')}
+      title={t('auth.createAccount')}
+      description={t('auth.registerDescription')}
+      sideTitle={t('auth.registerSideTitle')}
+      sideDescription={t('auth.registerSideDescription')}
+      steps={[t('auth.stepCreateAccount'), t('auth.stepBusinessDetails'), t('auth.stepStoreSetup')]}
+      activeStep={0}
+      stepsLayout="grid"
+      wideForm
+    >
+      <div className="mb-7 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-lg font-bold text-slate-950">{t('auth.sellerRegistration')}</p>
+          <p className="mt-1 text-sm text-slate-500">{t('auth.registerHint')}</p>
         </div>
-
-        {/* Card */}
-        <div className="bg-white rounded-xl shadow-2xl border border-gray-200 p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Create seller account
-            </h2>
-            <p className="text-sm text-gray-600">
-              Want to shop instead?{' '}
-              <a href="https://buyer.vistaexpress.it/auth/choose" className="font-semibold text-[#0066CC] hover:text-[#0052a3] transition-colors">
-                Register as buyer
-              </a>
-              {' · '}
-              Already have an account?{' '}
-              <Link href="/auth/login" className="font-semibold text-[#0066CC] hover:text-[#0052a3] transition-colors">
-                Sign in
-              </Link>
-            </p>
-          </div>
-
-          <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-            {error && (
-              <Alert type="error" message={error} onClose={() => setError('')} />
-            )}
-
-            <div className="space-y-4">
-              <Input
-                label="Store Name"
-                type="text"
-                {...register('name')}
-                error={errors.name?.message}
-                placeholder="My Optical Store"
-                required
-              />
-
-              <Input
-                label="Email Address"
-                type="email"
-                {...register('email')}
-                error={errors.email?.message}
-                placeholder="store@example.com"
-                required
-              />
-
-              <Input
-                label="Phone Number (Optional)"
-                type="tel"
-                {...register('phone')}
-                error={errors.phone?.message}
-                placeholder="+1234567890"
-              />
-
-              <Input
-                label="Password"
-                type="password"
-                {...register('password')}
-                error={errors.password?.message}
-                placeholder="••••••••"
-                required
-              />
-
-              <Input
-                label="Confirm Password"
-                type="password"
-                {...register('password_confirmation')}
-                error={errors.password_confirmation?.message}
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            <div className="pt-2">
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                isLoading={isLoading}
-                className="w-full"
-              >
-                Create Seller Account
-              </Button>
-            </div>
-
-            <p className="text-xs text-center text-gray-500 mt-4">
-              By creating an account, you agree to our Terms of Service and Privacy Policy
-            </p>
-          </form>
-        </div>
+        <span className="hidden shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 sm:inline-flex">{t('auth.stepOf', { current: 1, total: 3 })}</span>
       </div>
-    </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        {error && <AuthFeedback type="error" message={error} onClose={() => setError('')} />}
+        <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
+          <SellerAuthInput id="store-name" label={t('auth.storeName')} type="text" icon="store" {...register('name')} error={errors.name?.message} placeholder={t('auth.storeNamePlaceholder')} autoComplete="organization" required />
+          <div className="min-w-0">
+            <label htmlFor="seller-phone" className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-slate-800">
+              <span>{t('auth.phoneNumber')}<span className="ml-1 text-[#0789c5]">*</span></span>
+              <span className="text-xs font-medium text-slate-400">{t('common.required')}</span>
+            </label>
+            <div className="flex min-w-0 gap-2">
+              <select aria-label={t('auth.phoneCountryCode')} {...register('phone_country_code')} className="h-[3.25rem] w-[7.5rem] shrink-0 rounded-xl border border-slate-200 bg-slate-50/70 px-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-[#0795ce] focus:bg-white focus:ring-4 focus:ring-cyan-100">
+                {PHONE_COUNTRIES.map(([code, country]) => <option key={code} value={code}>{code} · {country}</option>)}
+              </select>
+              <SellerAuthInput id="seller-phone" label="" type="tel" icon="phone" {...register('phone')} error={errors.phone?.message} placeholder="20 1234 5678" autoComplete="tel-national" className="min-w-0" />
+            </div>
+            {errors.phone_country_code?.message && <p className="mt-1.5 text-xs font-medium text-red-600">{errors.phone_country_code.message}</p>}
+          </div>
+        </div>
+        <SellerAuthInput id="seller-register-email" label={t('auth.businessEmail')} type="email" icon="mail" {...register('email')} error={errors.email?.message} placeholder={t('auth.businessEmailPlaceholder')} autoComplete="email" required />
+        <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
+          <SellerAuthInput id="seller-register-password" label={t('auth.createPassword')} type="password" icon="lock" {...register('password')} error={errors.password?.message} placeholder={t('auth.passwordMinPlaceholder')} autoComplete="new-password" required />
+          <SellerAuthInput id="seller-register-password-confirmation" label={t('auth.confirmPassword')} type="password" icon="lock" {...register('password_confirmation')} error={errors.password_confirmation?.message} placeholder={t('auth.repeatPassword')} autoComplete="new-password" required />
+        </div>
+
+        <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-3.5 text-xs leading-5 text-slate-500">
+          <span className="mt-0.5 text-[#0789c5]" aria-hidden="true">●</span>
+          <p>{t('auth.businessEmailNotice')}</p>
+        </div>
+
+        <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="w-full !rounded-xl !py-3.5">{t('auth.createSellerSubmit')}</Button>
+        <p className="text-center text-xs leading-5 text-slate-400">{t('auth.termsNotice')}</p>
+      </form>
+
+      <div className="mt-7 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
+        {t('auth.alreadyAccount')} <Link href="/auth/login" className="font-bold text-[#0789c5] hover:text-[#006b99]">{t('auth.signIn')}</Link>
+        <span className="mx-2 text-slate-300">·</span>
+        <a href="https://buyer.vistaexpress.it/auth/choose" className="font-bold text-[#0789c5] hover:text-[#006b99]">{t('auth.shopBuyer')}</a>
+      </div>
+    </SellerAuthShell>
   );
 }

@@ -9,140 +9,77 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AuthService } from '@/services/auth-service';
 import { isSellerProfileComplete } from '@/lib/seller-profile-gate';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Alert from '@/components/ui/Alert';
 import Link from 'next/link';
-import Image from 'next/image';
+import SellerAuthShell, { AuthFeedback } from '@/components/auth/SellerAuthShell';
+import SellerAuthInput from '@/components/auth/SellerAuthInput';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
+type LoginFormData = { email: string; password: string };
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const [error, setError] = useState<string>('');
+  const { t } = useLanguage();
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-  });
+  const loginSchema = z.object({ email: z.string().email(t('auth.validEmail')), password: z.string().min(1, t('auth.passwordRequired')) });
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
 
   const onSubmit = async (data: LoginFormData) => {
     try {
       setIsLoading(true);
       setError('');
       await login(data);
-      const u = AuthService.getUser();
-      if (u && !isSellerProfileComplete(u)) {
-        router.push('/profile?setup=1');
-      } else {
-        router.push('/');
-      }
+      const user = AuthService.getUser();
+      router.push(user && !isSellerProfileComplete(user) ? '/profile?setup=1' : '/');
     } catch (err: any) {
-      // Prioritize field-specific errors over general message
-      const errorMessage = 
+      setError(
         err.response?.data?.errors?.email?.[0] ||
         err.response?.data?.errors?.password?.[0] ||
         err.response?.data?.message ||
-        'Login failed. Please check your credentials.';
-      setError(errorMessage);
+        t('auth.loginFailed')
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        {/* Logo/Header */}
-        <div className="text-center mb-8">
-          <Image src="/vistaexpress-logo.png" alt="VistaExpress" width={300} height={150} className="mx-auto mb-2 h-20 w-auto object-contain" priority />
-          <p className="text-gray-600">Seller Dashboard</p>
+    <SellerAuthShell
+      eyebrow={t('auth.loginEyebrow')}
+      title={t('auth.welcomeBack')}
+      description={t('auth.loginDescription')}
+      highlights={[t('auth.sideIllustrationDescription'), t('auth.registerSideTitle'), t('auth.secureAccess')]}
+    >
+      <div className="mb-7 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-lg font-bold text-slate-950">{t('auth.loginWorkspace')}</p>
+          <p className="mt-1 text-sm text-slate-500">{t('auth.loginHint')}</p>
         </div>
-
-        {/* Card */}
-        <div className="bg-white rounded-xl shadow-2xl border border-gray-200 p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Seller Login
-            </h2>
-            <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link href="/auth/register" className="font-semibold text-[#0066CC] hover:text-[#0052a3] transition-colors">
-                Create one
-              </Link>
-            </p>
-          </div>
-
-          <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-            {error && (
-              <Alert type="error" message={error} onClose={() => setError('')} />
-            )}
-
-            <div className="space-y-4">
-              <Input
-                label="Email Address"
-                type="email"
-                {...register('email')}
-                error={errors.email?.message}
-                placeholder="store@example.com"
-                autoComplete="email"
-                required
-              />
-
-              <Input
-                label="Password"
-                type="password"
-                {...register('password')}
-                error={errors.password?.message}
-                placeholder="••••••••"
-                autoComplete="current-password"
-                required
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-[#0066CC] focus:ring-[#0066CC] border-gray-300 rounded cursor-pointer"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer">
-                  Remember me
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <Link href="/auth/forgot-password" className="font-semibold text-[#0066CC] hover:text-[#0052a3] transition-colors">
-                  Forgot password?
-                </Link>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                isLoading={isLoading}
-                className="w-full"
-              >
-                Sign In
-              </Button>
-            </div>
-          </form>
-        </div>
+        <span className="hidden shrink-0 rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-700 sm:inline-flex">{t('auth.sellerAccess')}</span>
       </div>
-    </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        {error && <AuthFeedback type="error" message={error} onClose={() => setError('')} />}
+        <SellerAuthInput id="seller-email" label={t('auth.emailAddress')} type="email" icon="mail" {...register('email')} error={errors.email?.message} placeholder={t('auth.emailPlaceholder')} autoComplete="email" required />
+        <SellerAuthInput id="seller-password" label={t('auth.password')} type="password" icon="lock" {...register('password')} error={errors.password?.message} placeholder={t('auth.passwordPlaceholder')} autoComplete="current-password" required />
+
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-[#0789c5] focus:ring-cyan-200" />
+            {t('auth.rememberMe')}
+          </label>
+          <Link href="/auth/forgot-password" className="text-sm font-bold text-[#0789c5] hover:text-[#006b99]">{t('auth.forgotPassword')}</Link>
+        </div>
+
+        <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="mt-2 w-full !rounded-xl !py-3.5">
+          {t('auth.signInDashboard')}
+        </Button>
+      </form>
+
+      <div className="mt-7 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
+        {t('auth.newToVista')} <Link href="/auth/register" className="font-bold text-[#0789c5] hover:text-[#006b99]">{t('auth.createSellerAccount')}</Link>
+      </div>
+    </SellerAuthShell>
   );
 }
