@@ -11,10 +11,16 @@ export default function SavedItemsPanel({ onCountChange }: { onCountChange?: (co
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [, setTotalCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const onCountChangeRef = useRef(onCountChange);
 
   useEffect(() => { onCountChangeRef.current = onCountChange; }, [onCountChange]);
+
+  // Keep the parent profile count in sync after render. A parent state update
+  // inside a child state updater is unsafe in React's render phase.
+  useEffect(() => {
+    onCountChangeRef.current?.(totalCount);
+  }, [totalCount]);
 
   const load = useCallback(async (silent = false) => {
     try {
@@ -24,7 +30,6 @@ export default function SavedItemsPanel({ onCountChange }: { onCountChange?: (co
       const nextItems = result.items || [];
       setItems(nextItems);
       setTotalCount(result.total);
-      onCountChangeRef.current?.(result.total);
     } catch (e) {
       console.error('Failed to load saved items:', e);
       setError('Could not load saved items. Please try again.');
@@ -39,15 +44,8 @@ export default function SavedItemsPanel({ onCountChange }: { onCountChange?: (co
   const remove = async (productId: number) => {
     try {
       await wishlistService.remove(productId);
-      setItems((current) => {
-        const next = current.filter((item) => item.product?.id !== productId);
-        setTotalCount((count) => {
-          const updated = Math.max(0, count - 1);
-          onCountChangeRef.current?.(updated);
-          return updated;
-        });
-        return next;
-      });
+      setItems((current) => current.filter((item) => item.product?.id !== productId));
+      setTotalCount((count) => Math.max(0, count - 1));
     } catch (e) {
       console.error('Failed to remove saved item:', e);
       setError('Could not remove this saved item. Please try again.');

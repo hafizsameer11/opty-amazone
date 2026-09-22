@@ -39,13 +39,19 @@ export default function FollowedStoresPanel({ onCountChange }: { onCountChange?:
 
   useEffect(() => { onCountChangeRef.current = onCountChange; }, [onCountChange]);
 
+  // Inform the profile page only after this component has committed its own
+  // state update. Calling the parent setter inside setStores' updater runs
+  // during rendering and triggers React's cross-component update warning.
+  useEffect(() => {
+    onCountChangeRef.current?.(stores.length);
+  }, [stores.length]);
+
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       setError(null);
       const result = await StoreService.getFollowedStores();
       setStores(result.data.stores);
-      onCountChangeRef.current?.(result.data.stores.length);
     } catch (e) {
       console.error('Failed to load followed stores:', e);
       setError(getAxiosErrorMessage(e) || 'Could not load followed stores. Please try again.');
@@ -61,11 +67,7 @@ export default function FollowedStoresPanel({ onCountChange }: { onCountChange?:
     setUnfollowing(id);
     try {
       await StoreService.unfollowStore(id);
-      setStores((current) => {
-        const next = current.filter((store) => store.id !== id);
-        onCountChangeRef.current?.(next.length);
-        return next;
-      });
+      setStores((current) => current.filter((store) => store.id !== id));
     } catch (e) {
       console.error('Failed to unfollow store:', e);
       setError(getAxiosErrorMessage(e) || 'Could not unfollow this store. Please try again.');
