@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/Toast';
 import { getAxiosErrorMessage } from '@/lib/api-client';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { warehouseService, type WarehouseCartQuote } from '@/services/warehouse-service';
-import { SellerShell } from '../page';
+import { SellerShell } from '@/components/warehouse/SellerShell';
 
 const money = (v: string | number) => `€${Number(v || 0).toFixed(2)}`;
 export default function WarehouseCartPage() {

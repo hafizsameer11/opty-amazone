@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/Toast';
 import { getAxiosErrorMessage } from '@/lib/api-client';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { warehouseService, type WarehouseOrder, type WarehouseStatus } from '@/services/warehouse-service';
-import { SellerShell } from '../page';
+import { SellerShell } from '@/components/warehouse/SellerShell';
 
 const money = (value: string | number) => `€${Number(value || 0).toFixed(2)}`;
 const statuses: WarehouseStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];

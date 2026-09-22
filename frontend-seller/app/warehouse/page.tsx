@@ -3,15 +3,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import Header from '@/components/layout/Header';
-import Sidebar from '@/components/layout/Sidebar';
-import BottomNav from '@/components/layout/BottomNav';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { getAxiosErrorMessage } from '@/lib/api-client';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { warehouseService, type WarehouseCategory, type WarehouseProduct } from '@/services/warehouse-service';
+import { SellerShell } from '@/components/warehouse/SellerShell';
 
 const money = (value: string | number) => `€${Number(value || 0).toFixed(2)}`;
 
@@ -90,8 +88,4 @@ export default function WarehousePage() {
       </main>
     </SellerShell>
   );
-}
-
-export function SellerShell({ children }: { children: React.ReactNode }) {
-  return <div className="seller-warehouse-shell flex h-full min-h-0 bg-slate-50"><Sidebar /><div className="flex min-w-0 flex-1 flex-col overflow-hidden"><Header /><div className="seller-warehouse-content min-h-0 flex-1 overflow-y-auto overscroll-contain pb-20 lg:pb-0">{children}</div></div><BottomNav /></div>;
 }
