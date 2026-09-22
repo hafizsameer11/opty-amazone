@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_BUILD_DIR || ".next",
+  // /var/www contains an unrelated package-lock.json on production. Without
+  // an explicit root, Turbopack can resolve its workspace from there instead
+  // of this Buyer project and emit an incompatible client runtime bundle.
+  turbopack: {
+    root: process.cwd(),
+  },
   async rewrites() {
     return [
       {
@@ -10,22 +16,6 @@ const nextConfig: NextConfig = {
         // dynamic Buyer request while Laravel remains the API authority.
         source: "/vista-service/:path*",
         destination: "https://api.vistaexpress.it/api/:path*",
-      },
-    ];
-  },
-  async headers() {
-    return [
-      {
-        // Turbopack can expose route chunks under stable names such as
-        // app/page.js. Revalidate those assets after a deployment so the
-        // browser cannot retain an older client bundle than the HTML shell.
-        source: "/_next/static/chunks/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "no-store, max-age=0, must-revalidate",
-          },
-        ],
       },
     ];
   },
