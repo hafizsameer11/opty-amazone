@@ -12,8 +12,10 @@ import PaginationBar, { type PaginationMeta } from '@/components/ui/PaginationBa
 import { orderService, type Order } from '@/services/order-service';
 import { useToast } from '@/components/ui/Toast';
 import { rowsAndMetaFromAdminList } from '@/lib/paginated-response';
+import { statusKey, useLanguage } from '@/contexts/LanguageContext';
 
 export default function OrdersPage() {
+  const { t } = useLanguage();
   const { showToast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | null>(null);
@@ -36,8 +38,8 @@ export default function OrdersPage() {
       setOrders(rows);
       setPaginationMeta(meta);
     } catch {
-      setLoadError('Could not load orders. Check your connection and try again.');
-      showToast('error', 'Failed to load orders');
+      setLoadError(t('failedLoadOrders'));
+      showToast('error', t('failedLoadOrders'));
     } finally {
       setLoading(false);
     }
@@ -58,7 +60,7 @@ export default function OrdersPage() {
   const columns = [
     {
       key: 'order_no',
-      header: 'Order No',
+      header: t('orderNo'),
       sortable: true,
       render: (order: Order) => (
         <div>
@@ -68,14 +70,14 @@ export default function OrdersPage() {
             className="text-xs text-[#0066CC] hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
-            View detail
+            {t('viewDetail')}
           </a>
         </div>
       ),
     },
     {
       key: 'user',
-      header: 'Customer',
+      header: t('customer'),
       render: (order: Order) => (
         <div>
           <p className="font-semibold text-slate-900">{order.user?.name}</p>
@@ -85,24 +87,24 @@ export default function OrdersPage() {
     },
     {
       key: 'grand_total',
-      header: 'Total',
+      header: t('total'),
       render: (order: Order) => <span className="text-slate-900">€{Number(order.grand_total || 0).toFixed(2)}</span>,
     },
     {
       key: 'payment_status',
-      header: 'Payment',
+      header: t('payment'),
       render: (order: Order) => {
         const ok = order.payment_status === 'paid';
         return (
           <Badge variant={ok ? 'success' : order.payment_status === 'failed' || order.payment_status === 'cancelled' ? 'error' : 'warning'}>
-            {order.payment_status}
+            {t(statusKey(order.payment_status))}
           </Badge>
         );
       },
     },
     {
       key: 'created_at',
-      header: 'Date',
+      header: t('date'),
       hideBelowMd: true,
       render: (order: Order) => (
         <span className="text-slate-900">{new Date(order.created_at).toLocaleDateString()}</span>
@@ -114,15 +116,15 @@ export default function OrdersPage() {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Orders</h1>
-          <p className="text-slate-500">Inspect checkout state and per-store fulfillment on the detail page</p>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">{t('orders')}</h1>
+            <p className="text-slate-500">{t('orderDescription')}</p>
         </div>
 
         <GlassCard>
           <form onSubmit={handleSearch} className="flex flex-wrap gap-4 mb-6">
             <Input
               type="text"
-              placeholder="Search order no, customer..."
+              placeholder={t('searchOrders')}
               value={searchDraft}
               onChange={(e) => setSearchDraft(e.target.value)}
               className="flex-1 min-w-[200px]"
@@ -135,21 +137,17 @@ export default function OrdersPage() {
               }}
               className="px-4 py-3 rounded-lg text-slate-900 bg-white border border-slate-200"
             >
-              <option value="">All payments</option>
-              <option value="pending">Pending</option>
-              <option value="paid">Paid</option>
-              <option value="failed">Failed</option>
-              <option value="refunded">Refunded</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="">{t('allPayments')}</option>
+              {['pending', 'paid', 'failed', 'refunded', 'cancelled'].map(value => <option key={value} value={value}>{t(statusKey(value))}</option>)}
             </select>
-            <Button type="submit">Search</Button>
+            <Button type="submit">{t('search')}</Button>
           </form>
 
           {loadError && (
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4 rounded-lg border border-error/40 bg-error/10 px-4 py-3 text-slate-900">
               <p className="text-sm flex-1">{loadError}</p>
               <Button type="button" size="sm" variant="outline" onClick={() => void loadOrders(page)}>
-                Retry
+                {t('retry')}
               </Button>
             </div>
           )}

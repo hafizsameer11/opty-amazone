@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RejectReasonModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export default function RejectReasonModal({
   onConfirm,
   confirmLabel = 'Confirm reject',
 }: RejectReasonModalProps) {
+  const { t } = useLanguage();
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -37,7 +39,7 @@ export default function RejectReasonModal({
     e.preventDefault();
     const trimmed = reason.trim();
     if (trimmed.length < 3) {
-      setError('Enter at least 3 characters.');
+      setError(t('enterReason'));
       return;
     }
     setError('');
@@ -46,7 +48,7 @@ export default function RejectReasonModal({
       await onConfirm(trimmed);
       onClose();
     } catch {
-      setError('Request failed. Try again.');
+      setError(t('requestFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -55,7 +57,7 @@ export default function RejectReasonModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm text-slate-900/75">{description}</p>
+        <p className="text-sm text-slate-900/75">{description || t('rejectReasonDescription')}</p>
         <textarea
           value={reason}
           onChange={(e) => {
@@ -64,16 +66,16 @@ export default function RejectReasonModal({
           }}
           rows={4}
           className="w-full px-4 py-3 rounded-lg glass border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0066CC]/30 resize-y min-h-[100px]"
-          placeholder="Reason…"
+          placeholder={t('reasonPlaceholderShort')}
           disabled={submitting}
         />
         {error && <p className="text-sm text-red-300">{error}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button type="submit" variant="danger" disabled={submitting}>
-            {submitting ? 'Submitting…' : confirmLabel}
+            {submitting ? t('submitting') : confirmLabel || t('confirmReject')}
           </Button>
         </div>
       </form>

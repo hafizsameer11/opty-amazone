@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export default function Modal({
   size = 'md',
   showCloseButton = true,
 }: ModalProps) {
+  const { t } = useLanguage();
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -72,7 +74,7 @@ export default function Modal({
               <button
                 onClick={onClose}
                 className="text-slate-600 hover:text-slate-900 transition-colors text-2xl leading-none"
-                aria-label="Close"
+                aria-label={t('close')}
               >
                 ×
               </button>

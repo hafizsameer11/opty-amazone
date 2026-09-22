@@ -6,14 +6,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
-import { adminService } from '@/services/admin-service';
+import GlobalLanguageDock from '@/components/ui/GlobalLanguageDock';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function LoginPage() {
   const router = useRouter();
   const { isAuthenticated, loading, login } = useAuth();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
 
   useEffect(() => {
@@ -24,14 +26,14 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError(false);
     setLoggingIn(true);
 
     try {
       await login(email, password);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      setError(true);
     } finally {
       setLoggingIn(false);
     }
@@ -40,6 +42,7 @@ export default function LoginPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+        <GlobalLanguageDock position="top-right" />
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
       </div>
     );
@@ -47,22 +50,23 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100">
+      <GlobalLanguageDock position="top-right" />
       <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Admin Panel</h1>
-          <p className="text-slate-500">Sign in to your account</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">{t('loginTitle')}</h1>
+          <p className="text-slate-500">{t('loginSubtitle')}</p>
         </div>
 
         {error && (
-          <Alert variant="error" className="mb-6" onClose={() => setError('')}>
-            {error}
+          <Alert variant="error" className="mb-6" onClose={() => setError(false)}>
+            {t('loginFailed')}
           </Alert>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <Input
-              label="Email"
+              label={t('email')}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -72,7 +76,7 @@ export default function LoginPage() {
 
           <div>
             <Input
-              label="Password"
+              label={t('password')}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -85,7 +89,7 @@ export default function LoginPage() {
             disabled={loggingIn}
             className="w-full"
           >
-            {loggingIn ? 'Signing in...' : 'Sign In'}
+            {loggingIn ? t('signingIn') : t('signIn')}
           </Button>
         </form>
       </div>

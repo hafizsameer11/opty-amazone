@@ -9,8 +9,11 @@ import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
 import { productService, type Product } from '@/services/product-service';
 import { useToast } from '@/components/ui/Toast';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function ProductsPage() {
+  const { t } = useLanguage();
   const { showToast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,11 +31,13 @@ export default function ProductsPage() {
       const response = await productService.getAll(params);
       setProducts(response.data || []);
     } catch (error) {
-      showToast('error', 'Failed to load products');
+      showToast('error', t('failedLoadProducts'));
     } finally {
       setLoading(false);
     }
   };
+
+  useLiveRefresh(loadProducts);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,81 +47,80 @@ export default function ProductsPage() {
   const handleApprove = async (id: number) => {
     try {
       await productService.approve(id);
-      showToast('success', 'Product approved successfully');
+      showToast('success', t('productApproved'));
       loadProducts();
     } catch (error: any) {
-      showToast('error', error.response?.data?.message || 'Failed to approve product');
+      showToast('error', t('failedApproveProduct'));
     }
   };
 
   const handleReject = async (id: number) => {
-    const reason = prompt('Rejection reason:');
+    const reason = prompt(t('rejectionReason'));
     if (!reason) return;
     try {
       await productService.reject(id, reason);
-      showToast('success', 'Product rejected successfully');
+      showToast('success', t('productRejected'));
       loadProducts();
     } catch (error: any) {
-      showToast('error', error.response?.data?.message || 'Failed to reject product');
+      showToast('error', t('failedRejectProduct'));
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+    if (!confirm(t('confirmDeleteProduct'))) return;
     try {
       await productService.delete(id);
-      showToast('success', 'Product deleted successfully');
+      showToast('success', t('productDeleted'));
       loadProducts();
     } catch (error: any) {
-      showToast('error', error.response?.data?.message || 'Failed to delete product');
+      showToast('error', t('failedDeleteProduct'));
     }
   };
 
   const columns = [
-    { key: 'id', header: 'ID', sortable: true },
-    { key: 'name', header: 'Name', sortable: true },
-    { key: 'sku', header: 'SKU', sortable: true },
+    { key: 'name', header: t('product'), sortable: true, className: 'w-[30%]', render: (product: Product) => <div className="min-w-0"><p className="truncate font-semibold text-slate-900">{product.name}</p><p className="truncate text-xs text-slate-500">{product.sku}</p></div> },
     {
       key: 'store',
-      header: 'Store',
-      render: (product: Product) => <span className="text-slate-900">{product.store?.name || 'N/A'}</span>,
+      header: t('store'),
+      render: (product: Product) => <span className="block max-w-[9rem] truncate text-slate-900">{product.store?.name || t('notAvailable')}</span>,
     },
     {
       key: 'category',
-      header: 'Category',
-      render: (product: Product) => <span className="text-slate-900">{product.category?.name || 'N/A'}</span>,
+      header: t('category'),
+      render: (product: Product) => <span className="block max-w-[8rem] truncate text-slate-900">{product.category?.name || t('notAvailable')}</span>,
     },
     {
       key: 'price',
-      header: 'Price',
+      header: t('price'),
       render: (product: Product) => <span className="text-slate-900">€{Number(product.price ?? 0).toFixed(2)}</span>,
     },
     {
       key: 'is_active',
-      header: 'Status',
+      header: t('status'),
       render: (product: Product) => (
         <Badge variant={product.is_active ? 'success' : 'default'}>
-          {product.is_active ? 'Active' : 'Inactive'}
+          {product.is_active ? t('active') : t('inactive')}
         </Badge>
       ),
     },
     {
       key: 'is_approved',
-      header: 'Approved',
+      header: t('approved'),
       render: (product: Product) => (
         <Badge variant={product.is_approved ? 'success' : 'warning'}>
-          {product.is_approved ? 'Approved' : 'Pending'}
+          {product.is_approved ? t('approved') : t('pending')}
         </Badge>
       ),
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('actions'),
       render: (product: Product) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="primary" onClick={() => handleApprove(product.id)}>Approve</Button>
-          <Button size="sm" variant="danger" onClick={() => handleReject(product.id)}>Reject</Button>
-          <Button size="sm" variant="danger" onClick={() => handleDelete(product.id)}>Delete</Button>
+        <div className="flex flex-wrap gap-1.5" onClick={(event) => event.stopPropagation()}>
+          <Button size="sm" variant="ghost" onClick={() => { window.location.href = `/products/${product.id}`; }}>{t('view')}</Button>
+          {!product.is_approved && <Button size="sm" variant="primary" onClick={() => handleApprove(product.id)}>{t('approve')}</Button>}
+          <Button size="sm" variant="danger" onClick={() => handleReject(product.id)}>{t('reject')}</Button>
+          <Button size="sm" variant="danger" onClick={() => handleDelete(product.id)}>{t('delete')}</Button>
         </div>
       ),
     },
@@ -126,20 +130,20 @@ export default function ProductsPage() {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Products</h1>
-          <p className="text-slate-500">Manage all products</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">{t('products')}</h1>
+          <p className="text-slate-500">{t('manageProducts')}</p>
         </div>
 
         <GlassCard>
           <form onSubmit={handleSearch} className="flex gap-4 mb-6">
             <Input
               type="text"
-              placeholder="Search products..."
+              placeholder={t('searchProducts')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1"
             />
-            <Button type="submit">Search</Button>
+            <Button type="submit">{t('search')}</Button>
           </form>
 
           <DataTable
@@ -147,6 +151,7 @@ export default function ProductsPage() {
             columns={columns}
             loading={loading}
             keyExtractor={(product) => product.id}
+            disableHorizontalScroll
             onRowClick={(product) => window.location.href = `/products/${product.id}`}
           />
         </GlassCard>

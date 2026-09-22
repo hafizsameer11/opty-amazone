@@ -10,8 +10,11 @@ import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import { sellerService, type Seller } from '@/services/seller-service';
 import { useToast } from '@/components/ui/Toast';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function SellersPage() {
+  const { t } = useLanguage();
   const { showToast } = useToast();
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,11 +32,13 @@ export default function SellersPage() {
       const response = await sellerService.getAll(params);
       setSellers(response.data || []);
     } catch (error) {
-      showToast('error', 'Failed to load sellers');
+      showToast('error', t('failedLoadSellers'));
     } finally {
       setLoading(false);
     }
   };
+
+  useLiveRefresh(loadSellers);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,20 +48,20 @@ export default function SellersPage() {
   const handleApprove = async (id: number) => {
     try {
       await sellerService.approve(id);
-      showToast('success', 'Store approved successfully');
+      showToast('success', t('storeApproved'));
       loadSellers();
     } catch (error: any) {
-      showToast('error', error.response?.data?.message || 'Failed to approve store');
+      showToast('error', t('failedApproveStore'));
     }
   };
 
   const handleReject = async (id: number, reason: string) => {
     try {
       await sellerService.reject(id, reason);
-      showToast('success', 'Store rejected successfully');
+      showToast('success', t('storeRejected'));
       loadSellers();
     } catch (error: any) {
-      showToast('error', error.response?.data?.message || 'Failed to reject store');
+      showToast('error', t('failedRejectStore'));
     }
   };
 
@@ -64,7 +69,7 @@ export default function SellersPage() {
     { key: 'id', header: 'ID', sortable: true },
     {
       key: 'name',
-      header: 'Store Name',
+      header: t('storeName'),
       render: (seller: Seller) => (
         <div>
           <p className="font-semibold text-slate-900">{seller.name}</p>
@@ -74,24 +79,24 @@ export default function SellersPage() {
     },
     {
       key: 'products_count',
-      header: 'Products',
+      header: t('products'),
       render: (seller: Seller) => <span className="text-slate-900">{seller.products_count || 0}</span>,
     },
     {
       key: 'orders_count',
-      header: 'Orders',
+      header: t('orders'),
       render: (seller: Seller) => <span className="text-slate-900">{seller.orders_count || 0}</span>,
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: t('actions'),
       render: (seller: Seller) => (
         <div className="flex gap-2">
-          <Button size="sm" variant="primary" onClick={() => handleApprove(seller.id)}>Approve</Button>
+          <Button size="sm" variant="primary" onClick={() => handleApprove(seller.id)}>{t('approve')}</Button>
           <Button size="sm" variant="danger" onClick={() => {
-            const reason = prompt('Rejection reason:');
+            const reason = prompt(t('rejectionReason'));
             if (reason) handleReject(seller.id, reason);
-          }}>Reject</Button>
+          }}>{t('reject')}</Button>
         </div>
       ),
     },
@@ -101,20 +106,20 @@ export default function SellersPage() {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Sellers</h1>
-          <p className="text-slate-500">Manage sellers and stores</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">{t('sellers')}</h1>
+          <p className="text-slate-500">{t('manageSellers')}</p>
         </div>
 
         <GlassCard>
           <form onSubmit={handleSearch} className="flex gap-4 mb-6">
             <Input
               type="text"
-              placeholder="Search sellers..."
+              placeholder={t('searchSellers')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1"
             />
-            <Button type="submit">Search</Button>
+            <Button type="submit">{t('search')}</Button>
           </form>
 
           <DataTable

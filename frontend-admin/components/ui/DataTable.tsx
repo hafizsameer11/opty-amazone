@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Skeleton from './Skeleton';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export interface Column<T> {
   key: string;
@@ -20,6 +21,7 @@ interface DataTableProps<T> {
   loading?: boolean;
   onRowClick?: (item: T) => void;
   keyExtractor: (item: T) => string | number;
+  disableHorizontalScroll?: boolean;
 }
 
 export default function DataTable<T extends Record<string, any>>({
@@ -28,7 +30,9 @@ export default function DataTable<T extends Record<string, any>>({
   loading = false,
   onRowClick,
   keyExtractor,
+  disableHorizontalScroll = false,
 }: DataTableProps<T>) {
+  const { t } = useLanguage();
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -69,8 +73,8 @@ export default function DataTable<T extends Record<string, any>>({
 
   return (
     <div className="glass-card rounded-xl overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-0">
+      <div className={disableHorizontalScroll ? 'overflow-hidden' : 'overflow-x-auto'}>
+        <table className={`w-full min-w-0 ${disableHorizontalScroll ? 'table-fixed' : ''}`}>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
               {columns.map((column) => (
@@ -95,7 +99,7 @@ export default function DataTable<T extends Record<string, any>>({
             {sortedData.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 lg:px-6 py-8 text-center text-slate-500">
-                  No data available
+                  {t('noResults')}
                 </td>
               </tr>
             ) : (

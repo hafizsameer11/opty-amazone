@@ -6,20 +6,25 @@ import GlassCard from '@/components/ui/GlassCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Button from '@/components/ui/Button';
 import { adminService } from '@/services/admin-service';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type Period = 'day' | 'week' | 'month' | 'year';
+type AnalyticsRow = Record<string, unknown>;
+type AnalyticsProduct = { id: number | string; name?: string; store?: { name?: string } | null; view_count?: number };
+type AnalyticsPayload = { revenue?: AnalyticsRow[]; user_growth?: AnalyticsRow[]; sales_trends?: AnalyticsRow[]; top_products?: AnalyticsProduct[] };
 
-function formatLabel(row: Record<string, unknown>, period: Period): string {
+function formatLabel(row: Record<string, unknown>, period: Period, t: (key: string) => string, locale: string): string {
   if (period === 'year' && row.year != null) return String(row.year);
   if (period === 'month' && row.month != null) {
     const month = Number(row.month);
     const year = row.year != null ? String(row.year) : '';
     const name = Number.isFinite(month)
-      ? new Date(2000, month - 1, 1).toLocaleString('en', { month: 'short' })
+      ? new Date(2000, month - 1, 1).toLocaleString(locale, { month: 'short' })
       : String(row.month);
     return year ? `${name} ${year}` : name;
   }
-  if (period === 'week' && row.week != null) return `Week ${row.week}`;
+  if (period === 'week' && row.week != null) return `${t('week')} ${row.week}`;
   if (row.date != null) return String(row.date);
   return '—';
 }
@@ -33,6 +38,7 @@ function BarList({
   valueKey: string;
   maxHint?: number;
 }) {
+  const { t } = useLanguage();
   const max = Math.max(
     maxHint || 0,
     ...items.map((i) => Number(i[valueKey] || 0)),
@@ -40,7 +46,7 @@ function BarList({
   );
 
   if (items.length === 0) {
-    return <p className="text-slate-500 text-center py-8">No data for this period</p>;
+    return <p className="text-slate-500 text-center py-8">{t('noDataForPeriod')}</p>;
   }
 
   return (
@@ -68,7 +74,8 @@ function BarList({
 }
 
 export default function AnalyticsPage() {
-  const [analytics, setAnalytics] = useState<any>(null);
+  const { t, language } = useLanguage();
+  const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('month');
 
@@ -81,21 +88,23 @@ export default function AnalyticsPage() {
       setLoading(true);
       const data = await adminService.getAnalytics(period);
       setAnalytics(data);
-    } catch (error) {
-      console.error('Failed to load analytics:', error);
+    } catch {
+      // Keep the last successful dataset visible when the API is temporarily unavailable.
     } finally {
       setLoading(false);
     }
   };
 
+  useLiveRefresh(loadAnalytics);
+
   const revenueRows = useMemo(() => {
     const rows = (analytics?.revenue || []) as Array<Record<string, unknown>>;
     return rows.map((r) => ({
       ...r,
-      _label: formatLabel(r, period),
+       _label: formatLabel(r, period, t, language === 'it' ? 'it-IT' : 'en-GB'),
       revenue: Number(r.revenue || 0),
     }));
-  }, [analytics, period]);
+  }, [analytics, period, language, t]);
 
   const growthRows = useMemo(() => {
     const rows = (analytics?.user_growth || []) as Array<Record<string, unknown>>;
@@ -134,8 +143,8 @@ export default function AnalyticsPage() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Analytics</h1>
-            <p className="text-slate-500">Platform analytics and insights</p>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">{t('analytics')}</h1>
+            <p className="text-slate-500">{t('analyticsDescription')}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {(['day', 'week', 'month', 'year'] as Period[]).map((p) => (
@@ -146,7 +155,7 @@ export default function AnalyticsPage() {
                 size="sm"
                 onClick={() => setPeriod(p)}
               >
-                {p.charAt(0).toUpperCase() + p.slice(1)}
+                {t(p)}
               </Button>
             ))}
           </div>
@@ -154,52 +163,52 @@ export default function AnalyticsPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <GlassCard>
-            <p className="text-slate-500 text-sm">Revenue ({period})</p>
+            <p className="text-slate-500 text-sm">{t('revenueForPeriod', { period: t(period) })}</p>
             <p className="text-2xl font-bold text-slate-900 mt-1">€{totalRevenue.toFixed(2)}</p>
           </GlassCard>
           <GlassCard>
-            <p className="text-slate-500 text-sm">Paid orders (recent)</p>
+            <p className="text-slate-500 text-sm">{t('paidOrdersRecent')}</p>
             <p className="text-2xl font-bold text-slate-900 mt-1">{totalOrders}</p>
           </GlassCard>
           <GlassCard>
-            <p className="text-slate-500 text-sm">New users (recent)</p>
+            <p className="text-slate-500 text-sm">{t('newUsersRecent')}</p>
             <p className="text-2xl font-bold text-slate-900 mt-1">{totalNewUsers}</p>
           </GlassCard>
         </div>
 
         <GlassCard>
-          <h2 className="text-xl font-bold text-slate-900 mb-4">Revenue</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-4">{t('revenue')}</h2>
           {loading ? <LoadingSpinner /> : <BarList items={revenueRows} valueKey="revenue" />}
         </GlassCard>
 
         <GlassCard>
-          <h2 className="text-xl font-bold text-slate-900 mb-4">User growth</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-4">{t('userGrowth')}</h2>
           {loading ? <LoadingSpinner /> : <BarList items={growthRows} valueKey="count" />}
         </GlassCard>
 
         <GlassCard>
-          <h2 className="text-xl font-bold text-slate-900 mb-4">Sales trends (orders / day)</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-4">{t('salesTrends')}</h2>
           {loading ? <LoadingSpinner /> : <BarList items={salesRows} valueKey="count" />}
         </GlassCard>
 
         <GlassCard>
-          <h2 className="text-xl font-bold text-slate-900 mb-4">Top products (by views)</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-4">{t('topProductsByViews')}</h2>
           {analytics?.top_products && analytics.top_products.length > 0 ? (
             <div className="space-y-3">
-              {analytics.top_products.map((product: any) => (
+              {analytics.top_products.map((product: AnalyticsProduct) => (
                 <div key={product.id} className="glass rounded-lg p-4 flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-slate-900">{product.name}</p>
                     <p className="text-sm text-slate-500">{product.store?.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-slate-900 font-semibold">{product.view_count || 0} views</p>
+                     <p className="text-slate-900 font-semibold">{product.view_count || 0} {t('views')}</p>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-slate-500 text-center py-8">No product data available</p>
+            <p className="text-slate-500 text-center py-8">{t('noProductData')}</p>
           )}
         </GlassCard>
       </div>

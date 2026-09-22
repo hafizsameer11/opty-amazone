@@ -1,42 +1,55 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { adminChatService } from '@/services/store-moderation-service';
+import { adminService, type AdminLiveSummary } from '@/services/admin-service';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useToast } from '@/components/ui/Toast';
 
 interface NavItem {
   nameKey: string;
   href: string;
   icon: React.ReactNode;
+  section: NavSection;
 }
 
-const navigation: NavItem[] = [
-  { nameKey: "Marketplace Finance", href: "/finance", icon: <span className="text-xl">€</span> },
-  { nameKey: "Referral Program", href: "/referrals", icon: <span className="text-xl">↗</span> },
-  { nameKey: 'dashboard', href: '/dashboard', icon: <DashboardIcon /> },
-  { nameKey: 'users', href: '/users', icon: <UsersIcon /> },
-  { nameKey: 'sellers', href: '/sellers', icon: <SellersIcon /> },
-  { nameKey: 'products', href: '/products', icon: <ProductsIcon /> },
-  { nameKey: 'boostCampaigns', href: '/ad-campaigns', icon: <ProductsIcon /> },
-  { nameKey: 'orders', href: '/orders', icon: <OrdersIcon /> },
-  { nameKey: 'messages', href: '/messages', icon: <MessagesIcon /> },
-  { nameKey: 'support', href: '/support', icon: <MessagesIcon /> },
-  { nameKey: 'storeReports', href: '/store-reports', icon: <ReportsIcon /> },
-  { nameKey: 'categories', href: '/categories', icon: <CategoriesIcon /> },
-  { nameKey: 'Discount Campaigns', href: '/discount-campaigns', icon: <ProductsIcon /> },
-  { nameKey: 'storeBanners', href: '/banners', icon: <BannersIcon /> },
-  { nameKey: 'coupons', href: '/coupons', icon: <CouponsIcon /> },
-  { nameKey: 'points', href: '/points', icon: <PointsIcon /> },
-  { nameKey: 'analytics', href: '/analytics', icon: <AnalyticsIcon /> },
-  { nameKey: 'settings', href: '/settings', icon: <SettingsIcon /> },
-  { nameKey: 'activityLogs', href: '/activity-logs', icon: <ActivityIcon /> },
+type NavSection = 'dashboard' | 'people' | 'operations' | 'marketing' | 'communication' | 'finance' | 'system';
+
+const sections: Array<{ id: NavSection; titleKey: string }> = [
+  { id: 'dashboard', titleKey: 'dashboard' },
+  { id: 'people', titleKey: 'sidebarUsersSellers' },
+  { id: 'operations', titleKey: 'sidebarProductsOperations' },
+  { id: 'marketing', titleKey: 'sidebarCampaignsMarketing' },
+  { id: 'communication', titleKey: 'sidebarReportsCommunication' },
+  { id: 'finance', titleKey: 'sidebarFinanceGrowth' },
+  { id: 'system', titleKey: 'sidebarSystem' },
 ];
 
-const POLL_MS = 30000;
+const navigation: NavItem[] = [
+  { nameKey: 'dashboard', href: '/dashboard', icon: <DashboardIcon />, section: 'dashboard' },
+  { nameKey: 'users', href: '/users', icon: <UsersIcon />, section: 'people' },
+  { nameKey: 'sellers', href: '/sellers', icon: <SellersIcon />, section: 'people' },
+  { nameKey: 'products', href: '/products', icon: <ProductsIcon />, section: 'operations' },
+  { nameKey: 'orders', href: '/orders', icon: <OrdersIcon />, section: 'operations' },
+  { nameKey: 'warehouse', href: '/warehouse', icon: <ProductsIcon />, section: 'operations' },
+  { nameKey: 'categories', href: '/categories', icon: <CategoriesIcon />, section: 'operations' },
+  { nameKey: 'boostCampaigns', href: '/ad-campaigns', icon: <ProductsIcon />, section: 'marketing' },
+  { nameKey: 'Discount Campaigns', href: '/discount-campaigns', icon: <ProductsIcon />, section: 'marketing' },
+  { nameKey: 'storeBanners', href: '/banners', icon: <BannersIcon />, section: 'marketing' },
+  { nameKey: 'coupons', href: '/coupons', icon: <CouponsIcon />, section: 'marketing' },
+  { nameKey: 'messages', href: '/messages', icon: <MessagesIcon />, section: 'communication' },
+  { nameKey: 'support', href: '/support', icon: <MessagesIcon />, section: 'communication' },
+  { nameKey: 'storeReports', href: '/store-reports', icon: <ReportsIcon />, section: 'communication' },
+  { nameKey: 'analytics', href: '/analytics', icon: <AnalyticsIcon />, section: 'communication' },
+  { nameKey: 'activityLogs', href: '/activity-logs', icon: <ActivityIcon />, section: 'communication' },
+  { nameKey: "Marketplace Finance", href: "/finance", icon: <span className="text-xl">€</span>, section: 'finance' },
+  { nameKey: "Referral Program", href: "/referrals", icon: <span className="text-xl">↗</span>, section: 'finance' },
+  { nameKey: 'points', href: '/points', icon: <PointsIcon />, section: 'finance' },
+  { nameKey: 'settings', href: '/settings', icon: <SettingsIcon />, section: 'system' },
+];
 
 function MessagesIcon() {
   return (
@@ -153,93 +166,104 @@ function PointsIcon() {
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { t } = useLanguage();
-  const [messageUnread, setMessageUnread] = useState(0);
+  const { showToast } = useToast();
+  const [summary, setSummary] = useState<AdminLiveSummary | null>(null);
+  const previousSummary = useRef<AdminLiveSummary | null>(null);
 
-  useEffect(() => {
+  const loadSummary = useCallback(async () => {
     if (!isAuthenticated) {
-      setMessageUnread(0);
+      setSummary(null);
+      previousSummary.current = null;
       return;
     }
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const count = await adminChatService.unreadCount();
-        if (!cancelled) setMessageUnread(count);
-      } catch {
-        /* keep last */
+    try {
+      const next = await adminService.getLiveSummary();
+      const previous = previousSummary.current;
+      setSummary(next);
+      if (previous) {
+        const reminders: Array<[keyof AdminLiveSummary, string]> = [
+          ['orders', 'orders'], ['messages', 'messages'], ['support', 'support'], ['sellers', 'sellers'], ['products', 'products'], ['reports', 'reports'], ['banners', 'banners'], ['boost_campaigns', 'boost_campaigns'], ['referrals', 'referrals'], ['withdrawals', 'withdrawals'],
+        ];
+        const increased = reminders.find(([key]) => Number(next[key]) > Number(previous[key]));
+        if (increased && !pathname?.startsWith('/' + (increased[0] === 'boost_campaigns' ? 'ad-campaigns' : increased[0]))) {
+          showToast('info', t(`reminder_${increased[1]}`));
+        }
       }
-    };
-    void load();
-    const timer = window.setInterval(() => void load(), POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [isAuthenticated, pathname]);
+      previousSummary.current = next;
+    } catch {
+      // Keep the last known badges while the admin API reconnects.
+    }
+  }, [isAuthenticated, pathname, showToast, t]);
 
-  const displayMessages = pathname?.startsWith('/messages') ? 0 : messageUnread;
+  useLiveRefresh(loadSummary, isAuthenticated, 15000, true);
+
+  const badgeFor = (href: string): number => {
+    if (!summary) return 0;
+    const values: Record<string, number> = {
+      '/finance': summary.withdrawals,
+      '/referrals': summary.referrals,
+      '/sellers': summary.sellers,
+      '/products': summary.products,
+      '/ad-campaigns': summary.boost_campaigns,
+      '/orders': summary.orders,
+      '/messages': summary.messages,
+      '/support': summary.support,
+      '/store-reports': summary.reports,
+      '/banners': summary.banners,
+      '/discount-campaigns': summary.discount_campaigns,
+    };
+    return values[href] || 0;
+  };
 
   return (
     <div className="fixed left-0 top-0 h-full w-64 admin-sidebar border-r border-white/10 z-40">
       <div className="flex flex-col h-full">
-        <div className="p-6 border-b border-white/10">
-          <Image
-            src="/vistaexpress-logo.png"
-            alt="Vista Express"
-            width={220}
-            height={88}
-            className="mb-3 h-10 w-auto object-contain brightness-0 invert"
-            priority
-          />
-          <h1 className="text-xl font-bold text-white">{t('adminPanel')}</h1>
-          <p className="text-sm text-slate-300 mt-1">{t('opticalMarketplace')}</p>
+        <div className="border-b border-white/10 px-6 py-5">
+          <Link href="/dashboard" className="group inline-flex items-center gap-3" aria-label={t('opticalMarketplace')}>
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-blue-400 to-[#0875e1] text-[21px] font-extrabold tracking-[-0.08em] text-white shadow-[0_8px_18px_rgba(8,117,225,0.35)] transition-transform group-hover:scale-[1.03]">OM</span>
+            <span className="min-w-0">
+              <span className="block text-[22px] font-extrabold leading-none tracking-[-0.04em] text-white">OM</span>
+              <span className="mt-1 block text-[11px] font-medium tracking-wide text-slate-400">{t('opticalMarketplace')}</span>
+            </span>
+          </Link>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-            const showBadge = item.href === '/messages' && displayMessages > 0;
-            return (
-              <Link
-                key={item.nameKey}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-[#0066CC] text-white shadow-sm'
-                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                {item.icon}
-                <span className="font-medium text-sm notranslate flex-1">{t(item.nameKey)}</span>
-                {showBadge && (
-                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[1.25rem] h-5 px-1.5 rounded-full flex items-center justify-center">
-                    {displayMessages > 99 ? '99+' : displayMessages}
-                  </span>
-                )}
-              </Link>
-            );
+        <nav className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
+          {sections.map(section => {
+            const items = navigation.filter(item => item.section === section.id);
+            return <section key={section.id} aria-label={t(section.titleKey)}>
+              <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{t(section.titleKey)}</p>
+              <div className="space-y-1">
+                {items.map((item) => {
+                  const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+                  const badge = pathname === item.href ? 0 : badgeFor(item.href);
+                  const showBadge = badge > 0;
+                  return (
+                    <Link
+                      key={item.nameKey}
+                      href={item.href}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+                        isActive
+                          ? 'bg-[#0066CC] text-white shadow-sm'
+                          : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {item.icon}
+                      <span className="notranslate flex-1 text-sm font-medium">{t(item.nameKey)}</span>
+                      {showBadge && (
+                        <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                          {badge > 99 ? '99+' : badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>;
           })}
         </nav>
-
-        <div className="p-4 border-t border-white/10">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full bg-[#0066CC] flex items-center justify-center text-white font-bold">
-              {user?.name?.charAt(0).toUpperCase() || 'A'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{user?.name || t('admin')}</p>
-              <p className="text-xs text-slate-400 truncate">{user?.email || ''}</p>
-            </div>
-          </div>
-          <button
-            onClick={logout}
-            className="w-full px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-          >
-            {t('logout')}
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -31,7 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="notranslate">
-      <body className={`${inter.variable} ${poppins.variable} font-sans`}>
+      <body suppressHydrationWarning className={`${inter.variable} ${poppins.variable} font-sans`}>
         <AuthProvider>
           <LanguageProvider>
             <ToastProvider>

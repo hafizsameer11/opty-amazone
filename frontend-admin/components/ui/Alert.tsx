@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface AlertProps {
   variant?: 'success' | 'error' | 'info' | 'warning';
@@ -8,6 +9,7 @@ interface AlertProps {
 }
 
 export default function Alert({ variant = 'info', children, onClose, className = '' }: AlertProps) {
+  const { t } = useLanguage();
   const variantClasses = {
     success: 'bg-emerald-50 border-emerald-200 text-emerald-800',
     error: 'bg-red-50 border-red-200 text-red-800',
@@ -24,7 +26,7 @@ export default function Alert({ variant = 'info', children, onClose, className =
         <button
           onClick={onClose}
           className="text-current opacity-70 hover:opacity-100 transition-opacity font-bold text-lg leading-none"
-          aria-label="Close"
+          aria-label={t('close')}
         >
           ×
         </button>
