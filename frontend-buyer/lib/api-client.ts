@@ -1,9 +1,30 @@
 import axios from 'axios';
 
+const LIVE_API_ORIGIN = 'https://api.vistaexpress.it';
+
 /** Base URL without /api (works with env as http://host or http://host/api). */
 export function getApiOrigin(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL || 'https://api.vistaexpress.it/api';
-  return raw.replace(/\/api\/?$/, '') || 'https://api.vistaexpress.it';
+  const raw = process.env.NEXT_PUBLIC_API_URL || `${LIVE_API_ORIGIN}/api`;
+  const origin = raw.replace(/\/api\/?$/, '') || LIVE_API_ORIGIN;
+
+  // NEXT_PUBLIC_* values are baked into the browser bundle at build time. A
+  // production .env.production left over from local work (localhost:8000)
+  // would otherwise make every buyer request target the visitor's machine.
+  if (typeof window !== 'undefined') {
+    try {
+      const parsedOrigin = new URL(origin);
+      const host = parsedOrigin.hostname;
+      const isLocalApi = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0';
+      const isPublicSite = !['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
+      const isInsecureApi = window.location.protocol === 'https:' && parsedOrigin.protocol !== 'https:';
+
+      if (isPublicSite && (isLocalApi || isInsecureApi)) return LIVE_API_ORIGIN;
+    } catch {
+      return LIVE_API_ORIGIN;
+    }
+  }
+
+  return origin;
 }
 
 const API_BASE_URL = `${getApiOrigin()}/api`;
