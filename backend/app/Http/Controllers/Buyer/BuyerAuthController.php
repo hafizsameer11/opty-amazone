@@ -10,6 +10,7 @@ use App\Http\Requests\Buyer\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\PasswordResetService;
+use App\Services\Email\EmailVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -27,7 +28,8 @@ class BuyerAuthController extends Controller
 {
     public function __construct(
         private AuthService $authService,
-        private PasswordResetService $passwordResetService
+        private PasswordResetService $passwordResetService,
+        private EmailVerificationService $emailVerification,
     ) {}
 
     /**
@@ -42,7 +44,6 @@ class BuyerAuthController extends Controller
      *             @OA\Property(property="name", type="string", example="John Doe"),
      *             @OA\Property(property="email", type="string", format="email", example="buyer@example.com"),
      *             @OA\Property(property="phone", type="string", example="+1234567890"),
-     *             @OA\Property(property="verification_code", type="string", nullable=true, example="123456"),
      *             @OA\Property(property="password", type="string", format="password", example="password123"),
      *             @OA\Property(property="password_confirmation", type="string", format="password", example="password123")
      *         )
@@ -70,7 +71,7 @@ class BuyerAuthController extends Controller
         try {
             $data = $request->validated();
             $user = DB::transaction(function () use ($data, $request) {
-                unset($data['referral_attribution_token'], $data['referral_code'], $data['verification_code']);
+                unset($data['referral_attribution_token'], $data['referral_code']);
                 $user = $this->authService->register($data, 'buyer');
                 app(\App\Services\Referrals\ReferralService::class)->recordRegistration(
                     $user,
@@ -83,13 +84,24 @@ class BuyerAuthController extends Controller
             }, 5);
             
             $token = $user->createToken('buyer_token', ['buyer'])->plainTextToken;
+            $verificationDispatched = true;
+            try {
+                $this->emailVerification->send($user);
+            } catch (\Throwable $mailError) {
+                // Registration is durable even if SMTP is temporarily unavailable;
+                // the authenticated buyer can request a fresh code on the next screen.
+                report($mailError);
+                $verificationDispatched = false;
+            }
 
             return ResponseHelper::success(
                 [
                     'user' => new UserResource($user),
                     'token' => $token,
+                    'email_verification_required' => true,
+                    'verification_dispatched' => $verificationDispatched,
                 ],
-                'Registration successful',
+                $verificationDispatched ? 'Registration successful. Check your email for the verification code.' : 'Registration successful. Request a verification code from the verification screen.',
                 201
             );
         } catch (ValidationException $e) {
@@ -150,6 +162,16 @@ class BuyerAuthController extends Controller
                 $request->password,
                 'buyer'
             );
+            if (! $result['user']->hasVerifiedEmail()) {
+                try {
+                    $this->emailVerification->send($result['user']);
+                } catch (ValidationException) {
+                    // A recent registration code is still valid; the buyer can
+                    // use it or request another one from the verification page.
+                } catch (\Throwable $mailError) {
+                    report($mailError);
+                }
+            }
 
             return ResponseHelper::success(
                 [

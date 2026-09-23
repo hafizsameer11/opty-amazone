@@ -4,15 +4,14 @@ namespace App\Http\Controllers\Buyer;
 
 use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
-use App\Mail\OrderPlacedMail;
 use App\Models\Cart;
 use App\Services\Campaigns\DiscountPricingService;
 use App\Services\Coupon\CouponService;
 use App\Services\Coupon\CouponValidationException;
+use App\Services\Email\MarketplaceEmailService;
 use App\Services\Notifications\MarketplaceNotificationService;
 use App\Services\Order\OrderService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 
 class BuyerCheckoutController extends Controller
 {
@@ -20,6 +19,7 @@ class BuyerCheckoutController extends Controller
         private OrderService $orderService,
         private CouponService $couponService,
         private DiscountPricingService $pricing,
+        private MarketplaceEmailService $emails,
     ) {}
 
     /** Official checkout preview; every amount comes from the current server cart. */
@@ -79,10 +79,8 @@ class BuyerCheckoutController extends Controller
             foreach ($result['store_orders'] as $storeOrder) {
                 $notifications->send($storeOrder->store?->user, 'order.received', 'New order received', "A new order {$order->order_no} is waiting for your review.", "/orders/{$storeOrder->id}", ['order_id' => $order->id, 'store_order_id' => $storeOrder->id, 'order_no' => $order->order_no]);
             }
-            try {
-                Mail::to($user->email)->send(new OrderPlacedMail($result['order']));
-                foreach ($result['store_orders'] as $storeOrder) Mail::to($storeOrder->store->user->email)->send(new OrderPlacedMail($result['order'], $storeOrder));
-            } catch (\Throwable $mailError) { report($mailError); }
+            $this->emails->orderPlacedBuyer($order);
+            foreach ($result['store_orders'] as $storeOrder) $this->emails->orderPlacedSeller($storeOrder);
 
             return ResponseHelper::success(['order' => $result['order'], 'store_orders' => $result['store_orders']], 'Order placed successfully');
         } catch (CouponValidationException $exception) {

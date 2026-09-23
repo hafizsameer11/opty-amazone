@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\StoreOrder;
 use App\Services\Coupon\CouponValidationException;
+use App\Services\Email\MarketplaceEmailService;
 use App\Services\Marketplace\DeliveryVerificationService;
 use App\Services\Marketplace\OrderView;
 use App\Services\Marketplace\PaymentService;
@@ -64,6 +65,8 @@ class BuyerOrderController extends Controller
         $notifications->send($r->user(), 'order.delivery_code_available', 'Delivery code available',
             'Your delivery verification code is available in the order details.', "/store-orders/{$so->id}",
             ['order_id' => $so->order_id, 'store_order_id' => $so->id]);
+        app(MarketplaceEmailService::class)->paymentReceiptBuyer($so);
+        app(MarketplaceEmailService::class)->paymentReceivedSeller($so);
 
         return R::success(['store_order' => app(OrderView::class)->buyerShipment($so), 'escrow' => $so->escrow], 'Payment confirmed; funds held in escrow.');
     }

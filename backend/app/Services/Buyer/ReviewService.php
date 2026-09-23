@@ -4,6 +4,7 @@ namespace App\Services\Buyer;
 
 use App\Models\{OrderItem, Product, ProductReview, Store, StoreOrder, StoreReview, StoreStatistic, User};
 use App\Services\Notifications\MarketplaceNotificationService;
+use App\Services\Email\MarketplaceEmailService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -113,6 +114,10 @@ class ReviewService
         $product->loadMissing('store.user');
         app(MarketplaceNotificationService::class)->send($product->store?->user, 'review.new', 'New product review',
             "A buyer left a review for {$product->name}.", "/products/{$product->id}/edit", ['review_id' => $review->id, 'product_id' => $product->id]);
+        if ($product->store?->user) app(MarketplaceEmailService::class)->reviewSubmitted($product->store->user, 'product', [
+            'Buyer' => $buyer->name, 'Product' => $product->name, 'Rating' => "{$review->rating}/5",
+            'Review' => $review->comment, 'Date' => $review->created_at?->format('d M Y, H:i'),
+        ]);
 
         return $review->load('user');
     }
@@ -146,6 +151,10 @@ class ReviewService
         $store->loadMissing('user');
         app(MarketplaceNotificationService::class)->send($store->user, 'review.new', 'New store review',
             "A buyer left a review for {$store->name}.", "/store", ['review_id' => $review->id, 'store_id' => $store->id]);
+        if ($store->user) app(MarketplaceEmailService::class)->reviewSubmitted($store->user, 'store', [
+            'Buyer' => $buyer->name, 'Store' => $store->name, 'Rating' => "{$review->rating}/5",
+            'Review' => $review->comment, 'Date' => $review->created_at?->format('d M Y, H:i'),
+        ]);
 
         return $review->load('user');
     }

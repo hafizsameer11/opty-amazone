@@ -28,11 +28,6 @@ class RegisterRequest extends FormRequest
                 'max:20',
                 'unique:users,phone',
             ],
-            // Kept in the request contract so the frontend can collect a
-            // verification code. Code delivery/verification is handled by a
-            // separate verification provider and is intentionally not stored
-            // as part of the user record.
-            'verification_code' => ['nullable', 'string', 'max:12'],
             'password' => [
                 'required',
                 'string',

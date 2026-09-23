@@ -48,8 +48,8 @@ Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('profile')
     Route::post('/change-password', [BuyerUserController::class, 'changePassword']);
     Route::post('/upload-image', [BuyerUserController::class, 'uploadProfileImage']);
     Route::delete('/image', [BuyerUserController::class, 'deleteProfileImage']);
-    Route::post('/verify-email/send', [BuyerUserController::class, 'sendEmailVerification']);
-    Route::post('/verify-email', [BuyerUserController::class, 'verifyEmail']);
+    Route::post('/verify-email/send', [BuyerUserController::class, 'sendEmailVerification'])->middleware('throttle:10,1');
+    Route::post('/verify-email', [BuyerUserController::class, 'verifyEmail'])->middleware('throttle:10,1');
     Route::post('/verify-phone/send', [BuyerUserController::class, 'sendPhoneVerification']);
     Route::post('/verify-phone', [BuyerUserController::class, 'verifyPhone']);
     Route::delete('/', [BuyerUserController::class, 'deleteAccount']);

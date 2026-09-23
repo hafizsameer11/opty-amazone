@@ -9,6 +9,7 @@ use App\Http\Requests\Buyer\User\DeleteAccountRequest;
 use App\Http\Requests\Buyer\User\UpdateProfileRequest;
 use App\Http\Requests\Buyer\User\UploadImageRequest;
 use App\Http\Resources\UserResource;
+use App\Services\Email\EmailVerificationService;
 use App\Services\User\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class BuyerUserController extends Controller
 {
     public function __construct(
         private UserService $userService,
+        private EmailVerificationService $emailVerification,
     ) {
     }
 
@@ -126,21 +128,25 @@ class BuyerUserController extends Controller
             return ResponseHelper::success(null, 'Email already verified');
         }
 
-        $this->userService->sendEmailVerification($user);
+        try {
+            $this->emailVerification->send($user);
+        } catch (\Throwable $exception) {
+            report($exception);
+            return ResponseHelper::serverError('We could not send a verification email. Please try again.');
+        }
 
         return ResponseHelper::success(null, 'Verification email sent');
     }
 
     /**
-     * Mark email as verified for the authenticated buyer.
-     *
-     * In a real application this would be called via a signed URL.
+     * Verify the time-limited code sent to the authenticated buyer.
      */
     public function verifyEmail(Request $request): JsonResponse
     {
-        $this->userService->verifyEmail($request->user());
+        $data = $request->validate(['code' => ['required', 'regex:/^\d{6}$/D']]);
+        $user = $this->emailVerification->verify($request->user(), $data['code']);
 
-        return ResponseHelper::success(null, 'Email verified successfully');
+        return ResponseHelper::success(['user' => new UserResource($user)], 'Email verified successfully');
     }
 
     /**

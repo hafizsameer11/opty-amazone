@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Campaigns;
 
-use App\Models\{User, Store, Product, Category, ProductVariant, ProductSizeVolume, FrameSize, EyeHygieneVariant, DiscountCampaign, BannerCampaign, BannerEvent, Cart, CartItem, Order, OrderItem, StoreOrder, UserAddress, ProductPromotion, StoreBanner, Country, Escrow};
+use App\Models\{User, Store, Product, Category, ProductVariant, ProductSizeVolume, FrameSize, EyeHygieneVariant, DiscountCampaign, BannerCampaign, BannerCreative, BannerEvent, Cart, CartItem, Order, OrderItem, StoreOrder, UserAddress, ProductPromotion, StoreBanner, Country, Escrow};
 use App\Services\Campaigns\{DiscountCampaignService, DiscountPricingService, BannerCampaignService, BannerDeliveryService, LegacyCampaignImportService, CampaignAnalyticsService};
 use App\Services\Order\OrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -384,6 +384,48 @@ class CommerceCampaignTest extends TestCase
         $this->banner(['placement'=>'store_page']); $this->assertCount(1,$this->serve('store_page',['store_id'=>$this->store->id]));
         $this->banner(['placement'=>'homepage_featured']); $this->banner(['placement'=>'homepage_featured']);
         $this->assertCount(1,$this->serve('homepage_featured'));
+    }
+
+    public function test_homepage_hero_delivers_a_fair_carousel_set_of_up_to_ten_stores(): void
+    {
+        $this->banner();
+
+        foreach (range(1, 10) as $number) {
+            $seller = User::factory()->create(['role' => 'seller']);
+            $store = Store::create([
+                'user_id' => $seller->id,
+                'name' => "Carousel store {$number}",
+                'slug' => (string) Str::uuid(),
+                'is_active' => true,
+                'status' => 'active',
+            ]);
+            $campaign = BannerCampaign::create([
+                'store_id' => $store->id,
+                'creator_id' => $seller->id,
+                'name' => "Carousel banner {$number}",
+                'type' => 'organic',
+                'status' => 'active',
+                'approval_status' => 'approved',
+                'starts_at' => now()->subMinute(),
+                'ends_at' => now()->addDay(),
+                'placement' => 'homepage_hero',
+                'destination_type' => 'external_url',
+                'destination_url' => "https://example.test/banner/{$number}",
+            ]);
+            BannerCreative::create([
+                'banner_campaign_id' => $campaign->id,
+                'desktop_image' => "campaigns/{$number}.jpg",
+                'title' => "Carousel banner {$number}",
+                'alt_text' => "Carousel banner {$number}",
+                'cta_text' => 'Explore',
+                'is_active' => true,
+            ]);
+        }
+
+        $served = $this->serve();
+
+        $this->assertCount(10, $served);
+        $this->assertCount(10, collect($served)->pluck('id')->unique());
     }
 
     public function test_conversion_requires_paid_order_evidence_and_is_idempotent(): void

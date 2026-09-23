@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\Notifications\MarketplaceNotificationService;
+use App\Services\Email\MarketplaceEmailService;
 use Illuminate\Support\Facades\DB;
 
 class BuyerWalletService
@@ -69,6 +70,7 @@ class BuyerWalletService
             'transaction_type' => $type,
             'amount' => (float) $transaction->amount,
         ]);
+        app(MarketplaceEmailService::class)->buyerWalletTransaction($user, $transaction);
 
         return $transaction;
     }

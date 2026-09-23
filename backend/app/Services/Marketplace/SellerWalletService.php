@@ -6,6 +6,7 @@ use App\Models\SellerWallet;
 use App\Models\SellerWalletEntry;
 use App\Models\Store;
 use App\Services\Notifications\MarketplaceNotificationService;
+use App\Services\Email\MarketplaceEmailService;
 use Illuminate\Support\Facades\DB;
 
 class SellerWalletService
@@ -51,6 +52,7 @@ class SellerWalletService
             $isBoost ? '/boost-ads' : ($isReferral ? '/referral-campaigns' : '/wallet'),
             ['wallet_entry_id' => $entry->id, 'transaction_type' => $type, 'amount' => (float) $entry->amount]
         );
+        if ($store?->user) app(MarketplaceEmailService::class)->sellerWalletTransaction($store->user, $entry, $wallet);
 
         return $entry;
     }

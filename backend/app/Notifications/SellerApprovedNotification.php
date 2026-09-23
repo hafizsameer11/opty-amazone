@@ -3,7 +3,6 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class SellerApprovedNotification extends Notification
@@ -12,7 +11,7 @@ class SellerApprovedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database'];
     }
 
     public function toDatabase(object $notifiable): array
@@ -26,14 +25,4 @@ class SellerApprovedNotification extends Notification
         ];
     }
 
-    public function toMail(object $notifiable): MailMessage
-    {
-        return (new MailMessage)
-            ->subject('Your VistaExpress seller account is approved')
-            ->greeting('Congratulations, ' . ($notifiable->name ?: 'seller') . '!')
-            ->line('Your VistaExpress seller application has been approved.')
-            ->line('Complete your Store Profile before adding products and accepting orders.')
-            ->action('Complete Store Profile', rtrim((string) config('app.url'), '/') . '/dashboard?setup=1')
-            ->line('Thank you for joining the optical marketplace.');
-    }
 }

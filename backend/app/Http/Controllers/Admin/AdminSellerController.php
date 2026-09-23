@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Store;
 use App\Models\User;
 use App\Notifications\SellerApprovedNotification;
+use App\Services\Email\MarketplaceEmailService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -72,6 +73,7 @@ class AdminSellerController extends Controller
 
         if ($store->user) {
             $store->user->notify(new SellerApprovedNotification());
+            app(MarketplaceEmailService::class)->sellerApproved($store->user);
         }
 
         return ResponseHelper::success($store, 'Store approved successfully');

@@ -6,6 +6,7 @@ use App\Helpers\ResponseHelper as R;
 use App\Http\Controllers\Controller;
 use App\Models\StoreOrder;
 use App\Services\Marketplace\DeliveryVerificationService;
+use App\Services\Email\MarketplaceEmailService;
 use App\Services\Marketplace\OrderTotalsService;
 use App\Services\Marketplace\RefundService;
 use App\Services\Notifications\MarketplaceNotificationService;
@@ -53,6 +54,7 @@ class SellerOrderController extends Controller
             "/store-orders/{$storeOrder->id}",
             ['order_id' => $storeOrder->order_id, 'store_order_id' => $storeOrder->id, 'delivery_fee' => (float) $storeOrder->delivery_fee]
         );
+        app(MarketplaceEmailService::class)->shippingFeeAdded($storeOrder);
 
         return $this->show($id);
     }
@@ -130,6 +132,8 @@ class SellerOrderController extends Controller
                     ]
                 );
             }
+            $code = app(DeliveryVerificationService::class)->buyerCode($storeOrder);
+            if ($code) app(MarketplaceEmailService::class)->deliveryCodeRequested($storeOrder, $code);
         }
 
         return $this->show($id);

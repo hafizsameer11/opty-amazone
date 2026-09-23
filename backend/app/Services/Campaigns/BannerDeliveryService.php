@@ -53,7 +53,10 @@ class BannerDeliveryService
                 'visitor'=>$visitor,'nonce'=>$nonce,'expires'=>now()->addMinutes(30)->timestamp,'placement'=>$placement]));
             $out[] = ['id'=>$c->id,'name'=>$c->name,'placement'=>$placement,'ends_at'=>$c->ends_at->utc()->toISOString(),'creative'=>$creative,
                 'destination'=>$this->destination->resolve($c),'tracking_token'=>$token];
-            if (count($out) >= ($placement === 'homepage_hero' ? 1 : 6)) { break; }
+            // Homepage banner placements are client-side carousels. Keep a fair one
+            // campaign per store, but deliver enough approved campaigns for a
+            // useful rotation instead of silently reducing it to one card.
+            if (count($out) >= (in_array($placement, ['homepage_hero', 'homepage_featured']) ? 10 : 6)) { break; }
         }
         return $out;
     }
