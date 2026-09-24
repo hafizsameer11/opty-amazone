@@ -14,7 +14,7 @@ return [
     |
     */
 
-    // Aruba's authenticated SMTP relay is the production mail transport.
+    // Aruba's authenticated STARTTLS relay is the production mail transport.
     // Credentials remain environment-only; local/test environments can still
     // override this with log, array, or a dedicated mail sandbox.
     'default' => env('MAIL_MAILER', 'smtp'),
@@ -44,8 +44,9 @@ return [
             'transport' => 'smtp',
             'scheme' => env('MAIL_SCHEME'),
             'url' => env('MAIL_URL'),
-            'host' => env('MAIL_HOST', 'smtp.aruba.it'),
+            'host' => env('MAIL_HOST', 'smtps.aruba.it'),
             'port' => env('MAIL_PORT', 587),
+            'auto_tls' => env('MAIL_AUTO_TLS', true),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
             'timeout' => env('MAIL_TIMEOUT', 30),

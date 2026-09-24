@@ -15,6 +15,28 @@ class BuyerStoreChatController extends Controller
         private StoreChatService $storeChatService
     ) {}
 
+    public function index(Request $request): JsonResponse
+    {
+        try {
+            $conversations = $this->storeChatService->listBuyerConversations(
+                $request->user(),
+                min(100, max(1, (int) $request->integer('per_page', 30))),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::error($e->getMessage(), null, 403);
+        }
+
+        return ResponseHelper::success([
+            'conversations' => $conversations->getCollection()->map(fn ($conversation) => $this->serializeConversation($conversation)),
+            'pagination' => [
+                'current_page' => $conversations->currentPage(),
+                'last_page' => $conversations->lastPage(),
+                'per_page' => $conversations->perPage(),
+                'total' => $conversations->total(),
+            ],
+        ]);
+    }
+
     public function show(int $storeId, Request $request): JsonResponse
     {
         $user = $request->user();
@@ -103,6 +125,13 @@ class BuyerStoreChatController extends Controller
             'seller_unread_count' => $c->seller_unread_count,
             'last_message_at' => $c->last_message_at?->toIso8601String(),
             'last_message_preview' => $c->last_message_preview,
+            'store' => $c->relationLoaded('store') && $c->store ? [
+                'id' => $c->store->id,
+                'name' => $c->store->name,
+                'slug' => $c->store->slug,
+                'profile_image' => $c->store->profile_image,
+                'profile_image_url' => $c->store->profile_image_url,
+            ] : null,
         ];
     }
 

@@ -172,6 +172,26 @@ class StoreChatService
     }
 
     /**
+     * Buyer inbox. Conversations are scoped to the authenticated buyer and
+     * include the public store summary needed by the mobile chat list.
+     *
+     * @return LengthAwarePaginator<int, StoreChatConversation>
+     */
+    public function listBuyerConversations(User $buyer, int $perPage = 20): LengthAwarePaginator
+    {
+        if (! $buyer->isBuyer()) {
+            throw new \InvalidArgumentException('Only buyer accounts can use store chat.');
+        }
+
+        return StoreChatConversation::query()
+            ->where('buyer_id', $buyer->id)
+            ->with(['store:id,name,slug,profile_image,is_active,status'])
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('id')
+            ->paginate($perPage);
+    }
+
+    /**
      * @return LengthAwarePaginator<int, StoreChatConversation>
      */
     public function listSellerConversations(User $seller, int $perPage = 20): LengthAwarePaginator

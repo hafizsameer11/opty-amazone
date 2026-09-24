@@ -95,6 +95,7 @@ Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('addresses
 
 Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('stores')->group(function () {
     Route::get('/followed', [BuyerStoreController::class, 'getFollowedStores']);
+    Route::get('/chats', [BuyerStoreChatController::class, 'index']);
     Route::get('/{id}', [BuyerStoreController::class, 'getStore']);
     Route::get('/{id}/follow-status', [BuyerStoreController::class, 'followStatus']);
     Route::post('/{id}/follow', [BuyerStoreController::class, 'followStore']);
