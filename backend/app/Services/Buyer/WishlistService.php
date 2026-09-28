@@ -11,7 +11,7 @@ class WishlistService
 {
     public function list(User $buyer, int $perPage = 20): LengthAwarePaginator
     {
-        return WishlistItem::with(['product.store', 'product.category'])
+        return WishlistItem::with(['product.store', 'product.category', 'product.variants'])
             ->where('user_id', $buyer->id)
             ->whereHas('product')
             ->latest()

@@ -114,6 +114,13 @@ class UserService
         $user->save();
     }
 
+    /** Set a password only after a separate, authenticated email-code check. */
+    public function changePasswordWithVerifiedEmailCode(User $user, string $newPassword): void
+    {
+        $user->password = Hash::make($newPassword);
+        $user->save();
+    }
+
     /**
      * Upload and attach a profile image to the user.
      */
@@ -229,4 +236,3 @@ class UserService
         $user->delete();
     }
 }
-

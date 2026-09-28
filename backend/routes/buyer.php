@@ -45,6 +45,9 @@ Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('notificat
 Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->prefix('profile')->group(function () {
     Route::get('/', [BuyerUserController::class, 'getProfile']);
     Route::put('/', [BuyerUserController::class, 'updateProfile']);
+    Route::post('/change-password/send-code', [BuyerUserController::class, 'sendPasswordChangeCode']);
+    Route::post('/change-password/verify-code', [BuyerUserController::class, 'verifyPasswordChangeCode']);
+    Route::post('/change-password/reset', [BuyerUserController::class, 'resetPasswordWithVerifiedCode']);
     Route::post('/change-password', [BuyerUserController::class, 'changePassword']);
     Route::post('/upload-image', [BuyerUserController::class, 'uploadProfileImage']);
     Route::delete('/image', [BuyerUserController::class, 'deleteProfileImage']);

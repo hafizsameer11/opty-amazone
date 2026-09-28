@@ -10,6 +10,7 @@ use App\Http\Requests\Buyer\User\UpdateProfileRequest;
 use App\Http\Requests\Buyer\User\UploadImageRequest;
 use App\Http\Resources\UserResource;
 use App\Services\Email\EmailVerificationService;
+use App\Services\Email\PasswordChangeVerificationService;
 use App\Services\User\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ class BuyerUserController extends Controller
     public function __construct(
         private UserService $userService,
         private EmailVerificationService $emailVerification,
+        private PasswordChangeVerificationService $passwordChangeVerification,
     ) {
     }
 
@@ -78,6 +80,48 @@ class BuyerUserController extends Controller
         } catch (ValidationException $e) {
             return ResponseHelper::validationError($e->errors());
         } catch (\Exception $e) {
+            return ResponseHelper::serverError('Failed to update password');
+        }
+    }
+
+    /** Send an authenticated password-change code to the buyer's registered email. */
+    public function sendPasswordChangeCode(Request $request): JsonResponse
+    {
+        try {
+            $this->passwordChangeVerification->send($request->user());
+            return ResponseHelper::success(['email' => $request->user()->email], 'Verification code sent to your registered email');
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors());
+        } catch (\Throwable $e) {
+            report($e);
+            return ResponseHelper::serverError('We could not send a verification code. Please try again.');
+        }
+    }
+
+    /** Verify the six-digit code before showing the new-password form. */
+    public function verifyPasswordChangeCode(Request $request): JsonResponse
+    {
+        $data = $request->validate(['code' => ['required', 'regex:/^\d{6}$/D']]);
+        try {
+            $this->passwordChangeVerification->verify($request->user(), $data['code']);
+            return ResponseHelper::success(null, 'Code verified. You can now choose a new password.');
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors());
+        }
+    }
+
+    /** Complete the password change after a valid email-code verification. */
+    public function resetPasswordWithVerifiedCode(Request $request): JsonResponse
+    {
+        $data = $request->validate(['password' => ['required', 'string', 'confirmed', 'min:8']]);
+        try {
+            $this->passwordChangeVerification->consume($request->user());
+            $this->userService->changePasswordWithVerifiedEmailCode($request->user(), $data['password']);
+            return ResponseHelper::success(null, 'Password updated successfully');
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors());
+        } catch (\Throwable $e) {
+            report($e);
             return ResponseHelper::serverError('Failed to update password');
         }
     }

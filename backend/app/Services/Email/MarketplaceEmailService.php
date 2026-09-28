@@ -41,6 +41,17 @@ class MarketplaceEmailService
         ));
     }
 
+    public function buyerPasswordChangeCode(User $buyer, string $code, Carbon $expiresAt): bool
+    {
+        return $this->send($buyer, new MarketplaceTransactionalMail(
+            'Confirm your VistaExpress password change', 'Confirm your password change',
+            'Use the verification code below to confirm that you want to change the password for your buyer account.',
+            ['Code expires' => $expiresAt->timezone(config('app.timezone'))->format('d M Y, H:i'), 'Validity' => '15 minutes'],
+            ctaLabel: 'Open VistaExpress', ctaUrl: $this->buyerUrl('/profile/change-password'),
+            notice: 'For your security, never share this code with anyone.', code: $code, recipientName: $buyer->name,
+        ));
+    }
+
     public function sellerApproved(User $seller): void
     {
         $this->send($seller, new MarketplaceTransactionalMail(
