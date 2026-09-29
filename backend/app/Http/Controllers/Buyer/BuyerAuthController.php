@@ -327,7 +327,7 @@ class BuyerAuthController extends Controller
                 'password',
                 'password_confirmation',
                 'token'
-            ));
+            ), 'buyer');
 
             return ResponseHelper::success(null, 'Password reset successful');
         } catch (ValidationException $e) {

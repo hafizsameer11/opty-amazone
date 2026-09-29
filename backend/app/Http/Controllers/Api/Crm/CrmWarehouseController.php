@@ -8,6 +8,7 @@ use App\Models\WarehouseOrder;
 use App\Models\WarehouseProduct;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -22,47 +23,100 @@ class CrmWarehouseController extends CrmController
     {
         $hasDrafts = Schema::hasColumn('warehouse_products', 'is_draft');
 
-        $published = WarehouseProduct::where('is_active', true);
-        if ($hasDrafts) {
-            $published->where('is_draft', false);
-        }
+        // Each figure is computed independently and falls back to a safe zero.
+        // A single failing aggregate must not take the whole summary down with
+        // it, which previously left the CRM's headline cards blank.
+        $published = function () use ($hasDrafts) {
+            $query = WarehouseProduct::where('is_active', true);
 
-        $lowStock = (clone $published)
-            ->where('stock_quantity', '>', 0)
-            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
-            ->orderBy('stock_quantity')
-            ->limit(20)
-            ->get(['id', 'name', 'sku', 'stock_quantity', 'low_stock_threshold'])
-            ->map(fn (WarehouseProduct $product) => [
-                'id' => (int) $product->id,
-                'name' => (string) $product->name,
-                'sku' => (string) $product->sku,
-                'stock_quantity' => (int) $product->stock_quantity,
-                'low_stock_threshold' => (int) $product->low_stock_threshold,
-            ])->values();
+            if ($hasDrafts) {
+                // is_draft is NOT NULL by default, but tolerate legacy NULLs so
+                // a column added without a backfill cannot zero out every count.
+                $query->where(function ($inner) {
+                    $inner->where('is_draft', false)->orWhereNull('is_draft');
+                });
+            }
+
+            return $query;
+        };
+
+        $lowStock = $this->safe(static function () use ($published) {
+            return (clone $published())
+                ->where('stock_quantity', '>', 0)
+                ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
+                ->orderBy('stock_quantity')
+                ->limit(20)
+                // is_active is loaded because the model's availability accessor
+                // reads it, and $appends would otherwise evaluate against null.
+                ->get(['id', 'name', 'sku', 'stock_quantity', 'low_stock_threshold', 'is_active'])
+                ->map(fn (WarehouseProduct $product) => [
+                    'id' => (int) $product->id,
+                    'name' => (string) $product->name,
+                    'sku' => (string) $product->sku,
+                    'stock_quantity' => (int) $product->stock_quantity,
+                    'low_stock_threshold' => (int) $product->low_stock_threshold,
+                ])->values()->all();
+        }, []);
+
+        $count = fn (callable $fn) => (int) $this->safe($fn, 0);
+        $money = fn (callable $fn) => round((float) $this->safe($fn, 0), 2);
 
         return ResponseHelper::success([
             'stats' => [
-                'total_products' => (int) WarehouseProduct::count(),
-                'published_products' => (int) (clone $published)->count(),
-                'draft_products' => $hasDrafts ? (int) WarehouseProduct::where('is_draft', true)->count() : null,
-                'total_stock' => (int) (clone $published)->sum('stock_quantity'),
-                'low_stock_products' => (int) (clone $published)
+                'total_products' => $count(fn () => WarehouseProduct::count()),
+                'published_products' => $count(fn () => (clone $published())->count()),
+                'draft_products' => $hasDrafts
+                    ? $count(fn () => WarehouseProduct::where('is_draft', true)->count())
+                    : null,
+                'total_stock' => $count(fn () => (int) (clone $published())->sum('stock_quantity')),
+                'low_stock_products' => $count(fn () => (clone $published())
                     ->where('stock_quantity', '>', 0)
                     ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
-                    ->count(),
-                'out_of_stock_products' => (int) (clone $published)->where('stock_quantity', '<=', 0)->count(),
-                'orders' => (int) WarehouseOrder::count(),
-                'revenue' => round((float) WarehouseOrder::where('payment_status', 'paid')
+                    ->count()),
+                'out_of_stock_products' => $count(fn () => (clone $published())->where('stock_quantity', '<=', 0)->count()),
+                'orders' => $count(fn () => WarehouseOrder::count()),
+                'revenue' => $money(fn () => WarehouseOrder::where('payment_status', 'paid')
                     ->where('status', '!=', 'cancelled')
-                    ->sum('total'), 2),
+                    ->sum('total')),
                 'currency' => 'EUR',
             ],
             'low_stock' => $lowStock,
-            'stock_by_category' => $this->stockByCategory(),
-            'orders_trend' => $this->ordersTrend(),
-            'top_sellers' => $this->topSellers(),
+            'stock_by_category' => $this->safe(fn () => $this->stockByCategory(), []),
+            'orders_trend' => $this->safe(fn () => $this->ordersTrend(), []),
+            'top_sellers' => $this->safe(fn () => $this->topSellers(), []),
         ], 'Warehouse summary retrieved successfully.');
+    }
+
+    /**
+     * Run a block, returning $default if it throws.
+     *
+     * The failure is logged with its origin so it stays diagnosable from
+     * storage/logs even though the API response is intentionally total.
+     */
+    private function safe(callable $fn, mixed $default): mixed
+    {
+        try {
+            return $fn();
+        } catch (\Throwable $exception) {
+            Log::warning('CRM warehouse summary block failed; falling back to a default.', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'origin' => $this->originOf($exception),
+            ]);
+
+            return $default;
+        }
+    }
+
+    private function originOf(\Throwable $exception): ?string
+    {
+        foreach ($exception->getTrace() as $frame) {
+            if (isset($frame['file']) && !str_contains(str_replace('\\', '/', $frame['file']), '/vendor/')) {
+                return $frame['file'].':'.($frame['line'] ?? '?');
+            }
+        }
+
+        return null;
     }
 
     public function products(Request $request): JsonResponse
@@ -97,7 +151,10 @@ class CrmWarehouseController extends CrmController
         if (($filters['availability'] ?? null) !== 'all' || ! $request->boolean('include_drafts')) {
             $query->where('is_active', true);
             if ($hasDrafts) {
-                $query->where('is_draft', false);
+                // Treat a legacy NULL is_draft as published, matching the summary.
+                $query->where(function ($inner) {
+                    $inner->where('is_draft', false)->orWhereNull('is_draft');
+                });
             }
         }
 
@@ -202,9 +259,14 @@ class CrmWarehouseController extends CrmController
         }
 
         return WarehouseProduct::query()
-            ->where('is_active', true)
+            // Both tables carry an is_active column, so the filter and the
+            // aggregate must be qualified or MySQL rejects the query as
+            // "ambiguous column name".
+            ->where('warehouse_products.is_active', true)
+            ->whereNull('warehouse_products.deleted_at')
             ->join('warehouse_categories', 'warehouse_categories.id', '=', 'warehouse_products.warehouse_category_id')
-            ->groupBy('warehouse_categories.name')
+            ->where('warehouse_categories.is_active', true)
+            ->groupBy('warehouse_categories.id', 'warehouse_categories.name')
             ->selectRaw('warehouse_categories.name as name, COALESCE(SUM(warehouse_products.stock_quantity), 0) as stock')
             ->pluck('stock', 'name')
             ->map(fn ($stock) => (int) $stock)

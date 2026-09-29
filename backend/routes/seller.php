@@ -36,6 +36,7 @@ Route::prefix('auth')->group(function () {
     Route::post('/register', [SellerAuthController::class, 'register']);
     Route::post('/login', [SellerAuthController::class, 'login']);
     Route::post('/forgot-password', [SellerAuthController::class, 'forgotPassword']);
+    Route::post('/reset-password', [SellerAuthController::class, 'resetPassword']);
     
     Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->group(function () {
         Route::post('/logout', [SellerAuthController::class, 'logout']);

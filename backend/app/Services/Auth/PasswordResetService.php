@@ -50,9 +50,15 @@ class PasswordResetService
     /**
      * Reset password
      */
-    public function resetPassword(array $credentials): string
+    public function resetPassword(array $credentials, ?string $role = null): string
     {
         try {
+            if ($role && !User::where('email', $credentials['email'] ?? null)->where('role', $role)->exists()) {
+                throw ValidationException::withMessages([
+                    'email' => ['The password reset request is invalid or has expired.'],
+                ]);
+            }
+
             $status = Password::reset(
                 $credentials,
                 function ($user, $password) {

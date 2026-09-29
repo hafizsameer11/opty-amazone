@@ -14,6 +14,7 @@ use App\Services\Store\StoreService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -237,6 +238,39 @@ class SellerAuthController extends Controller
                 null,
                 500
             );
+        }
+    }
+
+    /**
+     * Complete a seller password reset from the token delivered by the
+     * password broker. The buyer API already exposes this counterpart; the
+     * seller app needs the same first-class, role-scoped endpoint.
+     */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'token' => ['required'],
+                'email' => ['required', 'email'],
+                'password' => ['required', 'confirmed', Password::defaults()],
+            ]);
+
+            $this->passwordResetService->resetPassword($request->only(
+                'email',
+                'password',
+                'password_confirmation',
+                'token'
+            ), 'seller');
+
+            return ResponseHelper::success(null, 'Password reset successful');
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors());
+        } catch (\Exception $e) {
+            Log::error('Seller password reset failed: ' . $e->getMessage(), [
+                'email' => $request->email ?? null,
+            ]);
+
+            return ResponseHelper::error('Password reset failed. Please try again.', null, 500);
         }
     }
 }

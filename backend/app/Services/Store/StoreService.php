@@ -340,6 +340,29 @@ class StoreService
             ->where('status', 'delivered')
             ->sum('total');
 
+        $todayRevenue = \App\Models\StoreOrder::where('store_id', $store->id)
+            ->where('status', 'delivered')
+            ->whereDate('delivered_at', now()->toDateString())
+            ->sum('total');
+
+        // A compact, real seven-day revenue series powers seller mobile
+        // performance views without asking the client to invent trend data.
+        $periodStart = now()->startOfDay()->subDays(6);
+        $weeklyOrders = \App\Models\StoreOrder::where('store_id', $store->id)
+            ->where('status', 'delivered')
+            ->where('delivered_at', '>=', $periodStart)
+            ->get(['delivered_at', 'total']);
+        $revenueSeries = collect(range(0, 6))->map(function (int $offset) use ($weeklyOrders) {
+            $day = now()->startOfDay()->subDays(6 - $offset);
+
+            return [
+                'label' => $day->format('D'),
+                'value' => (float) $weeklyOrders
+                    ->filter(fn ($order) => $order->delivered_at?->isSameDay($day))
+                    ->sum('total'),
+            ];
+        })->values()->all();
+
         // Get recent orders (last 5)
         $recentOrders = \App\Models\StoreOrder::where('store_id', $store->id)
             ->with(['order.user', 'items'])
@@ -417,6 +440,8 @@ class StoreService
             'paid_orders' => $paidOrders,
             'total_followers' => $totalFollowers,
             'total_revenue' => (float) $totalRevenue,
+            'today_revenue' => (float) $todayRevenue,
+            'revenue_series' => $revenueSeries,
             'recent_orders' => $recentOrders->map(function ($order) {
                 return [
                     'id' => $order->id,
