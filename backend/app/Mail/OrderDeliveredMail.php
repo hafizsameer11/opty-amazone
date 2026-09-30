@@ -15,7 +15,7 @@ class OrderDeliveredMail extends Mailable
 
     public function build()
     {
-        return $this->subject("Order Delivered - {$this->storeOrder->order->order_no}")
+        return $this->subject("Ordine consegnato - {$this->storeOrder->order->order_no}")
             ->view('emails.order-delivered')
             ->with(['storeOrder' => $this->storeOrder]);
     }

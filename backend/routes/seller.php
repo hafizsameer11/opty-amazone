@@ -35,7 +35,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('/register', [SellerAuthController::class, 'register']);
     Route::post('/login', [SellerAuthController::class, 'login']);
-    Route::post('/forgot-password', [SellerAuthController::class, 'forgotPassword']);
+    Route::post('/forgot-password', [SellerAuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
+    Route::post('/verify-reset-code', [SellerAuthController::class, 'verifyResetCode'])->middleware('throttle:10,1');
     Route::post('/reset-password', [SellerAuthController::class, 'resetPassword']);
     
     Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->group(function () {
@@ -285,6 +286,7 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('admin-ch
 
 // Sidebar notification badges (messages + pending orders)
 Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->get('/notifications/unread', [SellerNotificationBadgeController::class, 'unread']);
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->post('/notifications/read-category', [SellerNotificationBadgeController::class, 'markCategoryRead']);
 
 Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('inventory')->group(function () {
     Route::get('/low-stock', [App\Http\Controllers\Seller\SellerInventoryController::class, 'lowStock']);

@@ -47,8 +47,8 @@ class SellerWalletService
         app(MarketplaceNotificationService::class)->send(
             $store?->user,
             $isBoost ? 'boost.campaign' : ($isReferral ? 'referral.seller_transaction' : 'wallet.seller_transaction'),
-            $isBoost ? 'Boost campaign updated' : ($isReferral ? 'Referral campaign transaction' : 'Seller wallet updated'),
-            $description ?: 'Your seller wallet has a new transaction.',
+            $isBoost ? 'Campagna Boost aggiornata' : ($isReferral ? 'Transazione campagna referral' : 'Wallet venditore aggiornato'),
+            $description ?: 'Il tuo wallet venditore ha una nuova transazione.',
             $isBoost ? '/boost-ads' : ($isReferral ? '/referral-campaigns' : '/wallet'),
             ['wallet_entry_id' => $entry->id, 'transaction_type' => $type, 'amount' => (float) $entry->amount]
         );

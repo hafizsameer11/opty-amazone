@@ -18,8 +18,8 @@ class SellerApprovedNotification extends Notification
     {
         return [
             'event' => 'seller_approved',
-            'title' => 'Your seller account is approved',
-            'message' => 'Your seller account has been approved. Complete your Store Profile to start selling.',
+            'title' => 'Il tuo account venditore è stato approvato',
+            'message' => 'Il tuo account venditore è stato approvato. Completa il profilo del tuo negozio per iniziare a vendere.',
             'url' => '/dashboard?setup=1',
             'context' => ['store_id' => $notifiable->store?->id],
         ];

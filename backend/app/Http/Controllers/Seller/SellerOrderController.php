@@ -49,8 +49,8 @@ class SellerOrderController extends Controller
         app(MarketplaceNotificationService::class)->send(
             $storeOrder->order?->user,
             'order.accepted',
-            'Seller accepted your order',
-            "The seller accepted order {$storeOrder->order?->order_no} and added a delivery fee. Review the total and complete payment.",
+            'Il venditore ha accettato il tuo ordine',
+            "Il venditore ha accettato l'ordine {$storeOrder->order?->order_no} e ha aggiunto il costo di consegna. Controlla il totale e completa il pagamento.",
             "/store-orders/{$storeOrder->id}",
             ['order_id' => $storeOrder->order_id, 'store_order_id' => $storeOrder->id, 'delivery_fee' => (float) $storeOrder->delivery_fee]
         );
@@ -66,8 +66,8 @@ class SellerOrderController extends Controller
         app(MarketplaceNotificationService::class)->send(
             $storeOrder->order?->user,
             'order.rejected',
-            'Order rejected',
-            "The seller rejected order {$storeOrder->order?->order_no}.",
+            'Ordine rifiutato',
+            "Il venditore ha rifiutato l'ordine {$storeOrder->order?->order_no}.",
             "/store-orders/{$storeOrder->id}",
             ['order_id' => $storeOrder->order_id, 'store_order_id' => $storeOrder->id, 'reason' => $data['reason']]
         );
@@ -78,8 +78,8 @@ class SellerOrderController extends Controller
     public function processing(Request $r, $id)
     {
         $storeOrder = app(DeliveryVerificationService::class)->advance($this->orders()->findOrFail($id), $r->user(), 'processing');
-        app(MarketplaceNotificationService::class)->send($storeOrder->order?->user, 'order.processing', 'Order processing',
-            "Your order {$storeOrder->order?->order_no} is now being processed.", "/store-orders/{$storeOrder->id}",
+        app(MarketplaceNotificationService::class)->send($storeOrder->order?->user, 'order.processing', 'Ordine in preparazione',
+            "Il tuo ordine {$storeOrder->order?->order_no} è ora in preparazione.", "/store-orders/{$storeOrder->id}",
             ['order_id' => $storeOrder->order_id, 'store_order_id' => $storeOrder->id]);
 
         return $this->show($id);
@@ -88,8 +88,8 @@ class SellerOrderController extends Controller
     public function outForDelivery(Request $r, $id)
     {
         $storeOrder = app(DeliveryVerificationService::class)->advance($this->orders()->findOrFail($id), $r->user(), 'out_for_delivery');
-        app(MarketplaceNotificationService::class)->send($storeOrder->order?->user, 'order.shipped', 'Order shipped',
-            "Your order {$storeOrder->order?->order_no} is out for delivery.", "/store-orders/{$storeOrder->id}",
+        app(MarketplaceNotificationService::class)->send($storeOrder->order?->user, 'order.shipped', 'Ordine spedito',
+            "Il tuo ordine {$storeOrder->order?->order_no} è in consegna.", "/store-orders/{$storeOrder->id}",
             ['order_id' => $storeOrder->order_id, 'store_order_id' => $storeOrder->id]);
 
         return $this->show($id);
@@ -120,8 +120,8 @@ class SellerOrderController extends Controller
                 app(MarketplaceNotificationService::class)->send(
                     $buyer,
                     'order.delivery_code_requested',
-                    'Delivery confirmation code requested',
-                    "The seller is requesting your delivery confirmation code for order {$storeOrder->order?->order_no}. Please share your delivery code with the seller to confirm delivery.",
+                    'Codice di conferma della consegna richiesto',
+                    "Il venditore sta richiedendo il tuo codice di conferma della consegna per l'ordine {$storeOrder->order?->order_no}. Condividi il tuo codice di consegna con il venditore per confermare la consegna.",
                     "/stores/{$storeOrder->store_id}?chat=1&delivery_order_id={$storeOrder->id}",
                     [
                         'order_id' => $storeOrder->order_id,
@@ -143,8 +143,8 @@ class SellerOrderController extends Controller
     {
         $data = $r->validate(['delivery_code' => ['required', 'regex:/^\d{6}$/D']]);
         $storeOrder = app(DeliveryVerificationService::class)->verify($this->orders()->findOrFail($id), $r->user(), $data['delivery_code']);
-        app(MarketplaceNotificationService::class)->send($storeOrder->order?->user, 'order.delivered', 'Order delivered',
-            "Order {$storeOrder->order?->order_no} has been delivered and confirmed.", "/store-orders/{$storeOrder->id}",
+        app(MarketplaceNotificationService::class)->send($storeOrder->order?->user, 'order.delivered', 'Ordine consegnato',
+            "L'ordine {$storeOrder->order?->order_no} è stato consegnato e confermato.", "/store-orders/{$storeOrder->id}",
             ['order_id' => $storeOrder->order_id, 'store_order_id' => $storeOrder->id]);
 
         return $this->show($id);

@@ -57,14 +57,14 @@ class BuyerWalletService
             'description' => str_replace('_', ' ', ucfirst($type)), 'meta' => $meta + ['balance_before' => $balanceBefore, 'balance_after' => Money::decimal($balance)]]);
 
         $labels = [
-            'top_up' => ['Wallet topped up', 'Your wallet was credited successfully.', 'wallet.top_up'],
-            'withdraw' => ['Withdrawal requested', 'Your wallet withdrawal request was recorded.', 'wallet.withdrawal'],
-            'order_payment' => ['Payment completed', 'Your order payment was completed.', 'wallet.order_payment'],
-            'refund' => ['Refund received', 'A refund was credited to your wallet.', 'wallet.refund'],
-            'referral_reward' => ['Referral reward received', 'A referral reward was credited to your wallet.', 'referral.reward'],
-            'referral_reward_reversal' => ['Referral reward reversed', 'A referral reward was reversed from your wallet.', 'referral.reversal'],
+            'top_up' => ['Ricarica del wallet effettuata', 'Il tuo wallet è stato accreditato con successo.', 'wallet.top_up'],
+            'withdraw' => ['Prelievo richiesto', 'La richiesta di prelievo dal wallet è stata registrata.', 'wallet.withdrawal'],
+            'order_payment' => ['Pagamento completato', 'Il pagamento del tuo ordine è stato completato.', 'wallet.order_payment'],
+            'refund' => ['Rimborso ricevuto', 'Un rimborso è stato accreditato sul tuo wallet.', 'wallet.refund'],
+            'referral_reward' => ['Ricompensa referral ricevuta', 'Una ricompensa referral è stata accreditata sul tuo wallet.', 'referral.reward'],
+            'referral_reward_reversal' => ['Ricompensa referral stornata', 'Una ricompensa referral è stata stornata dal tuo wallet.', 'referral.reversal'],
         ];
-        [$title, $message, $event] = $labels[$type] ?? ['Wallet transaction', 'Your wallet balance changed.', 'wallet.transaction'];
+        [$title, $message, $event] = $labels[$type] ?? ['Transazione sul wallet', 'Il saldo del tuo wallet è cambiato.', 'wallet.transaction'];
         app(MarketplaceNotificationService::class)->send($user, $event, $title, $message, '/profile?tab=wallet', [
             'transaction_id' => $transaction->id,
             'transaction_type' => $type,

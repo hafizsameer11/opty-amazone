@@ -72,14 +72,30 @@ class WithdrawalService
             app(MarketplaceNotificationService::class)->send(
                 $withdrawal->wallet?->store?->user,
                 'wallet.withdrawal_status',
-                'Withdrawal status updated',
-                "Your seller withdrawal is now {$status}.",
+                'Stato del prelievo aggiornato',
+                "Il tuo prelievo venditore è ora {$this->statusLabel($status)}.",
                 '/wallet',
                 ['withdrawal_id' => $withdrawal->id, 'status' => $status, 'amount' => (float) $withdrawal->amount]
             );
 
             return $withdrawal;
         }, 5);
+    }
+
+    /** Italian labels for the stored withdrawal statuses, used in notifications. */
+    private const STATUS_LABELS = [
+        'pending' => 'in attesa di approvazione',
+        'approved' => 'approvato',
+        'processing' => 'in elaborazione',
+        'completed' => 'completato',
+        'rejected' => 'rifiutato',
+        'failed' => 'non riuscito',
+        'cancelled' => 'annullato',
+    ];
+
+    private function statusLabel(string $status): string
+    {
+        return self::STATUS_LABELS[$status] ?? $status;
     }
 
     private function hasOpenDispute(int $storeId): bool

@@ -16,15 +16,20 @@ class MarketplaceTransactionalMailTest extends TestCase
     public function test_the_shared_template_renders_a_responsive_transactional_email(): void
     {
         $html = (new MarketplaceTransactionalMail(
-            'Payment received', 'Payment confirmed', 'Your payment was successful.',
-            ['Order number' => 'COL-20260923-000001', 'Total' => '€25.00'],
-            [['name' => 'Optical frame', 'sku' => 'FRAME-1', 'quantity' => 1, 'price' => '€25.00', 'total' => '€25.00']],
-            'View order', 'https://buyer.example.test/orders/1', 'Keep this email for your records.', null, 'Buyer',
+            'Pagamento ricevuto', 'Pagamento confermato', 'Il tuo pagamento è andato a buon fine.',
+            ['Numero ordine' => 'COL-20260923-000001', 'Totale' => '€25,00'],
+            [['name' => 'Montatura ottica', 'sku' => 'FRAME-1', 'quantity' => 1, 'price' => '€25,00', 'total' => '€25,00']],
+            "Visualizza l'ordine", 'https://buyer.example.test/orders/1', 'Conserva questa email per i tuoi archivi.', null, 'Acquirente',
         ))->render();
 
         $this->assertStringContainsString('VistaExpress', $html);
         $this->assertStringContainsString('COL-20260923-000001', $html);
         $this->assertStringContainsString('width=device-width', $html);
+        $this->assertStringContainsString('lang="it"', $html);
+        $this->assertStringContainsString('Articoli dell\'ordine', $html);
+        $this->assertStringContainsString('Questa è una notifica automatica', $html);
+        $this->assertStringNotContainsString('Order items', $html);
+        $this->assertStringNotContainsString('automated VistaExpress notification', $html);
     }
 
     public function test_approval_and_wallet_events_use_the_shared_branded_mailer(): void
@@ -45,8 +50,8 @@ class MarketplaceTransactionalMailTest extends TestCase
         ]));
 
         Mail::assertSent(MarketplaceTransactionalMail::class, 3);
-        Mail::assertSent(MarketplaceTransactionalMail::class, fn (MarketplaceTransactionalMail $mail) => $mail->heading === 'Your seller account is approved');
-        Mail::assertSent(MarketplaceTransactionalMail::class, fn (MarketplaceTransactionalMail $mail) => $mail->heading === 'Your seller wallet changed');
-        Mail::assertSent(MarketplaceTransactionalMail::class, fn (MarketplaceTransactionalMail $mail) => $mail->heading === 'Your wallet changed');
+        Mail::assertSent(MarketplaceTransactionalMail::class, fn (MarketplaceTransactionalMail $mail) => $mail->heading === 'Il tuo account venditore è stato approvato');
+        Mail::assertSent(MarketplaceTransactionalMail::class, fn (MarketplaceTransactionalMail $mail) => $mail->heading === 'Il tuo wallet venditore è cambiato');
+        Mail::assertSent(MarketplaceTransactionalMail::class, fn (MarketplaceTransactionalMail $mail) => $mail->heading === 'Il tuo wallet è cambiato');
     }
 }

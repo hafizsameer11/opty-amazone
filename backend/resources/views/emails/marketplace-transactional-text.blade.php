@@ -1,13 +1,13 @@
-VistaExpress · Optical Marketplace
+VistaExpress · Mercato Ottico
 
-{{ $recipientName ? "Hello {$recipientName}," : 'Hello,' }}
+{{ $recipientName ? "Ciao {$recipientName}," : 'Ciao,' }}
 
 {{ $heading }}
 
 {{ $intro }}
 
 @if($code)
-Verification code: {{ $code }}
+Codice di verifica: {{ $code }}
 @endif
 
 @foreach($details as $label => $value)
@@ -17,7 +17,7 @@ Verification code: {{ $code }}
 @endforeach
 
 @if(count($items))
-Order items:
+Articoli dell'ordine:
 @foreach($items as $item)
 - {{ $item['name'] }} @if($item['sku'])({{ $item['sku'] }}) @endif × {{ $item['quantity'] }} — {{ $item['total'] }}
 @endforeach
@@ -31,4 +31,4 @@ Order items:
 {{ $ctaLabel }}: {{ $ctaUrl }}
 @endif
 
-This is an automated VistaExpress notification.
+Questa è una notifica automatica di VistaExpress.

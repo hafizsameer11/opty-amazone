@@ -15,7 +15,7 @@ class OrderOutForDeliveryMail extends Mailable
 
     public function build()
     {
-        return $this->subject("Order Shipped - {$this->storeOrder->order->order_no}")
+        return $this->subject("Ordine spedito - {$this->storeOrder->order->order_no}")
             ->view('emails.order-out-for-delivery')
             ->with(['storeOrder' => $this->storeOrder]);
     }

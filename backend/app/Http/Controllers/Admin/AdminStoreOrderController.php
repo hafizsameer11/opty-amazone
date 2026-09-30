@@ -27,13 +27,13 @@ class AdminStoreOrderController extends Controller
 
         $result->loadMissing(['order.user', 'store.user']);
         $labels = [
-            'processing' => ['Order processing', "Order {$result->order?->order_no} is now being processed."],
-            'out_for_delivery' => ['Order shipped', "Order {$result->order?->order_no} is out for delivery."],
-            'delivered' => ['Order delivered', "Order {$result->order?->order_no} has been delivered and confirmed."],
-            'cancelled' => ['Order cancelled', "Order {$result->order?->order_no} was cancelled."],
-            'refunded' => ['Order refunded', "Order {$result->order?->order_no} was refunded."],
-            'disputed' => ['Order dispute opened', "A dispute was opened for order {$result->order?->order_no}."],
-            'resolve_dispute' => ['Order dispute resolved', "The dispute for order {$result->order?->order_no} was resolved."],
+            'processing' => ['Ordine in preparazione', "L'ordine {$result->order?->order_no} è ora in preparazione."],
+            'out_for_delivery' => ['Ordine spedito', "L'ordine {$result->order?->order_no} è in consegna."],
+            'delivered' => ['Ordine consegnato', "L'ordine {$result->order?->order_no} è stato consegnato e confermato."],
+            'cancelled' => ['Ordine annullato', "L'ordine {$result->order?->order_no} è stato annullato."],
+            'refunded' => ['Ordine rimborsato', "L'ordine {$result->order?->order_no} è stato rimborsato."],
+            'disputed' => ['Contestazione aperta', "È stata aperta una contestazione per l'ordine {$result->order?->order_no}."],
+            'resolve_dispute' => ['Contestazione risolta', "La contestazione per l'ordine {$result->order?->order_no} è stata risolta."],
         ];
         [$title, $message] = $labels[$data['status']];
         app(MarketplaceNotificationService::class)->send($result->order?->user, 'order.'.$data['status'], $title, $message,

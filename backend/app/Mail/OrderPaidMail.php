@@ -15,7 +15,7 @@ class OrderPaidMail extends Mailable
 
     public function build()
     {
-        return $this->subject("Payment Received - Order #{$this->storeOrder->id}")
+        return $this->subject("Pagamento ricevuto - Ordine #{$this->storeOrder->id}")
             ->view('emails.order-paid')
             ->with(['storeOrder' => $this->storeOrder]);
     }

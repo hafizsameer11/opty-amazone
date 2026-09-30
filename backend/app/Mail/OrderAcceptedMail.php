@@ -15,7 +15,7 @@ class OrderAcceptedMail extends Mailable
 
     public function build()
     {
-        return $this->subject("Order Accepted - {$this->storeOrder->order->order_no}")
+        return $this->subject("Ordine accettato - {$this->storeOrder->order->order_no}")
             ->view('emails.order-accepted')
             ->with(['storeOrder' => $this->storeOrder]);
     }

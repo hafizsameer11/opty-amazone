@@ -32,7 +32,7 @@ class PasswordChangeVerificationTest extends TestCase
             ->where('purpose', 'buyer_password_change')->firstOrFail();
         $code = null;
         Mail::assertSent(MarketplaceTransactionalMail::class, function (MarketplaceTransactionalMail $mail) use (&$code, $challenge): bool {
-            if ($mail->heading !== 'Confirm your password change') return false;
+            if ($mail->heading !== 'Conferma il cambio password') return false;
             $code = $mail->code;
             return is_string($code) && Hash::check($code, $challenge->code_hash);
         });

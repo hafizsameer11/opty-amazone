@@ -278,8 +278,8 @@ class StoreChatService
         app(MarketplaceNotificationService::class)->send(
             $recipient,
             'chat.message_received',
-            "New message from {$sender->name}",
-            "{$sender->name} sent you a new message: {$preview}",
+            "Nuovo messaggio da {$sender->name}",
+            "{$sender->name} ti ha inviato un nuovo messaggio: {$preview}",
             $url,
             [
                 'conversation_id' => $conversation->id,

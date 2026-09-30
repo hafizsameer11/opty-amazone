@@ -27,7 +27,7 @@ class EmailVerificationTest extends TestCase
         $challenge = EmailVerificationChallenge::where('user_id', $buyer->id)->firstOrFail();
         $code = null;
         Mail::assertSent(MarketplaceTransactionalMail::class, function (MarketplaceTransactionalMail $mail) use (&$code, $challenge): bool {
-            if ($mail->heading !== 'Verify your email address') return false;
+            if ($mail->heading !== 'Verifica il tuo indirizzo email') return false;
             $code = $mail->code;
             return is_string($code) && Hash::check($code, $challenge->code_hash);
         });
@@ -38,7 +38,7 @@ class EmailVerificationTest extends TestCase
 
         $this->assertNotNull($buyer->fresh()->email_verified_at);
         $this->assertNotNull($challenge->fresh()->verified_at);
-        Mail::assertSent(MarketplaceTransactionalMail::class, fn (MarketplaceTransactionalMail $mail) => $mail->heading === 'Welcome to VistaExpress');
+        Mail::assertSent(MarketplaceTransactionalMail::class, fn (MarketplaceTransactionalMail $mail) => $mail->heading === 'Benvenuto su VistaExpress');
     }
 
     public function test_verification_rejects_expired_and_incorrect_codes(): void

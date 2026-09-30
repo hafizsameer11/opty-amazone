@@ -112,11 +112,11 @@ class ReviewService
 
         $this->refreshProductRating($product->id);
         $product->loadMissing('store.user');
-        app(MarketplaceNotificationService::class)->send($product->store?->user, 'review.new', 'New product review',
-            "A buyer left a review for {$product->name}.", "/products/{$product->id}/edit", ['review_id' => $review->id, 'product_id' => $product->id]);
+        app(MarketplaceNotificationService::class)->send($product->store?->user, 'review.new', 'Nuova recensione sul prodotto',
+            "Un acquirente ha lasciato una recensione su {$product->name}.", "/products/{$product->id}/edit", ['review_id' => $review->id, 'product_id' => $product->id]);
         if ($product->store?->user) app(MarketplaceEmailService::class)->reviewSubmitted($product->store->user, 'product', [
-            'Buyer' => $buyer->name, 'Product' => $product->name, 'Rating' => "{$review->rating}/5",
-            'Review' => $review->comment, 'Date' => $review->created_at?->format('d M Y, H:i'),
+            'Acquirente' => $buyer->name, 'Prodotto' => $product->name, 'Valutazione' => "{$review->rating}/5",
+            'Recensione' => $review->comment, 'Data' => $review->created_at?->locale('it')->translatedFormat('j M Y, H:i'),
         ]);
 
         return $review->load('user');
@@ -149,11 +149,11 @@ class ReviewService
 
         $this->refreshStoreRating($store->id);
         $store->loadMissing('user');
-        app(MarketplaceNotificationService::class)->send($store->user, 'review.new', 'New store review',
-            "A buyer left a review for {$store->name}.", "/store", ['review_id' => $review->id, 'store_id' => $store->id]);
+        app(MarketplaceNotificationService::class)->send($store->user, 'review.new', 'Nuova recensione sul negozio',
+            "Un acquirente ha lasciato una recensione su {$store->name}.", "/store", ['review_id' => $review->id, 'store_id' => $store->id]);
         if ($store->user) app(MarketplaceEmailService::class)->reviewSubmitted($store->user, 'store', [
-            'Buyer' => $buyer->name, 'Store' => $store->name, 'Rating' => "{$review->rating}/5",
-            'Review' => $review->comment, 'Date' => $review->created_at?->format('d M Y, H:i'),
+            'Acquirente' => $buyer->name, 'Negozio' => $store->name, 'Valutazione' => "{$review->rating}/5",
+            'Recensione' => $review->comment, 'Data' => $review->created_at?->locale('it')->translatedFormat('j M Y, H:i'),
         ]);
 
         return $review->load('user');

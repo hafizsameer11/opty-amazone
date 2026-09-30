@@ -15,7 +15,7 @@ class OrderRejectedMail extends Mailable
 
     public function build()
     {
-        return $this->subject("Order Rejected - {$this->storeOrder->order->order_no}")
+        return $this->subject("Ordine rifiutato - {$this->storeOrder->order->order_no}")
             ->view('emails.order-rejected')
             ->with(['storeOrder' => $this->storeOrder]);
     }

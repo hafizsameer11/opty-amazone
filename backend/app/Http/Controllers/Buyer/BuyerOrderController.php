@@ -56,14 +56,14 @@ class BuyerOrderController extends Controller
             return R::error($exception->getMessage(), ['reason' => $exception->reason], 422);
         }
         $notifications = app(MarketplaceNotificationService::class);
-        $notifications->send($r->user(), 'order.payment_completed', 'Payment completed',
-            "Payment for order {$so->order?->order_no} was completed successfully.", "/store-orders/{$so->id}",
+        $notifications->send($r->user(), 'order.payment_completed', 'Pagamento completato',
+            "Il pagamento per l'ordine {$so->order?->order_no} è stato completato con successo.", "/store-orders/{$so->id}",
             ['order_id' => $so->order_id, 'store_order_id' => $so->id, 'amount' => (float) $so->total]);
-        $notifications->send($so->store?->user, 'order.payment_received', 'Buyer completed payment',
-            "Payment was completed for order {$so->order?->order_no}.", "/orders/{$so->id}",
+        $notifications->send($so->store?->user, 'order.payment_received', "L'acquirente ha completato il pagamento",
+            "Il pagamento per l'ordine {$so->order?->order_no} è stato completato.", "/orders/{$so->id}",
             ['order_id' => $so->order_id, 'store_order_id' => $so->id, 'amount' => (float) $so->total]);
-        $notifications->send($r->user(), 'order.delivery_code_available', 'Delivery code available',
-            'Your delivery verification code is available in the order details.', "/store-orders/{$so->id}",
+        $notifications->send($r->user(), 'order.delivery_code_available', 'Codice di consegna disponibile',
+            'Il tuo codice di conferma della consegna è disponibile nei dettagli dell\'ordine.', "/store-orders/{$so->id}",
             ['order_id' => $so->order_id, 'store_order_id' => $so->id]);
         app(MarketplaceEmailService::class)->paymentReceiptBuyer($so);
         app(MarketplaceEmailService::class)->paymentReceivedSeller($so);
@@ -74,8 +74,8 @@ class BuyerOrderController extends Controller
     public function cancelStoreOrder(Request $r, $id)
     {
         $so = app(RefundService::class)->cancel($this->shipments()->findOrFail($id), $r->user(), 'Buyer cancellation');
-        app(MarketplaceNotificationService::class)->send($so->store?->user, 'order.refunded', 'Order refunded',
-            "Order {$so->order?->order_no} was cancelled and refunded.", "/orders/{$so->id}",
+        app(MarketplaceNotificationService::class)->send($so->store?->user, 'order.refunded', 'Ordine rimborsato',
+            "L'ordine {$so->order?->order_no} è stato annullato e rimborsato.", "/orders/{$so->id}",
             ['order_id' => $so->order_id, 'store_order_id' => $so->id]);
         return R::success($so);
     }
@@ -85,8 +85,8 @@ class BuyerOrderController extends Controller
         $data = $r->validate(['reason' => 'required|string|min:5|max:2000']);
 
         $so = app(RefundService::class)->dispute($this->shipments()->findOrFail($id), $r->user(), $data['reason']);
-        app(MarketplaceNotificationService::class)->send($so->store?->user, 'order.disputed', 'Order dispute opened',
-            "A dispute was opened for order {$so->order?->order_no}.", "/orders/{$so->id}",
+        app(MarketplaceNotificationService::class)->send($so->store?->user, 'order.disputed', 'Contestazione aperta',
+            "È stata aperta una contestazione per l'ordine {$so->order?->order_no}.", "/orders/{$so->id}",
             ['order_id' => $so->order_id, 'store_order_id' => $so->id, 'reason' => $data['reason']]);
         return R::success($so);
     }
@@ -95,11 +95,11 @@ class BuyerOrderController extends Controller
     {
         $so = app(DeliveryVerificationService::class)->reissue($this->shipments()->findOrFail($id), $r->user());
         $notifications = app(MarketplaceNotificationService::class);
-        $notifications->send($r->user(), 'order.delivery_code_available', 'New delivery code available',
-            'A new delivery verification code is available in the order details.', "/store-orders/{$so->id}",
+        $notifications->send($r->user(), 'order.delivery_code_available', 'Nuovo codice di consegna disponibile',
+            'Un nuovo codice di conferma della consegna è disponibile nei dettagli dell\'ordine.', "/store-orders/{$so->id}",
             ['order_id' => $so->order_id, 'store_order_id' => $so->id]);
-        $notifications->send($so->store?->user, 'order.delivery_code_reissued', 'Delivery code reissued',
-            "The buyer requested a new delivery code for order {$so->order?->order_no}.", "/orders/{$so->id}",
+        $notifications->send($so->store?->user, 'order.delivery_code_reissued', 'Codice di consegna riemesso',
+            "L'acquirente ha richiesto un nuovo codice di consegna per l'ordine {$so->order?->order_no}.", "/orders/{$so->id}",
             ['order_id' => $so->order_id, 'store_order_id' => $so->id]);
         return R::success(app(OrderView::class)->buyerShipment($so));
     }

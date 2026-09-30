@@ -115,8 +115,8 @@ class StoreReviewService
             $review->seller_reply = $reply;
             $review->seller_replied_at = now();
             $review->save();
-            app(MarketplaceNotificationService::class)->send($review->user, 'review.reply', 'Seller replied to your review',
-                "The store replied to your review for {$store->name}.", "/stores/{$store->id}", ['review_id' => $review->id, 'store_id' => $store->id]);
+        app(MarketplaceNotificationService::class)->send($review->user, 'review.reply', 'Il negozio ha risposto alla tua recensione',
+            "Il negozio ha risposto alla tua recensione su {$store->name}.", "/stores/{$store->id}", ['review_id' => $review->id, 'store_id' => $store->id]);
 
             return $review->fresh();
         } catch (\Exception $e) {

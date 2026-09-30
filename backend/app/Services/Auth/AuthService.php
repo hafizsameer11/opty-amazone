@@ -69,8 +69,8 @@ class AuthService
             app(MarketplaceNotificationService::class)->send(
                 $user,
                 'account.login',
-                'New login detected',
-                'Your account was just used to sign in. If this was not you, change your password and contact support.',
+            'Nuovo accesso rilevato',
+            "Il tuo account è stato appena utilizzato per accedere. Se non sei stato tu, cambia la password e contatta l'assistenza.",
                 $role === 'seller' ? '/profile' : '/profile',
                 ['role' => $role, 'logged_in_at' => now()->toIso8601String()]
             );

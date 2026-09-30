@@ -19,9 +19,9 @@ class OrderPlacedMail extends Mailable
 
     public function build()
     {
-        $subject = $this->storeOrder 
-            ? "New Order Received - {$this->storeOrder->order->order_no}"
-            : "Order Placed - {$this->order->order_no}";
+        $subject = $this->storeOrder
+            ? "Nuovo ordine ricevuto - {$this->storeOrder->order->order_no}"
+            : "Ordine effettuato - {$this->order->order_no}";
 
         return $this->subject($subject)
             ->view('emails.order-placed')
