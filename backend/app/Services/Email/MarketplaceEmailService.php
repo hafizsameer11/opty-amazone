@@ -62,6 +62,20 @@ class MarketplaceEmailService
         ));
     }
 
+    /**
+     * Registration is shared by the web Seller Hub and the mobile app, so the
+     * confirmation belongs at this service boundary rather than either UI.
+     */
+    public function sellerRegistered(User $seller): void
+    {
+        $this->send($seller, new MarketplaceTransactionalMail(
+            'Welcome to VistaExpress Seller Hub', 'Welcome to VistaExpress Seller Hub',
+            'Your seller account has been created. Complete your store information and we will email you again when your account is approved.',
+            ['Next step' => 'Complete store verification', 'Account status' => 'Pending approval'],
+            ctaLabel: 'Open Seller Hub', ctaUrl: $this->sellerUrl('/dashboard'), recipientName: $seller->name,
+        ));
+    }
+
     public function orderPlacedBuyer(Order $order): void
     {
         $order->loadMissing('user', 'storeOrders.items', 'storeOrders.store');

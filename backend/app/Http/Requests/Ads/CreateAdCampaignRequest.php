@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Ads;
 
 use App\Models\AdCampaign;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -47,6 +48,20 @@ class CreateAdCampaignRequest extends FormRequest
             $locations = $this->input('locations', []);
             if (is_array($locations) && in_array('global', $locations) && count($locations) > 1) {
                 $validator->errors()->add('locations', 'Choose global OR individual countries.');
+            }
+
+            // A run-now campaign is activated from the server clock, but the submitted
+            // timestamp still protects us from replaying stale client requests. Keep a
+            // small transport tolerance so a request sent with the current device time
+            // remains valid after it reaches the API.
+            if ($this->input('launch_mode') === 'run_now' && $this->filled('starts_at')) {
+                try {
+                    if (CarbonImmutable::parse($this->input('starts_at'))->lt(now('UTC')->subMinutes(5))) {
+                        $validator->errors()->add('starts_at', 'A run-now campaign request cannot use a stale start time.');
+                    }
+                } catch (\Throwable) {
+                    // The normal date rule above reports malformed values.
+                }
             }
         }];
     }

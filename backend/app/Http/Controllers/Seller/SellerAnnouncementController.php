@@ -55,6 +55,20 @@ class SellerAnnouncementController extends Controller
         return ResponseHelper::success($announcement, 'Announcement created successfully', 201);
     }
 
+    /** Return a single seller-owned announcement for the dedicated detail screen. */
+    public function show($id)
+    {
+        $store = Auth::user()?->store;
+        if (! $store) {
+            return ResponseHelper::error('Store not found', null, 404);
+        }
+
+        return ResponseHelper::success(
+            StoreAnnouncement::where('store_id', $store->id)->findOrFail($id),
+            'Announcement retrieved successfully'
+        );
+    }
+
     public function update(Request $request, $id)
     {
         $user = Auth::user();
@@ -62,7 +76,22 @@ class SellerAnnouncementController extends Controller
 
         $announcement = StoreAnnouncement::where('store_id', $store->id)->findOrFail($id);
 
-        $announcement->update($request->only(['title', 'message', 'start_date', 'end_date', 'is_active']));
+        $data = $request->validate([
+            'title' => 'sometimes|required|string|max:255',
+            'message' => 'sometimes|required|string',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        $start = $data['start_date'] ?? $announcement->start_date?->toDateString();
+        if (! empty($data['end_date']) && ! empty($start) && $data['end_date'] <= $start) {
+            return ResponseHelper::validationError([
+                'end_date' => ['The end date must be after the start date.'],
+            ]);
+        }
+
+        $announcement->update($data);
 
         return ResponseHelper::success($announcement, 'Announcement updated successfully');
     }

@@ -220,6 +220,7 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('referral
 Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('announcements')->group(function () {
     Route::get('/', [SellerAnnouncementController::class, 'index']);
     Route::post('/', [SellerAnnouncementController::class, 'store']);
+    Route::get('/{id}', [SellerAnnouncementController::class, 'show']);
     Route::put('/{id}', [SellerAnnouncementController::class, 'update']);
     Route::delete('/{id}', [SellerAnnouncementController::class, 'destroy']);
     Route::post('/{id}/toggle', [SellerAnnouncementController::class, 'toggle']);

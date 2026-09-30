@@ -200,7 +200,7 @@ class StoreChatService
 
         return StoreChatConversation::query()
             ->where('store_id', $store->id)
-            ->with(['buyer:id,name,email'])
+            ->with(['buyer:id,name,email,profile_image'])
             ->orderByDesc('last_message_at')
             ->orderByDesc('id')
             ->paginate($perPage);
@@ -213,7 +213,7 @@ class StoreChatService
         return StoreChatConversation::query()
             ->where('store_id', $store->id)
             ->where('id', $conversationId)
-            ->with(['buyer:id,name,email'])
+            ->with(['buyer:id,name,email,profile_image'])
             ->firstOrFail();
     }
 

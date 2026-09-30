@@ -10,6 +10,7 @@ use App\Http\Requests\Seller\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\PasswordResetService;
+use App\Services\Email\MarketplaceEmailService;
 use App\Services\Store\StoreService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,7 +29,8 @@ class SellerAuthController extends Controller
     public function __construct(
         private AuthService $authService,
         private PasswordResetService $passwordResetService,
-        private StoreService $storeService
+        private StoreService $storeService,
+        private MarketplaceEmailService $emailService
     ) {}
 
     /**
@@ -74,6 +76,7 @@ class SellerAuthController extends Controller
             // next screen in onboarding, so it must not depend on a previous
             // dashboard request creating the Store row.
             $this->storeService->getStore($user);
+            $this->emailService->sellerRegistered($user);
             
             $token = $user->createToken('seller_token', ['seller'])->plainTextToken;
 
