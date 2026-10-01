@@ -40,6 +40,7 @@ export default function ChangePasswordForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const registeredEmail = email || user?.email || "";
 
   const sendCode = async () => {
     setError(null);
@@ -47,7 +48,7 @@ export default function ChangePasswordForm() {
     setLoading(true);
     try {
       const response = await userService.sendPasswordChangeCode();
-      setEmail(response.email || user?.email || "");
+      setEmail(response.email || registeredEmail);
       setStep("verify");
       setSuccess(t("passwordChange.codeSent"));
     } catch (cause) {
@@ -108,7 +109,7 @@ export default function ChangePasswordForm() {
       {step === "send" && (
         <div className="space-y-4">
           <p className="text-sm leading-6 text-gray-600">{t("passwordChange.sendCopy")}</p>
-          <Input label={t("passwordChange.registeredEmail")} value={email} disabled readOnly />
+          <Input label={t("passwordChange.registeredEmail")} value={registeredEmail} disabled readOnly />
           <Button type="button" onClick={sendCode} disabled={loading}>
             {loading ? t("passwordChange.sending") : t("passwordChange.sendCode")}
           </Button>
@@ -117,7 +118,7 @@ export default function ChangePasswordForm() {
 
       {step === "verify" && (
         <div className="space-y-4">
-          <p className="text-sm leading-6 text-gray-600">{t("passwordChange.verifyCopy", { email })}</p>
+          <p className="text-sm leading-6 text-gray-600">{t("passwordChange.verifyCopy", { email: registeredEmail })}</p>
           <Input
             label={t("passwordChange.code")}
             inputMode="numeric"
