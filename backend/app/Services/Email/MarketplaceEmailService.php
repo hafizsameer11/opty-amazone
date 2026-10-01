@@ -151,6 +151,25 @@ class MarketplaceEmailService
         ));
     }
 
+    /** Send the authenticated seller a one-time code before changing a password. */
+    public function sellerPasswordChangeCode(User $seller, string $code, Carbon $expiresAt): bool
+    {
+        return $this->send($seller, new MarketplaceTransactionalMail(
+            'Conferma il cambio password del tuo Seller Hub VistaExpress',
+            'Conferma il cambio password',
+            'Utilizza il codice di verifica qui sotto per confermare che desideri cambiare la password del tuo account Seller Hub.',
+            [
+                'Il codice scade' => $expiresAt->timezone(config('app.timezone'))->locale('it')->translatedFormat('j M Y, H:i'),
+                'Validità' => '15 minuti',
+            ],
+            ctaLabel: 'Apri il Seller Hub',
+            ctaUrl: $this->sellerUrl('/profile/change-password'),
+            notice: 'Per la tua sicurezza, non condividere mai questo codice con nessuno.',
+            code: $code,
+            recipientName: $seller->name,
+        ));
+    }
+
     public function orderPlacedBuyer(Order $order): void
     {
         $order->loadMissing('user', 'storeOrders.items', 'storeOrders.store');
