@@ -40,6 +40,20 @@ export class AuthService {
     return response.data;
   }
 
+  static async verifyPasswordResetCode(email: string, code: string): Promise<{ reset_token: string }> {
+    const response = await apiClient.post('/seller/auth/verify-reset-code', { email, code });
+    return response.data.data;
+  }
+
+  static async resetPassword(email: string, resetToken: string, password: string, passwordConfirmation: string): Promise<void> {
+    await apiClient.post('/seller/auth/reset-password', {
+      email,
+      reset_token: resetToken,
+      password,
+      password_confirmation: passwordConfirmation,
+    });
+  }
+
   /**
    * Store auth token and user data
    */

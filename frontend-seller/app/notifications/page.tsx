@@ -43,6 +43,7 @@ export default function SellerNotificationsPage() {
       await notificationService.markRead(item.id);
       setItems((current) => current.map((row) => row.id === item.id ? { ...row, read_at: new Date().toISOString() } : row));
       setUnread((count) => Math.max(0, count - 1));
+      window.dispatchEvent(new Event('seller-unread-changed'));
     }
     if (item.url) router.push(item.url);
   };
@@ -51,6 +52,7 @@ export default function SellerNotificationsPage() {
     await notificationService.markAllRead();
     setItems((current) => current.map((item) => ({ ...item, read_at: item.read_at || new Date().toISOString() })));
     setUnread(0);
+    window.dispatchEvent(new Event('seller-unread-changed'));
   };
 
   if (loading || !isAuthenticated) return <main className="max-w-4xl mx-auto p-8">{t('notifications.loading')}</main>;

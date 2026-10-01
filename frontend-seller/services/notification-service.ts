@@ -3,7 +3,10 @@ import apiClient from '@/lib/api-client';
 export interface SellerUnreadCounts {
   messages: number;
   orders: number;
+  support: number;
+  files: number;
   notifications: number;
+  total: number;
 }
 
 export interface MarketplaceNotification {
@@ -24,7 +27,10 @@ export const notificationService = {
     return {
       messages: Number(data.messages || 0),
       orders: Number(data.orders || 0),
+      support: Number(data.support || 0),
+      files: Number(data.files || 0),
       notifications: Number(data.notifications || 0),
+      total: Number(data.total || 0),
     };
   },
   async list(params?: { page?: number; per_page?: number }): Promise<{ notifications: MarketplaceNotification[]; pagination: { current_page: number; last_page: number; per_page: number; total: number }; unread_count: number }> {
@@ -36,5 +42,13 @@ export const notificationService = {
   },
   async markAllRead(): Promise<void> {
     await apiClient.post('/seller/notifications/read-all');
+  },
+  async markCategoryRead(category: 'orders'): Promise<SellerUnreadCounts> {
+    const res = await apiClient.post('/seller/notifications/read-category', { category });
+    const data = (res.data.data || {}) as Partial<SellerUnreadCounts>;
+    return {
+      messages: Number(data.messages || 0), orders: Number(data.orders || 0), support: Number(data.support || 0),
+      files: Number(data.files || 0), notifications: Number(data.notifications || 0), total: Number(data.total || 0),
+    };
   },
 };

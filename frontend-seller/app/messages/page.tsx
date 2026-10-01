@@ -139,6 +139,7 @@ function MessagesPageContent() {
       lastMessageIdRef.current = list.length ? Math.max(...list.map((m) => m.id)) : 0;
       scrollThread();
       void loadConversations();
+      window.dispatchEvent(new Event('seller-unread-changed'));
     } catch (e) {
       setError(getAxiosErrorMessage(e));
       setSelectedId(null);
@@ -168,6 +169,7 @@ function MessagesPageContent() {
       setAdminThread(list);
       lastAdminIdRef.current = list.length ? Math.max(...list.map((m) => m.id)) : 0;
       scrollThread();
+      window.dispatchEvent(new Event('seller-unread-changed'));
     } catch (e) {
       setError(getAxiosErrorMessage(e));
     } finally {
@@ -437,17 +439,10 @@ function MessagesPageContent() {
                                     selectedId === c.id ? 'bg-[#0066CC]/5 border-l-4 border-l-[#0066CC]' : ''
                                   }`}
                                 >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <p className="font-medium text-gray-900 truncate">{c.buyer?.name || t('messages.buyers')}</p>
-                                    {c.seller_unread_count > 0 && (
-                                      <span className="shrink-0 text-[10px] font-bold text-white bg-[#0066CC] rounded-full min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center">
-                                        {c.seller_unread_count > 9 ? '9+' : c.seller_unread_count}
-                                      </span>
-                                    )}
+                                  <div className="flex items-start gap-3">
+                                    {c.buyer?.profile_image_url ? <img src={c.buyer.profile_image_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover bg-slate-100" /> : <span className="h-9 w-9 shrink-0 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center text-xs font-bold">{(c.buyer?.name || '?').charAt(0).toUpperCase()}</span>}
+                                    <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><p className="font-medium text-gray-900 truncate">{c.buyer?.name || t('messages.buyers')}</p>{c.seller_unread_count > 0 && (<span className="shrink-0 text-[10px] font-bold text-white bg-[#0066CC] rounded-full min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center">{c.seller_unread_count > 9 ? '9+' : c.seller_unread_count}</span>)}</div>{c.last_message_preview && (<p className="text-xs text-gray-500 truncate mt-0.5">{c.last_message_preview}</p>)}</div>
                                   </div>
-                                  {c.last_message_preview && (
-                                    <p className="text-xs text-gray-500 truncate mt-0.5">{c.last_message_preview}</p>
-                                  )}
                                 </button>
                               </li>
                             ))}
@@ -465,7 +460,8 @@ function MessagesPageContent() {
                         <>
                           <div className="shrink-0 px-3 py-3 border-b border-gray-100 flex items-center justify-between gap-2 sm:px-4">
                             <button type="button" onClick={() => setSelectedId(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 lg:hidden" aria-label={t('messages.conversations')}><svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 18l-6-6 6-6" /></svg></button>
-                            <div className="min-w-0">
+                            {conversations.find((x) => x.id === selectedId)?.buyer?.profile_image_url ? <img src={conversations.find((x) => x.id === selectedId)?.buyer?.profile_image_url || ''} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover bg-slate-100" /> : <span className="h-9 w-9 shrink-0 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center text-xs font-bold">{(conversations.find((x) => x.id === selectedId)?.buyer?.name || '?').charAt(0).toUpperCase()}</span>}
+                            <div className="min-w-0 flex-1">
                               <p className="font-semibold text-gray-900 truncate">
                                 {conversations.find((x) => x.id === selectedId)?.buyer?.name || t('messages.buyers')}
                               </p>

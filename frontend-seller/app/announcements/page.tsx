@@ -12,6 +12,7 @@ import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useLanguage } from '@/contexts/LanguageContext';
+import Link from 'next/link';
 
 export default function AnnouncementsPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -170,7 +171,7 @@ export default function AnnouncementsPage() {
                     <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('announcements.title')}</h1>
                     <p className="text-gray-600 mt-1">{t('announcements.subtitle')}</p>
                   </div>
-                  <Button onClick={() => setShowForm(true)} className="w-full sm:w-auto">
+                  <Button onClick={() => router.push('/announcements/new')} className="w-full sm:w-auto">
                     <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
@@ -266,7 +267,7 @@ export default function AnnouncementsPage() {
                     <h3 className="mt-2 text-sm font-medium text-gray-900">{t('announcements.noAnnouncements')}</h3>
                     <p className="mt-1 text-sm text-gray-500">{t('announcements.getStarted')}</p>
                     <div className="mt-6">
-                      <Button onClick={() => setShowForm(true)}>{t('announcements.add')}</Button>
+                      <Button onClick={() => router.push('/announcements/new')}>{t('announcements.add')}</Button>
                     </div>
                   </div>
                 ) : (
@@ -294,13 +295,8 @@ export default function AnnouncementsPage() {
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2 sm:ml-4">
-                            <Button
-                              variant="outline"
-                              onClick={() => handleEdit(announcement)}
-                              className="text-sm"
-                            >
-                              {t('announcements.editAction')}
-                            </Button>
+                            <Link href={`/announcements/${announcement.id}`}><Button variant="outline" className="text-sm">Details</Button></Link>
+                            <Link href={`/announcements/${announcement.id}/edit`}><Button variant="outline" className="text-sm">{t('announcements.editAction')}</Button></Link>
                             <Button
                               variant="outline"
                               onClick={() => handleToggle(announcement.id)}

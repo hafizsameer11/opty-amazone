@@ -313,6 +313,9 @@ export default function CouponsPage() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center justify-end gap-3">
+                                <Link href={`/coupons/${coupon.id}`}>
+                                  <button className="font-medium text-slate-700 transition-colors hover:text-slate-950">{t('Details')}</button>
+                                </Link>
                                 <Link href={`/coupons/${coupon.id}/edit`}>
                                   <button className="text-[#0066CC] hover:text-[#0052a3] font-medium transition-colors">
                                     {t('Edit')}

@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AuthService } from '@/services/auth-service';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import SellerAuthShell, { AuthFeedback } from '@/components/auth/SellerAuthShell';
 import SellerAuthInput from '@/components/auth/SellerAuthInput';
@@ -15,6 +16,7 @@ type ForgotPasswordFormData = { email: string };
 
 export default function ForgotPasswordPage() {
   const { t } = useLanguage();
+  const router = useRouter();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -26,8 +28,8 @@ export default function ForgotPasswordPage() {
       setIsLoading(true);
       setError('');
       setSuccess('');
-      const response = await AuthService.forgotPassword(data);
-      setSuccess(response.message || t('auth.resetEmailSent'));
+      await AuthService.forgotPassword(data);
+      router.push(`/auth/reset-password?email=${encodeURIComponent(data.email.trim())}`);
     } catch (err: any) {
       setError(err.response?.data?.message || err.response?.data?.errors?.email?.[0] || t('auth.resetFailed'));
     } finally {
@@ -39,7 +41,7 @@ export default function ForgotPasswordPage() {
     <SellerAuthShell
       eyebrow={t('auth.recoveryEyebrow')}
       title={t('auth.resetPassword')}
-      description={t('auth.resetDescription')}
+      description="Enter your seller email and we’ll send a six-digit verification code."
       sideTitle={t('auth.resetSideTitle')}
       sideDescription={t('auth.resetSideDescription')}
     >
@@ -48,7 +50,7 @@ export default function ForgotPasswordPage() {
         {error && <AuthFeedback type="error" message={error} onClose={() => setError('')} />}
         {success && <AuthFeedback type="success" message={success} onClose={() => setSuccess('')} />}
         <SellerAuthInput id="reset-email" label={t('auth.businessEmail')} type="email" icon="mail" {...register('email')} error={errors.email?.message} placeholder={t('auth.emailPlaceholder')} autoComplete="email" required />
-        <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="w-full !rounded-xl !py-3.5">{t('auth.sendResetLink')}</Button>
+        <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="w-full !rounded-xl !py-3.5">Send verification code</Button>
       </form>
       <div className="mt-7 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
         {t('auth.rememberedPassword')} <Link href="/auth/login" className="font-bold text-[#0789c5] hover:text-[#006b99]">{t('auth.backToSignIn')}</Link>

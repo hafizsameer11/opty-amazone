@@ -12,6 +12,7 @@ import { orderService, type StoreOrder } from '@/services/order-service';
 import OrderDetailsModal from '@/components/orders/OrderDetailsModal';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+import { notificationService } from '@/services/notification-service';
 
 export default function SellerOrdersPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -34,6 +35,7 @@ export default function SellerOrdersPage() {
   useEffect(() => {
     if (isAuthenticated) {
       loadOrders();
+      void notificationService.markCategoryRead('orders').catch(() => undefined);
     }
   }, [isAuthenticated, statusFilter]);
 

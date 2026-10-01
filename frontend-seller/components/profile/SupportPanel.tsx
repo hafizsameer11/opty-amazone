@@ -96,6 +96,7 @@ export default function SupportPanel() {
       setSelected(await supportService.show(id));
       setReply('');
       setReplyFile(null);
+      window.dispatchEvent(new Event('seller-unread-changed'));
     } catch (requestError: unknown) {
       setError(apiError(requestError, t('support.openFailed')));
     } finally {

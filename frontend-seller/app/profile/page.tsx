@@ -24,6 +24,7 @@ import FollowersPanel from "@/components/profile/FollowersPanel";
 import SupportPanel from "@/components/profile/SupportPanel";
 import ReviewsPanel from "@/components/profile/ReviewsPanel";
 import StoreSettingsPanel from "@/components/profile/StoreSettingsPanel";
+import { notificationService } from "@/services/notification-service";
 
 type AccountTab =
   | "overview"
@@ -58,6 +59,7 @@ function ProfilePageContent() {
   const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
   const [store, setStore] = useState<Store | null>(null);
   const [sellerStats, setSellerStats] = useState({ products: 0, orders: 0, followers: 0, revenue: 0 });
+  const [unreadSupport, setUnreadSupport] = useState(0);
 
   const showSetupBanner =
     searchParams.get("setup") === "1" &&
@@ -125,6 +127,29 @@ function ProfilePageContent() {
   }, []);
 
   useLiveRefresh(() => loadAccountData(true), Boolean(user), 15000);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let active = true;
+    const loadUnreadSupport = async () => {
+      try {
+        const summary = await notificationService.getUnreadCounts();
+        if (active) setUnreadSupport(summary.support);
+      } catch {
+        // A delayed badge must never block the account screen.
+      }
+    };
+
+    void loadUnreadSupport();
+    const id = window.setInterval(loadUnreadSupport, 10_000);
+    window.addEventListener("seller-unread-changed", loadUnreadSupport);
+    return () => {
+      active = false;
+      window.clearInterval(id);
+      window.removeEventListener("seller-unread-changed", loadUnreadSupport);
+    };
+  }, [user]);
 
   if (!user) {
     return (
@@ -556,7 +581,7 @@ function ProfilePageContent() {
                   </div>
                   <div className="mt-5"><p className="px-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Manage your business</p><nav className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm divide-y divide-slate-100">{menuItems.map((item) => {
                     const tabLocked = accountShortcutsLocked && ACCOUNT_SHORTCUT_TABS.includes(item.id);
-                    return <button key={item.id} type="button" disabled={tabLocked} title={tabLocked ? t('completeProfileNavHint') : undefined} onClick={() => !tabLocked && openMobileSection(item.id)} className={`flex w-full items-center gap-3 px-3 py-3.5 text-left transition ${tabLocked ? 'cursor-not-allowed opacity-45' : 'hover:bg-slate-50'}`}><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${item.colorClass}`}>{item.icon}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-slate-900">{item.label}</span>{item.description && <span className="mt-0.5 block truncate text-xs text-slate-500">{item.description}</span>}</span><span className="text-lg text-slate-400">›</span></button>;
+                    return <button key={item.id} type="button" disabled={tabLocked} title={tabLocked ? t('completeProfileNavHint') : undefined} onClick={() => !tabLocked && openMobileSection(item.id)} className={`flex w-full items-center gap-3 px-3 py-3.5 text-left transition ${tabLocked ? 'cursor-not-allowed opacity-45' : 'hover:bg-slate-50'}`}><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${item.colorClass}`}>{item.icon}</span><span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="block truncate text-sm font-bold text-slate-900">{item.label}</span>{item.id === 'support' && unreadSupport > 0 && <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{unreadSupport > 99 ? '99+' : unreadSupport}</span>}</span>{item.description && <span className="mt-0.5 block truncate text-xs text-slate-500">{item.description}</span>}</span><span className="text-lg text-slate-400">›</span></button>;
                   })}</nav></div>
                 </section>
               )}
@@ -647,8 +672,13 @@ function ProfilePageContent() {
                       : "border-gray-200 bg-white hover:bg-gray-50"
                   } ${tabLocked ? "opacity-50 cursor-not-allowed hover:bg-white" : ""}`}
                 >
-                  <span className="font-semibold text-gray-900">
+                  <span className="flex items-center gap-2 font-semibold text-gray-900">
                     {item.label}
+                    {item.id === "support" && unreadSupport > 0 && (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                        {unreadSupport > 99 ? "99+" : unreadSupport}
+                      </span>
+                    )}
                   </span>
                   {item.description && (
                     <span className="mt-0.5 text-xs text-gray-500">

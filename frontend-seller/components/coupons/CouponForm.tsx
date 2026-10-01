@@ -16,35 +16,35 @@ interface CouponFormProps {
   loading?: boolean;
 }
 
+function initialCouponForm(coupon?: Coupon): CreateCouponData {
+  const timezone = browserTimezone();
+  return {
+    code: coupon?.code || '', description: coupon?.description || '', discount_type: coupon?.discount_type || 'percentage', discount_value: coupon?.discount_value || 0,
+    min_order_amount: coupon?.min_order_amount ?? undefined, usage_limit: coupon?.usage_limit ?? undefined, usage_per_user: coupon?.usage_per_user ?? undefined,
+    starts_at: coupon?.starts_at ? localDateTimeInput(coupon.starts_at, timezone) : localDateTimeInput(new Date(), timezone), ends_at: coupon?.ends_at ? localDateTimeInput(coupon.ends_at, timezone) : '', schedule_timezone: timezone,
+    launch_mode: coupon ? undefined : 'run_now', is_active: coupon?.is_active ?? true, status: coupon?.status === 'paused' ? 'paused' : coupon?.is_active === false ? 'inactive' : 'active', scope: coupon?.scope || 'store',
+    is_public: coupon?.is_public ?? true, followers_only: coupon?.followers_only ?? false, first_order_only: coupon?.first_order_only ?? false,
+    product_ids: coupon?.products?.map((target) => target.id) || [], category_ids: coupon?.categories?.map((target) => target.id) || [], variant_ids: coupon?.variants?.map((target) => target.id) || [],
+  };
+}
+
 export default function CouponForm({ coupon, onSubmit, onCancel, loading = false }: CouponFormProps) {
   const { t } = useLanguage();
   const timezone = browserTimezone();
-  const [formData, setFormData] = useState<CreateCouponData>({
-    code: coupon?.code || '',
-    description: coupon?.description || '',
-    discount_type: coupon?.discount_type || 'percentage',
-    discount_value: coupon?.discount_value || 0,
-    min_order_amount: coupon?.min_order_amount ?? undefined,
-    usage_limit: coupon?.usage_limit ?? undefined,
-    usage_per_user: coupon?.usage_per_user ?? undefined,
-    starts_at: coupon?.starts_at ? localDateTimeInput(coupon.starts_at, timezone) : localDateTimeInput(new Date(), timezone),
-    ends_at: coupon?.ends_at ? localDateTimeInput(coupon.ends_at, timezone) : '',
-    schedule_timezone: timezone,
-    launch_mode: coupon ? undefined : 'run_now',
-    is_active: coupon?.is_active ?? true,
-    status: coupon?.status === 'paused' ? 'paused' : coupon?.is_active === false ? 'inactive' : 'active',
-    scope: coupon?.scope || 'store',
-    is_public: coupon?.is_public ?? true,
-    followers_only: coupon?.followers_only ?? false,
-    first_order_only: coupon?.first_order_only ?? false,
-    product_ids: coupon?.products?.map((target) => target.id) || [],
-    category_ids: coupon?.categories?.map((target) => target.id) || [],
-    variant_ids: coupon?.variants?.map((target) => target.id) || [],
-  });
+  const [formData, setFormData] = useState<CreateCouponData>(() => initialCouponForm(coupon));
 
   const [error, setError] = useState('');
   const [targets, setTargets] = useState<CouponTarget[]>([]);
   const [targetsLoading, setTargetsLoading] = useState(coupon?.scope !== undefined && coupon.scope !== 'store');
+
+  // Explicitly reset controlled fields whenever a route/layout reuses this
+  // component for a different coupon (or for a fresh “New Coupon” screen).
+  useEffect(() => {
+    setFormData(initialCouponForm(coupon));
+    setTargets([]);
+    setTargetsLoading(Boolean(coupon?.scope && coupon.scope !== 'store'));
+    setError('');
+  }, [coupon?.id]);
 
   useEffect(() => {
     const scope = formData.scope;

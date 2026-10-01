@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
@@ -8,6 +8,7 @@ import { productService, type Category, type Product } from '@/services/product-
 import { referralService, type ReferralCampaign, type ReferralPayload } from '@/services/referral-service';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useLanguage } from '@/contexts/LanguageContext';
+import Link from 'next/link';
 
 const euro = (value: unknown) => `€${Number(value || 0).toFixed(2)}`;
 const localDateTime = (date = new Date()) => new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
@@ -35,6 +36,8 @@ export default function ReferralCampaignsPage() {
   const [form, setForm] = useState<ReferralPayload>(empty);
   const [editing, setEditing] = useState<ReferralCampaign | null>(null);
   const [open, setOpen] = useState(false);
+  const [formSession, setFormSession] = useState(0);
+  const handledEditRequest = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -73,7 +76,32 @@ export default function ReferralCampaignsPage() {
       product_ids: campaign.products.map((product) => product.id),
       category_ids: campaign.categories.map((category) => category.id),
     });
+    setFormSession(value => value + 1);
     setOpen(true);
+  };
+
+  const openNew = () => {
+    setEditing(null);
+    setForm(empty());
+    setError('');
+    setFormSession(value => value + 1);
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    const requestedId = new URLSearchParams(window.location.search).get('edit');
+    if (!requestedId || handledEditRequest.current === requestedId) return;
+    const campaign = campaigns.find((item) => item.id === Number(requestedId));
+    if (!campaign) return;
+    handledEditRequest.current = requestedId;
+    edit(campaign);
+  }, [campaigns]);
+
+  const closeEditor = () => {
+    setOpen(false);
+    setEditing(null);
+    setForm(empty());
+    setError('');
   };
 
   const toggle = (key: 'product_ids' | 'category_ids', value: number) => setForm((current) => ({
@@ -96,9 +124,7 @@ export default function ReferralCampaignsPage() {
       };
       if (editing) await referralService.update(editing.id, payload);
       else await referralService.create(payload);
-      setOpen(false);
-      setEditing(null);
-      setForm(empty());
+      closeEditor();
       await load();
     } catch (caught: unknown) {
       setError(errorMessage(caught, t('referral.saveFailed')));
@@ -118,10 +144,10 @@ export default function ReferralCampaignsPage() {
   };
 
   return <div className="min-h-screen bg-gray-50 pb-24"><Header /><div className="flex"><Sidebar /><main className="min-w-0 flex-1 space-y-6 p-5 lg:p-8">
-    <header className="flex flex-wrap justify-between gap-4"><div><h1 className="text-3xl font-bold">{t('referral.title')}</h1><p className="mt-2 text-gray-600">{t('referral.subtitle')}</p></div><button onClick={() => { setEditing(null); setForm(empty()); setOpen(true); }} className="rounded-lg bg-blue-700 px-5 py-3 font-medium text-white">{t('referral.create')}</button></header>
+    <header className="flex flex-wrap justify-between gap-4"><div><h1 className="text-3xl font-bold">{t('referral.title')}</h1><p className="mt-2 text-gray-600">{t('referral.subtitle')}</p></div><button onClick={openNew} className="rounded-lg bg-blue-700 px-5 py-3 font-medium text-white">{t('referral.create')}</button></header>
     {error && <p role="alert" className="rounded-lg bg-red-50 p-4 text-red-700">{error}</p>}
     {loading ? <p className="text-gray-500">{t('referral.loading')}</p> : campaigns.length === 0 ? <div className="rounded-xl border bg-white p-10 text-center text-gray-500">{t('referral.empty')}</div> : <div className="grid gap-5 xl:grid-cols-2">{campaigns.map((campaign) => <CampaignCard key={campaign.id} campaign={campaign} onEdit={() => edit(campaign)} onAction={(value) => void action(campaign, value)} />)}</div>}
-    {open && <CampaignForm form={form} setForm={setForm} products={products} categories={categories} toggle={toggle} saving={saving} onClose={() => setOpen(false)} onSubmit={submit} editing={!!editing} />}
+    {open && <CampaignForm key={`${editing?.id ?? 'new'}-${formSession}`} form={form} setForm={setForm} products={products} categories={categories} toggle={toggle} saving={saving} onClose={closeEditor} onSubmit={submit} editing={!!editing} />}
   </main></div><BottomNav /></div>;
 }
 
@@ -138,7 +164,7 @@ function CampaignCard({ campaign, onEdit, onAction }: { campaign: ReferralCampai
   const reward = campaign.reward_type === 'percentage' ? `${campaign.reward_amount}%` : euro(campaign.reward_amount);
   const statusKey = `referral.status.${campaign.status}`;
   const status = t(statusKey) === statusKey ? campaign.status.replaceAll('_', ' ') : t(statusKey);
-  return <article className="rounded-xl border bg-white p-5"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="text-lg font-bold">{campaign.name}</h2><p className="mt-1 text-sm text-gray-600">{campaign.identifier} · {scope} · {reward}</p></div><span className="h-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{status} / {approval}</span></div><p className="mt-2 text-sm text-gray-600">{activation}</p><p className="mt-3 text-sm text-gray-600">{t('referral.budget', { spent: euro(campaign.budget_spent), remaining: euro(campaign.budget_reserved) })}</p>{analytics && <div className="mt-4 grid grid-cols-3 gap-3 text-sm"><Metric name={t('referral.clicks')} value={analytics.clicks} /><Metric name={t('referral.orders')} value={analytics.orders} /><Metric name={t('referral.paid')} value={analytics.rewarded_conversions} /><Metric name={t('referral.revenue')} value={euro(analytics.revenue_generated)} /><Metric name={t('referral.commission')} value={euro(analytics.referral_commission_cost)} /><Metric name={t('referral.netRevenue')} value={euro(analytics.net_revenue)} /></div>}<div className="mt-5 flex flex-wrap gap-2"><button onClick={onEdit} className="rounded border px-3 py-2 text-sm">{t('referral.edit')}</button>{['active', 'scheduled'].includes(campaign.status) ? <button onClick={() => onAction('pause')} className="rounded border px-3 py-2 text-sm">{t('referral.pause')}</button> : campaign.status === 'paused' ? <button onClick={() => onAction('resume')} className="rounded border px-3 py-2 text-sm">{t('referral.resume')}</button> : null}<button onClick={() => onAction('archive')} className="rounded border border-red-200 px-3 py-2 text-sm text-red-700">{t('referral.archive')}</button></div></article>;
+  return <article className="rounded-xl border bg-white p-5"><div className="flex flex-wrap justify-between gap-3"><div><Link href={`/referral-campaigns/${campaign.id}`} className="text-lg font-bold hover:text-blue-700 hover:underline">{campaign.name}</Link><p className="mt-1 text-sm text-gray-600">{campaign.identifier} · {scope} · {reward}</p></div><span className="h-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{status} / {approval}</span></div><p className="mt-2 text-sm text-gray-600">{activation}</p><p className="mt-3 text-sm text-gray-600">{t('referral.budget', { spent: euro(campaign.budget_spent), remaining: euro(campaign.budget_reserved) })}</p>{analytics && <div className="mt-4 grid grid-cols-3 gap-3 text-sm"><Metric name={t('referral.clicks')} value={analytics.clicks} /><Metric name={t('referral.orders')} value={analytics.orders} /><Metric name={t('referral.paid')} value={analytics.rewarded_conversions} /><Metric name={t('referral.revenue')} value={euro(analytics.revenue_generated)} /><Metric name={t('referral.commission')} value={euro(analytics.referral_commission_cost)} /><Metric name={t('referral.netRevenue')} value={euro(analytics.net_revenue)} /></div>}<div className="mt-5 flex flex-wrap gap-2"><Link href={`/referral-campaigns/${campaign.id}`} className="rounded border px-3 py-2 text-sm">Details</Link><button onClick={onEdit} className="rounded border px-3 py-2 text-sm">{t('referral.edit')}</button>{['active', 'scheduled'].includes(campaign.status) ? <button onClick={() => onAction('pause')} className="rounded border px-3 py-2 text-sm">{t('referral.pause')}</button> : campaign.status === 'paused' ? <button onClick={() => onAction('resume')} className="rounded border px-3 py-2 text-sm">{t('referral.resume')}</button> : null}<button onClick={() => onAction('archive')} className="rounded border border-red-200 px-3 py-2 text-sm text-red-700">{t('referral.archive')}</button></div></article>;
 }
 
 function Metric({ name, value }: { name: string; value: string | number }) { return <div className="rounded bg-gray-50 p-3"><p className="text-xs text-gray-500">{name}</p><p className="mt-1 font-semibold">{value}</p></div>; }

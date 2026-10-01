@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,8 +16,9 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 type LoginFormData = { email: string; password: string };
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const search = useSearchParams();
   const { login } = useAuth();
   const { t } = useLanguage();
   const [error, setError] = useState('');
@@ -59,6 +60,8 @@ export default function LoginPage() {
         <span className="hidden shrink-0 rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-700 sm:inline-flex">{t('auth.sellerAccess')}</span>
       </div>
 
+      {search.get('reset') === 'success' && <div className="mb-5"><AuthFeedback type="success" message="Your password has been updated. Sign in with your new password." /></div>}
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
         {error && <AuthFeedback type="error" message={error} onClose={() => setError('')} />}
         <SellerAuthInput id="seller-email" label={t('auth.emailAddress')} type="email" icon="mail" {...register('email')} error={errors.email?.message} placeholder={t('auth.emailPlaceholder')} autoComplete="email" required />
@@ -81,5 +84,13 @@ export default function LoginPage() {
         {t('auth.newToVista')} <Link href="/auth/register" className="font-bold text-[#0789c5] hover:text-[#006b99]">{t('auth.createSellerAccount')}</Link>
       </div>
     </SellerAuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

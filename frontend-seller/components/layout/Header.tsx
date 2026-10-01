@@ -88,7 +88,11 @@ export default function Header() {
     };
     void load();
     const timer = window.setInterval(() => void load(), 5000);
-    return () => window.clearInterval(timer);
+    window.addEventListener('seller-unread-changed', load);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('seller-unread-changed', load);
+    };
   }, [router, showToast, t, user]);
 
   useEffect(() => {

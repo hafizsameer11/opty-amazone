@@ -26,6 +26,11 @@ export const announcementService = {
     return res.data.data;
   },
 
+  async get(id: number) {
+    const res = await apiClient.get(`/seller/announcements/${id}`);
+    return res.data.data as Announcement;
+  },
+
   async update(id: number, data: Partial<Announcement>) {
     const res = await apiClient.put(`/seller/announcements/${id}`, data);
     return res.data.data;

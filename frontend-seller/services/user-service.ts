@@ -13,6 +13,10 @@ export interface ChangePasswordPayload {
   password_confirmation: string;
 }
 
+export interface PasswordChangeCodeResponse {
+  email: string;
+}
+
 export interface ProfileResponse {
   user: User & {
     phone_verified_at?: string | null;
@@ -33,6 +37,22 @@ export const userService = {
 
   async changePassword(payload: ChangePasswordPayload): Promise<void> {
     await apiClient.post("/seller/profile/change-password", payload);
+  },
+
+  async sendPasswordChangeCode(): Promise<PasswordChangeCodeResponse> {
+    const res = await apiClient.post("/seller/profile/change-password/send-code");
+    return res.data.data;
+  },
+
+  async verifyPasswordChangeCode(code: string): Promise<void> {
+    await apiClient.post("/seller/profile/change-password/verify-code", { code });
+  },
+
+  async resetPasswordWithVerifiedCode(password: string, passwordConfirmation: string): Promise<void> {
+    await apiClient.post("/seller/profile/change-password/reset", {
+      password,
+      password_confirmation: passwordConfirmation,
+    });
   },
 
   async uploadProfileImage(file: File): Promise<ProfileResponse> {

@@ -11,16 +11,16 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ReactNode;
-  badgeKey?: 'orders' | 'messages' | 'notifications';
+  badgeKey?: 'orders' | 'messages' | 'support' | 'notifications';
 }
 
-const POLL_MS = 30000;
+const POLL_MS = 10000;
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, isAuthenticated } = useAuth();
   const { t } = useLanguage();
-  const [badges, setBadges] = useState({ orders: 0, messages: 0, notifications: 0 });
+  const [badges, setBadges] = useState({ orders: 0, messages: 0, support: 0, notifications: 0 });
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -31,7 +31,11 @@ export default function Sidebar() {
         .then((data) => {
           setBadges({
             orders: pathname?.startsWith('/orders') ? 0 : data.orders,
-            messages: pathname?.startsWith('/messages') ? 0 : data.messages,
+            messages: data.messages,
+            // A profile visit alone does not mean every support reply was
+            // read. The API clears a support count only when its ticket is
+            // opened, so keep this badge truthful.
+            support: data.support,
             notifications: pathname?.startsWith('/notifications') ? 0 : data.notifications,
           });
         })
@@ -40,7 +44,11 @@ export default function Sidebar() {
 
     load();
     const id = window.setInterval(load, POLL_MS);
-    return () => window.clearInterval(id);
+    window.addEventListener('seller-unread-changed', load);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener('seller-unread-changed', load);
+    };
   }, [isAuthenticated, pathname]);
 
   const navigation: NavItem[] = useMemo(() => [
@@ -267,7 +275,7 @@ export default function Sidebar() {
 
           {/* User Section */}
           <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
-            <Link href="/profile" className="flex-shrink-0 w-full group block rounded-xl hover:bg-gray-50 p-2 transition-all duration-200">
+            <Link href="/profile" className="relative flex-shrink-0 w-full group block rounded-xl hover:bg-gray-50 p-2 transition-all duration-200">
               <div className="flex items-center">
                 <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#0066CC] to-[#00CC66] flex items-center justify-center text-white font-bold shadow-md group-hover:shadow-lg transition-shadow">
                   {user?.name?.charAt(0).toUpperCase() || 'U'}
@@ -282,6 +290,11 @@ export default function Sidebar() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
+              {badges.support > 0 && (
+                <span className="absolute right-4 top-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-sm">
+                  {badges.support > 99 ? '99+' : badges.support}
+                </span>
+              )}
             </Link>
           </div>
         </div>

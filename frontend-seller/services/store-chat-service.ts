@@ -16,7 +16,7 @@ export interface StoreChatMessage {
 export interface SellerChatConversationListItem {
   id: number;
   store_id: number;
-  buyer: { id: number; name: string; email?: string } | null;
+  buyer: { id: number; name: string; email?: string; profile_image_url?: string | null } | null;
   buyer_unread_count: number;
   seller_unread_count: number;
   last_message_at: string | null;

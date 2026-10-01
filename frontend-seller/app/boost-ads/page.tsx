@@ -12,6 +12,10 @@ import { useLanguage } from '@/contexts/LanguageContext';
 function Campaigns() {
   const { t } = useLanguage(); const router = useRouter(); const [open, setOpen] = useState(false); const [initial, setInitial] = useState<Partial<CampaignDraft>>();
   const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [fundingOpen, setFundingOpen] = useState(false);
+  // Next keeps this page mounted while navigating back from a campaign. Clear
+  // the draft on every close so “Boost Product” can never reopen an edit or
+  // duplicate payload as a new campaign.
+  const closeWizard = () => { setOpen(false); setInitial(undefined); };
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const duplicate = params.get('duplicate');
@@ -20,7 +24,7 @@ function Campaigns() {
   return <div className="space-y-6 text-slate-900"><div className="flex flex-wrap justify-between items-start gap-4"><div><h1 className="text-3xl font-bold">{t('ads.title')}</h1><p className="text-slate-600 mt-2">{t('ads.subtitle')}</p></div><div className="flex flex-wrap gap-3"><button className="rounded-lg border border-blue-700 px-5 py-3 text-blue-700" onClick={() => setFundingOpen(true)}>{t('ads.addFunds')}</button><button className="bg-blue-700 text-white rounded-lg px-5 py-3" onClick={() => { setInitial(undefined); setOpen(true); }}>{t('ads.boostProduct')}</button></div></div>
     {error && <p role="alert" className="bg-red-50 text-red-800 p-4 rounded-lg">{error}</p>}{message && <p role="status" className="bg-green-50 text-green-800 p-4 rounded-lg">{message}</p>}
     <CampaignList />
-    {open && <BoostWizard initial={initial} onClose={() => setOpen(false)} onCreated={campaign => { setOpen(false); router.push('/boost-ads/' + campaign.id); }} />}
+    {open && <BoostWizard key={initial?.product_id ? `duplicate-${initial.product_id}` : 'fresh-campaign'} initial={initial} onClose={closeWizard} onCreated={campaign => { closeWizard(); router.push('/boost-ads/' + campaign.id); }} />}
     {fundingOpen && <AddFundsModal onClose={() => setFundingOpen(false)} onAdded={() => { setFundingOpen(false); setMessage(t('ads.fundsAdded')); }} />}
   </div>;
 }
