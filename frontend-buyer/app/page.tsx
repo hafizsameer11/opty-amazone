@@ -7,7 +7,7 @@ import Image from "next/image";
 // Layout components are now handled by app/template.tsx
 import { productService, type Product } from "@/services/product-service";
 import { StoreService, type PublicStore } from "@/services/store-service";
-import PromotionalBanners from '@/components/campaigns/PromotionalBanners';
+import { HomepagePromotionalBanners } from '@/components/campaigns/PromotionalBanners';
 import { getFullImageUrl, isLocalhostImage } from "@/lib/image-utils";
 import { isEyeProductCategory } from "@/utils/product-utils";
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
@@ -259,8 +259,7 @@ export default function HomePage() {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-5 px-3 sm:px-4 md:space-y-8 lg:px-0">
 
-        <PromotionalBanners placement="homepage_hero" />
-        <PromotionalBanners placement="homepage_featured" />
+        <HomepagePromotionalBanners />
 
         <SponsoredProducts placement="homepage" />
         {/* Top selling products */}

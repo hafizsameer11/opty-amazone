@@ -76,11 +76,6 @@ export default function ProductOptions({
                 </button>
               ))}
             </div>
-            {selectedSize && (
-              <p className="mt-2 text-sm text-gray-600">
-                {selectedSize.stock_quantity} available
-              </p>
-            )}
           </div>
         )}
 
@@ -140,11 +135,6 @@ export default function ProductOptions({
                     Number(size.temple_length) > 0) && (
                     <div className="text-xs text-gray-600 mt-1">
                       {size.lens_width}mm • {size.bridge_width}mm • {size.temple_length}mm
-                    </div>
-                  )}
-                  {size.stock_quantity < 5 && (
-                    <div className="text-xs text-orange-600 mt-1">
-                      Only {size.stock_quantity} left
                     </div>
                   )}
                 </button>

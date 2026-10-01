@@ -30,11 +30,25 @@ export interface OrderLineSelections {
       product_size_volume_id?: number;
       eye_hygiene_variant_id?: number;
     };
+    frame_size?: {
+      id?: number;
+      size_label?: string | null;
+      lens_width?: number | string | null;
+      bridge_width?: number | string | null;
+      temple_length?: number | string | null;
+    };
     [key: string]: unknown;
   } | null;
   lens_configuration?: Record<string, unknown> | null;
   prescription_data?: Record<string, unknown> | null;
   frame_size_id?: number | null;
+  frame_size?: {
+    id?: number;
+    size_label?: string | null;
+    lens_width?: number | string | null;
+    bridge_width?: number | string | null;
+    temple_length?: number | string | null;
+  } | null;
   prescription_id?: number | null;
   lens_index?: number | string | null;
   lens_type?: string | null;

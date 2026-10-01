@@ -951,7 +951,6 @@ export default function ProductCheckoutModal({
                               {hasDims
                                 ? ` (${size.lens_width}mm-${size.bridge_width}mm-${size.temple_length}mm)`
                                 : ''}
-                              {` — ${size.stock_quantity} available`}
                             </option>
                           );
                         })}

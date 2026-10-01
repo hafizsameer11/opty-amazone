@@ -1,186 +1,70 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-// Layout components are now handled by app/template.tsx
-import {
-  userService,
-  type ChangePasswordPayload,
-} from "../../../services/user-service";
-import Input from "@/components/ui/Input";
-import Button from "@/components/ui/Button";
+import { useRouter } from "next/navigation";
 import Alert from "@/components/ui/Alert";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
+import { userService } from "@/services/user-service";
 
-const schema = z
-  .object({
-    current_password: z.string().min(1, "Current password is required"),
-    password: z.string().min(8, "New password must be at least 8 characters"),
-    password_confirmation: z.string().min(1, "Please confirm your password"),
-  })
-  .refine((data) => data.password === data.password_confirmation, {
-    path: ["password_confirmation"],
-    message: "Passwords do not match",
-  });
+type Step = "send" | "verify" | "reset";
 
-type FormValues = z.infer<typeof schema>;
+function messageFrom(error: unknown, fallback: string) {
+  const api = (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }).response?.data;
+  return api?.errors ? Object.values(api.errors)[0]?.[0] || fallback : api?.message || fallback;
+}
 
 export default function ChangePasswordPage() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [step, setStep] = useState<Step>("send");
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/auth/login?redirect=/profile/change-password');
-      return;
-    }
-  }, [isAuthenticated, authLoading, router]);
+    if (!authLoading && !isAuthenticated) router.replace("/auth/login?redirect=/profile/change-password");
+  }, [authLoading, isAuthenticated, router]);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-  });
-
-  const onSubmit = async (values: FormValues) => {
-    setError(null);
-    setSuccess(null);
-    setLoading(true);
+  const sendCode = async () => {
+    setLoading(true); setError(""); setSuccess("");
     try {
-      const payload: ChangePasswordPayload = {
-        current_password: values.current_password,
-        password: values.password,
-        password_confirmation: values.password_confirmation,
-      };
-      await userService.changePassword(payload);
-      setSuccess("Password updated successfully.");
-      reset();
-    } catch (e: any) {
-      const apiError = e?.response?.data;
-      if (apiError?.errors?.current_password) {
-        setError(apiError.errors.current_password[0]);
-      } else {
-        setError(apiError?.message ?? "Failed to update password");
-      }
-    } finally {
-      setLoading(false);
-    }
+      await userService.sendPasswordChangeCode();
+      setStep("verify");
+      setSuccess("A verification code has been sent to your registered email.");
+    } catch (value) { setError(messageFrom(value, "We could not send the verification code.")); }
+    finally { setLoading(false); }
+  };
+  const verifyCode = async () => {
+    setLoading(true); setError(""); setSuccess("");
+    try {
+      await userService.verifyPasswordChangeCode(code.trim());
+      setStep("reset");
+      setSuccess("Email verified. Choose your new password.");
+    } catch (value) { setError(messageFrom(value, "That verification code could not be confirmed.")); }
+    finally { setLoading(false); }
+  };
+  const resetPassword = async () => {
+    setLoading(true); setError(""); setSuccess("");
+    try {
+      await userService.resetPasswordWithVerifiedCode(password, confirmation);
+      setSuccess("Password updated successfully. Your new password is ready to use.");
+      setPassword(""); setConfirmation("");
+    } catch (value) { setError(messageFrom(value, "We could not update your password.")); }
+    finally { setLoading(false); }
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066CC] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  if (authLoading || !isAuthenticated) return <div className="flex min-h-[60vh] items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-b-2 border-[#0066CC]" /></div>;
 
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-          {/* Back Button */}
-          <Link
-            href="/profile"
-            className="inline-flex items-center text-[#0066CC] hover:text-[#0052a3] mb-6"
-          >
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Back to Profile
-          </Link>
-
-          {/* Page Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Change Password</h1>
-            <p className="text-gray-600">
-              Update your account password to keep your account secure
-            </p>
-          </div>
-
-          {/* Alerts */}
-          {error && (
-            <div className="mb-6">
-              <Alert type="error" message={error} />
-            </div>
-          )}
-          {success && (
-            <div className="mb-6">
-              <Alert type="success" message={success} />
-            </div>
-          )}
-
-          {/* Form */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <Input
-                label="Current Password *"
-                type="password"
-                {...register("current_password")}
-                error={errors.current_password?.message}
-                placeholder="Enter your current password"
-              />
-              <Input
-                label="New Password *"
-                type="password"
-                {...register("password")}
-                error={errors.password?.message}
-                placeholder="Enter your new password (min. 8 characters)"
-              />
-              <Input
-                label="Confirm New Password *"
-                type="password"
-                {...register("password_confirmation")}
-                error={errors.password_confirmation?.message}
-                placeholder="Confirm your new password"
-              />
-
-              <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-gray-200">
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-[#0066CC] hover:bg-[#0052a3] text-white"
-                  size="lg"
-                >
-                  {loading ? "Updating..." : "Update Password"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.push("/profile")}
-                  className="sm:w-auto"
-                  size="lg"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </div>
-    </div>
-  );
+  return <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 lg:px-8"><Link href="/profile" className="mb-6 inline-flex items-center text-[#0066CC] hover:text-[#0052a3]">← Back to Profile</Link><section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8"><p className="text-sm font-semibold text-teal-700">ACCOUNT SECURITY</p><h1 className="mt-1 text-3xl font-bold text-gray-900">Change Password</h1><p className="mt-2 text-sm leading-6 text-gray-600">We confirm this change with a one-time code sent only to your registered email address.</p>{error && <div className="mt-6"><Alert type="error" message={error} /></div>}{success && <div className="mt-6"><Alert type="success" message={success} /></div>}
+    <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Registered email</p><p className="mt-1 break-all font-medium text-gray-900">{user?.email}</p></div>
+    {step === "send" && <div className="mt-6"><Button onClick={() => void sendCode()} disabled={loading} className="w-full bg-[#0066CC] text-white hover:bg-[#0052a3]" size="lg">{loading ? "Sending code…" : "Send Code"}</Button></div>}
+    {step === "verify" && <div className="mt-6 space-y-5"><Input label="Verification code" inputMode="numeric" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} placeholder="Enter the 6-digit code" /><Button onClick={() => void verifyCode()} disabled={loading || code.length !== 6} className="w-full bg-[#0066CC] text-white hover:bg-[#0052a3]" size="lg">{loading ? "Verifying…" : "Verify Code"}</Button><button type="button" disabled={loading} onClick={() => void sendCode()} className="w-full text-sm font-semibold text-teal-700 hover:text-teal-800">Send a new code</button></div>}
+    {step === "reset" && <div className="mt-6 space-y-5"><Input label="New Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" /><Input label="Confirm New Password" type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder="Repeat your new password" /><Button onClick={() => void resetPassword()} disabled={loading || password.length < 8 || password !== confirmation} className="w-full bg-[#0066CC] text-white hover:bg-[#0052a3]" size="lg">{loading ? "Saving…" : "Save New Password"}</Button></div>}
+  </section></main>;
 }

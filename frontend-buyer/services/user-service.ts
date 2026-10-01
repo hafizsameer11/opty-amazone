@@ -48,6 +48,10 @@ export interface ProfileResponse {
   };
 }
 
+export interface PasswordChangeCodeResponse {
+  email?: string;
+}
+
 export const userService = {
   async getProfile(): Promise<ProfileResponse> {
     const res = await apiClient.get("/buyer/profile");
@@ -61,6 +65,19 @@ export const userService = {
 
   async changePassword(payload: ChangePasswordPayload): Promise<void> {
     await apiClient.post("/buyer/profile/change-password", payload);
+  },
+
+  async sendPasswordChangeCode(): Promise<PasswordChangeCodeResponse> {
+    const res = await apiClient.post("/buyer/profile/change-password/send-code");
+    return res.data.data ?? {};
+  },
+
+  async verifyPasswordChangeCode(code: string): Promise<void> {
+    await apiClient.post("/buyer/profile/change-password/verify-code", { code });
+  },
+
+  async resetPasswordWithVerifiedCode(password: string, password_confirmation: string): Promise<void> {
+    await apiClient.post("/buyer/profile/change-password/reset", { password, password_confirmation });
   },
 
   async uploadProfileImage(file: File): Promise<ProfileResponse["user"]> {
@@ -81,8 +98,9 @@ export const userService = {
     await apiClient.post("/buyer/profile/verify-email/send");
   },
 
-  async verifyEmail(): Promise<void> {
-    await apiClient.post("/buyer/profile/verify-email");
+  async verifyEmail(code: string): Promise<ProfileResponse["user"]> {
+    const res = await apiClient.post("/buyer/profile/verify-email", { code });
+    return res.data.data.user;
   },
 
   async sendPhoneVerification(): Promise<void> {

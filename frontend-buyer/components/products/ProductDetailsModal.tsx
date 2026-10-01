@@ -30,7 +30,6 @@ export default function ProductDetailsModal({
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [selectedFrameSizeId, setSelectedFrameSizeId] = useState<number | null>(null);
-  const [hasPickedColor, setHasPickedColor] = useState(false);
   const [selectedFrameSize, setSelectedFrameSize] = useState<any>(null);
   const [selectedLensType, setSelectedLensType] = useState<any>(null);
   const [selectedLensIndex, setSelectedLensIndex] = useState<any>(null);
@@ -50,13 +49,11 @@ export default function ProductDetailsModal({
       setSelectedImageIndex(0);
       setSelectedVariantId(null);
       setSelectedFrameSizeId(null);
-      setHasPickedColor(false);
       const data = await productService.getDetails(productId);
       setProduct(data);
       if (data.variants && data.variants.length > 0) {
         const defaultVariant = data.variants.find(v => v.is_default) || data.variants[0];
         setSelectedVariantId(defaultVariant.id);
-        setHasPickedColor(false);
       }
     } catch (error) {
       console.error('Failed to load product:', error);
@@ -99,8 +96,7 @@ export default function ProductDetailsModal({
 
   const showSizePicker =
     isGlassesProduct &&
-    availableFrameSizes.length > 0 &&
-    (!hasVariants || hasPickedColor);
+    availableFrameSizes.length > 0;
 
   const formatFrameSizeLabel = (size: FrameSize) => {
     if (size.size_label?.trim()) return size.size_label.trim();
@@ -137,7 +133,6 @@ export default function ProductDetailsModal({
 
   const handleVariantSelect = (variantId: number) => {
     setSelectedVariantId(variantId);
-    setHasPickedColor(true);
     setSelectedFrameSizeId(null);
     setSelectedFrameSize(null);
     setSelectedImageIndex(0);
@@ -313,7 +308,6 @@ export default function ProductDetailsModal({
                       <option key={size.id} value={size.id}>
                         {formatFrameSizeLabel(size)}
                         {hasFrameSizeDimensions(size) ? ` (${formatFrameSizeDimensions(size)})` : ''}
-                        {` — ${size.stock_quantity} available`}
                       </option>
                     ))}
                   </select>
@@ -322,7 +316,7 @@ export default function ProductDetailsModal({
                       {hasFrameSizeDimensions(selectedFrameSizeRow)
                         ? `${formatFrameSizeDimensions(selectedFrameSizeRow)} · `
                         : ''}
-                      {selectedFrameSizeRow.stock_quantity} available
+                      Available to order
                     </p>
                   )}
                 </div>
@@ -356,9 +350,7 @@ export default function ProductDetailsModal({
                 ) : displayStockStatus === 'in_stock' ? (
                   <>
                     <Badge variant="success" size="sm">In Stock</Badge>
-                    <span className="text-sm text-gray-600">
-                      {displayStockQuantity} available
-                    </span>
+                    <span className="text-sm text-gray-600">Available to order</span>
                   </>
                 ) : (
                   <Badge variant="error" size="sm">Out of Stock</Badge>

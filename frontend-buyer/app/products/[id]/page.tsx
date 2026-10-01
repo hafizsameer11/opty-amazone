@@ -56,7 +56,6 @@ export default function ProductDetailPage() {
   const [clHideThumbnailGallery, setClHideThumbnailGallery] = useState(false);
   const [clSelectedPackQty, setClSelectedPackQty] = useState<number | null>(null);
   const [selectedFrameSizeId, setSelectedFrameSizeId] = useState<number | null>(null);
-  const [hasPickedColor, setHasPickedColor] = useState(false);
   const { price: campaignPrice } = useCampaignPrice(product?.id, { variant_id: selectedVariantId || undefined, frame_size_id: selectedFrameSizeId || undefined, contact_lens_pack_quantity: clSelectedPackQty || undefined }, quantity, product?.product_type !== "eye_hygiene" && product?.product_type !== "contact_lens");
 
   const handleClDisplayPriceChange = useCallback((price: number | null) => {
@@ -104,7 +103,6 @@ export default function ProductDetailPage() {
       const parsedSize = sizeParam ? parseInt(sizeParam, 10) : NaN;
       if (!Number.isNaN(parsed) && product.variants.some((v) => v.id === parsed)) {
         setSelectedVariantId(parsed);
-        setHasPickedColor(true);
         const sizesForVariant = (product.frame_sizes ?? []).filter(
           (s) => s.product_variant_id === parsed
         );
@@ -118,12 +116,12 @@ export default function ProductDetailPage() {
         }
       } else {
         setSelectedVariantId(defaultVariant.id);
-        setHasPickedColor(false);
+        // A default colour is a real selection. Its matching frame sizes must
+        // be available immediately, without asking the buyer to change colour.
         setSelectedFrameSizeId(null);
       }
     } else {
       setSelectedVariantId(null);
-      setHasPickedColor(false);
       setSelectedFrameSizeId(null);
     }
   }, [product]);
@@ -138,7 +136,6 @@ export default function ProductDetailPage() {
       setClHideThumbnailGallery(false);
       setClSelectedPackQty(null);
       setSelectedFrameSizeId(null);
-      setHasPickedColor(false);
       
       // Load lens data if it should show lens options
       if (shouldShowLensOptions(data)) {
@@ -238,8 +235,7 @@ export default function ProductDetailPage() {
 
   const showSizePicker =
     isGlassesProduct &&
-    availableFrameSizes.length > 0 &&
-    (!hasVariants || hasPickedColor);
+    availableFrameSizes.length > 0;
 
   const formatFrameSizeLabel = (size: FrameSize) => {
     if (size.size_label?.trim()) {
@@ -340,7 +336,6 @@ export default function ProductDetailPage() {
 
   const handleVariantSelect = (variantId: number) => {
     setSelectedVariantId(variantId);
-    setHasPickedColor(true);
     setSelectedFrameSizeId(null);
     setSelectedImageIndex(0);
   };
@@ -522,7 +517,6 @@ export default function ProductDetailPage() {
                       <option key={size.id} value={size.id}>
                         {formatFrameSizeLabel(size)}
                         {hasFrameSizeDimensions(size) ? ` (${formatFrameSizeDimensions(size)})` : ''}
-                        {` — ${size.stock_quantity} available`}
                       </option>
                     ))}
                   </select>
@@ -534,9 +528,6 @@ export default function ProductDetailPage() {
                           <span className="text-gray-300">|</span>
                         </>
                       )}
-                      <span>
-                        {selectedFrameSize.stock_quantity} available
-                      </span>
                       {selectedFrameSize.price != null && Number.isFinite(Number(selectedFrameSize.price)) && (
                         <>
                           <span className="text-gray-300">|</span>
@@ -638,7 +629,7 @@ export default function ProductDetailPage() {
                       ✓ In Stock
                     </span>
                     <span className="text-sm text-gray-600">
-                      {displayStockQuantity} available
+                    In stock
                     </span>
                   </>
                 ) : (

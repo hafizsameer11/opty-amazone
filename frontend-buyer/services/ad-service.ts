@@ -1,7 +1,8 @@
 import apiClient from '@/lib/api-client';
+import type { CampaignPrice } from '@/services/campaign-service';
 
 export interface SponsoredAd {
-  product: { id: number; name: string; images: string[] | null; price: number | string };
+  product: { id: number; name: string; images: string[] | null; price: number | string; compare_at_price?: number | string | null; pricing?: CampaignPrice };
   tracking_token: string; placement: string; label: string;
 }
 export const adService = {

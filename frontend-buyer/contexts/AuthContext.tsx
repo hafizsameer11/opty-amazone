@@ -8,8 +8,9 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (data: LoginData) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  login: (data: LoginData) => Promise<User>;
+  register: (data: RegisterData) => Promise<User>;
+  completeEmailVerification: (verifiedUser: User) => void;
   logout: () => Promise<void>;
 }
 
@@ -20,32 +21,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = AuthService.getUser();
-    if (storedUser && AuthService.isAuthenticated()) {
-      setUser(storedUser);
-    }
-    setLoading(false);
+    // Restore browser storage after hydration, without changing the server
+    // render synchronously inside this effect.
+    let active = true;
+    const frame = window.requestAnimationFrame(() => {
+      if (!active) return;
+      const storedUser = AuthService.getUser();
+      if (storedUser && AuthService.isAuthenticated()) setUser(storedUser);
+      setLoading(false);
+    });
+    return () => { active = false; window.cancelAnimationFrame(frame); };
   }, []);
 
   const login = async (data: LoginData) => {
-    try {
-      const response = await AuthService.login(data);
-      AuthService.setAuth(response.data.token, response.data.user);
-      setUser(response.data.user);
-    } catch (error: any) {
-      throw error;
-    }
+    const response = await AuthService.login(data);
+    AuthService.setAuth(response.data.token, response.data.user);
+    setUser(response.data.user);
+    return response.data.user;
   };
 
   const register = async (data: RegisterData) => {
-    try {
-      const response = await AuthService.register(data);
-      AuthService.setAuth(response.data.token, response.data.user);
-      setUser(response.data.user);
-    } catch (error: any) {
-      throw error;
-    }
+    const response = await AuthService.register(data);
+    AuthService.setAuth(response.data.token, response.data.user);
+    setUser(response.data.user);
+    return response.data.user;
   };
 
   const logout = async () => {
@@ -57,9 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       await AuthService.logout(token);
-    } catch (error) {
+    } catch {
       // Even if API call fails, clear local storage
     }
+  };
+
+  const completeEmailVerification = (verifiedUser: User) => {
+    const token = AuthService.getToken();
+    if (token) AuthService.setAuth(token, verifiedUser);
+    setUser(verifiedUser);
   };
 
   return (
@@ -70,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         login,
         register,
+        completeEmailVerification,
         logout,
       }}
     >

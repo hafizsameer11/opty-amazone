@@ -17,7 +17,6 @@ const registerSchema = z.object({
   email: z.string().email('Enter a valid email address'),
   phone_country_code: z.string().min(1, 'Select a country code'),
   phone: z.string().min(5, 'Enter a valid phone number'),
-  verification_code: z.string().max(12, 'Verification code is too long').optional().or(z.literal('')),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   password_confirmation: z.string(),
   referral_code: z.string().max(48).optional(),
@@ -89,19 +88,18 @@ function BuyerRegisterContent() {
         name: data.name,
         email: data.email,
         phone: `${data.phone_country_code}${localPhone}`,
-        verification_code: data.verification_code?.trim() || undefined,
         password: data.password,
         password_confirmation: data.password_confirmation,
         referral_code: data.referral_code,
         referral_attribution_token: data.referral_attribution_token,
       });
       clearReferralAttribution();
-      router.push('/');
+      router.push('/auth/verify-email');
     } catch (err: unknown) {
       const failure = err as ApiFailure;
       const errors = failure.response?.data?.errors;
       const firstError = errors ? Object.values(errors).find((value) => Array.isArray(value) && value.length)?.[0] : undefined;
-      setError(errors?.email?.[0] || errors?.password?.[0] || errors?.name?.[0] || errors?.phone?.[0] || errors?.verification_code?.[0] || firstError || failure.response?.data?.message || 'Registration failed. Please try again.');
+      setError(errors?.email?.[0] || errors?.password?.[0] || errors?.name?.[0] || errors?.phone?.[0] || firstError || failure.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +131,6 @@ function BuyerRegisterContent() {
           </div>
         </div>
         <BuyerAuthInput id="buyer-register-email" label="Email address" type="email" icon="mail" {...register('email')} error={errors.email?.message} placeholder="you@example.com" autoComplete="email" required />
-        <BuyerAuthInput id="buyer-verification-code" label="Verification code" type="text" icon="key" {...register('verification_code')} error={errors.verification_code?.message} placeholder="Enter your email or SMS code" inputMode="numeric" hint="If provided" />
         <BuyerAuthInput id="buyer-referral-code" label="Referral code" type="text" icon="gift" {...register('referral_code')} error={errors.referral_code?.message} placeholder="Enter a code if you have one" hint="Optional" />
         <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
           <BuyerAuthInput id="buyer-password" label="Create password" type="password" icon="lock" {...register('password')} error={errors.password?.message} placeholder="At least 8 characters" autoComplete="new-password" required />

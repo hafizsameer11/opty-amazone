@@ -15,6 +15,8 @@ export interface AuthResponse {
   data: {
     user: User;
     token: string;
+    email_verification_required?: boolean;
+    verification_dispatched?: boolean;
   };
 }
 
@@ -22,8 +24,6 @@ export interface RegisterData {
   name: string;
   email: string;
   phone: string;
-  /** Collected by the registration form for the verification flow. */
-  verification_code?: string;
   password: string;
   password_confirmation: string;
   referral_attribution_token?: string;

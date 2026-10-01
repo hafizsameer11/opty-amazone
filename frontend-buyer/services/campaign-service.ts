@@ -19,7 +19,7 @@ export type CampaignPrice = {
   campaigns: AppliedDiscountCampaign[];
 };
 export type Placement = 'homepage_hero' | 'homepage_featured' | 'category_page' | 'store_page' | 'sidebar';
-export type CampaignBanner = { id: number; name: string; placement: Placement; destination: string; tracking_token: string; creative: { desktop_url: string; mobile_url: string; title: string; description?: string; alt_text: string; cta_text: string } };
+export type CampaignBanner = { id: number; name: string; placement: Placement; ends_at: string; destination: string; tracking_token: string; creative: { desktop_url: string; mobile_url: string; title: string; description?: string; alt_text: string; cta_text: string } };
 export function campaignVisitor(): string {
   const key = 'commerce_campaign_visitor'; let id = localStorage.getItem(key);
   if (!id) { id = crypto.randomUUID(); localStorage.setItem(key, id); } return id;

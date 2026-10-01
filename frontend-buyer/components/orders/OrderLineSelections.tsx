@@ -116,9 +116,15 @@ export default function OrderLineSelections({
   }
 
   if (line.frame_size_id) {
+    const frameSize = line.frame_size ?? pv?.frame_size;
+    const label = frameSize?.size_label?.trim()
+      || (frameSize && [frameSize.lens_width, frameSize.bridge_width, frameSize.temple_length]
+        .every((value) => value !== null && value !== undefined && value !== '')
+        ? `${frameSize.lens_width}-${frameSize.bridge_width}-${frameSize.temple_length}`
+        : null);
     rows.push(
       <SelectionRow key="frame-size" label="Frame size">
-        <span>#{line.frame_size_id}</span>
+        <span>{label || `Selected size #${line.frame_size_id}`}</span>
       </SelectionRow>
     );
   }

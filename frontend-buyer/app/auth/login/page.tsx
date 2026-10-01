@@ -17,6 +17,7 @@ const loginSchema = z.object({
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
+type ApiFailure = { response?: { data?: { errors?: Record<string, string[]>; message?: string } } };
 
 function LoginForm() {
   const router = useRouter();
@@ -30,10 +31,11 @@ function LoginForm() {
     try {
       setIsLoading(true);
       setError('');
-      await login(data);
-      router.push(searchParams.get('redirect') || '/');
-    } catch (err: any) {
-      setError(err.response?.data?.errors?.email?.[0] || err.response?.data?.errors?.password?.[0] || err.response?.data?.message || 'Login failed. Please check your credentials.');
+      const signedInUser = await login(data);
+      router.push(signedInUser.email_verified_at ? (searchParams.get('redirect') || '/') : '/auth/verify-email');
+    } catch (err: unknown) {
+      const failure = err as ApiFailure;
+      setError(failure.response?.data?.errors?.email?.[0] || failure.response?.data?.errors?.password?.[0] || failure.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
