@@ -133,6 +133,28 @@ class MarketplaceEmailService
         ));
     }
 
+    public function sellerVerificationCode(User $seller, string $code, Carbon $expiresAt): bool
+    {
+        return $this->send($seller, new MarketplaceTransactionalMail(
+            'Verifica il tuo indirizzo email VistaExpress',
+            'Verifica il tuo indirizzo email',
+            'Utilizza il codice di verifica qui sotto per completare la creazione del tuo account venditore.',
+            ['Il codice scade' => $expiresAt->timezone(config('app.timezone'))->locale('it')->translatedFormat('j M Y, H:i'), 'Validità' => '15 minuti'],
+            ctaLabel: 'Apri il Seller Hub', ctaUrl: $this->sellerUrl('/auth/verify-email'),
+            notice: 'Per la tua sicurezza, non condividere mai questo codice con nessuno.', code: $code, recipientName: $seller->name,
+        ));
+    }
+
+    public function sellerEmailVerified(User $seller): void
+    {
+        $this->send($seller, new MarketplaceTransactionalMail(
+            'Email verificata', 'Email verificata',
+            'Il tuo indirizzo email è stato verificato. Ora puoi completare i dati del tuo negozio e iniziare a vendere su VistaExpress.',
+            ['Prossimo passo' => 'Invia i dati aziendali', 'Stato dell\'account' => 'Email verificata'],
+            ctaLabel: 'Completa i dati del negozio', ctaUrl: $this->sellerUrl('/auth/verification'), recipientName: $seller->name,
+        ));
+    }
+
     public function sellerPasswordResetCode(User $seller, string $code, Carbon $expiresAt): bool
     {
         return $this->send($seller, new MarketplaceTransactionalMail(

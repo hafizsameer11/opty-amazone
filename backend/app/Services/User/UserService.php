@@ -170,32 +170,6 @@ class UserService
     }
 
     /**
-     * Placeholder for sending email verification.
-     * In a full implementation this would dispatch a notification with a signed URL.
-     */
-    public function sendEmailVerification(User $user): void
-    {
-        if ($user->hasVerifiedEmail()) {
-            return;
-        }
-
-        $user->sendEmailVerificationNotification();
-    }
-
-    /**
-     * Verify the user's email.
-     *
-     * In a typical Laravel app this is handled via signed URLs; here we assume
-     * that verification has already been validated at the controller level.
-     */
-    public function verifyEmail(User $user): void
-    {
-        if (!$user->hasVerifiedEmail()) {
-            $user->markEmailAsVerified();
-        }
-    }
-
-    /**
      * Placeholder for sending phone verification (OTP).
      *
      * This can be wired to an SMS provider; for now we only log the action.

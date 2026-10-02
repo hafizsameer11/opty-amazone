@@ -9,6 +9,7 @@ use App\Http\Requests\Seller\User\DeleteAccountRequest;
 use App\Http\Requests\Seller\User\UpdateProfileRequest;
 use App\Http\Requests\Seller\User\UploadImageRequest;
 use App\Http\Resources\UserResource;
+use App\Services\Email\EmailVerificationService;
 use App\Services\Email\PasswordChangeVerificationService;
 use App\Services\User\UserService;
 use Illuminate\Http\JsonResponse;
@@ -26,6 +27,7 @@ class SellerUserController extends Controller
     public function __construct(
         private UserService $userService,
         private PasswordChangeVerificationService $passwordChangeVerification,
+        private EmailVerificationService $emailVerification,
     ) {
     }
 
@@ -164,7 +166,7 @@ class SellerUserController extends Controller
     }
 
     /**
-     * Send email verification to the authenticated seller.
+     * Send the time-limited email verification code to the authenticated seller.
      */
     public function sendEmailVerification(Request $request): JsonResponse
     {
@@ -174,19 +176,28 @@ class SellerUserController extends Controller
             return ResponseHelper::success(null, 'Email already verified');
         }
 
-        $this->userService->sendEmailVerification($user);
+        try {
+            $this->emailVerification->send($user, EmailVerificationService::PURPOSE_SELLER);
+        } catch (ValidationException $exception) {
+            return ResponseHelper::validationError($exception->errors());
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return ResponseHelper::serverError('We could not send a verification email. Please try again.');
+        }
 
         return ResponseHelper::success(null, 'Verification email sent');
     }
 
     /**
-     * Mark email as verified for the authenticated seller.
+     * Verify the time-limited code sent to the authenticated seller.
      */
     public function verifyEmail(Request $request): JsonResponse
     {
-        $this->userService->verifyEmail($request->user());
+        $data = $request->validate(['code' => ['required', 'regex:/^\d{6}$/D']]);
+        $user = $this->emailVerification->verify($request->user(), $data['code'], EmailVerificationService::PURPOSE_SELLER);
 
-        return ResponseHelper::success(null, 'Email verified successfully');
+        return ResponseHelper::success(['user' => new UserResource($user)], 'Email verified successfully');
     }
 
     /**

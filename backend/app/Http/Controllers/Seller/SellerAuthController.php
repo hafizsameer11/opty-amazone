@@ -10,6 +10,7 @@ use App\Http\Requests\Seller\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\SellerPasswordResetCodeService;
+use App\Services\Email\EmailVerificationService;
 use App\Services\Email\MarketplaceEmailService;
 use App\Services\Store\StoreService;
 use Illuminate\Http\JsonResponse;
@@ -30,7 +31,8 @@ class SellerAuthController extends Controller
         private AuthService $authService,
         private SellerPasswordResetCodeService $passwordResetCodes,
         private StoreService $storeService,
-        private MarketplaceEmailService $emailService
+        private MarketplaceEmailService $emailService,
+        private EmailVerificationService $emailVerification,
     ) {}
 
     /**
@@ -77,15 +79,31 @@ class SellerAuthController extends Controller
             // dashboard request creating the Store row.
             $this->storeService->getStore($user);
             $this->emailService->sellerRegistered($user);
-            
+
             $token = $user->createToken('seller_token', ['seller'])->plainTextToken;
+
+            // Business details stay locked until the seller proves they own the
+            // address on file, mirroring the buyer sign-up funnel.
+            $verificationDispatched = true;
+            try {
+                $this->emailVerification->send($user, EmailVerificationService::PURPOSE_SELLER);
+            } catch (\Throwable $mailError) {
+                // Registration is durable even if SMTP is temporarily unavailable;
+                // the authenticated seller can request a fresh code on the verification screen.
+                report($mailError);
+                $verificationDispatched = false;
+            }
 
             return ResponseHelper::success(
                 [
                     'user' => new UserResource($user),
                     'token' => $token,
+                    'email_verification_required' => true,
+                    'verification_dispatched' => $verificationDispatched,
                 ],
-                'Registration successful',
+                $verificationDispatched
+                    ? 'Registration successful. Check your email for the verification code.'
+                    : 'Registration successful. Request a verification code from the verification screen.',
                 201
             );
         } catch (\Exception $e) {
@@ -141,10 +159,27 @@ class SellerAuthController extends Controller
                 'seller'
             );
 
+            $user = $result['user'];
+            $verificationDispatched = true;
+
+            if (! $user->hasVerifiedEmail()) {
+                try {
+                    $this->emailVerification->send($user, EmailVerificationService::PURPOSE_SELLER);
+                } catch (ValidationException) {
+                    // A recent registration code is still valid; the seller can
+                    // use it or request another one from the verification page.
+                } catch (\Throwable $mailError) {
+                    report($mailError);
+                    $verificationDispatched = false;
+                }
+            }
+
             return ResponseHelper::success(
                 [
-                    'user' => new UserResource($result['user']),
+                    'user' => new UserResource($user),
                     'token' => $result['token'],
+                    'email_verification_required' => ! $user->hasVerifiedEmail(),
+                    'verification_dispatched' => $verificationDispatched,
                 ],
                 'Login successful'
             );

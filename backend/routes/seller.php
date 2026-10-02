@@ -61,8 +61,8 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('profile'
     Route::post('/upload-image', [SellerUserController::class, 'uploadProfileImage']);
     Route::delete('/image', [SellerUserController::class, 'deleteProfileImage']);
     Route::get('/reviews', [SellerReviewController::class, 'index']);
-    Route::post('/verify-email/send', [SellerUserController::class, 'sendEmailVerification']);
-    Route::post('/verify-email', [SellerUserController::class, 'verifyEmail']);
+    Route::post('/verify-email/send', [SellerUserController::class, 'sendEmailVerification'])->middleware('throttle:10,1');
+    Route::post('/verify-email', [SellerUserController::class, 'verifyEmail'])->middleware('throttle:10,1');
     Route::post('/verify-phone/send', [SellerUserController::class, 'sendPhoneVerification']);
     Route::post('/verify-phone', [SellerUserController::class, 'verifyPhone']);
     Route::delete('/', [SellerUserController::class, 'deleteAccount']);
