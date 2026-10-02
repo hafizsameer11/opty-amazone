@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\SellerWallet;
 use App\Models\SellerWalletEntry;
 use App\Models\StoreOrder;
+use App\Models\Store;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -116,6 +117,51 @@ class MarketplaceEmailService
             'Benvenuto su VistaExpress. Il tuo negozio può ora essere completato e preparato per la vendita.',
             ['Prossimo passo' => 'Completa il profilo del tuo negozio', 'Poi' => 'Aggiungi i prodotti e inizia a gestire gli ordini'],
             ctaLabel: 'Apri il Seller Hub', ctaUrl: $this->sellerUrl('/dashboard?setup=1'), recipientName: $seller->name,
+        ));
+    }
+
+    /** Moderation emails share the same branded transactional layout as orders. */
+    public function storeWarning(Store $store, string $reason, ?string $notes = null): void
+    {
+        $store->loadMissing('user');
+        $this->send($store->user, new MarketplaceTransactionalMail(
+            'Avviso relativo al tuo negozio VistaExpress', 'È stato emesso un avviso per il tuo negozio',
+            'Il team VistaExpress ha ricevuto una segnalazione o ha rilevato un problema che richiede la tua attenzione. Il negozio resta attivo, ma ti chiediamo di intervenire tempestivamente.',
+            array_filter(['Negozio' => $store->name, 'Motivo' => $reason, 'Note dell’amministrazione' => $notes]),
+            ctaLabel: 'Apri il Seller Hub', ctaUrl: $this->sellerUrl('/dashboard'), recipientName: $store->user?->name,
+        ));
+    }
+
+    public function storeSuspended(Store $store, string $reason, ?string $notes = null): void
+    {
+        $store->loadMissing('user');
+        $this->send($store->user, new MarketplaceTransactionalMail(
+            'Il tuo negozio VistaExpress è stato sospeso', 'Il tuo negozio è stato sospeso',
+            'Il tuo negozio e i suoi prodotti non sono attualmente visibili agli acquirenti. Puoi aprire il Seller Hub per inviare una richiesta di riesame al team amministrativo.',
+            array_filter(['Negozio' => $store->name, 'Motivo' => $reason, 'Note dell’amministrazione' => $notes]),
+            ctaLabel: 'Richiedi il riesame', ctaUrl: $this->sellerUrl('/auth/store-suspended'), recipientName: $store->user?->name,
+        ));
+    }
+
+    public function storeRemoved(Store $store, string $reason, ?string $notes = null): void
+    {
+        $store->loadMissing('user');
+        $this->send($store->user, new MarketplaceTransactionalMail(
+            'Il tuo negozio VistaExpress è stato rimosso dalla vendita', 'Il tuo negozio è stato rimosso dalla vendita',
+            'Il negozio e i suoi prodotti non sono più disponibili agli acquirenti. Puoi inviare una richiesta di riesame se ritieni che questa decisione debba essere rivalutata.',
+            array_filter(['Negozio' => $store->name, 'Motivo' => $reason, 'Note dell’amministrazione' => $notes]),
+            ctaLabel: 'Richiedi il riesame', ctaUrl: $this->sellerUrl('/auth/store-suspended'), recipientName: $store->user?->name,
+        ));
+    }
+
+    public function storeReinstated(Store $store, ?string $notes = null): void
+    {
+        $store->loadMissing('user');
+        $this->send($store->user, new MarketplaceTransactionalMail(
+            'Il tuo negozio VistaExpress è stato riattivato', 'Il tuo negozio è di nuovo attivo',
+            'La richiesta di riesame è stata approvata. Il tuo negozio e i prodotti idonei sono nuovamente disponibili sulla piattaforma.',
+            array_filter(['Negozio' => $store->name, 'Note dell’amministrazione' => $notes]),
+            ctaLabel: 'Apri il Seller Hub', ctaUrl: $this->sellerUrl('/dashboard'), recipientName: $store->user?->name,
         ));
     }
 

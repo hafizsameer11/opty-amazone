@@ -218,6 +218,12 @@ class Product extends Model
         return $query
             ->where('is_active', true)
             ->where('is_approved', true)
-            ->where('is_muted', false);
+            ->where('is_muted', false)
+            // Products inherit their seller's public availability. This is a
+            // hard catalog boundary for suspended/reviewed stores, not just a
+            // UI convention on the store profile.
+            ->whereHas('store', fn ($store) => $store
+                ->where('status', 'active')
+                ->where('is_active', true));
     }
 }

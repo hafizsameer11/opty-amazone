@@ -20,7 +20,7 @@ class BuyerStoreReportController extends Controller
             return ResponseHelper::error('Only buyers can report stores.', null, 403);
         }
 
-        $store = Store::where('is_active', true)->findOrFail($storeId);
+        $store = Store::where('status', 'active')->where('is_active', true)->findOrFail($storeId);
 
         try {
             $validated = $request->validate([

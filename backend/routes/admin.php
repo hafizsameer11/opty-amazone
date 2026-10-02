@@ -143,9 +143,15 @@ Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function ()
     Route::get('/support/messages/{id}/attachment', [\App\Http\Controllers\Support\SupportAttachmentController::class, 'show']);
 
     Route::prefix('store-reports')->group(function () {
+        Route::get('/summary', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'summary']);
+        Route::get('/reinstatements', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'reinstatements']);
+        Route::post('/reinstatements/{id}/decision', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'decideReinstatement']);
         Route::get('/', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'index']);
         Route::get('/{id}', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'show']);
         Route::post('/{id}/status', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'updateStatus']);
+        Route::post('/{id}/warn', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'warn']);
+        Route::post('/{id}/suspend', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'suspend']);
+        Route::post('/{id}/remove', [\App\Http\Controllers\Admin\AdminStoreReportController::class, 'remove']);
     });
 
     Route::prefix('store-banners')->group(function () {

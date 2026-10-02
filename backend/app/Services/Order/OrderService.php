@@ -44,7 +44,15 @@ class OrderService
                 }
 
                 $cart = Cart::where('user_id', $user->id)->lockForUpdate()->first();
-                if (! $cart || ! $cart->items()->exists()) throw new \RuntimeException('Cart is empty');
+                if (! $cart) throw new \RuntimeException('Cart is empty');
+
+                // A store may have been suspended after the buyer last saw
+                // their cart. Checkout is a server-side boundary too: discard
+                // those unavailable lines before repricing or reserving stock.
+                $cart->items()
+                    ->whereDoesntHave('product', fn ($products) => $products->visibleToBuyers())
+                    ->delete();
+                if (! $cart->items()->exists()) throw new \RuntimeException('Cart is empty');
 
                 $address = UserAddress::where('user_id', $user->id)->lockForUpdate()->findOrFail($deliveryAddressId);
                 $snapshot = $this->addressSnapshot($address);

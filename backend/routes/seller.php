@@ -80,6 +80,8 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('support'
 
 Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('store')->group(function () {
     Route::get('/', [SellerStoreController::class, 'getStore']);
+    Route::get('/reinstatement-requests', [\App\Http\Controllers\Seller\SellerStoreReinstatementController::class, 'index']);
+    Route::post('/reinstatement-requests', [\App\Http\Controllers\Seller\SellerStoreReinstatementController::class, 'store']);
     Route::put('/', [SellerStoreController::class, 'updateStore']);
     Route::post('/profile-image', [SellerStoreController::class, 'uploadProfileImage']);
     Route::post('/banner-image', [SellerStoreController::class, 'uploadBannerImage']);

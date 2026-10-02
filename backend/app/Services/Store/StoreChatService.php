@@ -17,7 +17,7 @@ class StoreChatService
 {
     public function resolveActiveStore(int $storeId): Store
     {
-        return Store::where('is_active', true)->findOrFail($storeId);
+        return Store::where('is_active', true)->where('status', 'active')->findOrFail($storeId);
     }
 
     public function getOrCreateConversation(User $buyer, int $storeId): StoreChatConversation
@@ -185,6 +185,7 @@ class StoreChatService
 
         return StoreChatConversation::query()
             ->where('buyer_id', $buyer->id)
+            ->whereHas('store', fn ($store) => $store->where('is_active', true)->where('status', 'active'))
             ->with(['store:id,name,slug,profile_image,is_active,status'])
             ->orderByDesc('last_message_at')
             ->orderByDesc('id')

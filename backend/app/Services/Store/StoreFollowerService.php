@@ -20,7 +20,7 @@ class StoreFollowerService
                 throw new \Exception('Only buyers can follow stores');
             }
 
-            $store = Store::findOrFail($storeId);
+            $store = Store::where('status', 'active')->where('is_active', true)->findOrFail($storeId);
 
             // firstOrCreate keeps repeated follow clicks idempotent and also
             // avoids creating duplicate relationships for the unique pair.
@@ -111,6 +111,8 @@ class StoreFollowerService
                 ->select('store_id')
                 ->where('user_id', $buyer->id))
             ->with(['socialLinks' => fn ($links) => $links->where('is_active', true)])
+            ->where('status', 'active')
+            ->where('is_active', true)
             ->orderBy('name')
             ->get();
     }

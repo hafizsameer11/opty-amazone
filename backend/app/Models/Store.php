@@ -96,6 +96,18 @@ class Store extends Model
         return $this->hasMany(StoreReview::class);
     }
 
+    /** Buyer reports stay attached to the store for moderation/audit history. */
+    public function reports(): HasMany
+    {
+        return $this->hasMany(StoreReport::class);
+    }
+
+    /** Seller requests to restore a suspended store. */
+    public function reinstatementRequests(): HasMany
+    {
+        return $this->hasMany(StoreReinstatementRequest::class);
+    }
+
     /**
      * Get all users associated with the store.
      */

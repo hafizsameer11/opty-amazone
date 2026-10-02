@@ -77,14 +77,14 @@ class BuyerCouponController extends Controller
 
     public function storeCoupons(Request $request, int $storeId): JsonResponse
     {
-        Store::findOrFail($storeId);
+        Store::where('status', 'active')->where('is_active', true)->findOrFail($storeId);
         $coupons = $this->couponService->publicCouponsForStore($storeId, $request->user());
         return ResponseHelper::success($coupons->map(fn ($coupon) => $this->discoveryCard($coupon))->values(), 'Store coupons retrieved successfully.');
     }
 
     public function productCoupons(Request $request, int $productId): JsonResponse
     {
-        $product = Product::findOrFail($productId);
+        $product = Product::visibleToBuyers()->findOrFail($productId);
         $coupons = $this->couponService->publicCouponsForStore($product->store_id, $request->user(), $product);
         return ResponseHelper::success($coupons->map(fn ($coupon) => $this->discoveryCard($coupon))->values(), 'Product coupons retrieved successfully.');
     }
@@ -92,7 +92,7 @@ class BuyerCouponController extends Controller
     public function categoryCoupons(Request $request, int $categoryId): JsonResponse
     {
         $category = Category::findOrFail($categoryId);
-        $stores = Product::query()->where(fn ($query) => $query->where('category_id', $category->id)->orWhere('sub_category_id', $category->id))
+        $stores = Product::visibleToBuyers()->where(fn ($query) => $query->where('category_id', $category->id)->orWhere('sub_category_id', $category->id))
             ->distinct()->pluck('store_id');
         $coupons = $stores->flatMap(fn ($storeId) => $this->couponService->publicCouponsForStore((int) $storeId, $request->user())
             ->filter(fn ($coupon) => $coupon->scope === 'store' || $coupon->scope === 'categories' && $coupon->categories->contains('id', $category->id)));

@@ -31,6 +31,14 @@ class BuyerCartController extends Controller
             $cart = Cart::create(['user_id' => $user->id]);
         }
 
+        // A store can be suspended after an item was added. Remove those
+        // stale lines before exposing the cart or allowing checkout.
+        $cart->items()
+            ->whereDoesntHave('product', fn ($products) => $products->visibleToBuyers())
+            ->delete();
+        $cart->unsetRelation('items');
+        $cart->load(['items.product', 'items.store', 'items.variant', 'items.frameSize']);
+
         app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
         // Group items by store
         $itemsByStore = $cart->items()->with('product', 'store', 'variant', 'frameSize')->get()->groupBy('store_id');
@@ -104,7 +112,7 @@ class BuyerCartController extends Controller
         ]);
 
         $user = Auth::user();
-        $product = Product::findOrFail($request->product_id);
+        $product = Product::visibleToBuyers()->findOrFail($request->product_id);
 
         if (!$product->is_active || $product->stock_status === 'out_of_stock') {
             return ResponseHelper::error('Product is not available', null, 400);
@@ -304,7 +312,7 @@ class BuyerCartController extends Controller
         $cart = Cart::where('user_id', $user->id)->firstOrFail();
         
         $item = $cart->items()->findOrFail($id);
-        $product = $item->product;
+        $product = Product::visibleToBuyers()->findOrFail($item->product_id);
         $availableStock = $this->availableStockForItem($item, $product);
 
         if ($availableStock < $request->quantity) {

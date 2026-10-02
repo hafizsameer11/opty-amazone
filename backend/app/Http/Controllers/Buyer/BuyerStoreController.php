@@ -27,7 +27,9 @@ class BuyerStoreController extends Controller
      */
     public function getStore(int $id): JsonResponse
     {
-        $store = Store::with(['socialLinks' => fn ($links) => $links->where('is_active', true)])->findOrFail($id);
+        $store = Store::where('status', 'active')->where('is_active', true)
+            ->with(['socialLinks' => fn ($links) => $links->where('is_active', true)])
+            ->findOrFail($id);
 
         return ResponseHelper::success([
             'store' => new PublicStoreResource($store),
@@ -39,6 +41,7 @@ class BuyerStoreController extends Controller
      */
     public function followStatus(int $id, Request $request): JsonResponse
     {
+        $this->activeStore($id);
         $user = $request->user();
         if (!$user->isBuyer()) {
             return ResponseHelper::success([
@@ -101,6 +104,7 @@ class BuyerStoreController extends Controller
      */
     public function getStoreReviews(int $id, Request $request): JsonResponse
     {
+        $this->activeStore($id);
         $reviews = $this->reviewService->getStoreReviews($id, array_merge($request->all(), ['verified' => true]));
 
         return ResponseHelper::success([
@@ -120,6 +124,7 @@ class BuyerStoreController extends Controller
     public function createReview(int $id, CreateReviewRequest $request): JsonResponse
     {
         try {
+            $this->activeStore($id);
             $review = $this->reviewService->createReview($request->user(), $id, $request->validated());
 
             return ResponseHelper::success([
@@ -128,5 +133,10 @@ class BuyerStoreController extends Controller
         } catch (\Exception $e) {
             return ResponseHelper::error($e->getMessage());
         }
+    }
+
+    private function activeStore(int $id): Store
+    {
+        return Store::where('status', 'active')->where('is_active', true)->findOrFail($id);
     }
 }

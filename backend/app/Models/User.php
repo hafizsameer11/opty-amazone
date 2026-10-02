@@ -145,6 +145,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function wishlistItems() { return $this->hasMany(WishlistItem::class); }
     public function supportTickets() { return $this->hasMany(SupportTicket::class); }
     public function orders() { return $this->hasMany(Order::class); }
+    public function storeReinstatementRequests() { return $this->hasMany(StoreReinstatementRequest::class, 'seller_id'); }
 
     /**
      * Get the user's wallet.
