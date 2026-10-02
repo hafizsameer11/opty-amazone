@@ -6,13 +6,14 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
 import apiClient from '@/lib/api-client';
+import { needsEmailVerification } from '@/lib/seller-profile-gate';
 import SellerAuthShell, { AuthFeedback } from '@/components/auth/SellerAuthShell';
 import SellerAuthInput from '@/components/auth/SellerAuthInput';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function SellerVerificationPage() {
   const router = useRouter();
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const { t } = useLanguage();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -29,6 +30,11 @@ export default function SellerVerificationPage() {
   useEffect(() => {
     if (!loading && !isAuthenticated) router.replace('/auth/login');
   }, [isAuthenticated, loading, router]);
+
+  // KYC details must not be sent to an address the seller has not confirmed.
+  useEffect(() => {
+    if (!loading && isAuthenticated && needsEmailVerification(user)) router.replace('/auth/verify-email');
+  }, [isAuthenticated, loading, router, user]);
 
   const updateField = (field: keyof typeof form, value: string) => setForm((current) => ({ ...current, [field]: value }));
 
@@ -57,8 +63,8 @@ export default function SellerVerificationPage() {
       description={t('auth.verificationDescription')}
       sideTitle={t('auth.verifySideTitle')}
       sideDescription={t('auth.verifySideDescription')}
-      steps={[t('auth.stepCreateAccount'), t('auth.stepBusinessDetails'), t('auth.stepStoreSetup')]}
-      activeStep={1}
+      steps={[t('auth.stepCreateAccount'), t('auth.stepVerifyEmail'), t('auth.stepBusinessDetails'), t('auth.stepStoreSetup')]}
+      activeStep={2}
       wideForm
     >
       <div className="mb-7 flex items-start gap-4 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4">

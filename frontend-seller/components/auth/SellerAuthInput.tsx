@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { InputHTMLAttributes, ReactNode } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-type AuthInputIcon = 'mail' | 'lock' | 'store' | 'phone' | 'link' | 'bank' | 'document';
+type AuthInputIcon = 'mail' | 'lock' | 'store' | 'phone' | 'link' | 'bank' | 'document' | 'shield';
 
 interface SellerAuthInputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -23,6 +23,7 @@ function Icon({ name }: { name: AuthInputIcon }) {
     link: <><path d="M10 13a5 5 0 0 0 7.1.1l1.4-1.4a5 5 0 0 0-7.1-7.1L10.6 5.4" /><path d="M14 11a5 5 0 0 0-7.1-.1l-1.4 1.4a5 5 0 0 0 7.1 7.1l.8-.8" /></>,
     bank: <><path d="m3 9 9-5 9 5" /><path d="M5 10v7M9 10v7M15 10v7M19 10v7M3 20h18M2 17h20" /></>,
     document: <><path d="M7 3h7l4 4v14H7z" /><path d="M14 3v5h5M10 13h5M10 17h5" /></>,
+    shield: <><path d="M12 3 5 6v5.5c0 4.2 2.9 8 7 9.5 4.1-1.5 7-5.3 7-9.5V6z" /><path d="m9 12 2.2 2.2L15.5 10" /></>,
   };
 
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">{paths[name]}</svg>;

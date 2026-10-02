@@ -243,4 +243,14 @@ export class StoreService {
     const response = await apiClient.post('/seller/verification/complete-store-setup');
     return response.data;
   }
+
+  static async reinstatementRequests(): Promise<{ success: boolean; data: { requests: Array<{ id: number; reason: string; status: string; admin_notes?: string | null; created_at?: string | null }> } }> {
+    const response = await apiClient.get('/seller/store/reinstatement-requests');
+    return response.data;
+  }
+
+  static async requestReinstatement(reason: string): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.post('/seller/store/reinstatement-requests', { reason });
+    return response.data;
+  }
 }

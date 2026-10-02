@@ -6,6 +6,7 @@ export const SELLER_PROFILE_SETUP_QUERY = 'setup';
 
 export type SellerGateState =
   | 'ok'
+  | 'needs_email_verification'
   | 'needs_verification'
   | 'awaiting_approval'
   | 'rejected'
@@ -31,9 +32,21 @@ export function isSellerProfileComplete(user: User | null): boolean {
   return true;
 }
 
+/**
+ * Business details must not be collected until the seller has proved they own
+ * the address on the account.
+ */
+export function needsEmailVerification(user: User | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role && user.role !== 'seller') return false;
+  return !user.email_verified_at;
+}
+
 export function getSellerGateState(store: Store | null | undefined): SellerGateState {
   if (!store) return 'needs_verification';
-  if (store.status === 'suspended') return 'suspended';
+  // A moderation removal keeps the audit record but disables the store. It
+  // shares the dedicated suspension route so the seller can request review.
+  if (store.status === 'suspended' || store.is_active === false) return 'suspended';
   if (store.onboarding_status === 'rejected' || store.status === 'rejected') return 'rejected';
   if (!store.verification_submitted_at && ['pending', 'in_progress', 'rejected'].includes(store.onboarding_status)) {
     return 'needs_verification';
@@ -53,6 +66,8 @@ export function getSellerGateState(store: Store | null | undefined): SellerGateS
 
 export function sellerGateRedirect(state: SellerGateState): string | null {
   switch (state) {
+    case 'needs_email_verification':
+      return '/auth/verify-email';
     case 'needs_verification':
     case 'rejected':
       return '/auth/verification';
@@ -61,7 +76,7 @@ export function sellerGateRedirect(state: SellerGateState): string | null {
     case 'awaiting_approval':
       return '/auth/pending-approval';
     case 'suspended':
-      return '/auth/pending-approval';
+      return '/auth/store-suspended';
     default:
       return null;
   }

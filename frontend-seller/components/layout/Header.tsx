@@ -9,8 +9,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 import { displayProfileImageUrl } from '@/lib/profile-image-url';
 import { notificationService } from '@/services/notification-service';
-import { useToast } from '@/components/ui/Toast';
-import { localizedSellerNotification } from '@/services/notification-copy';
 import { WAREHOUSE_UPDATED_EVENT, warehouseService } from '@/services/warehouse-service';
 
 export default function Header() {
@@ -23,9 +21,6 @@ export default function Header() {
   const [warehouseCartCount, setWarehouseCartCount] = useState(0);
   const { t } = useLanguage();
   const headerAvatarUrl = displayProfileImageUrl(user?.profile_image_url);
-  const { showToast } = useToast();
-  const seenChatNotifications = useRef<Set<string>>(new Set());
-  const notificationFeedInitialized = useRef(false);
 
   const refreshWarehouseCart = useCallback(async () => {
     if (!user) {
@@ -41,47 +36,17 @@ export default function Header() {
     }
   }, [user]);
 
-  useEffect(() => {
+useEffect(() => {
     if (!user) {
       setUnreadNotifications(0);
-      seenChatNotifications.current.clear();
-      notificationFeedInitialized.current = false;
       return;
     }
     const load = async () => {
       try {
+        // Badge only. NotificationToaster owns the pop-up stream, so this poll
+        // deliberately does not surface anything itself.
         const result = await notificationService.list({ per_page: 50 });
         setUnreadNotifications(result.unread_count || 0);
-        const chatNotifications = (result.notifications || []).filter((item) => item.type === 'chat.message_received');
-
-        if (!notificationFeedInitialized.current) {
-          chatNotifications.forEach((item) => seenChatNotifications.current.add(item.id));
-          notificationFeedInitialized.current = true;
-          return;
-        }
-
-        const newChats = chatNotifications.filter((item) => !item.read_at && !seenChatNotifications.current.has(item.id));
-        chatNotifications.forEach((item) => seenChatNotifications.current.add(item.id));
-        newChats.forEach((newChat) => {
-          const copy = localizedSellerNotification(newChat, t);
-          const time = newChat.created_at ? new Date(newChat.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-          showToast('info', `${copy.message}${time ? ` · ${time}` : ''}`, 12000, {
-            label: t('notifications.openConversation'),
-            onClick: async () => {
-              try {
-                await notificationService.markRead(newChat.id);
-              } catch {
-                // Navigation should still work if marking the notification is temporarily unavailable.
-              }
-              router.push(newChat.url || '/messages');
-            },
-          }, {
-            title: copy.title,
-            imageUrl: typeof newChat.context?.sender_image_url === 'string'
-              ? displayProfileImageUrl(newChat.context.sender_image_url)
-              : null,
-          });
-        });
       } catch {
         // Keep the current badge and layout available during transient failures.
       }
@@ -93,7 +58,7 @@ export default function Header() {
       window.clearInterval(timer);
       window.removeEventListener('seller-unread-changed', load);
     };
-  }, [router, showToast, t, user]);
+  }, [user]);
 
   useEffect(() => {
     void refreshWarehouseCart();

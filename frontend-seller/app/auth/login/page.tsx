@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthService } from '@/services/auth-service';
-import { isSellerProfileComplete } from '@/lib/seller-profile-gate';
+import { isSellerProfileComplete, needsEmailVerification } from '@/lib/seller-profile-gate';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
 import SellerAuthShell, { AuthFeedback } from '@/components/auth/SellerAuthShell';
@@ -32,7 +32,8 @@ function LoginPageContent() {
       setError('');
       await login(data);
       const user = AuthService.getUser();
-      router.push(user && !isSellerProfileComplete(user) ? '/profile?setup=1' : '/');
+      if (user && needsEmailVerification(user)) router.push('/auth/verify-email');
+      else router.push(user && !isSellerProfileComplete(user) ? '/profile?setup=1' : '/');
     } catch (err: any) {
       setError(
         err.response?.data?.errors?.email?.[0] ||

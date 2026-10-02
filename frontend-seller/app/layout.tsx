@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import SellerGate from "@/components/layout/SellerGate";
 import { ToastProvider } from "@/components/ui/Toast";
+import NotificationToaster from "@/components/notifications/NotificationToaster";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +35,8 @@ export default function RootLayout({
       >
         <AuthProvider>
           <LanguageProvider>
-            <ToastProvider>
+<ToastProvider>
+              <NotificationToaster />
               <SellerGate>{children}</SellerGate>
             </ToastProvider>
           </LanguageProvider>
