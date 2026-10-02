@@ -32,10 +32,32 @@ export interface StoreReportRow {
   status: StoreReportStatus | string;
   evidence_urls?: string[];
   admin_notes?: string | null;
-  store?: { id: number; name: string; status?: string; is_active?: boolean } | null;
+  store?: { id: number; name: string; status?: string; is_active?: boolean; reports_count?: number | null } | null;
   buyer?: { id: number; name: string; email?: string } | null;
   created_at: string;
   reviewed_at?: string | null;
+}
+
+export interface StoreReportSummary {
+  total_reports: number;
+  reported_stores: number;
+  open_reports: number;
+  suspended_stores: number;
+  pending_reinstatements: number;
+}
+
+export interface StoreReinstatementRequest {
+  id: number;
+  store_id: number;
+  seller_id: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected' | string;
+  admin_notes?: string | null;
+  created_at?: string | null;
+  reviewed_at?: string | null;
+  store?: { id: number; name: string; status?: string; is_active?: boolean } | null;
+  seller?: { id: number; name: string; email?: string } | null;
+  reviewer?: { id: number; name: string } | null;
 }
 
 export type StoreReportStatus =
@@ -109,12 +131,13 @@ export const adminChatService = {
 };
 
 export const adminReportService = {
-  async list(params?: { status?: string; page?: number; per_page?: number }) {
+  async list(params?: { status?: string; store_id?: number; search?: string; page?: number; per_page?: number }) {
     const res = await apiClient.get('/admin/store-reports', { params });
     return res.data.data as {
       reports: StoreReportRow[];
       pagination: { current_page: number; last_page: number; total: number };
       statuses?: string[];
+      summary?: StoreReportSummary;
     };
   },
 
@@ -133,5 +156,30 @@ export const adminReportService = {
 
   async markReviewed(id: number, admin_notes?: string) {
     return this.updateStatus(id, 'resolved', admin_notes);
+  },
+
+  async warn(id: number, reason: string, adminNotes?: string) {
+    const res = await apiClient.post(`/admin/store-reports/${id}/warn`, { reason, admin_notes: adminNotes });
+    return res.data.data.report as StoreReportRow;
+  },
+
+  async suspend(id: number, reason: string, adminNotes?: string) {
+    const res = await apiClient.post(`/admin/store-reports/${id}/suspend`, { reason, admin_notes: adminNotes });
+    return res.data.data as { report: StoreReportRow; store: NonNullable<StoreReportRow['store']> };
+  },
+
+  async remove(id: number, reason: string, adminNotes?: string) {
+    const res = await apiClient.post(`/admin/store-reports/${id}/remove`, { reason, admin_notes: adminNotes });
+    return res.data.data as { report: StoreReportRow; store: NonNullable<StoreReportRow['store']> };
+  },
+
+  async reinstatements(status?: string) {
+    const res = await apiClient.get('/admin/store-reports/reinstatements', { params: { status, per_page: 100 } });
+    return res.data.data as { requests: StoreReinstatementRequest[]; pagination: { current_page: number; last_page: number; total: number } };
+  },
+
+  async decideReinstatement(id: number, action: 'approve' | 'reject', adminNotes?: string) {
+    const res = await apiClient.post(`/admin/store-reports/reinstatements/${id}/decision`, { action, admin_notes: adminNotes });
+    return res.data.data.request as StoreReinstatementRequest;
   },
 };
