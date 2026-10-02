@@ -8,15 +8,15 @@ import Image from 'next/image';
 // Layout components are now handled by app/template.tsx
 import { StoreService, type PublicStore } from '@/services/store-service';
 import { getAxiosErrorMessage } from '@/lib/api-client';
-import { productService, type Product } from '@/services/product-service';
+import { type Product } from '@/services/product-service';
 import { isEyeProductCategory } from '@/utils/product-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import ProductCardCategoryLine from '@/components/products/ProductCardCategoryLine';
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 import StoreChatPanel from '@/components/stores/StoreChatPanel';
+import StoreProductBrowser from '@/components/stores/StoreProductBrowser';
 import ReportStoreButton from '@/components/stores/ReportStoreButton';
 import ReviewForm from '@/components/reviews/ReviewForm';
 import { couponService, type CouponCard } from '@/services/coupon-service';
@@ -199,10 +199,8 @@ export default function StorePage() {
   const router = useRouter();
   const { isAuthenticated, user } = useAuth();
   const [store, setStore] = useState<PublicStore | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingProducts, setLoadingProducts] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followMessage, setFollowMessage] = useState<string | null>(null);
   const [followLoading, setFollowLoading] = useState(false);
@@ -211,19 +209,13 @@ export default function StorePage() {
   const [reportDetails, setReportDetails] = useState('');
   const [reportFiles, setReportFiles] = useState<File[]>([]);
   const [reportSending, setReportSending] = useState(false);
-  const [reportMessage, setReportMessage] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [hasMoreProducts, setHasMoreProducts] = useState(false);
-  const [totalProducts, setTotalProducts] = useState(0);
+const [reportMessage, setReportMessage] = useState<string | null>(null);
   const [publicCoupons, setPublicCoupons] = useState<CouponCard[]>([]);
 
   useEffect(() => {
     if (!params.id) return;
     loadStore();
     loadReviews();
-    loadProducts(1, false);
   }, [params.id]);
 
   const loadStore = async () => {
@@ -265,34 +257,6 @@ export default function StorePage() {
     }
     couponService.getStoreCoupons(storeId).then(setPublicCoupons).catch(() => setPublicCoupons([]));
   }, [params.id, isAuthenticated, user?.role]);
-
-  const loadProducts = async (page = 1, append = false) => {
-    try {
-      setLoadingProducts(true);
-      // Load products for this store using store_id filter on the backend
-      const data = await productService.getAll({ 
-        store_id: Number(params.id),
-        per_page: 24,
-        page: page,
-        sort_by: 'created_at',
-        sort_order: 'desc'
-      });
-      
-      if (append) {
-        setProducts(prev => [...prev, ...(data.data || [])]);
-      } else {
-        setProducts(data.data || []);
-      }
-      
-      setTotalPages(data.last_page || 1);
-      setTotalProducts(data.total || 0);
-      setHasMoreProducts((data.current_page || 1) < (data.last_page || 1));
-    } catch (error) {
-      console.error('Failed to load products:', error);
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
 
   const loadReviews = async () => {
     try {
@@ -386,13 +350,6 @@ export default function StorePage() {
       setReportSending(false);
     }
   };
-
-  const filteredProducts = search
-    ? products.filter(p => 
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.description?.toLowerCase().includes(search.toLowerCase())
-      )
-    : products;
 
   const bannerImageUrl = getFullImageUrl(store?.banner_image_url || store?.banner_image);
   const profileImageUrl = getFullImageUrl(store?.profile_image_url || store?.profile_image);
@@ -642,63 +599,8 @@ export default function StorePage() {
               <PublicCouponList coupons={publicCoupons} />
             </div>
           )}
-          {/* Products Section */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">
-                Products ({totalProducts > 0 ? totalProducts : products.length})
-              </h2>
-              <div className="w-64">
-                <Input
-                  type="text"
-                  placeholder="Search products..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {loadingProducts && products.length === 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="h-64 bg-gray-200 rounded-xl animate-pulse"></div>
-                ))}
-              </div>
-            ) : filteredProducts.length > 0 ? (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {filteredProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
-                {/* Load More Button */}
-                {hasMoreProducts && !loadingProducts && (
-                  <div className="mt-6 text-center">
-                    <Button
-                      onClick={() => {
-                        const nextPage = currentPage + 1;
-                        setCurrentPage(nextPage);
-                        loadProducts(nextPage, true);
-                      }}
-                      variant="outline"
-                      size="lg"
-                    >
-                      Load More Products
-                    </Button>
-                  </div>
-                )}
-                {loadingProducts && products.length > 0 && (
-                  <div className="mt-6 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0066CC] mx-auto"></div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                <p className="text-gray-600">No products found in this store.</p>
-              </div>
-            )}
-          </div>
+{/* Products Section */}
+          <StoreProductBrowser storeId={Number(params.id)} renderProduct={(product) => <ProductCard key={product.id} product={product} />} />
 
           {/* Reviews Section */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

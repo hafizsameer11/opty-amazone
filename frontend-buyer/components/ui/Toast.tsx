@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
 import Alert from './Alert';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
@@ -23,32 +23,51 @@ interface ToastContextType {
   toasts: Toast[];
 }
 
+/** Beyond this the newest notifications push the oldest out of view. */
+const MAX_VISIBLE_TOASTS = 4;
+
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  // Pending auto-dismiss timers, so a manual close can cancel its own timer
+  // instead of leaving a callback that later filters an id that no longer exists.
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  const removeToast = useCallback((id: string) => {
+    const timer = timers.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timers.current.delete(id);
+    }
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   const showToast = useCallback((type: ToastType, message: string, duration = 4000, action?: Toast['action'], options?: Pick<Toast, 'title' | 'imageUrl'>) => {
     const id = Math.random().toString(36).substring(7);
     const toast: Toast = { id, type, message, duration, action, ...options };
-    
-    setToasts((prev) => [...prev, toast]);
 
+    setToasts((prev) => [...prev, toast].slice(-MAX_VISIBLE_TOASTS));
+
+    // A duration of zero or less means the toast stays until it is closed.
     if (duration > 0) {
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, duration);
+      timers.current.set(id, setTimeout(() => removeToast(id), duration));
     }
-  }, []);
+  }, [removeToast]);
 
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  useEffect(() => {
+    const pending = timers.current;
+    return () => { pending.forEach(clearTimeout); pending.clear(); };
   }, []);
 
   return (
     <ToastContext.Provider value={{ showToast, toasts }}>
       {children}
-      <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md w-full pointer-events-none">
+      <div
+        className="fixed top-4 right-4 z-50 space-y-2 max-w-md w-full pointer-events-none"
+        role="region"
+        aria-label="Notifications"
+      >
         {toasts.map((toast) => (
           <div
             key={toast.id}

@@ -512,12 +512,6 @@ export default function OrderDetailsPage() {
                     €{Number(order.shipping_total || 0).toFixed(2)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-600 font-medium">Platform Fee:</span>
-                  <span className="font-bold text-gray-900">
-                    €{Number(order.platform_fee || 0).toFixed(2)}
-                  </span>
-                </div>
                 <div className="pt-4 border-t-2 border-gray-300">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900">Grand Total:</span>

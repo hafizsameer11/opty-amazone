@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ToastProvider } from "@/components/ui/Toast";
+import NotificationToaster from "@/components/notifications/NotificationToaster";
 import PageLoader from "@/components/ui/PageLoader";
 
 const inter = Inter({
@@ -41,8 +42,9 @@ export default function RootLayout({
         <AuthProvider>
           <LanguageProvider>
             <CartProvider>
-              <ToastProvider>
+<ToastProvider>
                 <PageLoader />
+                <NotificationToaster />
                 {children}
               </ToastProvider>
             </CartProvider>

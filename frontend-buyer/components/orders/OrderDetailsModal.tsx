@@ -410,12 +410,6 @@ export default function OrderDetailsModal({
                   €{Number(order.shipping_total || 0).toFixed(2)}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Platform Fee:</span>
-                <span className="font-bold text-gray-900">
-                  €{Number(order.platform_fee || 0).toFixed(2)}
-                </span>
-              </div>
               <div className="border-t-2 border-gray-300 pt-3 mt-2">
                 <div className="flex justify-between">
                   <span className="text-lg font-bold text-gray-900">Grand Total:</span>
