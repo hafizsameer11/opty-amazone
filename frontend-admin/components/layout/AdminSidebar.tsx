@@ -47,7 +47,8 @@ const navigation: NavItem[] = [
   { nameKey: 'activityLogs', href: '/activity-logs', icon: <ActivityIcon />, section: 'communication' },
   { nameKey: "Marketplace Finance", href: "/finance", icon: <span className="text-xl">€</span>, section: 'finance' },
   { nameKey: "Referral Program", href: "/referrals", icon: <span className="text-xl">↗</span>, section: 'finance' },
-  { nameKey: 'points', href: '/points', icon: <PointsIcon />, section: 'finance' },
+  // Hidden from the sidebar for now. Restore by deleting these two comment lines.
+  // { nameKey: 'points', href: '/points', icon: <PointsIcon />, section: 'finance' },
   { nameKey: 'settings', href: '/settings', icon: <SettingsIcon />, section: 'system' },
 ];
 
@@ -156,6 +157,7 @@ function ActivityIcon() {
   );
 }
 
+/* Icon for the hidden Points entry above. Kept so it can be restored with it.
 function PointsIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -163,6 +165,7 @@ function PointsIcon() {
     </svg>
   );
 }
+*/
 
 export default function AdminSidebar() {
   const pathname = usePathname();
