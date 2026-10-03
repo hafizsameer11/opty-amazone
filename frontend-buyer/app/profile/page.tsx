@@ -32,10 +32,9 @@ type AccountTab =
   | "followed-stores"
   | "reviews"
   | "referrals"
-  | "support"
-  | "faqs";
+  | "support";
 
-const accountTabs: AccountTab[] = ['overview', 'edit-profile', 'addresses', 'orders', 'wallet', 'saved', 'followed-stores', 'reviews', 'referrals', 'support', 'faqs'];
+const accountTabs: AccountTab[] = ['overview', 'edit-profile', 'addresses', 'orders', 'wallet', 'saved', 'followed-stores', 'reviews', 'referrals', 'support'];
 
 function isAccountTab(value: string | null): value is AccountTab {
   return Boolean(value && accountTabs.includes(value as AccountTab));
@@ -52,8 +51,7 @@ function AccountMenuIcon({ tab }: { tab: AccountTab }) {
     'followed-stores': 'M4 21V5l8-3 8 3v16M9 21v-4h6v4M8 8h.01M16 8h.01M8 12h.01M16 12h.01',
     reviews: 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z',
     referrals: 'M16 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm10 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.6 7.5l4.8-2.8M8.6 8.5l4.8 2.8',
-    support: 'M4 18v-6a8 8 0 0 1 16 0v6M4 18h3v-5H4m13 5h3v-5h-3m-3 7h-4',
-    faqs: 'M9.1 9a3 3 0 1 1 5.8 1c0 2-2.9 2-2.9 4m.1 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+support: 'M4 18v-6a8 8 0 0 1 16 0v6M4 18h3v-5H4m13 5h3v-5h-3m-3 7h-4',
   };
 
   return <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={paths[tab]} /></svg>;
@@ -279,12 +277,6 @@ function ProfilePageContent() {
       label: "Support",
       description: "Help & contact us",
       colorClass: "from-[#facc15] to-[#eab308]",
-    },
-    {
-      id: "faqs",
-      label: "FAQs",
-      description: "Common buyer questions",
-      colorClass: "from-[#64748b] to-[#475569]",
     },
   ];
 
@@ -817,40 +809,7 @@ function ProfilePageContent() {
       );
     }
 
-    // FAQs
-    return (
-      <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">FAQs</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Quick answers to common questions from buyers.
-        </p>
-        <ul className="space-y-3 text-sm text-gray-700">
-          <li>
-            <span className="font-semibold">How do I track my order?</span>
-            <br />
-            Go to the <span className="font-medium">My Orders</span> tab and
-            open any order to see tracking details.
-          </li>
-          <li>
-            <span className="font-semibold">
-              How can I change my delivery address?
-            </span>
-            <br />
-            Use the <span className="font-medium">Manage addresses</span>{" "}
-            button in the Profile tab.
-          </li>
-          <li>
-            <span className="font-semibold">
-              How do I change my email or password?
-            </span>
-            <br />
-            From the Profile tab, choose{" "}
-            <span className="font-medium">Edit profile</span> or{" "}
-            <span className="font-medium">Change password</span>.
-          </li>
-        </ul>
-      </div>
-    );
+    return null;
   };
 
   const openMobileSection = (tab: AccountTab) => {

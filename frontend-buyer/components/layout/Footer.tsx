@@ -11,11 +11,12 @@ export default function Footer() {
       <div className="w-full px-4 pb-24 pt-8 sm:px-6 sm:py-10 lg:px-4">
         <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-4 sm:gap-8">
           <div>
-            <h3 className="text-white font-semibold mb-4">{t('getToKnowUs')}</h3>
+            <h3 className="text-white font-semibold mb-4">{t('shop')}</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/about" className="hover:text-white transition-colors">{t('aboutUs')}</Link></li>
-              <li><Link href="/careers" className="hover:text-white transition-colors">{t('careers')}</Link></li>
-              <li><Link href="/press" className="hover:text-white transition-colors">{t('pressReleases')}</Link></li>
+              <li><Link href="/products" className="hover:text-white transition-colors">{t('footer.allProducts')}</Link></li>
+              <li><Link href="/categories" className="hover:text-white transition-colors">{t('footer.browseCategories')}</Link></li>
+              <li><Link href="/stores" className="hover:text-white transition-colors">{t('footer.allStores')}</Link></li>
+              <li><Link href="/wishlist" className="hover:text-white transition-colors">{t('footer.savedItems')}</Link></li>
             </ul>
           </div>
           <div>
@@ -48,4 +49,3 @@ export default function Footer() {
     </footer>
   );
 }
-

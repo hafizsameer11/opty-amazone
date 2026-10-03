@@ -26,6 +26,38 @@ export default function SellPage() {
         <li>Store profile, banners, and promotional options</li>
         <li>Order and inventory workflows designed for multi-seller retail</li>
       </ul>
+      <h2 className="text-xl font-semibold text-gray-900 pt-2">How approval works</h2>
+      <p>
+        Seller accounts are reviewed before a store can go live, in four steps.
+      </p>
+      <ol className="list-decimal pl-5 space-y-2">
+        <li>
+          <strong>Create your account.</strong> Confirm your email address with the 6-digit code we send you.
+        </li>
+        <li>
+          <strong>Submit your business details.</strong> Business type, registration number, tax ID,
+          registered address, website and a link to an identity document.
+        </li>
+        <li>
+          <strong>Admin review.</strong> Our team checks your details and approves the account, and you are
+          notified by email.
+        </li>
+        <li>
+          <strong>Complete your store.</strong> Add your logo, banner, description, policies and first
+          products, then open for sales.
+        </li>
+      </ol>
+
+      <h2 className="text-xl font-semibold text-gray-900 pt-2">What you can do once live</h2>
+      <ul className="list-disc pl-5 space-y-2">
+        <li>List frames, sunglasses, contact lenses, eye care and accessories with variants, sizes and prescriptions</li>
+        <li>Set product prices and run percentage or fixed-amount discount campaigns</li>
+        <li>Publish store banners and promotional announcements</li>
+        <li>Quote your own delivery fee per order and manage your own fulfilment</li>
+        <li>Review orders, issue refunds where applicable, and track store performance</li>
+        <li>Run your own referral campaigns to attract buyers</li>
+      </ul>
+
       <h2 className="text-xl font-semibold text-gray-900 pt-2">Get started</h2>
       <p>
         Seller registration and onboarding run on the <strong>Vista Express seller portal</strong>—a
