@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:pm2": "next dev -H 127.0.0.1 -p 3120",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test:campaign-ui": "playwright test"
