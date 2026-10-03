@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import type { ReactNode } from 'react';
 import GlobalLanguageDock from '@/components/ui/GlobalLanguageDock';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -56,15 +57,16 @@ export function AuthFeedback({
 function BrandMark({ compact = false }: { compact?: boolean }) {
   const { t } = useLanguage();
   return (
-    <Link href="/" className={`group inline-flex items-center gap-3 ${compact ? '' : 'text-white'}`} aria-label={t('auth.homeLabel')}>
-      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#27a8e0] shadow-lg shadow-cyan-950/20">
-        <span className="absolute h-6 w-8 rounded-full border-[3px] border-white/95" />
-        <span className="absolute h-1.5 w-3 rounded-full bg-white/95" />
-        <span className="absolute -right-1.5 top-2 h-2 w-2 rounded-full bg-white/80" />
-      </span>
-      <span className="leading-none">
-        <span className={`block text-[1.35rem] font-extrabold tracking-[-0.04em] ${compact ? 'text-slate-900' : 'text-white'}`}>Vista<span className="text-[#39b7ec]">Express</span></span>
-        <span className={`mt-1 block text-[0.57rem] font-semibold uppercase tracking-[0.25em] ${compact ? 'text-slate-500' : 'text-slate-300'}`}>{t('auth.opticalSolutions')}</span>
+    <Link href="/" className="inline-flex shrink-0 items-center" aria-label={t('auth.homeLabel')}>
+      <span className={`inline-flex rounded-2xl bg-white/95 p-2 shadow-lg shadow-black/15 ${compact ? 'bg-transparent p-0 shadow-none' : ''}`}>
+        <Image
+          src="/vista-seller-logo.png"
+          alt="Vista Express Seller"
+          width={176}
+          height={88}
+          priority
+          className={`h-auto ${compact ? 'w-40' : 'w-44'}`}
+        />
       </span>
     </Link>
   );
@@ -127,14 +129,11 @@ export default function SellerAuthShell({
 
       <div className="relative mx-auto flex h-full min-h-0 w-full items-stretch">
         <div className={`grid h-full min-h-0 w-full overflow-hidden bg-white ${wideForm ? 'lg:grid-cols-[0.82fr_1.18fr]' : 'lg:grid-cols-[0.9fr_1.1fr]'}`}>
-          <aside className="seller-auth-panel relative hidden h-full min-h-0 overflow-hidden bg-[#091b31] px-8 text-white lg:flex lg:flex-col xl:px-12">
+          <aside className="seller-auth-panel relative hidden h-full min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain bg-[#091b31] px-8 text-white lg:flex lg:flex-col xl:px-12">
             <div className="absolute right-[-7rem] top-[-7rem] h-72 w-72 rounded-full border border-cyan-300/10" />
             <div className="absolute bottom-[-9rem] left-[-8rem] h-80 w-80 rounded-full border border-blue-300/10" />
             <BrandMark />
             <div className="seller-auth-panel-content relative max-w-md pb-2">
-              <div className="seller-auth-panel-badge mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-semibold text-cyan-100">
-                <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" /> {t('auth.sellerWorkspace')}
-              </div>
               <h2 className="seller-auth-panel-title max-w-sm font-bold leading-[1.08] tracking-[-0.04em]">{sideTitle}</h2>
               <p className="seller-auth-panel-description max-w-sm text-slate-300">{sideDescription}</p>
               <SideIllustration />

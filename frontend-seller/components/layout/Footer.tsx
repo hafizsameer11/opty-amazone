@@ -34,7 +34,6 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li><Link href="/help" className="hover:text-white transition-colors">{t('helpCenter')}</Link></li>
               <li><Link href="/contact" className="hover:text-white transition-colors">{t('contactSupport')}</Link></li>
-              <li><Link href="/faq" className="hover:text-white transition-colors">{t('faq')}</Link></li>
             </ul>
           </div>
           <div>

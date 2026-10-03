@@ -11,6 +11,7 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Link from 'next/link';
 import { inventoryService, type LowStockResponse } from '@/services/inventory-service';
+import { isStoreSuspendedError } from '@/lib/api-client';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -45,8 +46,9 @@ export default function SellerDashboardPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [lowStock, setLowStock] = useState<LowStockResponse | null>(null);
-  const [showStoreSetup, setShowStoreSetup] = useState(false);
-  const [storeSetupDismissed, setStoreSetupDismissed] = useState(false);
+const [showStoreSetup, setShowStoreSetup] = useState(false);
+const [storeSetupDismissed, setStoreSetupDismissed] = useState(false);
+const [suspended, setSuspended] = useState(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -54,13 +56,15 @@ export default function SellerDashboardPage() {
     }
   }, [isAuthenticated, loading, router]);
 
-  useEffect(() => {
+useEffect(() => {
     if (isAuthenticated) {
       loadDashboard();
     }
   }, [isAuthenticated]);
 
-  useLiveRefresh(() => loadDashboard(true), isAuthenticated, 15000);
+  // A suspended store cannot load any of this data, so stop polling rather
+  // than repeating a request the API will always refuse.
+  useLiveRefresh(() => loadDashboard(true), isAuthenticated && !suspended, 15000);
 
   const loadDashboard = async (silent = false) => {
     try {
@@ -75,6 +79,12 @@ export default function SellerDashboardPage() {
       const nextStore = storeResponse.data?.store ?? null;
       setShowStoreSetup(!storeSetupDismissed && nextStore?.onboarding_status === 'approved' && !nextStore.store_setup_completed_at);
     } catch (error) {
+      // Suspension is an expected account state that api-client turns into a
+      // redirect, so it is not worth reporting as a failure.
+      if (isStoreSuspendedError(error)) {
+        setSuspended(true);
+        return;
+      }
       console.error('Failed to load dashboard:', error);
     } finally {
       if (!silent) setLoadingData(false);

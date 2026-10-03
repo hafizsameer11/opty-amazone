@@ -37,8 +37,7 @@ type AccountTab =
   | "store-settings"
   | "followers"
   | "reviews"
-  | "support"
-  | "faqs";
+  | "support";
 
 const ACCOUNT_SHORTCUT_TABS: AccountTab[] = [
   "products",
@@ -237,13 +236,6 @@ function ProfilePageContent() {
       description: t('profile.supportTabDescription'),
       colorClass: "from-[#facc15] to-[#eab308]",
       icon: "?",
-    },
-    {
-      id: "faqs",
-      label: t('profile.faqsTab'),
-      description: t('profile.faqsTabDescription'),
-      colorClass: "from-[#64748b] to-[#475569]",
-      icon: "i",
     },
   ];
 
@@ -514,40 +506,7 @@ function ProfilePageContent() {
       );
     }
 
-    // FAQs
-    return (
-      <div className="rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">{t('profile.faqs')}</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Quick answers to common questions from sellers.
-        </p>
-        <ul className="space-y-3 text-sm text-gray-700">
-          <li>
-            <span className="font-semibold">How do I add products?</span>
-            <br />
-            Go to the <span className="font-medium">My Products</span> tab and
-            click "Add Product" to create your first listing.
-          </li>
-          <li>
-            <span className="font-semibold">
-              How do I manage my store settings?
-            </span>
-            <br />
-            Use the <span className="font-medium">Store Settings</span> tab to
-            configure your store information and policies.
-          </li>
-          <li>
-            <span className="font-semibold">
-              How do I change my email or password?
-            </span>
-            <br />
-            From the Profile tab, choose{" "}
-            <span className="font-medium">Edit profile</span> or{" "}
-            <span className="font-medium">Change password</span>.
-          </li>
-        </ul>
-      </div>
-    );
+    return null;
   };
 
   return (

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,6 +54,7 @@ export default function Sidebar() {
 
   const navigation: NavItem[] = useMemo(() => [
     { name: "Seller Wallet", href: "/wallet", icon: <span className="text-xl">€</span> },
+    /* Hidden from the sidebar for now. Restore by deleting these two comment lines.
     {
       name: t('nav.guide'),
       href: '/guide',
@@ -62,6 +64,7 @@ export default function Sidebar() {
         </svg>
       ),
     },
+    */
     {
       name: t('nav.dashboard'),
       href: '/',
@@ -89,6 +92,7 @@ export default function Sidebar() {
         </svg>
       ),
     },
+    /* Hidden from the sidebar for now. Restore by deleting these two comment lines.
     {
       name: t('nav.lensConfiguration'),
       href: '/category-lens-config',
@@ -99,6 +103,8 @@ export default function Sidebar() {
         </svg>
       ),
     },
+    */
+    /* Hidden from the sidebar for now. Restore by deleting these two comment lines.
     {
       name: t('nav.prescriptionOptions'),
       href: '/prescription-dropdowns',
@@ -108,6 +114,8 @@ export default function Sidebar() {
         </svg>
       ),
     },
+    */
+    /* Hidden from the sidebar for now. Restore by deleting these two comment lines.
     {
       name: t('nav.fieldConfiguration'),
       href: '/category-field-config',
@@ -117,6 +125,7 @@ export default function Sidebar() {
         </svg>
       ),
     },
+    */
     {
       name: t('nav.orders'),
       href: '/orders',
@@ -234,15 +243,9 @@ export default function Sidebar() {
         <div className="flex flex-col flex-grow min-h-0 bg-white border-r border-gray-200 pt-5 pb-4 overflow-y-auto overscroll-contain">
           {/* Logo */}
           <div className="flex items-center flex-shrink-0 px-6 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#0066CC] to-[#00CC66] flex items-center justify-center shadow-md hover:shadow-lg transition-shadow duration-200">
-                <span className="text-white font-bold text-xl">OM</span>
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-gray-900">{t('sellerHub')}</h1>
-                <p className="text-xs text-gray-500">{t('dashboard')}</p>
-              </div>
-            </div>
+            <Link href="/" aria-label="Vista Express Seller home">
+              <Image src="/vista-seller-logo.png" alt="Vista Express Seller" width={176} height={88} priority className="h-auto w-40" />
+            </Link>
           </div>
 
           {/* Navigation */}
