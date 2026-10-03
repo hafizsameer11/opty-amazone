@@ -154,7 +154,9 @@ export default function VerifyEmailPage() {
         </button>
       </div>
 
-      <div className="mt-7 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
+      <div className="mt-7 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-slate-100 pt-6 text-sm text-slate-500">
+        <Link href="/auth/login" className="font-bold text-[#0789c5] hover:text-[#006b99]">{t('auth.backToSignIn')}</Link>
+        <span className="text-slate-300" aria-hidden="true">·</span>
         <Link href="/auth/pending-approval" className="font-bold text-[#0789c5] hover:text-[#006b99]">{t('auth.applicationStatus')}</Link>
       </div>
     </SellerAuthShell>
