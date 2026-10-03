@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import type { ReactNode } from 'react';
 import GlobalLanguageDock from '@/components/ui/GlobalLanguageDock';
 
@@ -44,16 +45,15 @@ export function BuyerAuthFeedback({
 
 function BuyerBrand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/" className="inline-flex items-center gap-3" aria-label="VistaExpress marketplace home">
-      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#087f8c] shadow-lg shadow-cyan-900/15">
-        <span className="absolute h-5 w-8 rounded-full border-[3px] border-white" />
-        <span className="absolute h-1.5 w-3 rounded-full bg-[#f7b267]" />
-        <span className="absolute bottom-1.5 h-1.5 w-1.5 rounded-full bg-white/80" />
-      </span>
-      <span className="leading-none">
-        <span className={`block text-[1.35rem] font-extrabold tracking-[-0.04em] ${compact ? 'text-slate-950' : 'text-slate-900'}`}>Vista<span className="text-[#087f8c]">Express</span></span>
-        <span className="mt-1 block text-[0.57rem] font-semibold uppercase tracking-[0.23em] text-slate-500">Marketplace</span>
-      </span>
+    <Link href="/" className="inline-flex shrink-0 items-center" aria-label="Vista Express Buyer marketplace home">
+      <Image
+        src="/vista-buyer-logo.png"
+        alt="Vista Express Buyer"
+        width={176}
+        height={88}
+        priority
+        className={`h-auto ${compact ? 'w-40' : 'w-44'}`}
+      />
     </Link>
   );
 }

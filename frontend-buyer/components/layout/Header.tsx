@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -120,9 +121,8 @@ export default function Header() {
         </div>
         <div className="px-3 pb-3 pt-2.5">
           <div className="flex items-center justify-between gap-2">
-            <Link href="/" className="flex min-w-0 items-center gap-2" aria-label="OpticalMarket home">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-blue-600 text-xs font-extrabold shadow-lg">OM</span>
-              <span className="truncate text-base font-bold tracking-tight">OpticalMarket</span>
+            <Link href="/" className="flex min-w-0 items-center" aria-label="Vista Express Buyer home">
+              <Image src="/vista-buyer-logo.png" alt="Vista Express Buyer" width={142} height={71} priority className="h-auto w-28 sm:w-32" />
             </Link>
             <div className="flex shrink-0 items-center gap-1">
               {isAuthenticated && <Link href="/notifications" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-xl text-white transition hover:bg-white/10"><BellIcon />{unreadNotifications > 0 && <span className="absolute right-0.5 top-0.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold ring-2 ring-[#101b2d]">{notificationBadge}</span>}</Link>}
@@ -178,7 +178,7 @@ export default function Header() {
           </div>
         </div>
         <div className="bg-[#131921]"><div className="mx-auto flex max-w-7xl items-center gap-6 px-6 py-4">
-          <Link href="/" className="flex shrink-0 items-center gap-3" aria-label={`${t('common.brand')} home`}><span className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 via-teal-500 to-blue-600 text-base font-extrabold shadow-lg">OM</span><span><span className="block text-2xl font-bold tracking-tight">{t('common.brand')}</span><span className="block text-[10px] font-medium uppercase tracking-[0.16em] text-slate-300">{t('common.marketplace')}</span></span></Link>
+          <Link href="/" className="flex shrink-0 items-center" aria-label="Vista Express Buyer home"><Image src="/vista-buyer-logo.png" alt="Vista Express Buyer" width={176} height={88} priority className="h-auto w-36 lg:w-40" /></Link>
           <form onSubmit={submitSearch} className="flex h-11 min-w-0 max-w-3xl flex-1 overflow-hidden rounded-lg bg-white shadow-md focus-within:ring-2 focus-within:ring-[#febd69]"><select value={selectedCategoryId ?? ''} onChange={(event) => setSelectedCategoryId(event.target.value ? Number(event.target.value) : null)} className="max-w-44 border-0 border-r border-slate-300 bg-slate-50 px-3 text-sm font-medium text-slate-700 outline-none"><option value="">{t('allCategories')}</option>{categories.flatMap((category) => [<option key={category.id} value={category.id}>{category.name}</option>, ...(category.children || []).map((child) => <option key={child.id} value={child.id}>{category.name} → {child.name}</option>)])}</select><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('searchPlaceholder')} className="min-w-0 flex-1 border-0 px-4 text-sm text-slate-900 outline-none" /><button type="submit" className="flex w-12 shrink-0 items-center justify-center bg-[#febd69] text-slate-900 transition hover:bg-[#f3a847]" aria-label={t('search')} title={t('search')}><SearchIcon /></button></form>
           <div className="flex shrink-0 items-center gap-4"><Link href="/cart" className="relative flex flex-col items-center text-white transition hover:text-[#febd69]"><CartIcon className="h-7 w-7" /><span className="mt-0.5 text-xs font-medium">{t('cart')}</span>{cartCount > 0 && <span className="absolute -right-2 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#febd69] px-1 text-[10px] font-bold text-slate-900">{cartBadge}</span>}</Link>{isAuthenticated && <Link href="/notifications" aria-label="Notifications" className="relative rounded-lg p-2 text-white transition hover:bg-white/10 hover:text-[#febd69]"><BellIcon className="h-7 w-7" />{unreadNotifications > 0 && <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold">{notificationBadge}</span>}</Link>}<Link href={isAuthenticated ? '/profile' : '/auth/login'} className="flex flex-col items-start text-white transition hover:text-[#febd69]"><span className="text-[11px] text-slate-300">{t('hello')}, {isAuthenticated ? user?.name?.split(' ')[0] || t('account') : t('signIn')}</span><span className="flex items-center gap-1 text-sm font-semibold">{t('accountLists')}<svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m19 9-7 7-7-7" /></svg></span></Link></div>
         </div></div>
