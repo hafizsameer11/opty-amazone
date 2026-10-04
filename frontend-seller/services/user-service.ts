@@ -67,6 +67,18 @@ export const userService = {
     return res.data.data;
   },
 
+  /**
+   * Changes the login email while it is still unverified. The backend rejects
+   * this once the address has been verified.
+   */
+  async changeEmail(email: string): Promise<{ user?: User; dispatched: boolean }> {
+    const res = await apiClient.post("/seller/profile/change-email", { email });
+    return {
+      user: res.data?.data?.user as User | undefined,
+      dispatched: res.data?.data?.verification_dispatched !== false,
+    };
+  },
+
   async sendEmailVerification(): Promise<void> {
     await apiClient.post("/seller/profile/verify-email/send");
   },

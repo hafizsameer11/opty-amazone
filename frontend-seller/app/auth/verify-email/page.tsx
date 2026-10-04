@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
 import apiClient from '@/lib/api-client';
+import { userService } from '@/services/user-service';
 import SellerAuthShell, { AuthFeedback } from '@/components/auth/SellerAuthShell';
 import SellerAuthInput from '@/components/auth/SellerAuthInput';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -35,6 +36,9 @@ export default function VerifyEmailPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [cooldown, setCooldown] = useState(0);
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [changingEmailPending, setChangingEmailPending] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
   const cooldownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -89,6 +93,28 @@ export default function VerifyEmailPage() {
       setError(errorMessage(cause, t('auth.resendCodeFailed')));
     } finally {
       setResending(false);
+    }
+  };
+
+  const handleChangeEmail = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const next = newEmail.trim();
+    if (!next) return;
+    setChangingEmailPending(true);
+    setError('');
+    try {
+      const { user: updated, dispatched } = await userService.changeEmail(next);
+      // Keep the session in step so the banner shows the address the code went to.
+      if (updated) updateSessionUser(updated);
+      setCode('');
+      setChangingEmail(false);
+      setNewEmail('');
+      setSuccess(dispatched ? t('auth.changeEmailSent', { email: next }) : t('auth.changeEmailSendFailed'));
+      startCooldown();
+    } catch (cause) {
+      setError(errorMessage(cause, t('auth.changeEmailFailed')));
+    } finally {
+      setChangingEmailPending(false);
     }
   };
 
@@ -152,6 +178,42 @@ export default function VerifyEmailPage() {
         >
           {cooldown > 0 ? t('auth.resendCodeIn', { seconds: cooldown }) : t('auth.resendCode')}
         </button>
+      </div>
+
+      <div className="mt-4 text-center">
+        {changingEmail ? (
+          <form onSubmit={handleChangeEmail} className="mx-auto max-w-sm space-y-3 text-left" noValidate>
+            <label htmlFor="change-email" className="block text-sm font-semibold text-slate-800">
+              {t('auth.changeEmailTitle')}
+            </label>
+            <input
+              id="change-email"
+              type="email"
+              value={newEmail}
+              onChange={(event) => setNewEmail(event.target.value)}
+              placeholder="name@company.com"
+              autoComplete="email"
+              className="h-[3.25rem] w-full rounded-xl border border-slate-200 bg-slate-50/70 px-4 text-[0.95rem] text-slate-950 outline-none transition focus:border-[#0795ce] focus:bg-white focus:ring-4 focus:ring-cyan-100"
+            />
+            <p className="text-xs leading-5 text-slate-500">{t('auth.changeEmailHint')}</p>
+            <div className="flex gap-2">
+              <Button type="submit" variant="primary" size="sm" isLoading={changingEmailPending} disabled={!newEmail.trim()}>
+                {t('common.save')}
+              </Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => { setChangingEmail(false); setNewEmail(''); setError(''); }}>
+                {t('common.cancel')}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setChangingEmail(true)}
+            className="text-sm font-semibold text-slate-500 underline underline-offset-2 transition hover:text-[#0789c5]"
+          >
+            {t('auth.useDifferentEmail')}
+          </button>
+        )}
       </div>
 
       <div className="mt-7 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-slate-100 pt-6 text-sm text-slate-500">
