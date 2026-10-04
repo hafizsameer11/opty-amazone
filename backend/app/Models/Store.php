@@ -16,6 +16,59 @@ class Store extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * Mirrors the `stores.status` enum. `pending` is the "awaiting admin
+     * review" state for both a brand-new registration and a submitted
+     * verification, which is why the admin lifecycle keys off this column
+     * alone rather than `onboarding_status`.
+     */
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_SUSPENDED = 'suspended';
+    public const STATUS_REJECTED = 'rejected';
+
+    public const STATUSES = [
+        self::STATUS_PENDING,
+        self::STATUS_ACTIVE,
+        self::STATUS_SUSPENDED,
+        self::STATUS_REJECTED,
+    ];
+
+    public const ONBOARDING_PENDING = 'pending';
+    public const ONBOARDING_IN_PROGRESS = 'in_progress';
+    public const ONBOARDING_PENDING_REVIEW = 'pending_review';
+    public const ONBOARDING_APPROVED = 'approved';
+    public const ONBOARDING_REJECTED = 'rejected';
+
+    /** A registration is awaiting an admin decision. */
+    public function isPending(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === self::STATUS_REJECTED;
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === self::STATUS_SUSPENDED;
+    }
+
+    /** Moderation/rejection reasons live in the unindexed `meta` JSON column. */
+    public function rejectionReason(): ?string
+    {
+        $reason = data_get($this->meta, 'rejection_reason');
+
+        return is_string($reason) && trim($reason) !== '' ? $reason : null;
+    }
+
     protected $fillable = [
         'user_id',
         'name',
@@ -122,6 +175,36 @@ class Store extends Model
     public function statistics(): HasOne
     {
         return $this->hasOne(StoreStatistic::class);
+    }
+
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    public function storeOrders(): HasMany
+    {
+        return $this->hasMany(StoreOrder::class);
+    }
+
+    public function announcements(): HasMany
+    {
+        return $this->hasMany(StoreAnnouncement::class);
+    }
+
+    public function banners(): HasMany
+    {
+        return $this->hasMany(StoreBanner::class);
+    }
+
+    public function sellerWallet(): HasOne
+    {
+        return $this->hasOne(SellerWallet::class);
+    }
+
+    public function supportTickets(): HasMany
+    {
+        return $this->hasMany(SupportTicket::class);
     }
 
     public function referralCampaigns(): HasMany

@@ -144,6 +144,17 @@ class MarketplaceEmailService
         ));
     }
 
+    public function sellerRejected(Store $store, string $reason): void
+    {
+        $store->loadMissing('user');
+        $this->send($store->user, new MarketplaceTransactionalMail(
+            'Aggiornamento sulla richiesta del tuo negozio VistaExpress', 'La richiesta del tuo negozio non è stata approvata',
+            'Il team VistaExpress ha esaminato la richiesta di apertura del tuo negozio e non ha potuto approvarla. Puoi correggere i dettagli indicati e presentare di nuovo la richiesta.',
+            ['Negozio' => $store->name, 'Motivo' => $reason],
+            ctaLabel: 'Apri il Seller Hub', ctaUrl: $this->sellerUrl('/auth/pending-approval'), recipientName: $store->user?->name,
+        ));
+    }
+
     public function storeSuspended(Store $store, string $reason, ?string $notes = null): void
     {
         $store->loadMissing('user');

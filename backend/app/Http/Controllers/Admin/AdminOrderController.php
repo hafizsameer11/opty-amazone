@@ -18,6 +18,12 @@ class AdminOrderController extends Controller
             $query->where('payment_status', $request->payment_status);
         }
 
+        // An order can span several stores, so a store filter narrows to the
+        // orders that store actually took part in.
+        if ($request->filled('store_id')) {
+            $query->whereHas('storeOrders', fn ($q) => $q->where('store_id', $request->integer('store_id')));
+        }
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {

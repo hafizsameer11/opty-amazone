@@ -21,11 +21,11 @@ class StoreFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->company() . ' Optics';
+        $name = fake()->unique()->company() . ' Optics';
         return [
             'user_id' => User::factory()->seller(),
             'name' => $name,
-            'slug' => Str::slug($name),
+            'slug' => Str::slug($name).'-'.Str::lower(Str::random(6)),
             'description' => fake()->paragraph(3),
             'email' => fake()->companyEmail(),
             'phone' => fake()->phoneNumber(),
@@ -48,10 +48,62 @@ class StoreFactory extends Factory
     public function pending(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'pending',
-            'onboarding_status' => 'pending',
+            'status' => Store::STATUS_PENDING,
+            'onboarding_status' => Store::ONBOARDING_PENDING,
             'onboarding_level' => 1,
             'onboarding_percent' => 20,
+        ]);
+    }
+
+    /**
+     * A registration whose verification has been submitted for review.
+     */
+    public function pendingReview(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => Store::STATUS_PENDING,
+            'onboarding_status' => Store::ONBOARDING_PENDING_REVIEW,
+            'onboarding_level' => 4,
+            'onboarding_percent' => 80,
+        ]);
+    }
+
+    /**
+     * An approved, live store.
+     */
+    public function approved(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => Store::STATUS_ACTIVE,
+            'onboarding_status' => Store::ONBOARDING_APPROVED,
+            'is_active' => true,
+            'onboarding_level' => 5,
+            'onboarding_percent' => 100,
+        ]);
+    }
+
+    /**
+     * A store whose registration the admin refused.
+     */
+    public function rejected(string $reason = 'Documents could not be verified.'): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => Store::STATUS_REJECTED,
+            'onboarding_status' => Store::ONBOARDING_REJECTED,
+            'is_active' => false,
+            'meta' => ['rejection_reason' => $reason, 'rejected_at' => now()->toIso8601String()],
+        ]);
+    }
+
+    /**
+     * A live store hidden from buyers by moderation.
+     */
+    public function suspended(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => Store::STATUS_SUSPENDED,
+            'onboarding_status' => Store::ONBOARDING_APPROVED,
+            'is_active' => false,
         ]);
     }
 }

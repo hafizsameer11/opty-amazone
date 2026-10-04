@@ -69,6 +69,22 @@ class StoreService
                 'average_rating' => 0,
             ]);
 
+            // Flag the new registration for the admin panel's Sellers queue.
+            // The sidebar dot is derived from `stores.status = pending`, so this
+            // notification only has to point the admin at the right page.
+            try {
+                app(\App\Services\Notifications\MarketplaceNotificationService::class)->sendToAdmins(
+                    'store.registration_requested',
+                    'Nuova richiesta di negozio',
+                    "{$store->name} ha appena inviato la richiesta di apertura del proprio negozio.",
+                    '/sellers?status=pending',
+                    ['store_id' => $store->id, 'store_name' => $store->name]
+                );
+            } catch (\Throwable $notificationError) {
+                // Store provisioning must not fail because admins could not be notified.
+                report($notificationError);
+            }
+
             return $store;
         } catch (\Exception $e) {
             Log::error('Default store creation failed: ' . $e->getMessage(), [

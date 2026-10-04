@@ -19,6 +19,7 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function () {
     Route::get('/live-summary', [\App\Http\Controllers\Admin\AdminLiveSummaryController::class, '__invoke']);
+    Route::post('/live-summary/viewed', [\App\Http\Controllers\Admin\AdminLiveSummaryController::class, 'markViewed']);
     Route::put('/store-orders/{id}/status', [\App\Http\Controllers\Admin\AdminStoreOrderController::class, 'updateStatus']);
     Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index']);
     
@@ -36,6 +37,7 @@ Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function ()
         Route::get('/{id}', [\App\Http\Controllers\Admin\AdminSellerController::class, 'show']);
         Route::post('/{id}/approve', [\App\Http\Controllers\Admin\AdminSellerController::class, 'approve']);
         Route::post('/{id}/reject', [\App\Http\Controllers\Admin\AdminSellerController::class, 'reject']);
+        Route::delete('/{id}', [\App\Http\Controllers\Admin\AdminSellerController::class, 'destroy']);
     });
 
     Route::prefix('products')->group(function () {
