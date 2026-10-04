@@ -43,7 +43,15 @@ export interface ResetPasswordData {
   email: string;
   password: string;
   password_confirmation: string;
-  token: string;
+  reset_token: string;
+}
+
+export interface VerifyResetCodeResponse {
+  success: boolean;
+  message: string;
+  data: {
+    reset_token: string;
+  };
 }
 
 export interface ApiError {

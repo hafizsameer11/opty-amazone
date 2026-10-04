@@ -48,6 +48,7 @@ function LoginForm() {
         <span className="hidden shrink-0 rounded-full bg-[#e5f7f4] px-3 py-1 text-xs font-bold text-[#087f8c] sm:inline-flex">Shop smarter</span>
       </div>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        {searchParams.get('reset') === 'success' && <BuyerAuthFeedback type="success" message="Your password has been updated. Sign in with your new password." />}
         {error && <BuyerAuthFeedback type="error" message={error} onClose={() => setError('')} />}
         <BuyerAuthInput id="buyer-email" label="Email address" type="email" icon="mail" {...register('email')} error={errors.email?.message} placeholder="you@example.com" autoComplete="email" required />
         <BuyerAuthInput id="buyer-password" label="Password" type="password" icon="lock" {...register('password')} error={errors.password?.message} placeholder="Enter your password" autoComplete="current-password" required />

@@ -5,6 +5,7 @@ import type {
   LoginData,
   ForgotPasswordData,
   ResetPasswordData,
+  VerifyResetCodeResponse,
   ApiError,
 } from '@/types/auth';
 
@@ -36,7 +37,7 @@ export class AuthService {
   }
 
   /**
-   * Request password reset
+   * Request a password reset verification code
    */
   static async forgotPassword(data: ForgotPasswordData): Promise<{ success: boolean; message: string }> {
     const response = await apiClient.post('/buyer/auth/forgot-password', data);
@@ -44,7 +45,15 @@ export class AuthService {
   }
 
   /**
-   * Reset password
+   * Exchange a verification code for a short-lived reset token
+   */
+  static async verifyPasswordResetCode(email: string, code: string): Promise<{ reset_token: string }> {
+    const response = await apiClient.post<VerifyResetCodeResponse>('/buyer/auth/verify-reset-code', { email, code });
+    return response.data.data;
+  }
+
+  /**
+   * Reset password using a verified reset token
    */
   static async resetPassword(data: ResetPasswordData): Promise<{ success: boolean; message: string }> {
     const response = await apiClient.post('/buyer/auth/reset-password', data);
