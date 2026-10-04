@@ -1,7 +1,9 @@
 'use client';
 
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import AdminLayout from '@/components/layout/AdminLayout';
 import DataTable from '@/components/ui/DataTable';
 import GlassCard from '@/components/ui/GlassCard';
@@ -9,14 +11,18 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
 import PaginationBar, { type PaginationMeta } from '@/components/ui/PaginationBar';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { orderService, type Order } from '@/services/order-service';
 import { useToast } from '@/components/ui/Toast';
 import { rowsAndMetaFromAdminList } from '@/lib/paginated-response';
 import { statusKey, useLanguage } from '@/contexts/LanguageContext';
 
-export default function OrdersPage() {
+function OrdersPageContent() {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const searchParams = useSearchParams();
+  // Set when the admin arrives from a store's detail page.
+  const storeFilter = searchParams.get('store_id') || '';
   const [orders, setOrders] = useState<Order[]>([]);
   const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | null>(null);
   const [page, setPage] = useState(1);
@@ -33,6 +39,7 @@ export default function OrdersPage() {
       const params: Record<string, string | number> = { per_page: 20, page: pageNum };
       if (appliedSearch) params.search = appliedSearch;
       if (paymentFilter) params.payment_status = paymentFilter;
+      if (storeFilter) params.store_id = storeFilter;
       const response = await orderService.getAll(params);
       const { rows, meta } = rowsAndMetaFromAdminList<Order>(response);
       setOrders(rows);
@@ -43,7 +50,7 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [appliedSearch, paymentFilter, showToast]);
+  }, [appliedSearch, paymentFilter, showToast, storeFilter]);
 
   useLiveRefresh(() => loadOrders(page, true));
 
@@ -121,6 +128,14 @@ export default function OrdersPage() {
         </div>
 
         <GlassCard>
+          {storeFilter && (
+            <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-[#0066CC]/30 bg-[#0066CC]/5 px-4 py-3 text-sm">
+              <span className="text-slate-700">{t('filteringByStore')}</span>
+              <Link href="/orders" className="font-semibold text-[#0066CC] hover:underline">
+                {t('clearFilter')}
+              </Link>
+            </div>
+          )}
           <form onSubmit={handleSearch} className="flex flex-wrap gap-4 mb-6">
             <Input
               type="text"
@@ -164,5 +179,14 @@ export default function OrdersPage() {
         </GlassCard>
       </div>
     </AdminLayout>
+  );
+}
+
+export default function OrdersPage() {
+  // useSearchParams (the store filter) needs a Suspense boundary to prerender.
+  return (
+    <Suspense fallback={<AdminLayout><LoadingSpinner size="lg" /></AdminLayout>}>
+      <OrdersPageContent />
+    </Suspense>
   );
 }

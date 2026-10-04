@@ -70,6 +70,12 @@ export interface DashboardStats {
   };
 }
 
+export interface AdminSectionState {
+  total: number;
+  unread: number;
+  viewed_at: string | null;
+}
+
 export interface AdminLiveSummary {
   notifications: number;
   orders: number;
@@ -89,6 +95,8 @@ export interface AdminLiveSummary {
   discount_campaigns: number;
   points: number;
   search: number;
+  /** Per-section unread state that drives the sidebar dots. */
+  sections?: Record<string, AdminSectionState>;
 }
 
 export const adminService = {
@@ -106,9 +114,16 @@ export const adminService = {
     return res.data.data;
   },
 
-  async getLiveSummary(): Promise<AdminLiveSummary> {
+async getLiveSummary(): Promise<AdminLiveSummary> {
     const res = await apiClient.get('/admin/live-summary');
     return res.data.data;
+  },
+
+  /** Clear the unread dots for the sections the admin has just opened. */
+  async markSectionsViewed(sections: string[]): Promise<Record<string, AdminSectionState>> {
+    if (!sections.length) return {};
+    const res = await apiClient.post('/admin/live-summary/viewed', { sections });
+    return (res.data.data?.sections ?? {}) as Record<string, AdminSectionState>;
   },
 
   async getAnalytics(period: 'day' | 'week' | 'month' | 'year' = 'month') {

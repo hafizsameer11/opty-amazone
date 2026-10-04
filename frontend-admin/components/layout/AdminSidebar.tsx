@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +8,24 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { adminService, type AdminLiveSummary } from '@/services/admin-service';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useToast } from '@/components/ui/Toast';
+
+/**
+ * Maps a sidebar destination to the live-summary section that feeds its dot.
+ * The keys match `AdminSectionRegistry` on the backend.
+ */
+const SECTION_BY_HREF: Record<string, string> = {
+  '/sellers': 'sellers',
+  '/products': 'products',
+  '/orders': 'orders',
+  '/messages': 'messages',
+  '/support': 'support',
+  '/store-reports': 'reports',
+  '/banners': 'banners',
+  '/discount-campaigns': 'discount_campaigns',
+  '/ad-campaigns': 'boost_campaigns',
+  '/referrals': 'referrals',
+  '/finance': 'withdrawals',
+};
 
 interface NavItem {
   nameKey: string;
@@ -200,10 +218,49 @@ export default function AdminSidebar() {
     }
   }, [isAuthenticated, pathname, showToast, t]);
 
-  useLiveRefresh(loadSummary, isAuthenticated, 15000, true);
+useLiveRefresh(loadSummary, isAuthenticated, 15000, true);
+
+  // The section the admin is currently looking at, including sub-routes such
+  // as /sellers/12, so opening a detail page also clears its parent's dot.
+  const activeSection = useMemo(() => {
+    const match = Object.keys(SECTION_BY_HREF).find(
+      (href) => pathname === href || pathname?.startsWith(`${href}/`)
+    );
+    return match ? SECTION_BY_HREF[match] : null;
+  }, [pathname]);
+
+  // Mark the visible section as read as soon as it is opened. The response
+  // carries the recalculated state, so the dot clears without waiting for the
+  // next poll.
+  useEffect(() => {
+    if (!isAuthenticated || !activeSection) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const sections = await adminService.markSectionsViewed([activeSection]);
+        if (cancelled) return;
+        setSummary((previous) =>
+          previous ? { ...previous, sections: { ...(previous.sections ?? {}), ...sections } } : previous
+        );
+      } catch {
+        // Leave the dot in place until the next successful poll.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSection, isAuthenticated]);
 
   const badgeFor = (href: string): number => {
     if (!summary) return 0;
+
+    const section = SECTION_BY_HREF[href];
+    const unread = section ? summary.sections?.[section]?.unread : undefined;
+    if (typeof unread === 'number') return unread;
+
+    // Fallback for a backend that has not shipped per-section state yet.
     const values: Record<string, number> = {
       '/finance': summary.withdrawals,
       '/referrals': summary.referrals,
@@ -240,8 +297,11 @@ export default function AdminSidebar() {
               <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{t(section.titleKey)}</p>
               <div className="space-y-1">
                 {items.map((item) => {
-                  const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-                  const badge = pathname === item.href ? 0 : badgeFor(item.href);
+const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+                  const itemSection = SECTION_BY_HREF[item.href];
+                  // Suppress the dot on the section being viewed so it does not
+                  // flash back while the mark-viewed request is in flight.
+                  const badge = itemSection && itemSection === activeSection ? 0 : badgeFor(item.href);
                   const showBadge = badge > 0;
                   return (
                     <Link

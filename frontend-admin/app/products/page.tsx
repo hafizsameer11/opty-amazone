@@ -1,33 +1,40 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import AdminLayout from '@/components/layout/AdminLayout';
 import DataTable from '@/components/ui/DataTable';
 import GlassCard from '@/components/ui/GlassCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { productService, type Product } from '@/services/product-service';
 import { useToast } from '@/components/ui/Toast';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-export default function ProductsPage() {
+function ProductsPageContent() {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const searchParams = useSearchParams();
+  // Set when the admin arrives from a store's detail page.
+  const storeFilter = searchParams.get('store_id') || '';
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [storeFilter]);
 
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const params: any = { per_page: 50 };
+      const params: Record<string, string | number> = { per_page: 50 };
       if (search) params.search = search;
+      if (storeFilter) params.store_id = storeFilter;
       const response = await productService.getAll(params);
       setProducts(response.data || []);
     } catch (error) {
@@ -135,6 +142,14 @@ export default function ProductsPage() {
         </div>
 
         <GlassCard>
+          {storeFilter && (
+            <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-[#0066CC]/30 bg-[#0066CC]/5 px-4 py-3 text-sm">
+              <span className="text-slate-700">{t('filteringByStore')}</span>
+              <Link href="/products" className="font-semibold text-[#0066CC] hover:underline">
+                {t('clearFilter')}
+              </Link>
+            </div>
+          )}
           <form onSubmit={handleSearch} className="flex gap-4 mb-6">
             <Input
               type="text"
@@ -157,5 +172,14 @@ export default function ProductsPage() {
         </GlassCard>
       </div>
     </AdminLayout>
+  );
+}
+
+export default function ProductsPage() {
+  // useSearchParams (the store filter) needs a Suspense boundary to prerender.
+  return (
+    <Suspense fallback={<AdminLayout><LoadingSpinner size="lg" /></AdminLayout>}>
+      <ProductsPageContent />
+    </Suspense>
   );
 }
