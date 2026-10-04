@@ -58,6 +58,7 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('profile'
     Route::post('/change-password/verify-code', [SellerUserController::class, 'verifyPasswordChangeCode'])->middleware('throttle:10,1');
     Route::post('/change-password/reset', [SellerUserController::class, 'resetPasswordWithVerifiedCode']);
     Route::post('/change-password', [SellerUserController::class, 'changePassword']);
+    Route::post('/change-email', [SellerUserController::class, 'changeEmail'])->middleware('throttle:5,1');
     Route::post('/upload-image', [SellerUserController::class, 'uploadProfileImage']);
     Route::delete('/image', [SellerUserController::class, 'deleteProfileImage']);
     Route::get('/reviews', [SellerReviewController::class, 'index']);

@@ -110,6 +110,18 @@ class MarketplaceEmailService
         ));
     }
 
+    public function buyerPasswordResetCode(User $buyer, string $code, Carbon $expiresAt): bool
+    {
+        return $this->send($buyer, new MarketplaceTransactionalMail(
+            'Reimposta la password del tuo account VistaExpress',
+            'Conferma la reimpostazione della password',
+            'Utilizza il codice di verifica qui sotto per continuare a reimpostare la password del tuo account acquirente.',
+            ['Il codice scade' => $expiresAt->timezone(config('app.timezone'))->locale('it')->translatedFormat('j M Y, H:i'), 'Validità' => '15 minuti'],
+            ctaLabel: 'Apri VistaExpress', ctaUrl: $this->buyerUrl('/auth/reset-password'),
+            notice: 'Per la tua sicurezza, non condividere mai questo codice con nessuno.', code: $code, recipientName: $buyer->name,
+        ));
+    }
+
     public function sellerApproved(User $seller): void
     {
         $this->send($seller, new MarketplaceTransactionalMail(

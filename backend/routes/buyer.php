@@ -27,7 +27,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('/register', [BuyerAuthController::class, 'register']);
     Route::post('/login', [BuyerAuthController::class, 'login']);
-    Route::post('/forgot-password', [BuyerAuthController::class, 'forgotPassword']);
+    Route::post('/forgot-password', [BuyerAuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
+    Route::post('/verify-reset-code', [BuyerAuthController::class, 'verifyResetCode'])->middleware('throttle:10,1');
     Route::post('/reset-password', [BuyerAuthController::class, 'resetPassword']);
     
     Route::middleware(['auth:sanctum', 'marketplace.role:buyer'])->group(function () {

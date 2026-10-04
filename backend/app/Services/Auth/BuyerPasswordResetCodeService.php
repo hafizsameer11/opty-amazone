@@ -2,7 +2,7 @@
 
 namespace App\Services\Auth;
 
-use App\Models\SellerPasswordResetCode;
+use App\Models\BuyerPasswordResetCode;
 use App\Models\User;
 use App\Services\Email\MarketplaceEmailService;
 use Illuminate\Support\Facades\DB;
@@ -11,13 +11,13 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Role-scoped password recovery for Seller Hub.
+ * Role-scoped password recovery for the Buyer storefront.
  *
- * The browser and mobile app share this service: a short-lived email code is
- * verified once, then exchanged for an equally short-lived reset token. The
- * plaintext code/token are never persisted and every state change is locked.
+ * Mirrors SellerPasswordResetCodeService: a short-lived email code is verified
+ * once, then exchanged for an equally short-lived reset token. The plaintext
+ * code/token are never persisted and every state change is locked.
  */
-class SellerPasswordResetCodeService
+class BuyerPasswordResetCodeService
 {
     private const CODE_TTL_MINUTES = 15;
     private const RESET_TOKEN_TTL_MINUTES = 10;
@@ -29,30 +29,30 @@ class SellerPasswordResetCodeService
 
     /**
      * Always returns successfully when the email is unknown so recovery does
-     * not disclose whether a seller account exists.
+     * not disclose whether a buyer account exists.
      */
     public function send(string $email): void
     {
-        $seller = User::query()
+        $buyer = User::query()
             ->whereRaw('LOWER(email) = ?', [mb_strtolower(trim($email))])
-            ->where('role', 'seller')
+            ->where('role', 'buyer')
             ->first();
 
-        if (! $seller) {
+        if (! $buyer) {
             return;
         }
 
         $code = (string) random_int(100000, 999999);
         $expiresAt = now()->addMinutes(self::CODE_TTL_MINUTES);
 
-        DB::transaction(function () use ($seller, $code, $expiresAt): void {
-            $record = SellerPasswordResetCode::query()
-                ->where('user_id', $seller->id)
+        DB::transaction(function () use ($buyer, $code, $expiresAt): void {
+            $record = BuyerPasswordResetCode::query()
+                ->where('user_id', $buyer->id)
                 ->lockForUpdate()
-                ->first() ?? new SellerPasswordResetCode(['user_id' => $seller->id]);
+                ->first() ?? new BuyerPasswordResetCode(['user_id' => $buyer->id]);
 
             $record->fill([
-                'email' => $seller->email,
+                'email' => $buyer->email,
                 'code' => Hash::make($code),
                 'attempts' => 0,
                 'expires_at' => $expiresAt,
@@ -63,7 +63,7 @@ class SellerPasswordResetCodeService
             $record->save();
         });
 
-        $this->emails->sellerPasswordResetCode($seller, $code, $expiresAt);
+        $this->emails->buyerPasswordResetCode($buyer, $code, $expiresAt);
     }
 
     /**
@@ -74,7 +74,7 @@ class SellerPasswordResetCodeService
     public function verify(string $email, string $code): string
     {
         $outcome = DB::transaction(function () use ($email, $code): array {
-            [$seller, $record] = $this->recordFor($email);
+            [$buyer, $record] = $this->recordFor($email);
 
             if ($record->expires_at->isPast()) {
                 $record->delete();
@@ -115,7 +115,7 @@ class SellerPasswordResetCodeService
     public function reset(string $email, string $resetToken, string $password): void
     {
         DB::transaction(function () use ($email, $resetToken, $password): void {
-            [$seller, $record] = $this->recordFor($email);
+            [$buyer, $record] = $this->recordFor($email);
 
             if (! $record->verified_at || ! $record->reset_token_expires_at || $record->reset_token_expires_at->isPast()) {
                 $this->invalid('Your verified reset session has expired. Request a new code and try again.');
@@ -125,30 +125,30 @@ class SellerPasswordResetCodeService
                 $this->invalid('Your verified reset session is invalid. Request a new code and try again.');
             }
 
-            $seller->forceFill(['password' => Hash::make($password)])->save();
-            $seller->tokens()->delete();
+            $buyer->forceFill(['password' => Hash::make($password)])->save();
+            $buyer->tokens()->delete();
             $record->delete();
         });
     }
 
-    /** @return array{0: User, 1: SellerPasswordResetCode} */
+    /** @return array{0: User, 1: BuyerPasswordResetCode} */
     private function recordFor(string $email): array
     {
-        $seller = User::query()
+        $buyer = User::query()
             ->whereRaw('LOWER(email) = ?', [mb_strtolower(trim($email))])
-            ->where('role', 'seller')
+            ->where('role', 'buyer')
             ->lockForUpdate()
             ->first();
 
-        $record = $seller
-            ? SellerPasswordResetCode::query()->where('user_id', $seller->id)->lockForUpdate()->first()
+        $record = $buyer
+            ? BuyerPasswordResetCode::query()->where('user_id', $buyer->id)->lockForUpdate()->first()
             : null;
 
-        if (! $seller || ! $record) {
+        if (! $buyer || ! $record) {
             $this->invalid('This verification code is invalid or has expired. Request a new code and try again.');
         }
 
-        return [$seller, $record];
+        return [$buyer, $record];
     }
 
     private function invalid(string $message): never

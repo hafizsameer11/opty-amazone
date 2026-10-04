@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Seller;
 
 use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Seller\User\ChangeEmailRequest;
 use App\Http\Requests\Seller\User\ChangePasswordRequest;
 use App\Http\Requests\Seller\User\DeleteAccountRequest;
 use App\Http\Requests\Seller\User\UpdateProfileRequest;
 use App\Http\Requests\Seller\User\UploadImageRequest;
 use App\Http\Resources\UserResource;
+use App\Models\EmailVerificationChallenge;
 use App\Services\Email\EmailVerificationService;
 use App\Services\Email\PasswordChangeVerificationService;
 use App\Services\User\UserService;
@@ -187,6 +189,45 @@ class SellerUserController extends Controller
         }
 
         return ResponseHelper::success(null, 'Verification email sent');
+    }
+
+    /**
+     * Change the login email address while it is still unverified.
+     *
+     * The address is the account identifier, so this is deliberately limited to
+     * accounts that have not yet proven one; ChangeEmailRequest rejects the call
+     * once the address is verified. Any live challenge is discarded so the new
+     * address gets its own code straight away instead of waiting out the resend
+     * cooldown that the previous address used.
+     */
+    public function changeEmail(ChangeEmailRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $email = trim((string) $request->validated()['email']);
+
+        EmailVerificationChallenge::where('user_id', $user->id)
+            ->where('purpose', EmailVerificationService::PURPOSE_SELLER)
+            ->delete();
+
+        $user->forceFill(['email' => $email, 'email_verified_at' => null])->save();
+        $user = $user->fresh();
+
+        // The address change is durable even if the mail send fails, so the
+        // seller can still request a fresh code from the verification screen.
+        $dispatched = true;
+        try {
+            $this->emailVerification->send($user, EmailVerificationService::PURPOSE_SELLER);
+        } catch (\Throwable $exception) {
+            report($exception);
+            $dispatched = false;
+        }
+
+        return ResponseHelper::success([
+            'user' => new UserResource($user),
+            'verification_dispatched' => $dispatched,
+        ], $dispatched
+            ? 'Email address updated. A new verification code has been sent.'
+            : 'Email address updated. Request a verification code from the verification screen.');
     }
 
     /**

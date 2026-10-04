@@ -9,7 +9,7 @@ use App\Http\Requests\Buyer\Auth\LoginRequest;
 use App\Http\Requests\Buyer\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Services\Auth\AuthService;
-use App\Services\Auth\PasswordResetService;
+use App\Services\Auth\BuyerPasswordResetCodeService;
 use App\Services\Email\EmailVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,7 +28,7 @@ class BuyerAuthController extends Controller
 {
     public function __construct(
         private AuthService $authService,
-        private PasswordResetService $passwordResetService,
+        private BuyerPasswordResetCodeService $passwordResetCodes,
         private EmailVerificationService $emailVerification,
     ) {}
 
@@ -246,28 +246,28 @@ class BuyerAuthController extends Controller
      *             @OA\Property(property="email", type="string", format="email", example="buyer@example.com")
      *         )
      *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Password reset link sent",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Password reset link sent to your email")
+* @OA\Response(
+     *     response=200,
+     *     description="Password reset code sent",
+     *     @OA\JsonContent(
+     *         @OA\Property(property="success", type="boolean", example=true),
+     *         @OA\Property(property="message", type="string", example="If that email belongs to an account, a verification code has been sent.")
      *         )
      *     ),
      *     @OA\Response(
-     *         response=422,
-     *         description="Validation error"
+     *     response=422,
+     *     description="Validation error"
      *     )
      * )
      */
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
         try {
-            $this->passwordResetService->sendResetLink($request->email, 'buyer');
+            $this->passwordResetCodes->send($request->email);
 
             return ResponseHelper::success(
                 null,
-                'Password reset link sent to your email'
+                'If that email belongs to an account, a verification code has been sent.'
             );
         } catch (ValidationException $e) {
             return ResponseHelper::validationError($e->errors());
@@ -277,10 +277,30 @@ class BuyerAuthController extends Controller
             ]);
             
             return ResponseHelper::error(
-                'Failed to send password reset link. Please try again.',
+                'Failed to send the password reset code. Please try again.',
                 null,
                 500
             );
+        }
+    }
+
+    /** Verify a short-lived reset code before accepting a new password. */
+    public function verifyResetCode(Request $request): JsonResponse
+    {
+        try {
+            $data = $request->validate([
+                'email' => ['required', 'email'],
+                'code' => ['required', 'digits:6'],
+            ]);
+
+            return ResponseHelper::success([
+                'reset_token' => $this->passwordResetCodes->verify($data['email'], $data['code']),
+            ], 'Verification code confirmed. Choose a new password.');
+        } catch (ValidationException $e) {
+            return ResponseHelper::validationError($e->errors());
+        } catch (\Exception $e) {
+            Log::error('Buyer reset code verification failed: ' . $e->getMessage(), ['email' => $request->email ?? null]);
+            return ResponseHelper::error('We could not verify that code. Please try again.', null, 500);
         }
     }
 
@@ -292,24 +312,24 @@ class BuyerAuthController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"email", "password", "password_confirmation", "token"},
+     *             required={"email", "password", "password_confirmation", "reset_token"},
      *             @OA\Property(property="email", type="string", format="email", example="buyer@example.com"),
      *             @OA\Property(property="password", type="string", format="password", example="newpassword123"),
      *             @OA\Property(property="password_confirmation", type="string", format="password", example="newpassword123"),
-     *             @OA\Property(property="token", type="string", example="reset-token-here")
+     *             @OA\Property(property="reset_token", type="string", example="reset-token-here")
      *         )
      *     ),
      *     @OA\Response(
-     *         response=200,
-     *         description="Password reset successful",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Password reset successful")
+     *     response=200,
+     *     description="Password reset successful",
+     *     @OA\JsonContent(
+     *         @OA\Property(property="success", type="boolean", example=true),
+     *         @OA\Property(property="message", type="string", example="Password reset successful")
      *         )
      *     ),
      *     @OA\Response(
-     *         response=422,
-     *         description="Validation error or invalid token"
+     *     response=422,
+     *     description="Validation error or invalid reset token"
      *     )
      * )
      */
@@ -317,17 +337,12 @@ class BuyerAuthController extends Controller
     {
         try {
             $request->validate([
-                'token' => ['required'],
                 'email' => ['required', 'email'],
+                'reset_token' => ['required', 'string', 'max:255'],
                 'password' => ['required', 'confirmed', Password::defaults()],
             ]);
 
-            $this->passwordResetService->resetPassword($request->only(
-                'email',
-                'password',
-                'password_confirmation',
-                'token'
-            ), 'buyer');
+            $this->passwordResetCodes->reset($request->email, $request->reset_token, $request->password);
 
             return ResponseHelper::success(null, 'Password reset successful');
         } catch (ValidationException $e) {
