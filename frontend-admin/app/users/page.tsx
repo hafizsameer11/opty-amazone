@@ -108,19 +108,25 @@ export default function UsersPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (authUser?.id === id) {
+const handleDelete = async (user: User) => {
+    if (authUser?.id === user.id) {
       showToast('error', t('cannotDeleteSelf'));
+      return;
+    }
+    // Sellers own a store, so the backend refuses. Surface its exact wording
+    // instead of a generic failure.
+    if (user.can_delete === false) {
+      showToast('error', user.delete_blocked_reason || t('cannotDeleteSeller'));
       return;
     }
     if (!confirm(t('confirmDeleteUser'))) return;
     try {
-      await userService.delete(id);
+      await userService.delete(user.id);
       showToast('success', t('userDeleted'));
       void loadUsers(page);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
-      showToast('error', t('failedDeleteUser'));
+      showToast('error', err.response?.data?.message || t('failedDeleteUser'));
     }
   };
 
@@ -161,30 +167,53 @@ export default function UsersPage() {
         </Badge>
       ),
     },
-    {
+{
       key: 'actions',
       header: t('actions'),
-      render: (user: User) => (
-        <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="ghost" onClick={() => handleEdit(user)}>{t('edit')}</Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleToggleBlock(user)}
-            disabled={authUser?.id === user.id}
-          >
-            {user.is_blocked ? t('unblock') : t('block')}
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            onClick={() => handleDelete(user.id)}
-            disabled={authUser?.id === user.id}
-          >
-            {t('delete')}
-          </Button>
-        </div>
-      ),
+      render: (user: User) => {
+        // Seller accounts cannot be deleted here; Store Management owns them.
+        const canDelete = user.can_delete !== false;
+        const blockedReason = user.delete_blocked_reason || t('cannotDeleteSeller');
+        return (
+          <div className="flex flex-col items-start gap-1" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="ghost" onClick={() => handleEdit(user)}>{t('edit')}</Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleToggleBlock(user)}
+                disabled={authUser?.id === user.id}
+              >
+                {user.is_blocked ? t('unblock') : t('block')}
+              </Button>
+              {user.store && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => { window.location.href = `/sellers/${user.store!.id}`; }}
+                  title={t('manageStoreFromHere')}
+                >
+                  {t('store')}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() => void handleDelete(user)}
+                disabled={authUser?.id === user.id || !canDelete}
+                title={canDelete ? undefined : blockedReason}
+              >
+                {t('delete')}
+              </Button>
+            </div>
+            {!canDelete && (
+              <p className="max-w-[22rem] text-[11px] leading-4 text-amber-700" title={blockedReason}>
+                {blockedReason}
+              </p>
+            )}
+          </div>
+        );
+      },
     },
   ];
 

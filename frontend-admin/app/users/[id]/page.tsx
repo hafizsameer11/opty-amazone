@@ -129,6 +129,31 @@ export default function UserDetailsPage() {
             </div>
           </div>
         </GlassCard>
+
+        {user.store && (
+          <GlassCard>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">{t('store')}</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {user.store.name}
+                  {user.store.status ? ` · ${user.store.status}` : ''}
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                onClick={() => { window.location.href = `/sellers/${user.store!.id}`; }}
+              >
+                {t('manageStoreFromHere')}
+              </Button>
+            </div>
+            {user.can_delete === false && (
+              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {user.delete_blocked_reason || t('cannotDeleteSeller')}
+              </p>
+            )}
+          </GlassCard>
+        )}
       </div>
     </AdminLayout>
   );

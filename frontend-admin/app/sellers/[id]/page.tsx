@@ -10,6 +10,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Button from '@/components/ui/Button';
 import RejectReasonModal from '@/components/admin/RejectReasonModal';
 import DeleteStoreModal from '@/components/admin/DeleteStoreModal';
+import DisableStoreModal from '@/components/admin/DisableStoreModal';
 import {
   sellerService,
   type StoreDetail,
@@ -28,6 +29,13 @@ const STATUS_BADGE: Record<StoreStatus, { variant: 'success' | 'error' | 'warnin
   rejected: { variant: 'error', labelKey: 'storeStatusRejected' },
   suspended: { variant: 'info', labelKey: 'storeStatusSuspended' },
 };
+
+/** A store disabled to preserve its records reads differently from a suspension. */
+function badgeFor(store: StoreDetail) {
+  return store.is_disabled
+    ? { variant: 'info' as const, labelKey: 'storeStatusDisabled' }
+    : STATUS_BADGE[store.status] ?? STATUS_BADGE.pending;
+}
 
 /** Same rule as the list: decide only while the registration is pending. */
 function actionsFor(status: StoreStatus): Array<'approve' | 'reject' | 'delete'> {
@@ -53,6 +61,7 @@ export default function SellerDetailsPage() {
   const [busy, setBusy] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [disableOpen, setDisableOpen] = useState(false);
 
   const loadSeller = useCallback(async () => {
     try {
@@ -72,7 +81,7 @@ export default function SellerDetailsPage() {
 
   useLiveRefresh(loadSeller, Number.isFinite(storeId));
 
-  const runAction = async (action: 'approve' | 'reject' | 'delete', reason?: string) => {
+  const runAction = async (action: 'approve' | 'reject' | 'delete' | 'disable', reason?: string) => {
     setBusy(true);
     try {
       if (action === 'approve') {
@@ -81,6 +90,9 @@ export default function SellerDetailsPage() {
       } else if (action === 'reject') {
         await sellerService.reject(storeId, reason || '');
         showToast('success', t('storeRejected'));
+      } else if (action === 'disable') {
+        await sellerService.disable(storeId, reason);
+        showToast('success', t('storeDisabled'));
       } else {
         await sellerService.remove(storeId);
         showToast('success', t('storeDeleted'));
@@ -114,8 +126,9 @@ export default function SellerDetailsPage() {
   }
 
   const store: StoreDetail = data.store;
-  const badge = STATUS_BADGE[store.status] ?? STATUS_BADGE.pending;
+  const badge = badgeFor(store);
   const stats = store.statistics;
+  const canDelete = data.deletable;
 
   return (
     <AdminLayout>
@@ -128,30 +141,58 @@ export default function SellerDetailsPage() {
             </div>
             <p className="text-slate-500">{t('storeDetails')}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {actionsFor(store.status).map((action) => {
-              if (action === 'approve') {
-                return (
-                  <Button key="approve" variant="primary" isLoading={busy} onClick={() => void runAction('approve')}>
-                    {store.status === 'pending' ? t('approve') : t('storeApproveAgain')}
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
+              {actionsFor(store.status).map((action) => {
+                if (action === 'approve') {
+                  return (
+                    <Button key="approve" variant="primary" isLoading={busy} onClick={() => void runAction('approve')}>
+                      {store.status === 'pending' ? t('approve') : t('storeApproveAgain')}
+                    </Button>
+                  );
+                }
+                if (action === 'reject') {
+                  return (
+                    <Button key="reject" variant="danger" onClick={() => setRejectOpen(true)}>
+                      {t('reject')}
+                    </Button>
+                  );
+                }
+                // Financial history means Delete is never offered; Disable is
+                // the non-destructive alternative.
+                return canDelete ? (
+                  <Button key="delete" variant="danger" onClick={() => setDeleteOpen(true)}>
+                    {t('delete')}
+                  </Button>
+                ) : (
+                  <Button key="disable" variant="primary" isLoading={busy} onClick={() => setDisableOpen(true)}>
+                    {t('disableStore')}
                   </Button>
                 );
-              }
-              if (action === 'reject') {
-                return (
-                  <Button key="reject" variant="danger" onClick={() => setRejectOpen(true)}>
-                    {t('reject')}
-                  </Button>
-                );
-              }
-              return (
-                <Button key="delete" variant="danger" onClick={() => setDeleteOpen(true)}>
-                  {t('delete')}
-                </Button>
-              );
-            })}
+              })}
+            </div>
+            {!canDelete && (
+              <p className="max-w-sm text-right text-xs leading-5 text-amber-700">{t('disableStoreReason')}</p>
+            )}
           </div>
         </div>
+
+        {store.is_disabled && (
+          <GlassCard>
+            <p className="text-sm font-semibold text-slate-900">{t('storeDisabledTitle')}</p>
+            <p className="mt-1 text-sm text-slate-700">{t('disableStoreNotice', { name: store.name })}</p>
+            {store.disabled_at && (
+              <p className="mt-1 text-xs text-slate-500">
+                {t('storeDisabledOn', { date: new Date(store.disabled_at).toLocaleDateString() })}
+              </p>
+            )}
+            {store.disabled_reason && (
+              <p className="mt-2 text-sm text-slate-700">
+                {t('storeDisabledReasonLabel')}: {store.disabled_reason}
+              </p>
+            )}
+          </GlassCard>
+        )}
 
         {store.rejection_reason && (
           <GlassCard>
@@ -349,6 +390,15 @@ export default function SellerDetailsPage() {
         onClose={() => setDeleteOpen(false)}
         onConfirm={async () => {
           await runAction('delete');
+        }}
+      />
+
+      <DisableStoreModal
+        isOpen={disableOpen}
+        store={store}
+        onClose={() => setDisableOpen(false)}
+        onConfirm={async (reason) => {
+          await runAction('disable', reason);
         }}
       />
     </AdminLayout>

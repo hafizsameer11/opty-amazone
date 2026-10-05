@@ -23,6 +23,16 @@ export interface Seller {
   status: StoreStatus;
   onboarding_status?: string | null;
   is_active: boolean;
+  /**
+   * False when the store has orders or money movement, so it can never be
+   * permanently deleted. The UI swaps Delete for Disable in that case.
+   */
+  deletable: boolean;
+  /** Disabled by an admin because its financial records must be preserved. */
+  is_disabled?: boolean;
+  disabled_at?: string | null;
+  disabled_by?: number | null;
+  disabled_reason?: string | null;
   rejection_reason?: string | null;
   created_at?: string | null;
   user?: {
@@ -137,5 +147,14 @@ export const sellerService = {
       deleted_store: { id: number; name: string; slug: string };
       removed: Record<string, number>;
     };
+  },
+
+  /**
+   * Non-destructive alternative to delete: hides the store from buyers and
+   * blocks the seller, while orders, payments and wallet records are preserved.
+   */
+  async disable(id: number, reason?: string) {
+    const res = await apiClient.post(`/admin/sellers/${id}/disable`, reason ? { reason } : {});
+    return res.data.data as Seller;
   },
 };

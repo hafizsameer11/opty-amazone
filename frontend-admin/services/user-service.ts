@@ -1,5 +1,13 @@
 import apiClient from '@/lib/api-client';
 
+export interface UserStoreSummary {
+  id: number;
+  name: string;
+  slug?: string;
+  status?: string;
+  is_active?: boolean;
+}
+
 export interface User {
   id: number;
   name: string;
@@ -10,6 +18,14 @@ export interface User {
   email_verified_at?: string;
   created_at: string;
   updated_at: string;
+  /** The store this account owns, when it has one. */
+  store?: UserStoreSummary | null;
+  /**
+   * False for sellers and for anyone who still owns a store: deleting them
+   * would orphan the store, so Store Management owns that instead.
+   */
+  can_delete?: boolean;
+  delete_blocked_reason?: string | null;
 }
 
 export interface CreateUserData {

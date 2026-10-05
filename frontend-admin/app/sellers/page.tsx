@@ -12,6 +12,7 @@ import PaginationBar from '@/components/ui/PaginationBar';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import RejectReasonModal from '@/components/admin/RejectReasonModal';
 import DeleteStoreModal from '@/components/admin/DeleteStoreModal';
+import DisableStoreModal from '@/components/admin/DisableStoreModal';
 import {
   sellerService,
   STORE_STATUS_FILTERS,
@@ -34,6 +35,13 @@ const STATUS_BADGE: Record<StoreStatus, { variant: 'success' | 'error' | 'warnin
   rejected: { variant: 'error', labelKey: 'storeStatusRejected' },
   suspended: { variant: 'info', labelKey: 'storeStatusSuspended' },
 };
+
+/** A store disabled to preserve its records reads differently from a suspension. */
+function badgeFor(seller: Seller) {
+  return seller.is_disabled
+    ? { variant: 'info' as const, labelKey: 'storeStatusDisabled' }
+    : STATUS_BADGE[seller.status] ?? STATUS_BADGE.pending;
+}
 
 /**
  * Approve/Reject are only meaningful while a registration is awaiting a
@@ -71,6 +79,7 @@ function SellersPageContent() {
 
   const [rejectTarget, setRejectTarget] = useState<Seller | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Seller | null>(null);
+  const [disableTarget, setDisableTarget] = useState<Seller | null>(null);
   const [deleteAllowed, setDeleteAllowed] = useState(true);
   const [deleteBlockReason, setDeleteBlockReason] = useState<string | null>(null);
   const [checkingDelete, setCheckingDelete] = useState(false);
@@ -125,7 +134,7 @@ function SellersPageContent() {
     navigate({ search: search.trim() });
   };
 
-  const runAction = async (seller: Seller, action: 'approve' | 'reject' | 'delete', reason?: string) => {
+  const runAction = async (seller: Seller, action: 'approve' | 'reject' | 'delete' | 'disable', reason?: string) => {
     setBusyId(seller.id);
     try {
       if (action === 'approve') {
@@ -134,6 +143,9 @@ function SellersPageContent() {
       } else if (action === 'reject') {
         await sellerService.reject(seller.id, reason || '');
         showToast('success', t('storeRejected'));
+      } else if (action === 'disable') {
+        await sellerService.disable(seller.id, reason);
+        showToast('success', t('storeDisabled'));
       } else {
         await sellerService.remove(seller.id);
         showToast('success', t('storeDeleted'));
@@ -147,21 +159,21 @@ function SellersPageContent() {
   };
 
   /**
-   * Ask the backend whether this store can be removed before opening the
-   * confirmation, so the modal can explain a refusal instead of failing on
-   * submit.
+   * Re-check deletability before opening the confirmation. The Delete action is
+   * only offered when the list says the store is deletable, so this is only a
+   * safety net against a stale row.
    */
   const openDelete = async (seller: Seller) => {
     setDeleteTarget(seller);
-    setDeleteAllowed(true);
+    setDeleteAllowed(seller.deletable);
     setDeleteBlockReason(null);
+    if (seller.deletable) return;
+
     setCheckingDelete(true);
     try {
       const detail = await sellerService.getOne(seller.id);
       setDeleteAllowed(detail.deletable);
       setDeleteBlockReason(detail.deletable ? null : describeFinancialHistory(detail.financial_history, t));
-    } catch {
-      setDeleteAllowed(true);
     } finally {
       setCheckingDelete(false);
     }
@@ -207,13 +219,18 @@ function SellersPageContent() {
       header: t('status'),
       sortable: true,
       render: (seller) => {
-        const badge = STATUS_BADGE[seller.status] ?? STATUS_BADGE.pending;
+        const badge = badgeFor(seller);
         return (
           <div className="space-y-1">
             <Badge variant={badge.variant} size="sm">
               {t(badge.labelKey)}
             </Badge>
-            {!seller.is_active && (
+            {seller.is_disabled && seller.disabled_at && (
+              <p className="text-[11px] text-slate-500">
+                {t('storeDisabledOn', { date: new Date(seller.disabled_at).toLocaleDateString() })}
+              </p>
+            )}
+            {!seller.is_active && !seller.is_disabled && (
               <p className="text-[11px] text-slate-500">{t('storeHiddenFromBuyers')}</p>
             )}
             {seller.rejection_reason && (
@@ -238,50 +255,67 @@ function SellersPageContent() {
     {
       key: 'actions',
       header: t('actions'),
-      className: 'whitespace-nowrap',
       render: (seller) => {
         const busy = busyId === seller.id;
+        // A store with financial history can never be permanently deleted, so
+        // the destructive Delete action is replaced by Disable and explained.
+        const canDelete = seller.deletable !== false;
         return (
-          <div className="flex flex-wrap gap-1.5" onClick={(event) => event.stopPropagation()}>
-            {actionsFor(seller.status).map((action) => {
-              if (action === 'view') {
-                return (
-                  <Button
-                    key="view"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => router.push(`/sellers/${seller.id}`)}
-                  >
-                    {t('view')}
+          <div className="flex flex-col items-start gap-1" onClick={(event) => event.stopPropagation()}>
+            <div className="flex flex-wrap gap-1.5">
+              {actionsFor(seller.status).map((action) => {
+                if (action === 'view') {
+                  return (
+                    <Button
+                      key="view"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => router.push(`/sellers/${seller.id}`)}
+                    >
+                      {t('view')}
+                    </Button>
+                  );
+                }
+                if (action === 'approve') {
+                  return (
+                    <Button
+                      key="approve"
+                      size="sm"
+                      variant="primary"
+                      isLoading={busy}
+                      onClick={() => void runAction(seller, 'approve')}
+                    >
+                      {seller.status === 'pending' ? t('approve') : t('storeApproveAgain')}
+                    </Button>
+                  );
+                }
+                if (action === 'reject') {
+                  return (
+                    <Button key="reject" size="sm" variant="danger" onClick={() => setRejectTarget(seller)}>
+                      {t('reject')}
+                    </Button>
+                  );
+                }
+                return canDelete ? (
+                  <Button key="delete" size="sm" variant="danger" onClick={() => void openDelete(seller)}>
+                    {t('delete')}
                   </Button>
-                );
-              }
-              if (action === 'approve') {
-                return (
+                ) : (
                   <Button
-                    key="approve"
+                    key="disable"
                     size="sm"
                     variant="primary"
                     isLoading={busy}
-                    onClick={() => void runAction(seller, 'approve')}
+                    onClick={() => setDisableTarget(seller)}
                   >
-                    {seller.status === 'pending' ? t('approve') : t('storeApproveAgain')}
+                    {t('disableStore')}
                   </Button>
                 );
-              }
-              if (action === 'reject') {
-                return (
-                  <Button key="reject" size="sm" variant="danger" onClick={() => setRejectTarget(seller)}>
-                    {t('reject')}
-                  </Button>
-                );
-              }
-              return (
-                <Button key="delete" size="sm" variant="danger" onClick={() => void openDelete(seller)}>
-                  {t('delete')}
-                </Button>
-              );
-            })}
+              })}
+            </div>
+            {!canDelete && (
+              <p className="max-w-[20rem] text-[11px] leading-4 text-amber-700">{t('disableStoreReason')}</p>
+            )}
           </div>
         );
       },
@@ -374,6 +408,14 @@ function SellersPageContent() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={async () => {
           if (deleteTarget) await runAction(deleteTarget, 'delete');
+        }}
+      />
+    <DisableStoreModal
+        isOpen={Boolean(disableTarget)}
+        store={disableTarget}
+        onClose={() => setDisableTarget(null)}
+        onConfirm={async (reason) => {
+          if (disableTarget) await runAction(disableTarget, 'disable', reason);
         }}
       />
     </AdminLayout>
