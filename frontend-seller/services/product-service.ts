@@ -19,6 +19,7 @@ export interface Product {
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
   images?: string[];
+  variants?: ProductVariant[];
   frame_shape?: string;
   frame_material?: string;
   frame_color?: string;
@@ -154,6 +155,8 @@ export interface CreateProductData {
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
   images?: string[];
+  /** Color variants created together with a new frame/sunglasses product. */
+  variants?: CreateVariantData[];
   frame_shape?: string;
   frame_material?: string;
   frame_color?: string;

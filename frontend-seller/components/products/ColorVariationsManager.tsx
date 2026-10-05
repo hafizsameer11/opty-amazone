@@ -66,6 +66,7 @@ function emptyDraftSize(): DraftSizeRow {
 export default function ColorVariationsManager({ productId, categoryId, productType }: ColorVariationsManagerProps) {
   const { t } = useLanguage();
   const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [expandedVariantId, setExpandedVariantId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -614,9 +615,12 @@ export default function ColorVariationsManager({ productId, categoryId, productT
       {variants.length > 0 && (
         <div className="border-t border-gray-200 pt-6 space-y-4">
            <h4 className="text-sm font-semibold text-gray-900">{t('form.existingVariations')} ({variants.length})</h4>
-          {variants.map((variant) => (
-            <div key={variant.id} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex items-start justify-between gap-3">
+          {variants.map((variant) => {
+            const isExpanded = expandedVariantId === variant.id;
+
+            return (
+            <div key={variant.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-sm">
+              <div className="flex items-center justify-between gap-3 p-4">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <div
                     className="w-12 h-12 rounded-lg border-2 border-gray-300 shrink-0"
@@ -647,23 +651,36 @@ export default function ColorVariationsManager({ productId, categoryId, productT
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  {!variant.is_default && (
-                    <Button variant="outline" size="sm" onClick={() => void handleSetDefault(variant.id)}>
-                       {t('form.setDefault')}
-                    </Button>
-                  )}
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(variant)}>
-                     {t('form.edit')}
-                  </Button>
-                  <Button variant="danger" size="sm" onClick={() => void handleDelete(variant.id)}>
-                     {t('form.delete')}
-                  </Button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setExpandedVariantId(isExpanded ? null : variant.id)}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-gray-200 text-gray-600 hover:border-[#0066CC] hover:bg-blue-50 hover:text-[#0066CC]"
+                  aria-expanded={isExpanded}
+                >
+                  <svg className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
               </div>
 
-              {variant.images && variant.images.length > 0 && (
-                <div className="flex gap-2 mt-4">
+              {isExpanded && (
+                <div className="space-y-4 border-t border-gray-100 bg-gray-50 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!variant.is_default && (
+                      <Button variant="outline" size="sm" onClick={() => void handleSetDefault(variant.id)}>
+                        {t('form.setDefault')}
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(variant)}>
+                      {t('form.edit')}
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => void handleDelete(variant.id)}>
+                      {t('form.delete')}
+                    </Button>
+                  </div>
+
+                  {variant.images && variant.images.length > 0 && (
+                <div className="flex flex-wrap gap-2">
                   {variant.images.slice(0, 4).map((image, index) => (
                     <div key={index} className="relative w-16 h-16 rounded border border-gray-200 overflow-hidden bg-gray-50">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -677,18 +694,19 @@ export default function ColorVariationsManager({ productId, categoryId, productT
                 </div>
               )}
 
-              <div className="mt-4">
-                <FrameSizesEditor
-                  productId={productId}
-                  productVariantId={variant.id}
-                  compact
-                  title={`${t('form.sizesStockForColor')}: ${variant.color_name}`}
-                  description={t('form.sizesStockDescription')}
-                  onChanged={() => void loadVariants()}
-                />
+                  <FrameSizesEditor
+                    productId={productId}
+                    productVariantId={variant.id}
+                    compact
+                    title={`${t('form.sizesStockForColor')}: ${variant.color_name}`}
+                    description={t('form.sizesStockDescription')}
+                    onChanged={() => void loadVariants()}
+                  />
+                </div>
+              )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

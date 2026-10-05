@@ -172,59 +172,7 @@ export default function CategoryProductForm({
             </div>
           )}
           
-          {(isFieldEnabled('model_3d_url') || isFieldEnabled('try_on_image') || isFieldEnabled('color_images')) && (
-            <div className="bg-gradient-to-br from-rose-50 via-pink-50 to-fuchsia-50 rounded-xl p-6 border-2 border-rose-200 shadow-sm">
-              <h3 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
-                <span className="w-3 h-3 bg-rose-500 rounded-full"></span>
-                {t('form.visualAssets')}
-              </h3>
-              <div className="space-y-5">
-          
-                {isFieldEnabled('model_3d_url') && (
-                  <div className="bg-white rounded-lg p-5 border border-rose-200">
-                    <Input
-                      label={t('form.model3d')}
-                      value={formData.model_3d_url || ''}
-                      onChange={(e) => setFormData({ ...formData, model_3d_url: e.target.value })}
-                      placeholder="https://example.com/model.glb"
-                      className="bg-white"
-                    />
-                  </div>
-                )}
-                
-                {isFieldEnabled('try_on_image') && (
-                  <div className="bg-white rounded-lg p-5 border border-pink-200">
-                    <Input
-                      label={t('form.tryOn')}
-                      value={formData.try_on_image || ''}
-                      onChange={(e) => setFormData({ ...formData, try_on_image: e.target.value })}
-                      placeholder="https://example.com/try-on.jpg"
-                      className="bg-white"
-                    />
-                  </div>
-                )}
-                
-                {isFieldEnabled('color_images') && (
-                  <div className="bg-white rounded-lg p-5 border border-fuchsia-200">
-                    <label className="block text-sm font-bold text-gray-800 mb-3">
-                      {t('form.colorImages')}
-                      <span className="text-gray-400 text-xs font-normal ml-2">{t('form.urlsOneLine')}</span>
-                    </label>
-                    <textarea
-                      value={Array.isArray(formData.color_images) ? formData.color_images.join('\n') : ''}
-                      onChange={(e) => {
-                        const urls = e.target.value.split('\n').filter(url => url.trim());
-                        setFormData({ ...formData, color_images: urls });
-                      }}
-                      className="w-full px-4 py-3 bg-gray-50 border-2 border-fuchsia-200 rounded-xl focus:ring-4 focus:ring-fuchsia-200 focus:border-fuchsia-500 transition-all resize-none"
-                      rows={4}
-                      placeholder="https://example.com/color1.jpg&#10;https://example.com/color2.jpg"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {/* Visual assets are temporarily hidden while the product options flow is simplified. */}
         </div>
       )}
 

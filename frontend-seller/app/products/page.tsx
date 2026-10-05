@@ -18,6 +18,12 @@ import { getProductEditPath } from '@/lib/product-edit-routes';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+/** Main images take priority, with a color-variation image as the listing fallback. */
+function productThumbnail(product: Product): string | undefined {
+  return product.images?.find(Boolean)
+    ?? product.variants?.find((variant) => variant.images?.some(Boolean))?.images?.find(Boolean);
+}
+
 export default function ProductsPage() {
   const { isAuthenticated, loading } = useAuth();
   const { t } = useLanguage();
@@ -479,7 +485,7 @@ export default function ProductsPage() {
                             </div>
                           </div>
                           <div className="flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-slate-50 ring-1 ring-slate-100">
-                            {product.images?.[0] ? <img src={product.images[0]} alt={product.name} className="h-full w-full object-contain p-2" /> : <svg className="h-9 w-9 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 0 1 2.828 0L16 16m-2-2 1.586-1.586a2 2 0 0 1 2.828 0L20 14m-6-6h.01M6 20h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" /></svg>}
+                            {productThumbnail(product) ? <img src={productThumbnail(product)} alt={product.name} className="h-full w-full object-contain p-2" /> : <svg className="h-9 w-9 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 0 1 2.828 0L16 16m-2-2 1.586-1.586a2 2 0 0 1 2.828 0L20 14m-6-6h.01M6 20h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" /></svg>}
                           </div>
                           <div className="pt-3">
                             <h2 className="line-clamp-2 min-h-10 text-sm font-bold leading-5 text-slate-900">{product.name}</h2>
@@ -539,9 +545,9 @@ export default function ProductsPage() {
                               </td>
                               <td className="px-4 lg:px-6 py-4">
                                 <div className="flex items-center min-w-0">
-                                  {product.images && product.images.length > 0 ? (
+                                  {productThumbnail(product) ? (
                                     <img
-                                      src={product.images[0]}
+                                      src={productThumbnail(product)}
                                       alt={product.name}
                                       className="h-12 w-12 rounded-lg object-contain bg-white mr-3 sm:mr-4 border border-gray-200 shrink-0"
                                     />

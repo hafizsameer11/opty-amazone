@@ -12,6 +12,7 @@ import ProductImageUpload from '@/components/products/ProductImageUpload';
 import CategoryProductForm from '@/components/products/CategoryProductForm';
 import DiscountCalculator from '@/components/products/DiscountCalculator';
 import ColorVariationsManager from '@/components/products/ColorVariationsManager';
+import DraftColorVariationsEditor from '@/components/products/DraftColorVariationsEditor';
 import { useSuggestedProductSku } from '@/lib/use-suggested-product-sku';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -80,6 +81,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
     try_on_image: '',
     color_images: [],
     mm_calibers: null,
+    variants: [],
   });
 
   const selectedCategory = categories.find(cat => cat.id === formData.category_id);
@@ -170,6 +172,18 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
     setSaving(true);
 
     try {
+      const unnamedVariant = formData.variants?.find((variant) => !variant.color_name.trim());
+      const invalidColorVariant = formData.variants?.find((variant) =>
+        Boolean(variant.color_code) && !/^#[0-9A-Fa-f]{6}$/.test(variant.color_code!)
+      );
+      const invalidStockVariant = formData.variants?.find((variant) =>
+        !Number.isInteger(variant.stock_quantity) || variant.stock_quantity < 0
+      );
+      if (unnamedVariant || invalidColorVariant || invalidStockVariant) {
+        setError(unnamedVariant ? t('form.enterColorName') : invalidColorVariant ? t('form.colorCodeHex') : t('form.stock'));
+        return;
+      }
+
       if (isNew) {
         await productService.create(formData);
         setSuccess(t('products.created'));
@@ -374,6 +388,15 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
         </div>
       </div>
 
+      {/* Variations are available during creation as well; main product images are optional. */}
+      {isNew && (
+        <DraftColorVariationsEditor
+          value={formData.variants || []}
+          onChange={(variants) => setFormData((previous) => ({ ...previous, variants }))}
+          productType={formData.product_type}
+        />
+      )}
+
       {/* Pricing & Inventory */}
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
         <div className="bg-gradient-to-r from-green-500 to-emerald-500 px-8 py-6">
@@ -577,7 +600,7 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
         </div>
       </div>
 
-      {/* Color Variations - Only for saved products */}
+      {/* Saved products use the same compact variation manager. */}
       {!isNew && product && (
         <div>
           <ColorVariationsManager 
