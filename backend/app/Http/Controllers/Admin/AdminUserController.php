@@ -13,6 +13,28 @@ use Illuminate\Support\Facades\Validator;
 
 class AdminUserController extends Controller
 {
+    /**
+     * Seller accounts are business identities: they own a store, and deleting
+     * the user would leave that store behind with no one able to manage it.
+     * Store Management is the only place a seller may be removed.
+     */
+    public const SELLER_DELETE_BLOCKED = 'This user is a Seller and has an associated store. '
+        .'Seller accounts cannot be deleted from the Users section. '
+        .'Manage the Seller/Store from Store Management instead.';
+
+    /**
+     * Deletion is refused for sellers and for anyone who still owns a store,
+     * even if their role was changed to buyer.
+     */
+    private function deleteBlockReason(User $user): ?string
+    {
+        $ownsStore = $user->relationLoaded('store')
+            ? $user->getRelation('store') !== null
+            : $user->store()->exists();
+
+        return ($user->isSeller() || $ownsStore) ? self::SELLER_DELETE_BLOCKED : null;
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = User::with('addresses', 'store');
@@ -39,6 +61,14 @@ class AdminUserController extends Controller
         $users = $query->orderBy('created_at', 'desc')
             ->paginate($request->integer('per_page', 15));
 
+        // Flags let the Users page disable Delete instead of letting an admin
+        // fire a request that is guaranteed to be refused.
+        $users->getCollection()->each(function (User $user): void {
+            $reason = $this->deleteBlockReason($user);
+            $user->setAttribute('can_delete', $reason === null);
+            $user->setAttribute('delete_blocked_reason', $reason);
+        });
+
         return ResponseHelper::success($users, 'Users retrieved successfully');
     }
 
@@ -46,6 +76,10 @@ class AdminUserController extends Controller
     {
         $user = User::with('addresses', 'store', 'followedStores')
             ->findOrFail($id);
+
+        $reason = $this->deleteBlockReason($user);
+        $user->setAttribute('can_delete', $reason === null);
+        $user->setAttribute('delete_blocked_reason', $reason);
 
         return ResponseHelper::success($user, 'User retrieved successfully');
     }
@@ -119,6 +153,18 @@ class AdminUserController extends Controller
         }
 
         $user = User::findOrFail($id);
+
+        // A seller owns a store, and that store's products, orders and financial
+        // records must stay connected to a real account. Store Management owns
+        // seller removal, including the non-destructive Disable action.
+        if ($reason = $this->deleteBlockReason($user)) {
+            $errors = ['role' => [$reason]];
+            if ($user->store) {
+                $errors['store_id'] = [(string) $user->store->id];
+            }
+
+            return ResponseHelper::error($reason, $errors, 422);
+        }
 
         if ($user->isAdmin()) {
             $admins = User::where('role', 'admin')->count();

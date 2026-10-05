@@ -68,12 +68,70 @@ class AdminStoreDeletionService
         ];
     }
 
+/**
+     * Ids in the given set that must not be permanently deleted.
+     *
+     * Batched into a fixed handful of aggregate queries so a page of stores can
+     * render its Delete/Disable action without an N+1 sweep.
+     *
+     * @param  Collection<int, Store>  $stores
+     * @return array<int, int>
+     */
+    public function undeletableStoreIds(Collection $stores): array
+    {
+        if ($stores->isEmpty()) {
+            return [];
+        }
+
+        $storeIds = $stores->pluck('id');
+        $blocked = [];
+
+        foreach ($this->table('store_orders')->whereIn('store_id', $storeIds)->distinct()->pluck('store_id') as $id) {
+            $blocked[(int) $id] = true;
+        }
+
+        $productIds = $this->table('products')->whereIn('store_id', $storeIds)->pluck('id');
+        if ($productIds->isNotEmpty()) {
+            $paidProductIds = $this->table('ad_campaigns')
+                ->whereIn('product_id', $productIds)
+                ->where(function ($query) {
+                    $query->where('payment_status', 'paid')->orWhere('spent_cents', '>', 0);
+                })
+                ->distinct()
+                ->pluck('product_id');
+
+            if ($paidProductIds->isNotEmpty()) {
+                foreach ($this->table('products')->whereIn('id', $paidProductIds)->pluck('store_id') as $id) {
+                    $blocked[(int) $id] = true;
+                }
+            }
+        }
+
+        foreach ($this->table('seller_wallets')->whereIn('store_id', $storeIds)->get() as $wallet) {
+            $balance = 0.0;
+            foreach (['available_balance', 'pending_balance', 'reserved_balance', 'disputed_balance', 'debt_balance', 'total_earnings'] as $field) {
+                $balance += (float) ($wallet->{$field} ?? 0);
+            }
+
+            $moved = $balance != 0.0
+                || $this->table('seller_wallet_entries')->where('seller_wallet_id', $wallet->id)->exists()
+                || $this->table('seller_withdrawals')->where('seller_wallet_id', $wallet->id)->exists()
+                || $this->table('platform_ledger_entries')->where('seller_wallet_id', $wallet->id)->exists();
+
+            if ($moved) {
+                $blocked[(int) $wallet->store_id] = true;
+            }
+        }
+
+        return array_keys($blocked);
+    }
+
     /**
      * True when the store carries no money movement, so its content graph can
      * be removed without destroying financial records.
- *
+     *
      * @param  array<string, int|float>  $history
- */
+     */
     public function isDeletable(array $history): bool
     {
         $counts = $history;

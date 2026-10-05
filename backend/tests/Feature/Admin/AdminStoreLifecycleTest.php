@@ -429,6 +429,191 @@ class AdminStoreLifecycleTest extends TestCase
         $this->postJson('/api/admin/live-summary/viewed', ['sections' => ['sellers']])->assertStatus(403);
     }
 
+    /* ----------------------------------------------------------------- *
+     * Disable (non-destructive alternative to Delete)
+     * ----------------------------------------------------------------- */
+
+    public function test_list_marks_stores_with_financial_history_as_not_deletable(): void
+    {
+        $clean = Store::factory()->approved()->create(['name' => 'Clean Shop']);
+        $withOrders = Store::factory()->approved()->create(['name' => 'Busy Shop']);
+        $withWallet = Store::factory()->approved()->create(['name' => 'Paid Shop']);
+
+        $buyer = User::factory()->create();
+        $order = DB::table('orders')->insertGetId([
+            'user_id' => $buyer->id, 'order_no' => 'ORD-D1', 'items_total' => 5, 'grand_total' => 5,
+        ]);
+        DB::table('store_orders')->insert([
+            'order_id' => $order, 'store_id' => $withOrders->id, 'status' => 'delivered',
+            'subtotal' => 5, 'total' => 5,
+        ]);
+
+        $walletId = DB::table('seller_wallets')->insertGetId(['store_id' => $withWallet->id]);
+        DB::table('seller_wallet_entries')->insert([
+            'seller_wallet_id' => $walletId, 'reference' => 'ref-d1', 'type' => 'earning',
+            'amount' => 12, 'deltas' => '{}', 'balances_after' => '{}',
+        ]);
+
+        $rows = collect($this->getJson('/api/admin/sellers')->assertOk()->json('data.stores'))
+            ->keyBy('id');
+
+        $this->assertTrue($rows[$clean->id]['deletable']);
+        $this->assertFalse($rows[$withOrders->id]['deletable']);
+        $this->assertFalse($rows[$withWallet->id]['deletable']);
+    }
+
+    public function test_disabling_a_store_hides_it_from_buyers_and_preserves_financial_records(): void
+    {
+        $store = Store::factory()->approved()->create(['name' => 'Historic Shop']);
+        $product = Product::factory()->create(['store_id' => $store->id, 'is_active' => true]);
+
+        $buyer = User::factory()->create();
+        $order = DB::table('orders')->insertGetId([
+            'user_id' => $buyer->id, 'order_no' => 'ORD-D2', 'items_total' => 5, 'grand_total' => 5,
+        ]);
+        $storeOrderId = DB::table('store_orders')->insertGetId([
+            'order_id' => $order, 'store_id' => $store->id, 'status' => 'delivered',
+            'subtotal' => 5, 'total' => 5,
+        ]);
+        $walletId = DB::table('seller_wallets')->insertGetId(['store_id' => $store->id]);
+        DB::table('seller_wallet_entries')->insert([
+            'seller_wallet_id' => $walletId, 'reference' => 'ref-d2', 'type' => 'earning',
+            'amount' => 40, 'deltas' => '{}', 'balances_after' => '{}',
+        ]);
+
+        $this->postJson("/api/admin/sellers/{$store->id}/disable")
+            ->assertOk()
+            ->assertJsonPath('data.status', Store::STATUS_SUSPENDED)
+            ->assertJsonPath('data.is_active', false)
+            ->assertJsonPath('data.is_disabled', true);
+
+        $this->assertDatabaseHas('stores', [
+            'id' => $store->id,
+            'status' => Store::STATUS_SUSPENDED,
+            'is_active' => false,
+        ]);
+
+        // Nothing is deleted: every financial row survives.
+        $this->assertDatabaseHas('orders', ['id' => $order]);
+        $this->assertDatabaseHas('store_orders', ['id' => $storeOrderId]);
+        $this->assertDatabaseHas('seller_wallets', ['id' => $walletId]);
+        $this->assertDatabaseHas('seller_wallet_entries', ['seller_wallet_id' => $walletId]);
+        $this->assertDatabaseHas('products', ['id' => $product->id]);
+
+        // And it disappears from buyer-facing endpoints.
+        $this->getJson("/api/stores/{$store->id}")->assertNotFound();
+        $this->getJson("/api/products/{$product->id}")->assertNotFound();
+
+        // The seller loses access while suspended.
+        Sanctum::actingAs($store->user);
+        $this->getJson('/api/seller/products')->assertForbidden();
+    }
+
+    public function test_disabling_records_the_admin_and_reason_in_the_audit_meta(): void
+    {
+        $store = Store::factory()->approved()->create();
+
+        $this->postJson("/api/admin/sellers/{$store->id}/disable", [
+            'reason' => 'Chargebacks under investigation.',
+        ])->assertOk()->assertJsonPath('data.disabled_reason', 'Chargebacks under investigation.');
+
+        $store->refresh();
+        $this->assertTrue($store->isDisabled());
+        $this->assertSame($this->admin->id, $store->disabledBy());
+        $this->assertNotNull($store->disabledAt());
+        $this->assertSame(Store::STATUS_ACTIVE, data_get($store->meta, 'moderation.previous_status'));
+
+        $this->assertDatabaseHas('admin_activity_logs', [
+            'admin_id' => $this->admin->id,
+            'action' => 'store.disabled',
+            'resource_type' => 'store',
+            'resource_id' => $store->id,
+        ]);
+    }
+
+    public function test_disabling_notifies_the_seller(): void
+    {
+        $store = Store::factory()->approved()->create();
+
+        $this->postJson("/api/admin/sellers/{$store->id}/disable")->assertOk();
+
+        Mail::assertSent(MarketplaceTransactionalMail::class);
+    }
+
+    public function test_disabling_twice_is_refused(): void
+    {
+        $store = Store::factory()->approved()->create();
+
+        $this->postJson("/api/admin/sellers/{$store->id}/disable")->assertOk();
+        $this->postJson("/api/admin/sellers/{$store->id}/disable")->assertStatus(422);
+
+        $this->assertDatabaseHas('stores', ['id' => $store->id, 'status' => Store::STATUS_SUSPENDED]);
+    }
+
+    public function test_a_pending_registration_cannot_be_disabled(): void
+    {
+        $store = Store::factory()->pending()->create();
+
+        $this->postJson("/api/admin/sellers/{$store->id}/disable")->assertStatus(422);
+
+        $this->assertDatabaseHas('stores', ['id' => $store->id, 'status' => Store::STATUS_PENDING]);
+    }
+
+    public function test_a_rejected_store_cannot_be_disabled_and_stays_in_the_rejected_list(): void
+    {
+        $store = Store::factory()->rejected()->create();
+
+        $this->postJson("/api/admin/sellers/{$store->id}/disable")->assertStatus(422);
+
+        // Disabling must never move a store out of the Rejected list.
+        $this->assertDatabaseHas('stores', [
+            'id' => $store->id,
+            'status' => Store::STATUS_REJECTED,
+            'onboarding_status' => Store::ONBOARDING_REJECTED,
+        ]);
+        $this->getJson('/api/admin/sellers?status=rejected')
+            ->assertOk()
+            ->assertJsonPath('data.stores.0.id', $store->id);
+    }
+
+    public function test_a_disabled_store_is_reported_as_disabled_not_suspended(): void
+    {
+        $store = Store::factory()->suspended()->create();
+        $this->assertFalse($store->isDisabled(), 'A moderation suspension is not a disable.');
+
+        $this->postJson("/api/admin/sellers/{$store->id}/disable")->assertStatus(422);
+
+        $this->getJson("/api/admin/sellers/{$store->id}")
+            ->assertOk()
+            ->assertJsonPath('data.store.is_disabled', false);
+    }
+
+    public function test_disabling_still_leaves_permanent_deletion_blocked(): void
+    {
+        $store = Store::factory()->approved()->create();
+        $walletId = DB::table('seller_wallets')->insertGetId(['store_id' => $store->id]);
+        DB::table('seller_wallet_entries')->insert([
+            'seller_wallet_id' => $walletId, 'reference' => 'ref-d3', 'type' => 'earning',
+            'amount' => 15, 'deltas' => '{}', 'balances_after' => '{}',
+        ]);
+
+        $this->postJson("/api/admin/sellers/{$store->id}/disable")->assertOk();
+
+        // Disabling is not a loophole: the money history still blocks deletion.
+        $this->deleteJson("/api/admin/sellers/{$store->id}")->assertStatus(422);
+        $this->assertDatabaseHas('stores', ['id' => $store->id]);
+    }
+
+    public function test_non_admins_cannot_disable_a_store(): void
+    {
+        $store = Store::factory()->approved()->create();
+        Sanctum::actingAs(User::factory()->seller()->create());
+
+        $this->postJson("/api/admin/sellers/{$store->id}/disable")->assertStatus(403);
+
+        $this->assertDatabaseHas('stores', ['id' => $store->id, 'status' => Store::STATUS_ACTIVE]);
+    }
+
     /**
      * Give the store a spread of owned content: legacy banners, announcements
      * and a referral campaign (all of which reference the store directly).

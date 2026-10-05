@@ -37,6 +37,7 @@ Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function ()
         Route::get('/{id}', [\App\Http\Controllers\Admin\AdminSellerController::class, 'show']);
         Route::post('/{id}/approve', [\App\Http\Controllers\Admin\AdminSellerController::class, 'approve']);
         Route::post('/{id}/reject', [\App\Http\Controllers\Admin\AdminSellerController::class, 'reject']);
+        Route::post('/{id}/disable', [\App\Http\Controllers\Admin\AdminSellerController::class, 'disable']);
         Route::delete('/{id}', [\App\Http\Controllers\Admin\AdminSellerController::class, 'destroy']);
     });
 

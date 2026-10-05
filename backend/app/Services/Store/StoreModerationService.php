@@ -29,18 +29,40 @@ class StoreModerationService
 
     public function suspend(Store $input, User $admin, string $reason, ?string $notes = null): Store
     {
-        return DB::transaction(function () use ($input, $admin, $reason, $notes) {
+        return $this->hide($input, $admin, $reason, $notes, 'suspended_at', 'suspended_by');
+    }
+
+    /**
+     * Disable a store that must keep its financial records (orders, payments,
+     * wallet ledger, paid boosts). Buyers stop seeing the store and the seller
+     * API is blocked exactly as for a suspension, but the audit trail records it
+     * as a disable so the admin panel can tell an operational lock apart from a
+     * report-driven suspension.
+     */
+    public function disable(Store $input, User $admin, string $reason, ?string $notes = null): Store
+    {
+        return $this->hide($input, $admin, $reason, $notes, 'disabled_at', 'disabled_by');
+    }
+
+    /**
+     * Shared implementation for suspension and disabling: both take the store
+     * out of circulation without deleting anything.
+     */
+    private function hide(Store $input, User $admin, string $reason, ?string $notes, string $atKey, string $byKey): Store
+    {
+        return DB::transaction(function () use ($input, $admin, $reason, $notes, $atKey, $byKey) {
             $store = Store::with('user')->lockForUpdate()->findOrFail($input->id);
             $meta = is_array($store->meta) ? $store->meta : [];
             $meta['moderation'] = array_filter([
-                'suspended_at' => now()->toIso8601String(),
-                'suspended_by' => $admin->id,
+                $atKey => now()->toIso8601String(),
+                $byKey => $admin->id,
+                'previous_status' => $store->status,
                 'reason' => trim($reason),
                 'notes' => $notes ? trim($notes) : null,
             ], static fn ($value) => $value !== null && $value !== '');
 
             $store->update([
-                'status' => 'suspended',
+                'status' => Store::STATUS_SUSPENDED,
                 'is_active' => false,
                 'meta' => $meta,
             ]);

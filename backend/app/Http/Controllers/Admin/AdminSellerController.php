@@ -13,6 +13,7 @@ use App\Services\Admin\AdminActivityLogger;
 use App\Services\Email\MarketplaceEmailService;
 use App\Services\Notifications\MarketplaceNotificationService;
 use App\Services\Store\AdminStoreDeletionService;
+use App\Services\Store\StoreModerationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -30,8 +31,10 @@ class AdminSellerController extends Controller
         'suspended' => [Store::STATUS_SUSPENDED],
     ];
 
-    public function __construct(private AdminStoreDeletionService $deletion)
-    {
+    public function __construct(
+        private AdminStoreDeletionService $deletion,
+        private StoreModerationService $moderation,
+    ) {
     }
 
     /**
@@ -62,8 +65,14 @@ class AdminSellerController extends Controller
             ->orderByDesc('created_at')
             ->paginate(min(100, max(1, $request->integer('per_page', 15))));
 
+        // Resolved in one batch so each row knows whether to offer Delete or
+        // the non-destructive Disable action.
+        $undeletable = array_flip($this->deletion->undeletableStoreIds(collect($page->items())));
+
         return ResponseHelper::success([
-            'stores' => collect($page->items())->map(fn (Store $store) => $this->serialize($store))->values(),
+            'stores' => collect($page->items())
+                ->map(fn (Store $store) => $this->serialize($store, deletable: ! isset($undeletable[$store->id])))
+                ->values(),
             'summary' => $this->statusCounts(),
             'filters' => array_keys(self::FILTERS),
             'statuses' => Store::STATUSES,
@@ -120,7 +129,7 @@ class AdminSellerController extends Controller
         $history = $this->deletion->financialHistory($store);
 
         return ResponseHelper::success([
-            'store' => $this->serialize($store, detailed: true),
+            'store' => $this->serialize($store, detailed: true, deletable: $this->deletion->isDeletable($history)),
             'products' => $products,
             'orders' => $orders,
             'financial_history' => $history,
@@ -248,6 +257,76 @@ class AdminSellerController extends Controller
     }
 
     /**
+     * Disable a store that cannot be permanently deleted.
+     *
+     * This is the non-destructive alternative offered in place of Delete: the
+     * store stops being visible to buyers and the seller loses access, while
+     * every order, payment, wallet entry and withdrawal is left untouched for
+     * the admin's records.
+     */
+    public function disable(Request $request, $id): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:2000'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $store = Store::with('user')->findOrFail($id);
+
+        if ($store->isSuspended()) {
+            return ResponseHelper::error('This store is already disabled or suspended.', [
+                'status' => ['This store is already out of circulation.'],
+            ], 422);
+        }
+
+        if ($store->isPending()) {
+            return ResponseHelper::error('A pending registration cannot be disabled. Approve or reject it instead.', [
+                'status' => ['A pending registration cannot be disabled. Approve or reject it instead.'],
+            ], 422);
+        }
+
+        if ($store->isRejected()) {
+            // Disabling would overwrite the rejected classification and drop the
+            // store out of the Rejected list the admin reviews.
+            return ResponseHelper::error('This store is already rejected.', [
+                'status' => ['This store is already rejected. Approve it again before disabling.'],
+            ], 422);
+        }
+
+        if (! $store->isApproved()) {
+            return ResponseHelper::error('Only an approved store can be disabled.', [
+                'status' => ['Only an approved store can be disabled.'],
+            ], 422);
+        }
+
+        $reason = trim((string) ($data['reason'] ?? ''))
+            ?: 'This store has financial history and cannot be permanently deleted.';
+
+        $disabled = $this->moderation->disable($store, $request->user(), $reason, $data['notes'] ?? null);
+
+        if ($disabled->user) {
+            app(MarketplaceNotificationService::class)->send(
+                $disabled->user,
+                'store.disabled',
+                'Il tuo negozio è stato disabilitato',
+                'Il tuo negozio è stato disabilitato dall’amministrazione e non è più visibile agli acquirenti. I tuoi ordini e i record financiali restano conservati.',
+                null,
+                ['store_id' => $disabled->id]
+            );
+        }
+
+        AdminActivityLogger::log($request->user(), 'store.disabled', 'store', (int) $disabled->id, true, [
+            'reason' => $reason,
+            'deletable' => $this->deletion->isDeletable($this->deletion->financialHistory($disabled)),
+        ], $request);
+
+        return ResponseHelper::success(
+            $this->serialize($disabled, deletable: false),
+            'Store disabled. It is no longer visible to buyers and its records are preserved.'
+        );
+    }
+
+    /**
      * @param  array<string, int|float>  $history
      */
     private function isDeletable(array $history): bool
@@ -255,7 +334,7 @@ class AdminSellerController extends Controller
         return $this->deletion->isDeletable($history);
     }
 
-    private function serialize(Store $store, bool $detailed = false): array
+    private function serialize(Store $store, bool $detailed = false, ?bool $deletable = null): array
     {
         $data = [
             'id' => $store->id,
@@ -270,6 +349,15 @@ class AdminSellerController extends Controller
             'status' => $store->status,
             'onboarding_status' => $store->onboarding_status,
             'is_active' => (bool) $store->is_active,
+            // Lets the admin panel say "Disabled" for an operational lock and
+            // "Suspended" for a report-driven suspension; both hide the store.
+            'is_disabled' => $store->isDisabled(),
+            'disabled_at' => $store->disabledAt(),
+            'disabled_by' => $store->disabledBy(),
+            'disabled_reason' => $store->isDisabled() ? data_get($store->meta, 'moderation.reason') : null,
+            // False when the store has financial history, which is what swaps
+            // the destructive Delete action for Disable.
+            'deletable' => $deletable,
             'rejection_reason' => $store->rejectionReason(),
             'products_count' => $store->products_count ?? $store->products()->count(),
             'orders_count' => $store->orders_count ?? $store->storeOrders()->count(),

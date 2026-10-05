@@ -52,6 +52,30 @@ class SellerProductController extends Controller
     }
 
     /** @return array<string, mixed> */
+    private function colorVariantRules(string $prefix = 'variants'): array
+    {
+        return [
+            $prefix => 'nullable|array',
+            "{$prefix}.*.color_name" => "required_with:{$prefix}|string|max:255",
+            "{$prefix}.*.color_code" => ['nullable', 'string', 'max:7', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            "{$prefix}.*.images" => 'nullable|array',
+            "{$prefix}.*.images.*" => 'string|max:2048',
+            "{$prefix}.*.price" => 'nullable|numeric|min:0',
+            "{$prefix}.*.stock_quantity" => "required_with:{$prefix}|integer|min:0",
+            "{$prefix}.*.stock_status" => "required_with:{$prefix}|in:in_stock,out_of_stock,backorder",
+            "{$prefix}.*.is_default" => 'nullable|boolean',
+            "{$prefix}.*.sort_order" => 'nullable|integer|min:0',
+            "{$prefix}.*.sizes" => 'nullable|array',
+            "{$prefix}.*.sizes.*.size_label" => "required_with:{$prefix}.*.sizes|string|max:100",
+            "{$prefix}.*.sizes.*.lens_width" => 'nullable|numeric|min:0',
+            "{$prefix}.*.sizes.*.bridge_width" => 'nullable|numeric|min:0',
+            "{$prefix}.*.sizes.*.temple_length" => 'nullable|numeric|min:0',
+            "{$prefix}.*.sizes.*.stock_quantity" => "required_with:{$prefix}.*.sizes|integer|min:0",
+            "{$prefix}.*.sizes.*.stock_status" => 'nullable|in:in_stock,out_of_stock,backorder',
+        ];
+    }
+
+    /** @return array<string, mixed> */
     private function contactLensUnitConfigRules(): array
     {
         return [
@@ -163,9 +187,61 @@ class SellerProductController extends Controller
         }
     }
 
+    /**
+     * Persist color variations supplied while a new frame/sunglasses product is
+     * being created. Variant images are deliberately optional: a color can be
+     * sold using its name/code and stock alone.
+     *
+     * @param array<int, array<string, mixed>> $variants
+     */
+    private function persistColorVariants(Product $product, array $variants): void
+    {
+        if (!in_array($product->product_type, ['frame', 'sunglasses'], true)) {
+            return;
+        }
+
+        foreach ($variants as $position => $attributes) {
+            $images = array_values(array_filter(array_map(
+                fn ($url) => \App\Support\MediaUrl::absolute((string) $url) ?? (string) $url,
+                is_array($attributes['images'] ?? null) ? $attributes['images'] : []
+            ), fn ($url) => trim((string) $url) !== ''));
+
+            $sizes = is_array($attributes['sizes'] ?? null) ? $attributes['sizes'] : [];
+            unset($attributes['sizes']);
+            $attributes['images'] = $images;
+            $attributes['sort_order'] = $attributes['sort_order'] ?? $position;
+
+            if (($attributes['is_default'] ?? false) === true) {
+                $product->variants()->update(['is_default' => false]);
+            }
+
+            if ($sizes !== []) {
+                $total = array_sum(array_map(fn ($size) => (int) ($size['stock_quantity'] ?? 0), $sizes));
+                $attributes['stock_quantity'] = $total;
+                $attributes['stock_status'] = $total > 0 ? 'in_stock' : 'out_of_stock';
+            }
+
+            $variant = $product->variants()->create($attributes);
+
+            foreach ($sizes as $size) {
+                $quantity = max(0, (int) ($size['stock_quantity'] ?? 0));
+                $label = trim((string) ($size['size_label'] ?? ''));
+                $product->frameSizes()->create([
+                    'product_variant_id' => $variant->id,
+                    'lens_width' => $size['lens_width'] ?? 0,
+                    'bridge_width' => $size['bridge_width'] ?? 0,
+                    'temple_length' => $size['temple_length'] ?? 0,
+                    'size_label' => $label !== '' ? $label : null,
+                    'stock_quantity' => $quantity,
+                    'stock_status' => $size['stock_status'] ?? ($quantity > 0 ? 'in_stock' : 'out_of_stock'),
+                ]);
+            }
+        }
+    }
+
     private function productDetailRelations(): array
     {
-        return ['category', 'subCategory', 'frameSizes', 'sizeVolumeVariants', 'eyeHygieneVariants'];
+        return ['category', 'subCategory', 'variants', 'frameSizes', 'sizeVolumeVariants', 'eyeHygieneVariants'];
     }
     /**
      * Get all products for the authenticated seller's store.
@@ -180,7 +256,7 @@ class SellerProductController extends Controller
         }
 
         $query = Product::where('store_id', $store->id)
-            ->with(['category', 'subCategory']);
+            ->with(['category', 'subCategory', 'variants']);
 
         // Filter by status
         if ($request->has('is_active')) {
@@ -373,7 +449,12 @@ class SellerProductController extends Controller
         ];
 
         // Build validation rules: include base rules + only enabled fields
-        $validationRules = array_merge($baseRules, $this->eyeHygieneVariantRules(), $this->contactLensUnitConfigRules());
+        $validationRules = array_merge(
+            $baseRules,
+            $this->eyeHygieneVariantRules(),
+            $this->contactLensUnitConfigRules(),
+            $this->colorVariantRules()
+        );
         
         if (empty($enabledFields)) {
             // If no config exists, allow all fields (backward compatibility)
@@ -397,7 +478,7 @@ class SellerProductController extends Controller
                 if (
                     in_array($key, array_keys($baseRules))
                     || in_array($key, $enabledFields)
-                    || in_array($key, ['size_volume_variants', 'eye_hygiene_variants', 'contact_lens_unit_config'], true)
+                    || in_array($key, ['size_volume_variants', 'eye_hygiene_variants', 'contact_lens_unit_config', 'variants'], true)
                 ) {
                     $filteredValidated[$key] = $value;
                 }
@@ -409,7 +490,8 @@ class SellerProductController extends Controller
             'size_volume_variants' => $validated['size_volume_variants'] ?? null,
             'eye_hygiene_variants' => $validated['eye_hygiene_variants'] ?? null,
         ];
-        unset($validated['size_volume_variants'], $validated['eye_hygiene_variants']);
+        $colorVariantPayload = $validated['variants'] ?? [];
+        unset($validated['size_volume_variants'], $validated['eye_hygiene_variants'], $validated['variants']);
 
         if (array_key_exists('contact_lens_unit_config', $validated)) {
             $validated['contact_lens_unit_config'] = $this->normalizeContactLensUnitConfig(
@@ -435,9 +517,14 @@ class SellerProductController extends Controller
                 $validated['is_active'] = true;
             }
 
-            $product = Product::create($validated);
+            $product = DB::transaction(function () use ($validated, $variantPayload, $colorVariantPayload) {
+                $product = Product::create($validated);
 
-            $this->persistEyeHygieneVariants($product, array_filter($variantPayload, fn ($v) => $v !== null));
+                $this->persistEyeHygieneVariants($product, array_filter($variantPayload, fn ($v) => $v !== null));
+                $this->persistColorVariants($product, $colorVariantPayload);
+
+                return $product;
+            });
 
             return ResponseHelper::success(
                 $product->load($this->productDetailRelations()),

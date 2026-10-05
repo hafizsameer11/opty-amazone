@@ -61,6 +61,31 @@ class Store extends Model
         return $this->status === self::STATUS_SUSPENDED;
     }
 
+    /**
+     * Disabled by an admin because the store's financial records must be kept.
+     * Shares the `suspended` status with moderation suspensions so every buyer
+     * visibility and seller-access check keeps working, but is recorded
+     * separately in `meta.moderation` so the admin panel can label it.
+     */
+    public function isDisabled(): bool
+    {
+        return $this->isSuspended() && $this->disabledAt() !== null;
+    }
+
+    public function disabledAt(): ?string
+    {
+        $value = data_get($this->meta, 'moderation.disabled_at');
+
+        return is_string($value) && trim($value) !== '' ? $value : null;
+    }
+
+    public function disabledBy(): ?int
+    {
+        $value = data_get($this->meta, 'moderation.disabled_by');
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
     /** Moderation/rejection reasons live in the unindexed `meta` JSON column. */
     public function rejectionReason(): ?string
     {
