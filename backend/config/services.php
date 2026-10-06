@@ -26,6 +26,24 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Seller product image processing
+    |--------------------------------------------------------------------------
+    |
+    | Product and variant images are sent only to the private, self-hosted
+    | processor before they are stored. It uses rembg/BiRefNet and returns a
+    | white-background catalogue WebP. Uploads keep working with the original
+    | image if this optional service is disabled or temporarily unavailable.
+    |
+    */
+    'product_image_processor' => [
+        'enabled' => env('PRODUCT_IMAGE_PROCESSOR_ENABLED', false),
+        'url' => rtrim((string) env('PRODUCT_IMAGE_PROCESSOR_URL', 'http://127.0.0.1:8030'), '/'),
+        'token' => env('PRODUCT_IMAGE_PROCESSOR_TOKEN'),
+        'timeout' => (int) env('PRODUCT_IMAGE_PROCESSOR_TIMEOUT', 90),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

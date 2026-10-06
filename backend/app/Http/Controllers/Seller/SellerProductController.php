@@ -10,6 +10,7 @@ use App\Models\Category;
 use App\Models\StoreCategoryFieldConfig;
 use App\Http\Requests\Seller\Store\UploadImageRequest;
 use App\Services\Product\EyeHygieneVariantService;
+use App\Services\Product\ProductImageProcessingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,10 @@ use Illuminate\Support\Str;
 
 class SellerProductController extends Controller
 {
-    public function __construct(private EyeHygieneVariantService $eyeHygieneVariantService)
+    public function __construct(
+        private EyeHygieneVariantService $eyeHygieneVariantService,
+        private ProductImageProcessingService $productImageProcessingService,
+    )
     {
     }
 
@@ -455,7 +459,7 @@ class SellerProductController extends Controller
             $this->contactLensUnitConfigRules(),
             $this->colorVariantRules()
         );
-        
+
         if (empty($enabledFields)) {
             // If no config exists, allow all fields (backward compatibility)
             $validationRules = array_merge($validationRules, $allFieldRules);
@@ -504,7 +508,7 @@ class SellerProductController extends Controller
             $sku = trim((string) ($validated['sku'] ?? ''));
             $validated['sku'] = $sku !== '' ? $sku : $this->generateUniqueSku($store->id);
             $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(6);
-            
+
             // Ensure slug is unique
             while (Product::where('slug', $validated['slug'])->exists()) {
                 $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(6);
@@ -1025,15 +1029,30 @@ class SellerProductController extends Controller
             }
 
             $file = $request->file('image');
-            
-            // Store image in public disk
-            $path = $file->store("products/{$store->id}", 'public');
-            
+            $catalogueImage = $this->productImageProcessingService->process($file);
+            $backgroundProcessed = $catalogueImage !== null;
+
+            // The processed result is always WebP. Preserve the original upload
+            // without interrupting the seller's work if the external processor
+            // is disabled or temporarily unavailable.
+            if ($backgroundProcessed) {
+                $path = "products/{$store->id}/" . Str::uuid() . '.webp';
+                if (!Storage::disk('public')->put($path, $catalogueImage, [
+                    'visibility' => 'public',
+                    'ContentType' => 'image/webp',
+                ])) {
+                    throw new \RuntimeException('Unable to store the processed product image.');
+                }
+            } else {
+                $path = $file->store("products/{$store->id}", 'public');
+            }
+
             $url = \App\Support\MediaUrl::absolute($path);
 
             return ResponseHelper::success([
                 'url' => $url,
                 'path' => $path,
+                'background_processed' => $backgroundProcessed,
             ], 'Image uploaded successfully');
         } catch (\Exception $e) {
             return ResponseHelper::error('Failed to upload image: ' . $e->getMessage());
