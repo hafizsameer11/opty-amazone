@@ -797,10 +797,10 @@ function ProfilePageContent() {
             <p>
               • Email:{" "}
               <a
-                href="mailto:support@example.com"
+                href="mailto:info@vistaexpress.it"
                 className="text-[#0066CC] hover:underline"
               >
-                support@example.com
+                info@vistaexpress.it
               </a>
             </p>
             <p>• Support hours: 9:00 AM – 6:00 PM (local time)</p>

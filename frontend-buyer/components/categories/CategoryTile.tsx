@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import type { Category } from '@/services/product-service';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const PLACEHOLDER_GRADIENTS = [
   'from-slate-700 via-slate-600 to-slate-500',
@@ -47,6 +48,7 @@ export default function CategoryTile({
   className = '',
   size = 'md',
 }: CategoryTileProps) {
+  const { t } = useLanguage();
   const imageUrl = categoryImageUrl(category);
   const gradient = PLACEHOLDER_GRADIENTS[index % PLACEHOLDER_GRADIENTS.length];
   const initials = categoryInitials(label || category.name);
@@ -88,7 +90,7 @@ export default function CategoryTile({
             {label}
           </div>
           <span className="mt-0.5 inline-block text-[11px] uppercase tracking-[0.14em] text-white/80">
-            Shop now
+            {t('static.categories.shopNow')}
           </span>
         </div>
       </div>

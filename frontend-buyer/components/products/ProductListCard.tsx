@@ -8,12 +8,14 @@ import { isEyeProductCategory } from '@/utils/product-utils';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 import SaveProductButton from '@/components/products/SaveProductButton';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ProductListCardProps {
   product: Product;
 }
 
 export default function ProductListCard({ product }: ProductListCardProps) {
+  const { t } = useLanguage();
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   
@@ -96,10 +98,10 @@ export default function ProductListCard({ product }: ProductListCardProps) {
               ))}
             </div>
             <span className="text-sm text-gray-500">
-              ({product.review_count || 0} reviews)
+              ({t('static.products.reviews', { count: product.review_count || 0 })})
             </span>
             {product.store && (
-              <span className="text-sm text-gray-500">• by {product.store.name}</span>
+              <span className="text-sm text-gray-500">• {t('static.products.by')} {product.store.name}</span>
             )}
           </div>
 
@@ -114,7 +116,7 @@ export default function ProductListCard({ product }: ProductListCardProps) {
           {showColorSwatches && product.variants && (
             <div className="mb-3">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs text-gray-600 font-medium">Colors:</span>
+                <span className="text-xs text-gray-600 font-medium">{t('static.products.colors')}</span>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {product.variants.map((variant) => {
@@ -155,10 +157,10 @@ export default function ProductListCard({ product }: ProductListCardProps) {
               <span className="capitalize">{product.product_type.replace('_', ' ')}</span>
             )}
             {product.frame_shape && (
-              <span>Shape: {product.frame_shape}</span>
+              <span>{t('static.products.shapeLabel')} {product.frame_shape}</span>
             )}
             {product.frame_material && (
-              <span>Material: {product.frame_material}</span>
+              <span>{t('static.products.materialLabel')} {product.frame_material}</span>
             )}
             {product.gender && (
               <span className="capitalize">{product.gender}</span>
@@ -182,15 +184,15 @@ export default function ProductListCard({ product }: ProductListCardProps) {
           <div className="text-right">
             {product.stock_status === 'in_stock' ? (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                ✓ In Stock
+                ✓ {t('static.products.stockIn')}
               </span>
             ) : product.stock_status === 'out_of_stock' ? (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                Out of Stock
+                {t('static.products.stockOut')}
               </span>
             ) : (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-                Backorder
+                {t('static.products.stockBackorder')}
               </span>
             )}
           </div>

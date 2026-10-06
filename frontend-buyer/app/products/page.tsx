@@ -12,31 +12,43 @@ import Input from '@/components/ui/Input';
 import ProductListCard from '@/components/products/ProductListCard';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
+import { useLanguage } from '@/contexts/LanguageContext';
 
+// Labels are translation keys: these arrays are module scope and cannot call `t`.
 const PRODUCT_TYPE_OPTIONS = [
-  { value: 'frame', label: 'Frames', icon: '🕶️' },
-  { value: 'sunglasses', label: 'Sunglasses', icon: '😎' },
-  { value: 'contact_lens', label: 'Contact Lenses', icon: '👁️' },
-  { value: 'eye_hygiene', label: 'Eye Hygiene', icon: '💧' },
-  { value: 'accessory', label: 'Accessories', icon: '🎁' },
+  { value: 'frame', labelKey: 'static.products.typeFrames', icon: '🕶️' },
+  { value: 'sunglasses', labelKey: 'static.products.typeSunglasses', icon: '😎' },
+  { value: 'contact_lens', labelKey: 'static.products.typeContactLenses', icon: '👁️' },
+  { value: 'eye_hygiene', labelKey: 'static.products.typeEyeHygiene', icon: '💧' },
+  { value: 'accessory', labelKey: 'static.products.typeAccessories', icon: '🎁' },
 ];
 
 const GENDER_OPTIONS = [
-  { value: 'men', label: 'Men' },
-  { value: 'women', label: 'Women' },
-  { value: 'unisex', label: 'Unisex' },
-  { value: 'kids', label: 'Kids' },
+  { value: 'men', labelKey: 'static.products.genderMen' },
+  { value: 'women', labelKey: 'static.products.genderWomen' },
+  { value: 'unisex', labelKey: 'static.products.genderUnisex' },
+  { value: 'kids', labelKey: 'static.products.genderKids' },
 ];
 
 const STOCK_OPTIONS = [
-  { value: 'in_stock', label: 'In Stock' },
-  { value: 'out_of_stock', label: 'Out of Stock' },
-  { value: 'backorder', label: 'Backorder' },
+  { value: 'in_stock', labelKey: 'static.products.stockIn' },
+  { value: 'out_of_stock', labelKey: 'static.products.stockOut' },
+  { value: 'backorder', labelKey: 'static.products.stockBackorder' },
+];
+
+const SORT_OPTIONS = [
+  { value: 'created_at_desc', labelKey: 'static.products.sortNewest' },
+  { value: 'created_at_asc', labelKey: 'static.products.sortOldest' },
+  { value: 'price_asc', labelKey: 'static.products.sortPriceAsc' },
+  { value: 'price_desc', labelKey: 'static.products.sortPriceDesc' },
+  { value: 'rating_desc', labelKey: 'static.products.sortRating' },
+  { value: 'view_count_desc', labelKey: 'static.products.sortViews' },
 ];
 
 const PRODUCTS_PER_PAGE = 20;
 
 function ProductCard({ product }: { product: Product }) {
+  const { t } = useLanguage();
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   
@@ -119,7 +131,7 @@ function ProductCard({ product }: { product: Product }) {
         {showColorSwatches && product.variants && (
           <div className="mb-2">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs text-gray-600 font-medium">Colors:</span>
+              <span className="text-xs text-gray-600 font-medium">{t('static.products.colors')}</span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {product.variants.map((variant) => {
@@ -173,6 +185,7 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 export default function ProductsPage() {
+  const { t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMoreProducts, setLoadingMoreProducts] = useState(false);
@@ -307,16 +320,16 @@ export default function ProductsPage() {
       [
         search ? `Search: ${search}` : null,
         selectedCategory
-          ? `Category: ${categories.find((c) => c.id.toString() === selectedCategory)?.name || selectedCategory}`
+          ? t('static.products.chipCategory', { value: categories.find((c) => c.id.toString() === selectedCategory)?.name || selectedCategory })
           : null,
-        selectedType ? `Type: ${PRODUCT_TYPE_OPTIONS.find((o) => o.value === selectedType)?.label || selectedType}` : null,
+        selectedType ? `Type: ${PRODUCT_TYPE_OPTIONS.find((o) => o.value === selectedType) ? t(PRODUCT_TYPE_OPTIONS.find((o) => o.value === selectedType)!.labelKey) : selectedType}` : null,
         selectedGender ? `Gender: ${selectedGender}` : null,
         selectedFrameShape ? `Shape: ${selectedFrameShape}` : null,
         selectedFrameMaterial ? `Material: ${selectedFrameMaterial}` : null,
         selectedStockStatus ? `Stock: ${selectedStockStatus.replace('_', ' ')}` : null,
         minRating ? `Min rating: ${minRating}+` : null,
-        minPrice ? `Min price: €${minPrice}` : null,
-        maxPrice ? `Max price: €${maxPrice}` : null,
+        minPrice ? t('static.products.chipMinPrice', { value: minPrice }) : null,
+        maxPrice ? t('static.products.chipMaxPrice', { value: maxPrice }) : null,
       ].filter(Boolean) as string[],
     [
       search,
@@ -337,8 +350,8 @@ export default function ProductsPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 w-full">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">All Products</h1>
-          <p className="text-gray-600">Browse our complete collection of optical products</p>
+          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">{t('static.products.title')}</h1>
+          <p className="text-gray-600">{t('static.products.intro')}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -353,10 +366,10 @@ export default function ProductsPage() {
                     Filters
                   </h2>
                   <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold">
-                    {activeFilters.length} active
+                    {t('static.products.activeCount', { count: activeFilters.length })}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-blue-100">Refine products with smart quick picks</p>
+                <p className="mt-1 text-xs text-blue-100">{t('static.products.refineHint')}</p>
               </div>
 
               <div className="mb-4 flex flex-wrap gap-2">
@@ -370,7 +383,7 @@ export default function ProductsPage() {
                 ))}
                 {activeFilters.length > 4 && (
                   <span className="rounded-full bg-gray-100 text-gray-700 px-2.5 py-1 text-[11px] font-semibold">
-                    +{activeFilters.length - 4} more
+                    +{activeFilters.length - 4} {t('static.products.more')}
                   </span>
                 )}
               </div>
@@ -381,7 +394,7 @@ export default function ProductsPage() {
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔎</span>
                   <Input
                     type="text"
-                    placeholder="Search products..."
+                    placeholder={t('static.products.searchPlaceholder')}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="w-full pl-10"
@@ -393,7 +406,7 @@ export default function ProductsPage() {
               </form>
 
               <div className="mb-6">
-                <p className="text-sm font-semibold text-gray-900 mb-2">Quick Product Type</p>
+                <p className="text-sm font-semibold text-gray-900 mb-2">{t('static.products.quickType')}</p>
                 <div className="flex flex-wrap gap-2">
                   {PRODUCT_TYPE_OPTIONS.map((option) => {
                     const active = selectedType === option.value;
@@ -412,7 +425,7 @@ export default function ProductsPage() {
                         }`}
                       >
                         <span className="mr-1" aria-hidden="true">{option.icon}</span>
-                        {option.label}
+                        {t(option.labelKey)}
                       </button>
                     );
                   })}
@@ -420,7 +433,7 @@ export default function ProductsPage() {
               </div>
 
               <div className="mb-6">
-                <p className="text-sm font-semibold text-gray-900 mb-2">Quick Gender</p>
+                <p className="text-sm font-semibold text-gray-900 mb-2">{t('static.products.quickGender')}</p>
                 <div className="flex flex-wrap gap-2">
                   {GENDER_OPTIONS.map((option) => {
                     const active = selectedGender === option.value;
@@ -438,7 +451,7 @@ export default function ProductsPage() {
                             : 'bg-white text-gray-700 border-gray-300 hover:border-[#0066CC] hover:text-[#0066CC] hover:-translate-y-0.5'
                         }`}
                       >
-                        {option.label}
+                        {t(option.labelKey)}
                       </button>
                     );
                   })}
@@ -447,7 +460,7 @@ export default function ProductsPage() {
 
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Category</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.category')}</label>
                   <select
                     value={selectedCategory}
                     onChange={(e) => {
@@ -456,7 +469,7 @@ export default function ProductsPage() {
                     }}
                     className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
                   >
-                    <option value="">All Categories</option>
+                    <option value="">{t('static.products.allCategories')}</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id.toString()}>
                         {cat.name}
@@ -467,7 +480,7 @@ export default function ProductsPage() {
 
                 {availableFrameShapes.length > 0 && (
                   <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Frame Shape</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.frameShape')}</label>
                     <select
                       value={selectedFrameShape}
                       onChange={(e) => {
@@ -476,7 +489,7 @@ export default function ProductsPage() {
                       }}
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
                     >
-                      <option value="">All Shapes</option>
+                      <option value="">{t('static.products.allShapes')}</option>
                       {availableFrameShapes.map((shape) => (
                         <option key={shape} value={shape}>
                           {shape.charAt(0).toUpperCase() + shape.slice(1)}
@@ -488,7 +501,7 @@ export default function ProductsPage() {
 
                 {availableFrameMaterials.length > 0 && (
                   <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Frame Material</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.frameMaterial')}</label>
                     <select
                       value={selectedFrameMaterial}
                       onChange={(e) => {
@@ -497,7 +510,7 @@ export default function ProductsPage() {
                       }}
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
                     >
-                      <option value="">All Materials</option>
+                      <option value="">{t('static.products.allMaterials')}</option>
                       {availableFrameMaterials.map((material) => (
                         <option key={material} value={material}>
                           {material.charAt(0).toUpperCase() + material.slice(1)}
@@ -508,7 +521,7 @@ export default function ProductsPage() {
                 )}
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Stock Status</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.stockStatus')}</label>
                   <div className="flex flex-wrap gap-2">
                     {STOCK_OPTIONS.map((option) => {
                       const active = selectedStockStatus === option.value;
@@ -526,7 +539,7 @@ export default function ProductsPage() {
                               : 'bg-white text-gray-700 border-gray-300 hover:border-[#0066CC] hover:text-[#0066CC] hover:-translate-y-0.5'
                           }`}
                         >
-                          {option.label}
+                          {t(option.labelKey)}
                         </button>
                       );
                     })}
@@ -534,7 +547,7 @@ export default function ProductsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Minimum Rating</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.minimumRating')}</label>
                   <select
                     value={minRating}
                     onChange={(e) => {
@@ -543,20 +556,20 @@ export default function ProductsPage() {
                     }}
                     className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
                   >
-                    <option value="">Any Rating</option>
-                    <option value="4.5">4.5+ Stars</option>
-                    <option value="4.0">4.0+ Stars</option>
-                    <option value="3.5">3.5+ Stars</option>
-                    <option value="3.0">3.0+ Stars</option>
+                    <option value="">{t('static.products.anyRating')}</option>
+                    <option value="4.5">{t('static.products.stars45')}</option>
+                    <option value="4.0">{t('static.products.stars40')}</option>
+                    <option value="3.5">{t('static.products.stars35')}</option>
+                    <option value="3.0">{t('static.products.stars30')}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Price Range</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.priceRange')}</label>
                   <div className="grid grid-cols-2 gap-2">
                     <Input
                       type="number"
-                      placeholder="Min €"
+                      placeholder={t('static.products.minPrice')}
                       value={minPrice}
                       onChange={(e) => {
                         setMinPrice(e.target.value);
@@ -566,7 +579,7 @@ export default function ProductsPage() {
                     />
                     <Input
                       type="number"
-                      placeholder="Max €"
+                      placeholder={t('static.products.maxPrice')}
                       value={maxPrice}
                       onChange={(e) => {
                         setMaxPrice(e.target.value);
@@ -593,18 +606,18 @@ export default function ProductsPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">
-                  Showing {products.length} of {total} products
+                  {t('static.products.showing', { shown: products.length, total })}
                 </span>
                 {activeFilters.length > 0 && (
                   <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-[#0066CC]">
-                    {activeFilters.length} filters active
+                    {t('static.products.filtersActive', { count: activeFilters.length })}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-4">
                 {/* Sort */}
                 <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600">Sort:</label>
+                  <label className="text-sm text-gray-600">{t('static.products.sort')}</label>
                   <select
                     value={`${sortBy}_${sortOrder}`}
                     onChange={(e) => {
@@ -615,18 +628,20 @@ export default function ProductsPage() {
                     }}
                     className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] text-sm"
                   >
-                    <option value="created_at_desc">Newest First</option>
-                    <option value="created_at_asc">Oldest First</option>
-                    <option value="price_asc">Price: Low to High</option>
-                    <option value="price_desc">Price: High to Low</option>
-                    <option value="rating_desc">Highest Rated</option>
-                    <option value="view_count_desc">Most Viewed</option>
+                    {SORT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {t(option.labelKey)}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 {/* View Mode */}
                 <div className="flex items-center gap-2 border border-gray-300 rounded-lg p-1">
                   <button
+                    type="button"
                     onClick={() => setViewMode('grid')}
+                    aria-label={t('static.products.viewGrid')}
+                    aria-pressed={viewMode === 'grid'}
                     className={`p-2 rounded ${viewMode === 'grid' ? 'bg-[#0066CC] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -634,7 +649,10 @@ export default function ProductsPage() {
                     </svg>
                   </button>
                   <button
+                    type="button"
                     onClick={() => setViewMode('list')}
+                    aria-label={t('static.products.viewList')}
+                    aria-pressed={viewMode === 'list'}
                     className={`p-2 rounded ${viewMode === 'list' ? 'bg-[#0066CC] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -680,9 +698,9 @@ export default function ProductsPage() {
                       disabled={loadingMoreProducts}
                       className="min-w-48 rounded-full"
                     >
-                      Show More Products
+                      {t('static.products.showMore')}
                     </Button>
-                    <p className="text-xs text-gray-500">More products will appear below without leaving this page.</p>
+                    <p className="text-xs text-gray-500">{t('static.products.showMoreHint')}</p>
                   </div>
                 )}
               </>
@@ -701,7 +719,7 @@ export default function ProductsPage() {
                     d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
                   />
                 </svg>
-                <p className="text-gray-600 mb-4">No products found matching your filters.</p>
+                <p className="text-gray-600 mb-4">{t('static.products.empty')}</p>
                 <Button onClick={clearFilters} variant="primary">
                   Clear Filters
                 </Button>

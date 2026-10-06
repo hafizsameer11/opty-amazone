@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { CampaignPrice } from '@/services/campaign-service';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type Promotion = Pick<CampaignPrice, 'campaign_id' | 'campaign_name' | 'applied_campaign' | 'campaigns'> | null | undefined;
 
@@ -32,6 +33,7 @@ export default function DiscountCampaignIndicator({
   compact?: boolean;
   className?: string;
 }) {
+  const { t } = useLanguage();
   const campaign = campaignFor(pricing);
   const end = campaign?.ends_at ? Date.parse(campaign.ends_at) : Number.NaN;
   const [now, setNow] = useState<number | null>(null);
@@ -52,8 +54,8 @@ export default function DiscountCampaignIndicator({
       aria-label={`Discount campaign active. Ends in ${formatRemaining(end - now)}`}
       title={campaign.name}
     >
-      <span className="block font-bold uppercase tracking-wide">Discount campaign active</span>
-      <span className="block font-semibold">Ends in: {formatRemaining(end - now)}</span>
+      <span className="block font-bold uppercase tracking-wide">{t('static.campaigns.discountActive')}</span>
+      <span className="block font-semibold">{t('static.campaigns.endsIn')}{formatRemaining(end - now)}</span>
     </div>
   );
 }

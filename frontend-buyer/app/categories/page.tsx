@@ -8,7 +8,7 @@ import { categoryDisplayName } from '@/lib/category-i18n';
 import CategoryTile from '@/components/categories/CategoryTile';
 
 export default function CategoriesIndexPage() {
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,10 +27,10 @@ export default function CategoriesIndexPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Categories</h1>
-      <p className="text-gray-600 mb-8">Browse all Vista Express categories and subcategories.</p>
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('static.categories.title')}</h1>
+      <p className="text-gray-600 mb-8">{t('static.categories.intro')}</p>
       {loading ? (
-        <p className="text-gray-500">Loading…</p>
+        <p className="text-gray-500">{t('common.loading')}</p>
       ) : (
         <div className="space-y-10">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">

@@ -9,8 +9,10 @@ import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 function StoreCard({ store }: { store: PublicStore }) {
+  const { t } = useLanguage();
   const bannerImageUrl = getFullImageUrl(store.banner_image_url || store.banner_image);
   const profileImageUrl = getFullImageUrl(store.profile_image_url || store.profile_image);
   const hasBannerImage = bannerImageUrl !== '/file.svg';
@@ -72,25 +74,25 @@ function StoreCard({ store }: { store: PublicStore }) {
         {/* Stats */}
         <div className="flex items-center justify-center gap-4 mb-4">
           <div className="flex flex-col items-center">
-            <span className="text-xs text-gray-500 font-medium">Products</span>
+            <span className="text-xs text-gray-500 font-medium">{t('static.stores.products')}</span>
             <span className="text-sm font-bold text-gray-900">{store.products_count || 0}</span>
           </div>
           <div className="w-px h-8 bg-gray-200"></div>
           <div className="flex flex-col items-center">
-            <span className="text-xs text-gray-500 font-medium">Followers</span>
+            <span className="text-xs text-gray-500 font-medium">{t('static.stores.followers')}</span>
             <span className="text-sm font-bold text-gray-900">{store.followers_count || 0}</span>
           </div>
           <div className="w-px h-8 bg-gray-200"></div>
           <div className="flex flex-col items-center">
-            <span className="text-xs text-gray-500 font-medium">Rating</span>
+            <span className="text-xs text-gray-500 font-medium">{t('static.stores.rating')}</span>
             <span className="text-sm font-bold text-gray-900">
-              {store.rating ? Number(store.rating).toFixed(1) : 'N/A'}
+              {store.rating ? Number(store.rating).toFixed(1) : t('static.stores.notRated')}
             </span>
           </div>
         </div>
 
         <Button variant="primary" size="sm" className="w-full">
-          Visit Store
+          {t('static.stores.visit')}
         </Button>
       </div>
     </Link>
@@ -98,6 +100,7 @@ function StoreCard({ store }: { store: PublicStore }) {
 }
 
 export default function StoresPage() {
+  const { t } = useLanguage();
   const [stores, setStores] = useState<PublicStore[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -139,8 +142,8 @@ export default function StoresPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 w-full">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">All Stores</h1>
-          <p className="text-gray-600">Discover amazing optical stores and sellers</p>
+          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">{t('static.stores.title')}</h1>
+          <p className="text-gray-600">{t('static.stores.intro')}</p>
         </div>
 
         {/* Search Bar */}
@@ -148,13 +151,13 @@ export default function StoresPage() {
           <form onSubmit={handleSearch} className="flex gap-3">
             <Input
               type="text"
-              placeholder="Search stores..."
+              placeholder={t('static.stores.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1"
             />
             <Button type="submit" variant="primary">
-              Search
+              {t('common.search')}
             </Button>
           </form>
         </div>
@@ -169,7 +172,7 @@ export default function StoresPage() {
         ) : stores.length > 0 ? (
           <>
             <div className="mb-4 text-sm text-gray-600">
-              Showing {stores.length} of {total} stores
+              {t('static.stores.showing', { shown: stores.length, total })}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {stores.map((store) => (
@@ -186,10 +189,10 @@ export default function StoresPage() {
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                 >
-                  Previous
+                  {t('static.stores.previous')}
                 </Button>
                 <span className="text-sm text-gray-600 px-4">
-                  Page {currentPage} of {totalPages}
+                  {t('static.stores.pageOf', { page: currentPage, total: totalPages })}
                 </span>
                 <Button
                   variant="outline"
@@ -197,7 +200,7 @@ export default function StoresPage() {
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                 >
-                  Next
+                  {t('static.stores.next')}
                 </Button>
               </div>
             )}
@@ -217,9 +220,9 @@ export default function StoresPage() {
                 d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
               />
             </svg>
-            <p className="text-gray-600 mb-4">No stores found matching your search.</p>
+            <p className="text-gray-600 mb-4">{t('static.stores.empty')}</p>
             <Button onClick={() => { setSearch(''); setCurrentPage(1); }} variant="primary">
-              Clear Search
+              {t('static.stores.clearSearch')}
             </Button>
           </div>
         )}

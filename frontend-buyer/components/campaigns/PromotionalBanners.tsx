@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { campaignService, type CampaignBanner, type Placement } from '@/services/campaign-service';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 function Banner({ banner, hero = false }: { banner: CampaignBanner; hero?: boolean }) {
+  const { t } = useLanguage();
   const element = useRef<HTMLAnchorElement>(null);
   const impression = useRef<Promise<void> | null>(null);
   const visible = useRef(false);
@@ -75,7 +77,7 @@ function Banner({ banner, hero = false }: { banner: CampaignBanner; hero?: boole
         </picture>
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-900/28 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:max-w-[65%] sm:p-7 lg:p-9">
-          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-blue-100 sm:text-xs">Featured offer</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-blue-100 sm:text-xs">{t('static.campaigns.featuredOffer')}</p>
           <h3 className="mt-1 line-clamp-2 text-lg font-bold leading-tight sm:mt-2 sm:text-2xl lg:text-3xl">{banner.creative.title}</h3>
           {banner.creative.description && <p className="mt-1 hidden line-clamp-2 text-sm text-slate-100 sm:block sm:text-base">{banner.creative.description}</p>}
           <span className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-xs font-bold text-[#0052a3] transition group-hover:bg-blue-50 sm:px-4 sm:text-sm">{banner.creative.cta_text}<span aria-hidden="true">→</span></span>
@@ -97,6 +99,7 @@ function Banner({ banner, hero = false }: { banner: CampaignBanner; hero?: boole
 }
 
 function HeroBannerCarousel({ banners }: { banners: CampaignBanner[] }) {
+  const { t } = useLanguage();
   const viewport = useRef<HTMLDivElement>(null);
   const scrollFrame = useRef<number | null>(null);
   const normalizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -181,7 +184,7 @@ function HeroBannerCarousel({ banners }: { banners: CampaignBanner[] }) {
 
   return (
     <section
-      aria-label="Featured promotions"
+      aria-label={t('static.campaigns.featuredPromotions')}
       aria-roledescription="carousel"
       className="my-5 sm:my-7"
       onMouseEnter={() => setPaused(true)}
@@ -190,13 +193,13 @@ function HeroBannerCarousel({ banners }: { banners: CampaignBanner[] }) {
       onBlurCapture={() => setPaused(false)}
     >
       <div className="relative overflow-hidden">
-        <p className="sr-only" aria-live="polite">Promotion {activeIndex + 1} of {banners.length}</p>
+        <p className="sr-only" aria-live="polite">{t('static.campaigns.bannerPosition', { current: activeIndex + 1, total: banners.length })}</p>
         <div
           ref={viewport}
           className="flex snap-x snap-mandatory overflow-x-auto overflow-y-hidden scroll-smooth scrollbar-hide overscroll-x-contain touch-pan-x"
           tabIndex={0}
           role="group"
-          aria-label="Promotional banners"
+          aria-label={t('static.campaigns.promotionalBanners')}
           onScroll={onScroll}
           onKeyDown={(event) => {
             if (event.key === 'ArrowLeft') move('previous');
@@ -215,10 +218,10 @@ function HeroBannerCarousel({ banners }: { banners: CampaignBanner[] }) {
           ))}
         </div>
         {multiple && <>
-          <button type="button" onClick={() => move('previous')} className="absolute left-2 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-white text-[#0052a3] shadow-[0_4px_18px_rgba(15,23,42,0.45)] transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-[#0052a3] focus:ring-offset-2 sm:left-4 sm:inline-flex sm:h-12 sm:w-12 lg:left-6" aria-label="Previous banner"><svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="m15 18-6-6 6-6" /></svg></button>
-          <button type="button" onClick={() => move('next')} className="absolute right-2 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-white text-[#0052a3] shadow-[0_4px_18px_rgba(15,23,42,0.45)] transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-[#0052a3] focus:ring-offset-2 sm:right-4 sm:inline-flex sm:h-12 sm:w-12 lg:right-6" aria-label="Next banner"><svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="m9 18 6-6-6-6" /></svg></button>
+          <button type="button" onClick={() => move('previous')} className="absolute left-2 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-white text-[#0052a3] shadow-[0_4px_18px_rgba(15,23,42,0.45)] transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-[#0052a3] focus:ring-offset-2 sm:left-4 sm:inline-flex sm:h-12 sm:w-12 lg:left-6" aria-label={t('static.campaigns.previousBanner')}><svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="m15 18-6-6 6-6" /></svg></button>
+          <button type="button" onClick={() => move('next')} className="absolute right-2 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-white text-[#0052a3] shadow-[0_4px_18px_rgba(15,23,42,0.45)] transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-[#0052a3] focus:ring-offset-2 sm:right-4 sm:inline-flex sm:h-12 sm:w-12 lg:right-6" aria-label={t('static.campaigns.nextBanner')}><svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="m9 18 6-6-6-6" /></svg></button>
         </>}
-        {multiple && <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-slate-950/35 px-2.5 py-1.5 backdrop-blur" role="tablist" aria-label="Banner slides">{banners.map((banner, index) => <button key={banner.tracking_token} type="button" role="tab" aria-selected={index === activeIndex} aria-label={`Show banner ${index + 1}`} onClick={() => goToIndex(index)} className={`h-1.5 rounded-full transition-all ${index === activeIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/60 hover:bg-white'}`} />)}</div>}
+        {multiple && <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-slate-950/35 px-2.5 py-1.5 backdrop-blur" role="tablist" aria-label={t('static.campaigns.bannerSlides')}>{banners.map((banner, index) => <button key={banner.tracking_token} type="button" role="tab" aria-selected={index === activeIndex} aria-label={t('static.campaigns.showBanner', { index: index + 1 })} onClick={() => goToIndex(index)} className={`h-1.5 rounded-full transition-all ${index === activeIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/60 hover:bg-white'}`} />)}</div>}
       </div>
     </section>
   );
@@ -262,6 +265,7 @@ export function HomepagePromotionalBanners() {
 }
 
 export default function PromotionalBanners({ placement, categoryId, storeId }: { placement: Placement; categoryId?: number; storeId?: number }) {
+  const { t } = useLanguage();
   const [banners, setBanners] = useState<CampaignBanner[]>([]);
   const [now, setNow] = useState(() => Date.now());
 
@@ -287,5 +291,5 @@ export default function PromotionalBanners({ placement, categoryId, storeId }: {
 
   if (!visibleBanners.length) return null;
   if (placement === 'homepage_hero' || placement === 'homepage_featured') return <HeroBannerCarousel banners={visibleBanners} />;
-  return <section aria-label={`${placement.replaceAll('_', ' ')} promotions`} className={`my-6 grid gap-4 ${placement === 'sidebar' ? '' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>{visibleBanners.map((banner) => <Banner key={banner.tracking_token} banner={banner} />)}</section>;
+  return <section aria-label={t('static.campaigns.placementPromotions', { placement: placement.replaceAll('_', ' ') })} className={`my-6 grid gap-4 ${placement === 'sidebar' ? '' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>{visibleBanners.map((banner) => <Banner key={banner.tracking_token} banner={banner} />)}</section>;
 }

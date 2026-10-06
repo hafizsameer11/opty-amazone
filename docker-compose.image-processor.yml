@@ -1,0 +1,23 @@
+services:
+  image-processor:
+    build:
+      context: ./services/image-processor
+    env_file:
+      - ./services/image-processor/.env
+    restart: unless-stopped
+    init: true
+    ports:
+      # Private to this server: Laravel is the only intended client.
+      - "127.0.0.1:8030:8030"
+    volumes:
+      # Keeps the downloaded BiRefNet model between container restarts.
+      - image_processor_models:/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8030/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 300s
+
+volumes:
+  image_processor_models:
