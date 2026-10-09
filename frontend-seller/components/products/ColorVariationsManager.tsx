@@ -12,6 +12,7 @@ import Alert from '@/components/ui/Alert';
 import apiClient, { getAxiosErrorMessage } from '@/lib/api-client';
 import { resolveMediaUrl } from '@/lib/media-url';
 import FrameSizesEditor from '@/components/products/FrameSizesEditor';
+import { emptyDraftSize, normalizeSizeRow, type DraftSizeRow } from '@/components/products/variantSizes';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ColorVariationsManagerProps {
@@ -20,48 +21,8 @@ interface ColorVariationsManagerProps {
   productType?: string;
 }
 
-interface DraftSizeRow {
-  key: string;
-  size_text: string;
-  stock_quantity: number;
-  stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
-}
-
-/** Free-text size (e.g. "12mm", "Medium", or still "52-18-140"). Dimensions optional. */
-function normalizeSizeRow(text: string): {
-  lens_width: number;
-  bridge_width: number;
-  temple_length: number;
-  size_label: string;
-} | null {
-  const label = text.trim();
-  if (!label) return null;
-  const compact = label.replace(/\s+/g, '');
-  const m = compact.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/);
-  if (m) {
-    return {
-      lens_width: Number(m[1]),
-      bridge_width: Number(m[2]),
-      temple_length: Number(m[3]),
-      size_label: label,
-    };
-  }
-  return {
-    lens_width: 0,
-    bridge_width: 0,
-    temple_length: 0,
-    size_label: label,
-  };
-}
-
-function emptyDraftSize(): DraftSizeRow {
-  return {
-    key: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    size_text: '',
-    stock_quantity: 0,
-    stock_status: 'in_stock',
-  };
-}
+// DraftSizeRow, normalizeSizeRow and emptyDraftSize now live in
+// ./variantSizes so the create-time editor can share them.
 
 export default function ColorVariationsManager({ productId, categoryId, productType }: ColorVariationsManagerProps) {
   const { t } = useLanguage();

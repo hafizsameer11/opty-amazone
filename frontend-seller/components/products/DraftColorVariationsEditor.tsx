@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import ProductImageUpload from '@/components/products/ProductImageUpload';
+import VariantSizesDraftEditor from '@/components/products/VariantSizesDraftEditor';
+import { sumSizes } from '@/components/products/variantSizes';
 import { type CreateVariantData } from '@/services/product-service';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -23,6 +25,9 @@ function emptyVariant(sortOrder: number): CreateVariantData {
     stock_status: 'in_stock',
     is_default: sortOrder === 0,
     sort_order: sortOrder,
+    // Seeded so the Size section renders as soon as the variant is expanded,
+    // rather than appearing only after the product has been saved.
+    sizes: [],
   };
 }
 
@@ -161,8 +166,12 @@ export default function DraftColorVariationsEditor({
                       type="number"
                       min="0"
                       value={variant.stock_quantity}
+                      readOnly={(variant.sizes?.length ?? 0) > 0}
                       onChange={(event) => updateVariant(index, { stock_quantity: Math.max(0, Number.parseInt(event.target.value, 10) || 0) })}
                     />
+                    {(variant.sizes?.length ?? 0) > 0 && (
+                      <p className="-mt-2 text-xs text-slate-500 md:col-span-1">{t('form.sizesDriveStock')}</p>
+                    )}
                     <div>
                       <label className="mb-2 block text-sm font-medium text-slate-700">{t('form.stockStatus')}</label>
                       <select
@@ -187,6 +196,21 @@ export default function DraftColorVariationsEditor({
                       </label>
                     </div>
                   </div>
+
+                  <VariantSizesDraftEditor
+                    sizes={variant.sizes || []}
+                    onChange={(sizes) => {
+                      // The backend derives a variant's stock from the sum of its
+                      // sizes, so keep the two in step here rather than letting
+                      // the seller enter contradictory numbers.
+                      const total = sumSizes(sizes);
+                      updateVariant(index, {
+                        sizes,
+                        stock_quantity: total,
+                        stock_status: total > 0 ? 'in_stock' : variant.stock_status,
+                      });
+                    }}
+                  />
 
                   <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
                     <ProductImageUpload
