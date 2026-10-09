@@ -14,6 +14,8 @@ import Input from '@/components/ui/Input';
 import Loader from '@/components/ui/Loader';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import ProductCardCategoryLine from '@/components/products/ProductCardCategoryLine';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { categoryDisplayName } from '@/lib/category-i18n';
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 
 function ProductCard({ product }: { product: Product }) {
@@ -154,6 +156,7 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 export default function CategoryPage() {
+  const { language } = useLanguage();
   const params = useParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [category, setCategory] = useState<any>(null);
@@ -220,13 +223,13 @@ export default function CategoryPage() {
               Products
             </Link>
             <span className="mx-2">/</span>
-            <span className="text-gray-900">{category?.name || params.slug}</span>
+            <span className="text-gray-900">{categoryDisplayName(category, language) || params.slug}</span>
           </nav>
 
           {/* Category Header */}
           {category && (
             <div className="mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{category.name}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{categoryDisplayName(category, language)}</h1>
               {category.description && (
                 <p className="text-gray-600">{category.description}</p>
               )}

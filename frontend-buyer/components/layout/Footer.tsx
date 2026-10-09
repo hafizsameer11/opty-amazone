@@ -16,7 +16,6 @@ export default function Footer() {
               <li><Link href="/products" className="hover:text-white transition-colors">{t('footer.allProducts')}</Link></li>
               <li><Link href="/categories" className="hover:text-white transition-colors">{t('footer.browseCategories')}</Link></li>
               <li><Link href="/stores" className="hover:text-white transition-colors">{t('footer.allStores')}</Link></li>
-              <li><Link href="/wishlist" className="hover:text-white transition-colors">{t('footer.savedItems')}</Link></li>
             </ul>
           </div>
           <div>

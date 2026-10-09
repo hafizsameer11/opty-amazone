@@ -7,6 +7,8 @@ import Image from "next/image";
 // Layout components are now handled by app/template.tsx
 import { productService, type Product } from "@/services/product-service";
 import { StoreService, type PublicStore } from "@/services/store-service";
+import { categoryDisplayName } from '@/lib/category-i18n';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { HomepagePromotionalBanners } from '@/components/campaigns/PromotionalBanners';
 import { getFullImageUrl, isLocalhostImage } from "@/lib/image-utils";
 import { isEyeProductCategory } from "@/utils/product-utils";
@@ -17,6 +19,8 @@ const HOME_PRODUCTS_PER_PAGE = 20;
 type HomeCategory = {
   id: number;
   name: string;
+  /** Italian label, present in the API payload but previously undeclared. */
+  name_it?: string | null;
   slug: string;
 };
 
@@ -154,6 +158,7 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 export default function HomePage() {
+  const { language } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [stores, setStores] = useState<PublicStore[]>([]);
   const [categories, setCategories] = useState<HomeCategory[]>([]);
@@ -237,7 +242,7 @@ export default function HomePage() {
   const loadStores = async () => {
     try {
       setLoadingStores(true);
-      const data = await StoreService.getAllStores({ per_page: 6 });
+      const data = await StoreService.getAllStores({ per_page: 6, sort: 'rating_desc' });
       setStores(data.stores || []);
     } catch (error) {
       console.error('Failed to load stores:', error);
@@ -383,7 +388,7 @@ export default function HomePage() {
                     <div className="relative flex flex-col items-center">
                       <div className="mb-1.5 text-2xl sm:mb-2 sm:text-3xl">{getCategoryIcon(category.name)}</div>
                       <div className="line-clamp-2 min-h-9 font-semibold text-gray-900 text-xs leading-4 sm:min-h-0 sm:text-base">
-                        {category.name}
+                        {categoryDisplayName(category, language)}
                       </div>
                       <span className="mt-1 hidden text-[11px] uppercase tracking-[0.16em] text-gray-500 sm:inline">
                         Shop now

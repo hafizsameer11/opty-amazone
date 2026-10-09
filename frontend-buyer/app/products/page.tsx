@@ -13,6 +13,7 @@ import ProductListCard from '@/components/products/ProductListCard';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { categoryDisplayName } from '@/lib/category-i18n';
 
 // Labels are translation keys: these arrays are module scope and cannot call `t`.
 const PRODUCT_TYPE_OPTIONS = [
@@ -48,7 +49,7 @@ const SORT_OPTIONS = [
 const PRODUCTS_PER_PAGE = 20;
 
 function ProductCard({ product }: { product: Product }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   
@@ -185,7 +186,7 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 export default function ProductsPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMoreProducts, setLoadingMoreProducts] = useState(false);
@@ -320,7 +321,7 @@ export default function ProductsPage() {
       [
         search ? `Search: ${search}` : null,
         selectedCategory
-          ? t('static.products.chipCategory', { value: categories.find((c) => c.id.toString() === selectedCategory)?.name || selectedCategory })
+          ? t('static.products.chipCategory', { value: categories.find((c) => c.id.toString() === selectedCategory) ? categoryDisplayName(categories.find((c) => c.id.toString() === selectedCategory)!, language) : selectedCategory })
           : null,
         selectedType ? `Type: ${PRODUCT_TYPE_OPTIONS.find((o) => o.value === selectedType) ? t(PRODUCT_TYPE_OPTIONS.find((o) => o.value === selectedType)!.labelKey) : selectedType}` : null,
         selectedGender ? `Gender: ${selectedGender}` : null,
@@ -472,7 +473,7 @@ export default function ProductsPage() {
                     <option value="">{t('static.products.allCategories')}</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id.toString()}>
-                        {cat.name}
+                        {categoryDisplayName(cat, language)}
                       </option>
                     ))}
                   </select>

@@ -161,6 +161,8 @@ export interface ProductListParams {
 export interface Category {
   id: number;
   name: string;
+  /** Italian label, used when the site language is Italian. */
+  name_it?: string | null;
   slug: string;
   description?: string;
   image?: string;

@@ -27,6 +27,9 @@ export interface PublicStore {
   status: string;
 }
 
+/** Ordering options supported by the public stores endpoint. */
+export type StoreSort = 'rating_desc' | 'rating_asc' | 'name_asc' | 'newest';
+
 export interface StoreListResponse {
   stores: PublicStore[];
   pagination: {
@@ -41,7 +44,7 @@ export class StoreService {
   /**
    * Get all stores (public endpoint)
    */
-  static async getAllStores(params?: { search?: string; per_page?: number; page?: number }): Promise<StoreListResponse> {
+  static async getAllStores(params?: { search?: string; per_page?: number; page?: number; sort?: StoreSort }): Promise<StoreListResponse> {
     const response = await apiClient.get('/stores', { params });
     const payload = response.data?.data ?? response.data;
     const rawStores = payload?.stores;
