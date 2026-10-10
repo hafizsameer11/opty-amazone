@@ -52,6 +52,32 @@ class OpticalIntegrationTest extends TestCase
         $this->assertDatabaseHas('personal_access_tokens', ['id' => $existing->accessToken->id]);
     }
 
+    public function test_production_loopback_requires_opt_in_exact_match_and_verified_seller(): void
+    {
+        $original = app()->environment();
+        app()->instance('env', 'production');
+        try {
+            $flow = ['client_id' => 'optical-shop', 'redirect_uri' => config('optical.redirect_uri'), 'state' => Str::random(48), 'code_challenge' => str_repeat('a', 43), 'code_challenge_method' => 'S256'];
+            config(['optical.allow_loopback_redirect' => false]);
+            $this->get('/optical/authorize?'.http_build_query($flow))->assertStatus(503);
+            config(['optical.allow_loopback_redirect' => true]);
+            $this->get('/optical/authorize?'.http_build_query([...$flow, 'redirect_uri' => 'http://127.0.0.1:9999/callback']))->assertStatus(400);
+            $this->get('/optical/authorize?'.http_build_query($flow))->assertOk();
+            $this->seller->forceFill(['email_verified_at' => null])->save();
+            config(['optical.require_verified_email' => false]);
+            $csrf = Str::random(40);
+            $this->withSession(['_token' => $csrf])->post('/optical/authorize', ['_token' => $csrf, 'email' => $this->seller->email, 'password' => 'TestingPassword123!', 'consent' => 1])->assertForbidden();
+            foreach (['http://example.test/callback', 'http://localhost.attacker.test/callback', 'http://user@localhost/callback', 'http://localhost/callback?next=other', 'http://localhost/callback#fragment', 'https:///callback'] as $invalid) {
+                config(['optical.redirect_uri' => $invalid]);
+                $this->get('/optical/authorize?'.http_build_query([...$flow, 'redirect_uri' => $invalid]))->assertStatus(503);
+            }
+            config(['optical.allow_loopback_redirect' => false, 'optical.redirect_uri' => 'https://optical.example.test/auth/vista/callback']);
+            $this->get('/optical/authorize?'.http_build_query([...$flow, 'redirect_uri' => config('optical.redirect_uri')]))->assertOk();
+        } finally {
+            app()->instance('env', $original);
+        }
+    }
+
     public function test_scoped_publication_image_mapping_idempotency_allocated_stock_and_conflict(): void
     {
         $this->withToken($this->token);

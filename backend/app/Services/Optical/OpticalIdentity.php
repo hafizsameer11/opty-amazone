@@ -13,7 +13,11 @@ class OpticalIdentity
     {
         abort_unless(config('optical.enabled') && strlen((string) config('optical.client_secret')) >= 32 && config('optical.redirect_uri'), 503, 'Optical Shop connection is not configured.');
         $redirect = parse_url(config('optical.redirect_uri'));
-        abort_unless(($redirect['scheme'] ?? '') === 'https' || (app()->environment(['local', 'testing']) && ($redirect['scheme'] ?? '') === 'http' && in_array($redirect['host'] ?? '', ['localhost', '127.0.0.1'])), 503, 'A secure registered redirect is required.');
+        abort_unless(is_array($redirect) && ! empty($redirect['host']) && ! isset($redirect['user']) && ! isset($redirect['pass']) && ! isset($redirect['query']) && ! isset($redirect['fragment']), 503, 'A secure registered redirect is required.');
+        $loopback = ($redirect['scheme'] ?? '') === 'http'
+            && in_array($redirect['host'], ['localhost', '127.0.0.1'], true)
+            && (app()->environment(['local', 'testing']) || config('optical.allow_loopback_redirect'));
+        abort_unless(($redirect['scheme'] ?? '') === 'https' || $loopback, 503, 'A secure registered redirect is required.');
     }
 
     public static function store(User $user): Store
