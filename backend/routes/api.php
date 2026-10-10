@@ -78,3 +78,5 @@ Route::prefix('buyer')->group(base_path('routes/buyer.php'));
 Route::prefix('seller')->group(base_path('routes/seller.php'));
 Route::prefix('admin')->group(base_path('routes/admin.php'));
 Route::prefix('crm')->group(base_path('routes/crm.php'));
+
+Route::prefix('optical')->group(base_path('routes/optical.php'));

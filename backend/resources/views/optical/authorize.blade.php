@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>Vista Express · Connect Optical Shop</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;background:#f1f5f9;color:#0f172a;margin:0;padding:32px 16px}main{max-width:520px;margin:5vh auto;background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:32px;box-shadow:0 12px 36px #0f172a0a}h1{font-size:26px}.brand{color:#0789c5;font-weight:700}label{display:block;margin-top:20px}input:not([type=checkbox]){box-sizing:border-box;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}button{width:100%;background:#0789c5;color:#fff;border:0;border-radius:12px;padding:14px;margin-top:24px;font:inherit;font-weight:700}.error{background:#fef2f2;color:#991b1b;padding:12px;border-radius:8px}small{color:#475569}</style></head>
+<body><main><p class="brand">Vista Express · Seller access</p><h1>Connect to Optical Shop</h1><p>Sign in with your existing Vista Express seller account. Your password stays with Vista Express. Existing Seller Panel and mobile sessions stay signed in.</p><p><strong>Application:</strong> Optical Shop on {{ $redirectHost }}</p>
+@if($errors->any())<div class="error" role="alert">{{ $errors->first() }}</div>@endif
+<form method="post" action="{{ route('optical.authorize.approve') }}">@csrf
+<label for="email">Seller email</label><input id="email" name="email" type="email" autocomplete="username" maxlength="254" value="{{ old('email') }}" required>
+<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" maxlength="200" required>
+<label><input type="checkbox" name="consent" value="1" required> Allow Optical Shop to access my seller identity, store products, stock, store orders and associated customer contact information, and publish products with stock I explicitly allocate.</label>
+<p><small>Clinical prescriptions, unrelated stores and payment credentials are excluded. You can disconnect from Optical Shop. Connection expires after 30 days unless reauthorized.</small></p>
+<button type="submit">Authorize Optical Shop</button></form></main></body></html>
