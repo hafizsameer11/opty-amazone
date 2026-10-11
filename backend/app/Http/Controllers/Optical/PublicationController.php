@@ -89,30 +89,23 @@ class PublicationController extends Controller
             $link = DB::table('optical_product_links')->where('store_id', $store->id)->where('client_id', $grant->client_id)->where('external_key', $d['external_key'])->first();
             $images = DB::table('optical_images')->whereIn('id', $d['images'])->where('store_id', $store->id)->where('client_id', $grant->client_id)->get();
             abort_unless($images->count() === count(array_unique($d['images'])), 422, 'Use images uploaded by this seller connection.');
-            // Allowlisted seller fields only. Price/stock/admin moderation cannot be supplied indirectly.
-            $allowed = ['name', 'sku', 'description', 'short_description', 'category_id', 'sub_category_id', 'product_type', 'price', 'frame_shape', 'frame_material', 'frame_color', 'gender', 'lens_type', 'base_curve_options', 'diameter_options', 'powers_range', 'replacement_frequency', 'contact_lens_brand', 'contact_lens_color', 'contact_lens_material', 'contact_lens_type', 'has_uv_filter', 'can_sleep_with', 'water_content', 'is_medical_device', 'size_volume', 'pack_type', 'expiry_date'];
-            abort_if(count(array_diff(array_keys($d['product']), $allowed)) > 0, 422, 'Unsupported product fields.');
-            $fields = $d['product'];
-            if (! $link) {
-                $enabled = \App\Models\StoreCategoryFieldConfig::where('store_id', $store->id)->where('category_id', $fields['category_id'] ?? 0)->value('field_config');
-                if (is_array($enabled) && count(array_filter($enabled))) {
-                    $base = ['name', 'sku', 'description', 'short_description', 'category_id', 'sub_category_id', 'product_type', 'price'];
-                    foreach ($fields as $field => $value) {
-                        if (! in_array($field, $base) && $value !== null && $value !== '' && ! ($enabled[$field] ?? false)) {
-                            throw \Illuminate\Validation\ValidationException::withMessages(['product.'.$field => 'This field is disabled in the seller category configuration. Enable it there or select a compatible category.']);
-                        }
-                    }
-                }
-            }
-            $category = Category::where('is_active', true)->findOrFail($fields['category_id'] ?? 0);
-            if (! empty($fields['sub_category_id'])) {
-                abort_unless(Category::where('is_active', true)->where('parent_id', $category->id)->whereKey($fields['sub_category_id'])->exists(), 422, 'Invalid subcategory.');
+            $fields = \App\Services\Optical\ProductForm::validate($d['product'], $store->id);
+            \App\Services\Optical\ProductOptions::allocation($fields, (int) $d['allocated_quantity']);
+            $options = array_intersect_key($fields, array_flip(['variants', 'size_volume_variants', 'eye_hygiene_variants']));
+            $optionMap = $link ? (json_decode($link->option_map ?? '[]', true) ?: []) : [];
+            unset($fields['variants'], $fields['size_volume_variants'], $fields['eye_hygiene_variants']);
+            if (isset($fields['lens_colors'])) {
+                $fields['lens_colors'] = array_map(function ($row) {
+                    unset($row['option_key']);
+
+                    return $row;
+                }, $fields['lens_colors']);
             }
             $fields['images'] = collect($d['images'])->map(fn ($id) => url(Storage::disk('public')->url($images->firstWhere('id', $id)->storage_key)))->all();
             if ($link) {
                 $p = Product::where('store_id', $store->id)->lockForUpdate()->findOrFail($link->product_id);
                 abort_unless(isset($d['expected_version']) && hash_equals(self::version($p), $d['expected_version']), 409, 'Vista product changed. Refresh and review before publishing an update.');
-                abort_if($p->variants()->exists() || $p->frameSizes()->exists() || $p->sizeVolumeVariants()->exists(), 409, 'This Vista product now has independently managed variants. Update it in the seller panel.');
+                abort_if(! $optionMap && ($p->variants()->exists() || $p->frameSizes()->exists() || $p->sizeVolumeVariants()->exists()), 409, 'This Vista product has independently managed variants. Allocate their stock in the seller panel.');
                 $fields['stock_quantity'] = $p->stock_quantity + (int) $d['allocated_quantity'];
             } else {
                 abort_if(! empty($d['expected_version']), 409, 'No existing publication for this product.');
@@ -134,9 +127,14 @@ class PublicationController extends Controller
             $result = $response->getData(true);
             abort_unless(($result['success'] ?? false) && $response->getStatusCode() < 400, 422, 'Vista seller product validation failed. Check the mapped product fields and SKU.');
             $p = Product::where('store_id', $store->id)->findOrFail($result['data']['id']);
+            // The schema validated category toggles. Preserve allowed fields even when
+            // the legacy seller controller omits structured lens options from its filter.
+            $p->fill(array_diff_key($fields, array_flip(['stock_quantity', 'stock_status', 'images'])))->save();
+            $optionMap = \App\Services\Optical\ProductOptions::persist($p, $options, $optionMap, $fields['images']);
             if (! $link) {
                 DB::table('optical_product_links')->insert(['store_id' => $store->id, 'client_id' => $grant->client_id, 'external_key' => $d['external_key'], 'product_id' => $p->id, 'created_at' => now(), 'updated_at' => now()]);
             }
+            DB::table('optical_product_links')->where('store_id', $store->id)->where('client_id', $grant->client_id)->where('external_key', $d['external_key'])->update(['option_map' => json_encode($optionMap, JSON_THROW_ON_ERROR)]);
             DB::table('optical_images')->whereIn('id', $d['images'])->where('store_id', $store->id)->update(['product_id' => $p->id, 'updated_at' => now()]);
             $result = $this->result($p, $d['external_key']);
             DB::table('optical_operations')->insert(['store_id' => $store->id, 'client_id' => $grant->client_id, 'operation_key' => $d['operation_key'], 'payload_hash' => $hash, 'result' => json_encode($result, JSON_THROW_ON_ERROR), 'created_at' => now(), 'updated_at' => now()]);
@@ -147,11 +145,15 @@ class PublicationController extends Controller
 
     public static function version(Product $p): string
     {
-        return hash('sha256', json_encode($p->only(['name', 'sku', 'description', 'short_description', 'category_id', 'sub_category_id', 'product_type', 'price', 'images', 'frame_shape', 'frame_material', 'frame_color', 'gender', 'lens_type', 'base_curve_options', 'diameter_options', 'powers_range', 'replacement_frequency', 'contact_lens_brand', 'contact_lens_color', 'contact_lens_material', 'contact_lens_type', 'has_uv_filter', 'can_sleep_with', 'water_content', 'is_medical_device', 'size_volume', 'pack_type', 'expiry_date', 'is_active', 'is_approved', 'is_muted', 'updated_at']), JSON_THROW_ON_ERROR));
+        // Public catalog views also touch updated_at; only managed data and stock conflict.
+        return hash('sha256', json_encode($p->only(['name', 'sku', 'description', 'short_description', 'category_id', 'sub_category_id', 'product_type', 'price', 'images', 'frame_shape', 'frame_material', 'frame_color', 'gender', 'lens_type', 'base_curve_options', 'diameter_options', 'powers_range', 'replacement_frequency', 'contact_lens_brand', 'contact_lens_color', 'contact_lens_material', 'contact_lens_type', 'has_uv_filter', 'can_sleep_with', 'water_content', 'is_medical_device', 'size_volume', 'pack_type', 'expiry_date', 'is_active', 'is_approved', 'is_muted', 'stock_quantity', 'stock_status', 'lens_colors', 'lens_index_options', 'treatment_options', 'compare_at_price', 'cost_price', 'is_featured']), JSON_THROW_ON_ERROR).json_encode([$p->variants()->get()->toArray(), $p->frameSizes()->get()->toArray(), $p->sizeVolumeVariants()->get()->toArray(), $p->eyeHygieneVariants()->get()->toArray()], JSON_THROW_ON_ERROR));
     }
 
     private function result(Product $p, string $key): array
     {
+        // Hash persisted casts and timestamp precision, including fields saved after the seller controller.
+        $p->refresh();
+
         return ['external_key' => $key, 'product_id' => $p->id, 'version' => self::version($p), 'stock_quantity' => $p->stock_quantity, 'visible' => Product::visibleToBuyers()->whereKey($p->id)->exists(), 'source' => 'vista_express'];
     }
 

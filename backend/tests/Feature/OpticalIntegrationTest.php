@@ -81,7 +81,7 @@ class OpticalIntegrationTest extends TestCase
     public function test_scoped_publication_image_mapping_idempotency_allocated_stock_and_conflict(): void
     {
         $this->withToken($this->token);
-        $category = Category::create(['name' => 'Frames', 'slug' => Str::uuid(), 'is_active' => true]);
+        $category = Category::create(['name' => 'Frames', 'slug' => 'eye-glasses', 'is_active' => true]);
         $image = (string) Str::uuid();
         $this->post('/api/optical/images', ['file' => UploadedFile::fake()->image('frame.png', 60, 40), 'image_key' => $image], ['Accept' => 'application/json'])->assertOk();
         $payload = ['external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 3, 'currency' => 'EUR', 'images' => [$image], 'product' => ['name' => 'Linked frame', 'sku' => 'LINKED-ONE', 'product_type' => 'frame', 'category_id' => $category->id, 'price' => '99.95', 'description' => 'Optical shop product', 'frame_color' => 'Blue']];
@@ -89,6 +89,9 @@ class OpticalIntegrationTest extends TestCase
         $this->postJson('/api/optical/publications', $payload)->assertOk()->assertJsonPath('data.product_id', $r['product_id']);
         $this->assertDatabaseCount('products', 1);
         $this->postJson('/api/optical/publications', [...$payload, 'allocated_quantity' => 4])->assertConflict();
+        $this->travel(5)->seconds();
+        $this->getJson('/api/products/'.$r['product_id'])->assertOk();
+        $this->getJson('/api/optical/publications/'.$payload['external_key'])->assertOk()->assertJsonPath('data.version', $r['version']);
         $next = [...$payload, 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 2, 'expected_version' => $r['version']];
         $this->postJson('/api/optical/publications', $next)->assertOk()->assertJsonPath('data.stock_quantity', 5);
         $this->assertDatabaseCount('products', 1);
@@ -121,5 +124,78 @@ class OpticalIntegrationTest extends TestCase
         $accepted = (string) Str::uuid();
         DB::table('optical_operations')->insert(['store_id' => $this->store->id, 'client_id' => 'optical-shop', 'operation_key' => $accepted, 'payload_hash' => str_repeat('a', 64), 'result' => json_encode(['product_id' => 1]), 'created_at' => now(), 'updated_at' => now()]);
         $this->postJson('/api/optical/operations/'.$accepted.'/cancel')->assertConflict();
+    }
+
+    public function test_all_five_forms_publish_with_category_specific_fields(): void
+    {
+        $this->withToken($this->token);
+        $image = (string) Str::uuid();
+        $this->post('/api/optical/images', ['file' => UploadedFile::fake()->image('photo.png'), 'image_key' => $image], ['Accept' => 'application/json'])->assertOk();
+        foreach (['eye-glasses' => 'frame', 'sun-glasses' => 'sunglasses', 'contact-lenses' => 'contact_lens', 'eye-hygiene' => 'eye_hygiene', 'accessori' => 'accessory'] as $slug => $type) {
+            $category = Category::create(['name' => $type, 'slug' => $slug, 'is_active' => true]);
+            $specific = match ($type) {
+                'frame','sunglasses' => ['lens_index_options' => ['1.6'], 'treatment_options' => ['blue_light']],'contact_lens' => ['has_uv_filter' => true, 'replacement_frequency' => 'daily', 'base_curve_options' => ['8.6']],'eye_hygiene' => ['size_volume' => '100ml'],default => ['gender' => 'unisex']
+            };
+            $product = ['category_id' => $category->id, 'product_type' => $type, 'name' => 'Category '.$type, 'sku' => 'TYPE-'.$type, 'price' => 20, ...$specific];
+            $payload = ['external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 2, 'currency' => 'EUR', 'images' => [$image], 'product' => $product];
+            $published = $this->postJson('/api/optical/publications', $payload)->assertOk()->json('data');
+            $this->getJson('/api/optical/publications/'.$payload['external_key'])->assertOk()->assertJsonPath('data.version', $published['version']);
+            $id = $published['product_id'];
+            $stored = Product::findOrFail($id);
+            foreach ($specific as $key => $value) {
+                $this->assertEquals($value, $stored->$key);
+            }
+            $this->postJson('/api/optical/publications', [...$payload, 'external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'product' => [...$product, 'product_type' => 'wrong']])->assertUnprocessable();
+        }
+        $this->getJson('/api/optical/catalog-metadata')->assertOk()->assertJsonPath('data.schema_version', 2)->assertJsonCount(5, 'data.categories');
+        $this->assertDatabaseCount('products', 5);
+    }
+
+    public function test_nested_allocations_are_additive_and_idempotent(): void
+    {
+        $this->withToken($this->token);
+        $cat = Category::create(['name' => 'Frames', 'slug' => 'eye-glasses', 'is_active' => true]);
+        $image = (string) Str::uuid();
+        $this->post('/api/optical/images', ['file' => UploadedFile::fake()->image('photo.png'), 'image_key' => $image], ['Accept' => 'application/json'])->assertOk();
+        $secondImage = (string) Str::uuid();
+        $this->post('/api/optical/images', ['file' => UploadedFile::fake()->image('second.png'), 'image_key' => $secondImage], ['Accept' => 'application/json'])->assertOk();
+        $variant = ['option_key' => (string) Str::uuid(), 'color_name' => 'Blue', 'color_code' => '#0000ff', 'stock_quantity' => 3, 'image_indices' => ['1', '2'], 'sizes' => [['option_key' => (string) Str::uuid(), 'size_label' => 'Medium', 'stock_quantity' => 3]]];
+        $payload = ['external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 3, 'currency' => 'EUR', 'images' => [$image, $secondImage], 'product' => ['category_id' => $cat->id, 'product_type' => 'frame', 'name' => 'Sized frame', 'sku' => 'SIZED', 'price' => 25, 'variants' => [$variant]]];
+        $this->postJson('/api/optical/publications', [...$payload, 'allocated_quantity' => 4])->assertUnprocessable();
+        $r = $this->postJson('/api/optical/publications', $payload)->assertOk()->json('data');
+        $this->postJson('/api/optical/publications', $payload)->assertOk();
+        $product = Product::findOrFail($r['product_id']);
+        $this->assertSame(1, $product->variants()->count());
+        $this->assertSame(1, $product->frameSizes()->count());
+        $this->assertCount(2, $product->variants()->first()->images);
+        $next = [...$payload, 'operation_key' => (string) Str::uuid(), 'expected_version' => $r['version']];
+        $this->postJson('/api/optical/publications', $next)->assertOk()->assertJsonPath('data.stock_quantity', 6);
+        $this->assertSame(6, $product->variants()->first()->stock_quantity);
+        $this->assertSame(6, $product->frameSizes()->first()->stock_quantity);
+        $this->assertSame(1, $product->variants()->count());
+    }
+
+    public function test_hygiene_options_images_subcategories_and_store_toggles(): void
+    {
+        $this->withToken($this->token);
+        $cat = Category::create(['name' => 'Hygiene', 'slug' => 'eye-hygiene', 'is_active' => true]);
+        $sub = Category::create(['name' => 'Drops', 'slug' => 'drops', 'parent_id' => $cat->id, 'is_active' => true]);
+        $leaf = Category::create(['name' => 'Dry eyes', 'slug' => 'dry-eyes', 'parent_id' => $sub->id, 'is_active' => true]);
+        $image = (string) Str::uuid();
+        $this->post('/api/optical/images', ['file' => UploadedFile::fake()->image('photo.png'), 'image_key' => $image], ['Accept' => 'application/json'])->assertOk();
+        $product = ['category_id' => $cat->id, 'sub_category_id' => $leaf->id, 'product_type' => 'eye_hygiene', 'name' => 'Drops', 'sku' => 'DROPS', 'price' => 12, 'size_volume_variants' => [['option_key' => (string) Str::uuid(), 'size_volume' => '100ml', 'stock_quantity' => 2, 'image_index' => 1, 'is_active' => true]], 'eye_hygiene_variants' => [['option_key' => (string) Str::uuid(), 'name' => 'Dry eyes', 'image_index' => 1, 'is_active' => true]]];
+        $payload = ['external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 2, 'currency' => 'EUR', 'images' => [$image], 'product' => $product];
+        $result = $this->postJson('/api/optical/publications', $payload)->assertOk()->json('data');
+        $p = Product::findOrFail($result['product_id']);
+        $this->assertSame($leaf->id, $p->sub_category_id);
+        $this->assertSame(2, $p->sizeVolumeVariants()->first()->stock_quantity);
+        $this->assertSame(1, $p->eyeHygieneVariants()->count());
+        $this->assertStringContainsString('/optical/', $p->sizeVolumeVariants()->first()->image_url);
+        \App\Models\StoreCategoryFieldConfig::create(['store_id' => $this->store->id, 'category_id' => $cat->id, 'field_config' => ['pack_type' => false]]);
+        $invalid = [...$product, 'pack_type' => 'Disabled'];
+        $this->postJson('/api/optical/publications', [...$payload, 'operation_key' => (string) Str::uuid(), 'expected_version' => $result['version'], 'product' => $invalid])->assertUnprocessable();
+        $foreign = Category::create(['name' => 'Other', 'slug' => 'accessori', 'is_active' => true]);
+        $this->postJson('/api/optical/publications', [...$payload, 'operation_key' => (string) Str::uuid(), 'expected_version' => $result['version'], 'product' => [...$product, 'sub_category_id' => $foreign->id]])->assertUnprocessable();
+        $this->assertSame(2, $p->fresh()->stock_quantity);
     }
 }
