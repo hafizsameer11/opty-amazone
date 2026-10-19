@@ -64,6 +64,8 @@ class SellerStoreSettingsController extends Controller
                 'settings' => [
                     'is_active' => $store->is_active,
                     'phone_visibility' => $store->phone_visibility,
+                    'seller_visibility' => $store->seller_visibility,
+                    'public_seller_code' => $store->public_seller_code,
                     'status' => $store->status,
                 ],
             ]);

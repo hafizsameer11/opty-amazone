@@ -82,7 +82,9 @@ class CouponService
             $couponDiscount = $couponQuote['discount_cents'] ?? 0;
             $stores[(int) $storeId] = [
                 'store_id' => (int) $storeId,
-                'store_name' => $store->name,
+                'store_name' => $store->publicSellerName(),
+                'seller_code' => $store->isAnonymousSeller() ? $store->public_seller_code : null,
+                'is_anonymous' => $store->isAnonymousSeller(),
                 'original_subtotal' => Money::decimal($originalSubtotal),
                 'automatic_campaign_discount' => Money::decimal($automaticDiscount),
                 'subtotal_after_campaigns' => Money::decimal($originalSubtotal - $automaticDiscount),

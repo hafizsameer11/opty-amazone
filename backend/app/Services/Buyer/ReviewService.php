@@ -2,6 +2,7 @@
 
 namespace App\Services\Buyer;
 
+use App\Http\Resources\PublicStoreResource;
 use App\Models\{OrderItem, Product, ProductReview, Store, StoreOrder, StoreReview, StoreStatistic, User};
 use App\Services\Notifications\MarketplaceNotificationService;
 use App\Services\Email\MarketplaceEmailService;
@@ -244,7 +245,7 @@ class ReviewService
                 'comment' => $review->comment, 'is_verified_purchase' => (bool) $review->is_verified_purchase,
                 'order_item_id' => $review->order_item_id, 'image' => $review->image, 'image_url' => $review->image_url,
                 'created_at' => $review->created_at?->toISOString(),
-                'product' => $review->product,
+                'product' => $this->publicProduct($review->product),
             ]);
         $stores = $type === 'product' ? collect() : StoreReview::with(['store', 'storeOrder'])
             ->where('user_id', $buyer->id)
@@ -253,7 +254,7 @@ class ReviewService
                 'type' => 'store', 'id' => $review->id, 'rating' => $review->rating,
                 'comment' => $review->comment, 'is_verified_purchase' => (bool) $review->is_verified_purchase,
                 'store_order_id' => $review->store_order_id, 'created_at' => $review->created_at?->toISOString(),
-                'store' => $review->store,
+                'store' => $review->store ? (new PublicStoreResource($review->store))->resolve(request()) : null,
             ]);
 
         $all = $products->concat($stores)->sortByDesc('created_at')->values();
@@ -292,6 +293,21 @@ class ReviewService
         if (!$buyer->isBuyer()) {
             $this->reject('Only buyers can submit reviews.');
         }
+    }
+
+    /** @return array<string, mixed>|null */
+    private function publicProduct(?Product $product): ?array
+    {
+        if (! $product) {
+            return null;
+        }
+
+        $data = $product->toArray();
+        if ($product->relationLoaded('store') && $product->store) {
+            $data['store'] = (new PublicStoreResource($product->store))->resolve(request());
+        }
+
+        return $data;
     }
 
     private function reject(string $message): void

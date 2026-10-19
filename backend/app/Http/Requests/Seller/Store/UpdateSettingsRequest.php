@@ -16,6 +16,7 @@ class UpdateSettingsRequest extends FormRequest
         return [
             'is_active' => ['sometimes', 'boolean'],
             'phone_visibility' => ['sometimes', 'string', 'in:public,request,hidden'],
+            'seller_visibility' => ['sometimes', 'string', 'in:visible,anonymous'],
         ];
     }
 }

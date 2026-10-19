@@ -18,6 +18,7 @@ class PublicStoreResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $anonymous = $this->isAnonymousSeller();
         $productsCount = \App\Models\Product::where('store_id', $this->id)
             ->where('is_active', true)
             ->count();
@@ -32,23 +33,29 @@ class PublicStoreResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'name' => $this->name,
-            'slug' => $this->slug,
-            'description' => $this->description,
-            'email' => $this->email,
-            'phone' => $this->phone_visibility === 'public' ? $this->phone : null,
-            'profile_image' => $this->profile_image,
-            'profile_image_url' => $this->profile_image_url,
-            'banner_image' => $this->banner_image,
-            'banner_image_url' => $this->banner_image_url,
-            'theme_color' => $this->theme_color,
-            'social_links' => StoreSocialLinkResource::collection($links)->resolve($request),
+            // Preserve the internal id for product and order processing, but
+            // never serialise the seller's business identity to buyers while
+            // anonymous mode is selected.
+            'name' => $this->publicSellerName(),
+            'display_name' => $this->publicSellerName(),
+            'seller_code' => $anonymous ? $this->public_seller_code : null,
+            'is_anonymous' => $anonymous,
+            'slug' => $anonymous ? null : $this->slug,
+            'description' => $anonymous ? null : $this->description,
+            'email' => $anonymous ? null : $this->email,
+            'phone' => ! $anonymous && $this->phone_visibility === 'public' ? $this->phone : null,
+            'profile_image' => $anonymous ? null : $this->profile_image,
+            'profile_image_url' => $anonymous ? null : $this->profile_image_url,
+            'banner_image' => $anonymous ? null : $this->banner_image,
+            'banner_image_url' => $anonymous ? null : $this->banner_image_url,
+            'theme_color' => $anonymous ? null : $this->theme_color,
+            'social_links' => $anonymous ? [] : StoreSocialLinkResource::collection($links)->resolve($request),
             'status' => $this->status,
             'is_active' => $this->is_active,
             'products_count' => $productsCount,
-            'followers_count' => $followersCount,
-            'reviews_count' => $reviewsCount,
-            'rating' => $rating ? round((float) $rating, 2) : null,
+            'followers_count' => $anonymous ? null : $followersCount,
+            'reviews_count' => $anonymous ? null : $reviewsCount,
+            'rating' => ! $anonymous && $rating ? round((float) $rating, 2) : null,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

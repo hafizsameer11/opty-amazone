@@ -24,7 +24,13 @@ class BuyerWishlistController extends Controller
     public function store(int $productId, Request $request)
     {
         $item = $this->service->save($request->user(), $productId);
-        return ResponseHelper::success(['item' => $item->load('product')], 'Product saved', 201);
+        $product = $item->load(['product.store', 'product.category', 'product.variants'])->product;
+
+        return ResponseHelper::success(['item' => [
+            'id' => $item->id,
+            'created_at' => $item->created_at?->toISOString(),
+            'product' => app(\App\Services\Campaigns\DiscountPricingService::class)->product($product, $request->user()->id),
+        ]], 'Product saved', 201);
     }
 
     public function destroy(int $productId, Request $request)

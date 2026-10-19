@@ -2,6 +2,7 @@
 
 namespace App\Services\Referrals;
 
+use App\Http\Resources\PublicStoreResource;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\PlatformLedgerEntry;
@@ -499,7 +500,17 @@ class ReferralService
                 'pending' => (int) ($counts['pending'] ?? 0), 'qualified' => (int) ($counts['qualified'] ?? 0),
                 'rewarded' => (int) ($counts['rewarded'] ?? 0), 'rejected' => (int) ($counts['rejected'] ?? 0),
                 'reversed' => (int) ($counts['reversed'] ?? 0), 'total_rewards' => (float) (clone $rewards)->where('status', 'rewarded')->sum('amount')],
-            'campaigns' => $campaigns, 'history' => $rewards->paginate(25),
+            // Referral campaigns remain usable for anonymous sellers, but the
+            // buyer dashboard must receive the same redacted identity used by
+            // the catalogue and checkout.
+            'campaigns' => $campaigns->map(function (ReferralCampaign $campaign): array {
+                $data = $campaign->toArray();
+                if ($campaign->store) {
+                    $data['store'] = (new PublicStoreResource($campaign->store))->resolve(request());
+                }
+                return $data;
+            })->values(),
+            'history' => $rewards->paginate(25),
         ];
     }
 

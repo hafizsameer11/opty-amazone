@@ -28,6 +28,7 @@ class BuyerStoreController extends Controller
     public function getStore(int $id): JsonResponse
     {
         $store = Store::where('status', 'active')->where('is_active', true)
+            ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
             ->with(['socialLinks' => fn ($links) => $links->where('is_active', true)])
             ->findOrFail($id);
 
@@ -137,6 +138,9 @@ class BuyerStoreController extends Controller
 
     private function activeStore(int $id): Store
     {
-        return Store::where('status', 'active')->where('is_active', true)->findOrFail($id);
+        return Store::where('status', 'active')
+            ->where('is_active', true)
+            ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
+            ->findOrFail($id);
     }
 }

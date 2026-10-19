@@ -28,6 +28,9 @@ class PublicStoreController extends Controller
     {
         $query = Store::where('status', 'active')
             ->where('is_active', true)
+            // Anonymous sellers remain purchasable through their products,
+            // but do not have a browsable public storefront.
+            ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
             ->with(['socialLinks' => fn ($links) => $links->where('is_active', true)]);
 
         if ($request->has('search')) {
@@ -100,6 +103,7 @@ class PublicStoreController extends Controller
     {
         $store = Store::where('status', 'active')
             ->where('is_active', true)
+            ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
             ->with(['socialLinks' => fn ($links) => $links->where('is_active', true)])
             ->findOrFail($id);
 
@@ -113,6 +117,11 @@ class PublicStoreController extends Controller
      */
     public function getStoreReviews(int $id, Request $request): JsonResponse
     {
+        Store::where('status', 'active')
+            ->where('is_active', true)
+            ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
+            ->findOrFail($id);
+
         $reviews = $this->reviewService->getStoreReviews($id, array_merge($request->all(), ['verified' => true]));
 
         return ResponseHelper::success([

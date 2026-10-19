@@ -2,6 +2,7 @@
 
 namespace App\Services\Campaigns;
 
+use App\Http\Resources\PublicStoreResource;
 use App\Models\{Product, Cart, DiscountCampaign, DiscountCampaignUsage, Order};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -160,6 +161,13 @@ class DiscountPricingService
     public function product(Product $product, ?int $buyerId = null): array
     {
         $data = $product->toArray();
+
+        // Product catalogue responses are buyer-facing.  Do not leak a raw
+        // Store model here because Eloquent's normal `toArray()` includes the
+        // real seller name and contact/business fields.
+        if ($product->relationLoaded('store') && $product->store) {
+            $data['store'] = (new PublicStoreResource($product->store))->resolve(request());
+        }
         $quote = $this->quote([['product' => $product]], $buyerId)[0];
         $data['pricing'] = $quote; $data['price'] = $quote['discounted_price'];
         if ($quote['discount_amount'] > 0) { $data['compare_at_price'] = $quote['original_price']; }

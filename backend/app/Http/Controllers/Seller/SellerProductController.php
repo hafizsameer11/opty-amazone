@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Category;
 use App\Models\StoreCategoryFieldConfig;
+use App\Support\FrameOptionCatalog;
 use App\Http\Requests\Seller\Store\UploadImageRequest;
 use App\Services\Product\EyeHygieneVariantService;
 use App\Services\Product\ProductImageProcessingService;
@@ -416,9 +417,9 @@ class SellerProductController extends Controller
 
         // Define all possible field rules
         $allFieldRules = [
-            'frame_shape' => 'nullable|string|max:255',
-            'frame_material' => 'nullable|string|max:255',
-            'frame_color' => 'nullable|string|max:255',
+            'frame_shape' => FrameOptionCatalog::shapeRules(),
+            'frame_material' => FrameOptionCatalog::materialRules(),
+            'frame_color' => FrameOptionCatalog::colorRules(),
             'gender' => 'nullable|in:men,women,unisex,kids',
             'lens_type' => 'nullable|string',
             'lens_index_options' => 'nullable|array',
@@ -570,9 +571,9 @@ class SellerProductController extends Controller
             'stock_status' => 'sometimes|in:in_stock,out_of_stock,backorder',
             'images' => 'nullable|array',
             'images.*' => 'string|url',
-            'frame_shape' => 'nullable|string|max:255',
-            'frame_material' => 'nullable|string|max:255',
-            'frame_color' => 'nullable|string|max:255',
+            'frame_shape' => FrameOptionCatalog::shapeRules($product->frame_shape),
+            'frame_material' => FrameOptionCatalog::materialRules($product->frame_material),
+            'frame_color' => FrameOptionCatalog::colorRules($product->frame_color),
             'gender' => 'nullable|in:men,women,unisex,kids',
             'lens_type' => 'nullable|string',
             'lens_index_options' => 'nullable|array',

@@ -11,6 +11,7 @@ use App\Services\Coupon\CouponValidationException;
 use App\Services\Email\MarketplaceEmailService;
 use App\Services\Notifications\MarketplaceNotificationService;
 use App\Services\Order\OrderService;
+use App\Services\Marketplace\OrderView;
 use Illuminate\Http\Request;
 
 class BuyerCheckoutController extends Controller
@@ -82,7 +83,14 @@ class BuyerCheckoutController extends Controller
             $this->emails->orderPlacedBuyer($order);
             foreach ($result['store_orders'] as $storeOrder) $this->emails->orderPlacedSeller($storeOrder);
 
-            return ResponseHelper::success(['order' => $result['order'], 'store_orders' => $result['store_orders']], 'Order placed successfully');
+            $orderView = app(OrderView::class);
+            $buyerOrder = $result['order']->load(['storeOrders.store', 'storeOrders.items', 'storeOrders.escrow', 'storeOrders.payment']);
+            return ResponseHelper::success([
+                'order' => $orderView->buyerOrder($buyerOrder),
+                'store_orders' => collect($result['store_orders'])
+                    ->map(fn ($storeOrder) => $orderView->buyerShipment($storeOrder->load(['store', 'items', 'escrow', 'order', 'payment'])))
+                    ->values(),
+            ], 'Order placed successfully');
         } catch (CouponValidationException $exception) {
             return ResponseHelper::error($exception->getMessage(), ['reason' => $exception->reason], 422);
         } catch (\Exception $exception) {

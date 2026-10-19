@@ -186,7 +186,7 @@ class StoreChatService
         return StoreChatConversation::query()
             ->where('buyer_id', $buyer->id)
             ->whereHas('store', fn ($store) => $store->where('is_active', true)->where('status', 'active'))
-            ->with(['store:id,name,slug,profile_image,is_active,status'])
+            ->with(['store:id,user_id,name,slug,profile_image,is_active,status,seller_visibility,public_seller_code'])
             ->orderByDesc('last_message_at')
             ->orderByDesc('id')
             ->paginate($perPage);
@@ -276,21 +276,25 @@ class StoreChatService
     ): void {
         $preview = Str::limit(preg_replace('/\s+/', ' ', trim(strip_tags($message->body))) ?: 'Sent an attachment', 120);
 
+        $store = $conversation->store;
+        $sellerIsAnonymous = $senderRole === 'seller' && $store?->isAnonymousSeller();
+        $senderName = $sellerIsAnonymous ? $store->publicSellerName() : $sender->name;
+
         app(MarketplaceNotificationService::class)->send(
             $recipient,
             'chat.message_received',
-            "Nuovo messaggio da {$sender->name}",
-            "{$sender->name} ti ha inviato un nuovo messaggio: {$preview}",
+            "Nuovo messaggio da {$senderName}",
+            "{$senderName} ti ha inviato un nuovo messaggio: {$preview}",
             $url,
             [
                 'conversation_id' => $conversation->id,
                 'message_id' => $message->id,
                 'store_id' => $conversation->store_id,
                 'sender_id' => $sender->id,
-                'sender_name' => $sender->name,
+                'sender_name' => $senderName,
                 'sender_role' => $senderRole,
                 'sender_image_url' => $senderRole === 'seller'
-                    ? $conversation->store?->profile_image_url
+                    ? ($sellerIsAnonymous ? null : $store?->profile_image_url)
                     : $sender->profile_image_url,
                 'preview' => $preview,
             ],

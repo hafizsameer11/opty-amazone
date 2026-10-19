@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Buyer;
 
 use App\Helpers\ResponseHelper as R;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PublicStoreResource;
 use App\Models\ReferralAttribution;
 use App\Services\Referrals\ReferralService;
 use Illuminate\Http\Request;
@@ -45,6 +46,12 @@ class BuyerReferralController extends Controller
     {
         abort_unless($attribution->referred_user_id === $request->user()->id, 404);
 
-        return R::success($attribution->load(['campaign.store:id,name', 'product:id,name', 'referrer:id,name']));
+        $attribution->load(['campaign.store', 'product:id,name', 'referrer:id,name']);
+        $data = $attribution->toArray();
+        if ($attribution->campaign?->store) {
+            $data['campaign']['store'] = (new PublicStoreResource($attribution->campaign->store))->resolve($request);
+        }
+
+        return R::success($data);
     }
 }

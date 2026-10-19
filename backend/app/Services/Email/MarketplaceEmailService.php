@@ -292,7 +292,7 @@ class MarketplaceEmailService
         $this->send($storeOrder->order?->user, new MarketplaceTransactionalMail(
             "Preventivo di spedizione aggiunto per l'ordine {$storeOrder->order?->order_no}", 'Il tuo ordine è pronto per il pagamento',
             'Il venditore ha aggiunto il costo di spedizione. Controlla il totale aggiornato e completa il pagamento per iniziare la preparazione.',
-            $this->storeOrderDetails($storeOrder), $this->items($storeOrder->items),
+            $this->storeOrderDetails($storeOrder, publicIdentity: true), $this->items($storeOrder->items),
             'Controlla e paga', $this->buyerUrl("/store-orders/{$storeOrder->id}"), recipientName: $storeOrder->order?->user?->name,
         ));
     }
@@ -314,7 +314,7 @@ class MarketplaceEmailService
         $this->send($storeOrder->order?->user, new MarketplaceTransactionalMail(
             "Pagamento confermato per l'ordine {$storeOrder->order?->order_no}", 'Il tuo pagamento è andato a buon fine',
             'Il tuo pagamento è stato confermato. Il venditore può ora preparare il tuo ordine per la consegna.',
-            $this->storeOrderDetails($storeOrder), $this->items($storeOrder->items),
+            $this->storeOrderDetails($storeOrder, publicIdentity: true), $this->items($storeOrder->items),
             'Segui il tuo ordine', $this->buyerUrl("/store-orders/{$storeOrder->id}"), recipientName: $storeOrder->order?->user?->name,
         ));
     }
@@ -325,7 +325,7 @@ class MarketplaceEmailService
         $this->send($storeOrder->order?->user, new MarketplaceTransactionalMail(
             "Codice di consegna richiesto per l'ordine {$storeOrder->order?->order_no}", 'Condividi il tuo codice solo dopo la consegna',
             'Il venditore ha richiesto il tuo codice di conferma della consegna. Forniscilo al venditore solo dopo aver ricevuto l\'ordine e aver verificato che sia corretto.',
-            $this->storeOrderDetails($storeOrder), ctaLabel: 'Apri i dettagli dell\'ordine', ctaUrl: $this->buyerUrl("/store-orders/{$storeOrder->id}"),
+            $this->storeOrderDetails($storeOrder, publicIdentity: true), ctaLabel: 'Apri i dettagli dell\'ordine', ctaUrl: $this->buyerUrl("/store-orders/{$storeOrder->id}"),
             notice: 'Non condividere questo codice prima di aver ricevuto l\'ordine.', code: $code, recipientName: $storeOrder->order?->user?->name,
         ));
     }
@@ -424,9 +424,13 @@ class MarketplaceEmailService
     }
 
     /** @return array<string, string> */
-    private function storeOrderDetails(StoreOrder $order): array
+    private function storeOrderDetails(StoreOrder $order, bool $publicIdentity = false): array
     {
-        return ['Numero ordine' => $order->order?->order_no, 'Negozio' => $order->store?->name,
+        $storeName = $publicIdentity
+            ? $order->store?->publicSellerName()
+            : $order->store?->name;
+
+        return ['Numero ordine' => $order->order?->order_no, 'Negozio' => $storeName,
             'Subtotale articoli' => $this->money($order->subtotal), 'Sconto coupon' => $this->money($order->coupon_discount),
             'Costo di spedizione' => $this->money($order->delivery_fee), 'Totale' => $this->money($order->total),
             'Stato dell\'ordine' => $this->label($order->status)];

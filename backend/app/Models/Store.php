@@ -34,6 +34,16 @@ class Store extends Model
         self::STATUS_REJECTED,
     ];
 
+    /** Buyer-facing identity modes. The underlying store and seller account
+     * always remain intact for admin, payments, fulfilment and support. */
+    public const SELLER_VISIBILITY_VISIBLE = 'visible';
+    public const SELLER_VISIBILITY_ANONYMOUS = 'anonymous';
+
+    public const SELLER_VISIBILITIES = [
+        self::SELLER_VISIBILITY_VISIBLE,
+        self::SELLER_VISIBILITY_ANONYMOUS,
+    ];
+
     public const ONBOARDING_PENDING = 'pending';
     public const ONBOARDING_IN_PROGRESS = 'in_progress';
     public const ONBOARDING_PENDING_REVIEW = 'pending_review';
@@ -105,6 +115,7 @@ class Store extends Model
         'banner_image',
         'theme_color',
         'phone_visibility',
+        'seller_visibility',
         'status',
         'is_active',
         'onboarding_status',
@@ -139,7 +150,51 @@ class Store extends Model
             if (empty($store->slug)) {
                 $store->slug = Str::slug($store->name);
             }
+
+            if (empty($store->seller_visibility)) {
+                $store->seller_visibility = self::SELLER_VISIBILITY_VISIBLE;
+            }
+
+            if (empty($store->public_seller_code)) {
+                $store->public_seller_code = self::generatePublicSellerCode();
+            }
         });
+    }
+
+    /**
+     * A stable marketplace label for buyer-facing use.  It deliberately does
+     * not alter the real store name, which remains available to the seller
+     * and platform administrators.
+     */
+    public function publicSellerName(): string
+    {
+        return $this->isAnonymousSeller()
+            ? (string) $this->public_seller_code
+            : (string) $this->name;
+    }
+
+    public function isAnonymousSeller(): bool
+    {
+        return $this->seller_visibility === self::SELLER_VISIBILITY_ANONYMOUS;
+    }
+
+    /** @return array{is_anonymous: bool, seller_code: ?string, display_name: string} */
+    public function publicIdentity(): array
+    {
+        return [
+            'is_anonymous' => $this->isAnonymousSeller(),
+            'seller_code' => $this->isAnonymousSeller() ? $this->public_seller_code : null,
+            'display_name' => $this->publicSellerName(),
+        ];
+    }
+
+    private static function generatePublicSellerCode(): string
+    {
+        do {
+            $code = 'VX-'.Str::upper(Str::random(6));
+        } while (static::withTrashed()->where('public_seller_code', $code)->exists());
+
+        return $code;
     }
 
     /**

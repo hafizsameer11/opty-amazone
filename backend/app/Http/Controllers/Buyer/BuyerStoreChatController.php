@@ -53,8 +53,8 @@ class BuyerStoreChatController extends Controller
         }
 
         return ResponseHelper::success([
-            'conversation' => $this->serializeConversation($payload['conversation']),
-            'messages' => $payload['messages']->map(fn ($m) => $this->serializeMessage($m)),
+            'conversation' => $this->serializeConversation($payload['conversation']->load('store')),
+            'messages' => $payload['messages']->map(fn ($m) => $this->serializeMessage($m, $payload['conversation']->store)),
         ]);
     }
 
@@ -78,7 +78,7 @@ class BuyerStoreChatController extends Controller
         }
 
         return ResponseHelper::success([
-            'messages' => $messages->map(fn ($m) => $this->serializeMessage($m)),
+            'messages' => $messages->map(fn ($m) => $this->serializeMessage($m, $conversation->loadMissing('store')->store)),
         ]);
     }
 
@@ -112,7 +112,7 @@ class BuyerStoreChatController extends Controller
         }
 
         return ResponseHelper::success([
-            'message' => $this->serializeMessage($message),
+            'message' => $this->serializeMessage($message, $this->storeChatService->resolveActiveStore($storeId)),
         ], 'Message sent', 201);
     }
 
@@ -127,16 +127,24 @@ class BuyerStoreChatController extends Controller
             'last_message_preview' => $c->last_message_preview,
             'store' => $c->relationLoaded('store') && $c->store ? [
                 'id' => $c->store->id,
-                'name' => $c->store->name,
-                'slug' => $c->store->slug,
-                'profile_image' => $c->store->profile_image,
-                'profile_image_url' => $c->store->profile_image_url,
+                'name' => $c->store->publicSellerName(),
+                'display_name' => $c->store->publicSellerName(),
+                'seller_code' => $c->store->isAnonymousSeller() ? $c->store->public_seller_code : null,
+                'is_anonymous' => $c->store->isAnonymousSeller(),
+                'slug' => $c->store->isAnonymousSeller() ? null : $c->store->slug,
+                'profile_image' => $c->store->isAnonymousSeller() ? null : $c->store->profile_image,
+                'profile_image_url' => $c->store->isAnonymousSeller() ? null : $c->store->profile_image_url,
             ] : null,
         ];
     }
 
-    private function serializeMessage(\App\Models\StoreChatMessage $m): array
+    private function serializeMessage(\App\Models\StoreChatMessage $m, ?\App\Models\Store $store = null): array
     {
+        $sellerMessage = $store && (int) $m->sender_id === (int) $store->user_id;
+        $senderName = $sellerMessage && $store->isAnonymousSeller()
+            ? $store->publicSellerName()
+            : $m->sender?->name;
+
         return [
             'id' => $m->id,
             'store_chat_conversation_id' => $m->store_chat_conversation_id,
@@ -148,7 +156,7 @@ class BuyerStoreChatController extends Controller
             'attachment_url' => $m->attachment_url,
             'created_at' => $m->created_at?->toIso8601String(),
             'sender' => $m->relationLoaded('sender') && $m->sender
-                ? ['id' => $m->sender->id, 'name' => $m->sender->name]
+                ? ['id' => $m->sender->id, 'name' => $senderName]
                 : null,
         ];
     }

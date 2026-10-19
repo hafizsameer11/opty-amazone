@@ -11,6 +11,7 @@ use App\Models\ProductVariant;
 use App\Models\ProductSizeVolume;
 use App\Models\EyeHygieneVariant;
 use App\Models\FrameSize;
+use App\Http\Resources\PublicStoreResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +41,11 @@ class BuyerCartController extends Controller
         $cart->load(['items.product', 'items.store', 'items.variant', 'items.frameSize']);
 
         app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
-        // Group items by store
+        $publicItems = $cart->items->map(fn (CartItem $item) => $this->publicCartItem($item))->values();
+
+        // Group items by store. The persisted store id is retained for
+        // checkout mechanics, while the buyer-facing label respects the
+        // seller's anonymity preference.
         $itemsByStore = $cart->items()->with('product', 'store', 'variant', 'frameSize')->get()->groupBy('store_id');
         $breakdown = [];
 
@@ -48,8 +53,10 @@ class BuyerCartController extends Controller
             $store = $items->first()->store;
             $breakdown[] = [
                 'store_id' => $storeId,
-                'store_name' => $store->name,
-                'items' => $items,
+                'store_name' => $store->publicSellerName(),
+                'seller_code' => $store->isAnonymousSeller() ? $store->public_seller_code : null,
+                'is_anonymous' => $store->isAnonymousSeller(),
+                'items' => $items->map(fn (CartItem $item) => $this->publicCartItem($item))->values(),
                 'subtotal' => $items->sum(function ($item) {
                     return $item->price * $item->quantity;
                 }),
@@ -57,8 +64,8 @@ class BuyerCartController extends Controller
         }
 
         return ResponseHelper::success([
-            'cart' => $cart,
-            'items' => $cart->items,
+            'cart' => array_merge($cart->withoutRelations()->toArray(), ['items' => $publicItems]),
+            'items' => $publicItems,
             'breakdown' => $breakdown,
             'total' => $cart->items->sum(function ($item) {
                 return $item->price * $item->quantity;
@@ -292,7 +299,7 @@ class BuyerCartController extends Controller
             DB::commit();
 
             app(\App\Services\Ads\AdTrackingService::class)->trackCart($request, (int) $product->id);
-            return ResponseHelper::success($item->load('product', 'store', 'variant', 'frameSize'), 'Item added to cart');
+            return ResponseHelper::success($this->publicCartItem($item->load('product', 'store', 'variant', 'frameSize')), 'Item added to cart');
         } catch (\Exception $e) {
             DB::rollBack();
             return ResponseHelper::error($e->getMessage());
@@ -323,7 +330,7 @@ class BuyerCartController extends Controller
         app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
         $item->refresh();
 
-        return ResponseHelper::success($item->load('product', 'store', 'variant', 'frameSize'), 'Cart item updated');
+        return ResponseHelper::success($this->publicCartItem($item->load('product', 'store', 'variant', 'frameSize')), 'Cart item updated');
     }
 
     /** Persist human-readable option details without trusting client values. */
@@ -347,6 +354,18 @@ class BuyerCartController extends Controller
         }
 
         return $snapshot === [] ? null : $snapshot;
+    }
+
+    /** @return array<string, mixed> */
+    private function publicCartItem(CartItem $item): array
+    {
+        $data = $item->toArray();
+
+        if ($item->relationLoaded('store') && $item->store) {
+            $data['store'] = (new PublicStoreResource($item->store))->resolve(request());
+        }
+
+        return $data;
     }
 
     /**

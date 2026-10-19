@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\ResponseHelper;
+use App\Http\Resources\PublicStoreResource;
 use App\Models\Product;
 use App\Models\Store;
 use Illuminate\Http\Request;
@@ -35,6 +36,7 @@ class SearchController extends Controller
         // Search stores
         $stores = Store::where('is_active', true)
             ->where('status', 'active')
+            ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
             ->where(function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")
                   ->orWhere('description', 'like', "%{$query}%");
@@ -44,7 +46,7 @@ class SearchController extends Controller
 
         return ResponseHelper::success([
             'products' => $products->map(fn ($p) => app(\App\Services\Campaigns\DiscountPricingService::class)->product($p, request()->user('sanctum')?->id)),
-            'stores' => $stores,
+            'stores' => PublicStoreResource::collection($stores)->resolve($request),
             'query' => $query,
         ], 'Search results retrieved successfully');
     }

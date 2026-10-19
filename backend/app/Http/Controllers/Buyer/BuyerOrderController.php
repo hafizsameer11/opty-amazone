@@ -29,7 +29,10 @@ class BuyerOrderController extends Controller
 
     public function index(Request $r)
     {
-        return R::success($this->orders()->latest()->paginate(min(100, max(1, $r->integer('per_page', 15)))));
+        $orders = $this->orders()->latest()->paginate(min(100, max(1, $r->integer('per_page', 15))));
+        $orders->setCollection($orders->getCollection()->map(fn (Order $order) => app(OrderView::class)->buyerOrder($order)));
+
+        return R::success($orders);
     }
 
     public function show($id)
@@ -39,7 +42,10 @@ class BuyerOrderController extends Controller
 
     public function storeOrders(Request $r)
     {
-        return R::success($this->shipments()->latest()->paginate(min(100, max(1, $r->integer('per_page', 15)))));
+        $orders = $this->shipments()->latest()->paginate(min(100, max(1, $r->integer('per_page', 15))));
+        $orders->setCollection($orders->getCollection()->map(fn (StoreOrder $order) => app(OrderView::class)->buyerShipment($order)));
+
+        return R::success($orders);
     }
 
     public function showStoreOrder($id)
@@ -77,7 +83,7 @@ class BuyerOrderController extends Controller
         app(MarketplaceNotificationService::class)->send($so->store?->user, 'order.refunded', 'Ordine rimborsato',
             "L'ordine {$so->order?->order_no} è stato annullato e rimborsato.", "/orders/{$so->id}",
             ['order_id' => $so->order_id, 'store_order_id' => $so->id]);
-        return R::success($so);
+        return R::success(app(OrderView::class)->buyerShipment($so->load(['store', 'items', 'escrow', 'order', 'payment'])));
     }
 
     public function dispute(Request $r, $id)
@@ -88,7 +94,7 @@ class BuyerOrderController extends Controller
         app(MarketplaceNotificationService::class)->send($so->store?->user, 'order.disputed', 'Contestazione aperta',
             "È stata aperta una contestazione per l'ordine {$so->order?->order_no}.", "/orders/{$so->id}",
             ['order_id' => $so->order_id, 'store_order_id' => $so->id, 'reason' => $data['reason']]);
-        return R::success($so);
+        return R::success(app(OrderView::class)->buyerShipment($so->load(['store', 'items', 'escrow', 'order', 'payment'])));
     }
 
     public function deliveryCode(Request $r, $id)
@@ -109,7 +115,7 @@ class BuyerOrderController extends Controller
         $order = $this->orders()->findOrFail($id);
         $unpaid = $order->storeOrders->where('status', 'awaiting_payment')->values();
 
-        return R::success(['order' => app(OrderView::class)->buyerOrder($order), 'unpaid_store_orders' => $unpaid,
+        return R::success(['order' => app(OrderView::class)->buyerOrder($order), 'unpaid_store_orders' => $unpaid->map(fn (StoreOrder $storeOrder) => app(OrderView::class)->buyerShipment($storeOrder))->values(),
             'total_due' => $unpaid->sum('total'), 'card_available' => false]);
     }
 }

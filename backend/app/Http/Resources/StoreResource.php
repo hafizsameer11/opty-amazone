@@ -39,6 +39,8 @@ class StoreResource extends JsonResource
             'banner_image_url' => $this->banner_image_url,
             'theme_color' => $this->theme_color,
             'phone_visibility' => $this->phone_visibility,
+            'seller_visibility' => $this->seller_visibility,
+            'public_seller_code' => $this->public_seller_code,
             'status' => $this->status,
             'is_active' => $this->is_active,
             'onboarding_status' => $this->onboarding_status,
