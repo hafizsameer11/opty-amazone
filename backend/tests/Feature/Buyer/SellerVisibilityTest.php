@@ -18,6 +18,8 @@ class SellerVisibilityTest extends TestCase
             'name' => 'Private Optics Ltd',
             'email' => 'private@example.test',
             'phone' => '+39 555 0100',
+            'profile_image' => 'stores/private-profile.webp',
+            'banner_image' => 'stores/private-banner.webp',
             'seller_visibility' => Store::SELLER_VISIBILITY_ANONYMOUS,
         ])->fresh();
 
@@ -32,12 +34,14 @@ class SellerVisibilityTest extends TestCase
         $this->assertNull($first['email']);
         $this->assertNull($first['phone']);
         $this->assertNull($first['description']);
+        $this->assertSame('stores/private-profile.webp', $first['profile_image']);
+        $this->assertSame('stores/private-banner.webp', $first['banner_image']);
     }
 
-    public function test_anonymous_store_is_not_exposed_in_the_public_storefront_directory(): void
+    public function test_anonymous_store_remains_in_the_public_storefront_directory_under_its_code(): void
     {
         $visible = Store::factory()->approved()->create(['name' => 'Visible Optics']);
-        Store::factory()->approved()->create([
+        $anonymous = Store::factory()->approved()->create([
             'name' => 'Anonymous Optics',
             'seller_visibility' => Store::SELLER_VISIBILITY_ANONYMOUS,
         ]);
@@ -46,6 +50,26 @@ class SellerVisibilityTest extends TestCase
             ->assertOk()
             ->json('data.stores');
 
-        $this->assertSame([$visible->name], collect($stores)->pluck('name')->all());
+        $names = collect($stores)->pluck('name')->all();
+        $this->assertContains($visible->name, $names);
+        $this->assertContains($anonymous->public_seller_code, $names);
+        $this->assertNotContains($anonymous->name, $names);
+
+        $this->getJson('/api/stores/'.$anonymous->id)
+            ->assertOk()
+            ->assertJsonPath('data.store.name', $anonymous->public_seller_code)
+            ->assertJsonPath('data.store.is_anonymous', true)
+            ->assertJsonPath('data.store.email', null);
+
+        $this->getJson('/api/search?q='.$anonymous->public_seller_code)
+            ->assertOk()
+            ->assertJsonPath('data.stores.0.name', $anonymous->public_seller_code)
+            ->assertJsonPath('data.stores.0.is_anonymous', true);
+
+        $storesFoundByPrivateName = $this->getJson('/api/search?q=Anonymous')
+            ->assertOk()
+            ->json('data.stores');
+
+        $this->assertFalse(collect($storesFoundByPrivateName)->contains('id', $anonymous->id));
     }
 }

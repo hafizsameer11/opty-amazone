@@ -22,7 +22,6 @@ class StoreFollowerService
 
             $store = Store::where('status', 'active')
                 ->where('is_active', true)
-                ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
                 ->findOrFail($storeId);
 
             // firstOrCreate keeps repeated follow clicks idempotent and also
@@ -116,7 +115,6 @@ class StoreFollowerService
             ->with(['socialLinks' => fn ($links) => $links->where('is_active', true)])
             ->where('status', 'active')
             ->where('is_active', true)
-            ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
             ->orderBy('name')
             ->get();
     }

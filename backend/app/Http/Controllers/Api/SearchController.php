@@ -36,10 +36,19 @@ class SearchController extends Controller
         // Search stores
         $stores = Store::where('is_active', true)
             ->where('status', 'active')
-            ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
-            ->where(function ($q) use ($query) {
-                $q->where('name', 'like', "%{$query}%")
-                  ->orWhere('description', 'like', "%{$query}%");
+            ->where(function ($stores) use ($query) {
+                // Anonymous sellers can be found by their public VX code, but
+                // their real name and description must never become searchable.
+                $stores->where(function ($visible) use ($query) {
+                    $visible->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
+                        ->where(function ($fields) use ($query) {
+                            $fields->where('name', 'like', "%{$query}%")
+                                ->orWhere('description', 'like', "%{$query}%");
+                        });
+                })->orWhere(function ($anonymous) use ($query) {
+                    $anonymous->where('seller_visibility', Store::SELLER_VISIBILITY_ANONYMOUS)
+                        ->where('public_seller_code', 'like', "%{$query}%");
+                });
             })
             ->limit(10)
             ->get();

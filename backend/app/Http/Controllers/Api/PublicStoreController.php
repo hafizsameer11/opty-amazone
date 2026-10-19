@@ -28,13 +28,21 @@ class PublicStoreController extends Controller
     {
         $query = Store::where('status', 'active')
             ->where('is_active', true)
-            // Anonymous sellers remain purchasable through their products,
-            // but do not have a browsable public storefront.
-            ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
             ->with(['socialLinks' => fn ($links) => $links->where('is_active', true)]);
 
         if ($request->has('search')) {
-            $query->where('name', 'like', '%' . $request->input('search') . '%');
+            $term = '%'.$request->input('search').'%';
+            $query->where(function (Builder $stores) use ($term) {
+                // Never search an anonymous seller by their real store name or
+                // description: that would reveal the identity we are hiding.
+                $stores->where(function (Builder $visible) use ($term) {
+                    $visible->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
+                        ->where('name', 'like', $term);
+                })->orWhere(function (Builder $anonymous) use ($term) {
+                    $anonymous->where('seller_visibility', Store::SELLER_VISIBILITY_ANONYMOUS)
+                        ->where('public_seller_code', 'like', $term);
+                });
+            });
         }
 
         $this->applySort($query, (string) $request->query('sort', ''));
@@ -90,7 +98,12 @@ class PublicStoreController extends Controller
         }
 
         match ($sort) {
-            'name_asc' => $query->orderBy('stores.name'),
+            // The public name of an anonymous seller is the VX code, rather
+            // than their private store name.
+            'name_asc' => $query->orderByRaw(
+                'CASE WHEN seller_visibility = ? THEN public_seller_code ELSE name END',
+                [Store::SELLER_VISIBILITY_ANONYMOUS]
+            ),
             'newest' => $query->orderByDesc('stores.created_at'),
             default => null,
         };
@@ -103,7 +116,6 @@ class PublicStoreController extends Controller
     {
         $store = Store::where('status', 'active')
             ->where('is_active', true)
-            ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
             ->with(['socialLinks' => fn ($links) => $links->where('is_active', true)])
             ->findOrFail($id);
 
@@ -119,7 +131,6 @@ class PublicStoreController extends Controller
     {
         Store::where('status', 'active')
             ->where('is_active', true)
-            ->where('seller_visibility', Store::SELLER_VISIBILITY_VISIBLE)
             ->findOrFail($id);
 
         $reviews = $this->reviewService->getStoreReviews($id, array_merge($request->all(), ['verified' => true]));
