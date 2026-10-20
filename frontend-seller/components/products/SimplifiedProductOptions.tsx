@@ -5,6 +5,7 @@ import Input from '@/components/ui/Input';
 import LensCustomization from './LensCustomization';
 import ProductLensColorsEditor from './ProductLensColorsEditor';
 import EyeHygieneVariantsEditor from './EyeHygieneVariantsEditor';
+import { FrameAttributeFields } from './FrameAttributeFields';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface SimplifiedProductOptionsProps {
@@ -26,10 +27,6 @@ export default function SimplifiedProductOptions({
   const showLensCustomization = productType === 'frame' || productType === 'sunglasses';
   const framePad = compact ? 'p-3' : 'p-6';
   const frameTitle = compact ? 'text-sm font-semibold text-gray-900 mb-2' : 'text-lg font-semibold text-gray-900 mb-4';
-  const inputCls = compact
-    ? '[&_label]:text-xs [&_label]:mb-1 [&_input]:py-2 [&_input]:px-2 [&_input]:text-sm [&_input]:rounded-md'
-    : '';
-
   return (
     <div className={compact ? 'space-y-3' : 'space-y-6'}>
       {showLensCustomization && (
@@ -38,26 +35,7 @@ export default function SimplifiedProductOptions({
           <p className={compact ? 'text-[11px] text-gray-500 mb-2' : 'text-sm text-gray-500 mb-3'}>
             {t('form.frameDefaultsDescription')}
           </p>
-          <div className={`grid grid-cols-1 md:grid-cols-3 ${compact ? 'gap-2' : 'gap-4'} ${inputCls}`}>
-            <Input
-              label={t('form.frameShape')}
-              value={formData.frame_shape || ''}
-              onChange={(e) => setFormData({ ...formData, frame_shape: e.target.value })}
-              placeholder="Round, square…"
-            />
-            <Input
-              label={t('form.frameMaterial')}
-              value={formData.frame_material || ''}
-              onChange={(e) => setFormData({ ...formData, frame_material: e.target.value })}
-              placeholder="Acetate, metal…"
-            />
-            <Input
-              label={t('form.defaultFrameColor')}
-              value={formData.frame_color || ''}
-              onChange={(e) => setFormData({ ...formData, frame_color: e.target.value })}
-              placeholder="Black, tortoise…"
-            />
-          </div>
+          <FrameAttributeFields formData={formData} setFormData={setFormData} compact={compact} />
           <div className={compact ? 'mt-2' : 'mt-4'}>
             <label className={`block ${compact ? 'text-xs' : 'text-sm'} font-semibold text-gray-700 mb-1`}>{t('form.gender')}</label>
             <select
@@ -178,7 +156,7 @@ export default function SimplifiedProductOptions({
           <p className={compact ? 'text-[11px] text-gray-500 mb-2' : 'text-sm text-gray-500 mb-3'}>
             {t('form.legacyOptional')}
           </p>
-          <div className={`grid grid-cols-1 md:grid-cols-2 ${compact ? 'gap-2' : 'gap-4'} ${inputCls}`}>
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${compact ? 'gap-2' : 'gap-4'}`}>
             <Input
               label={`Size/Volume ${t('form.listingDefault')}`}
               value={formData.size_volume || ''}

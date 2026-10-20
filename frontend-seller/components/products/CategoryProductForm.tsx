@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Input from '@/components/ui/Input';
 import { CreateProductData } from '@/services/product-service';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { FrameAttributeFields } from './FrameAttributeFields';
 
 interface CategoryProductFormProps {
   formData: CreateProductData;
@@ -49,43 +50,7 @@ export default function CategoryProductForm({
               <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
               {t('form.frameDetails')}
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {isFieldEnabled('frame_shape') && (
-                <div className="bg-white rounded-lg p-4 border border-blue-100">
-                  <Input
-                    label={t('form.frameShape')}
-                    value={formData.frame_shape || ''}
-                    onChange={(e) => setFormData({ ...formData, frame_shape: e.target.value })}
-                    placeholder="e.g., Round, Square, Aviator"
-                    className="bg-white"
-                  />
-                </div>
-              )}
-              
-              {isFieldEnabled('frame_material') && (
-                <div className="bg-white rounded-lg p-4 border border-indigo-100">
-                  <Input
-                    label={t('form.frameMaterial')}
-                    value={formData.frame_material || ''}
-                    onChange={(e) => setFormData({ ...formData, frame_material: e.target.value })}
-                    placeholder="e.g., Acetate, Metal, Titanium"
-                    className="bg-white"
-                  />
-                </div>
-              )}
-              
-              {isFieldEnabled('frame_color') && (
-                <div className="bg-white rounded-lg p-4 border border-purple-100">
-                  <Input
-                    label={t('form.frameColor')}
-                    value={formData.frame_color || ''}
-                    onChange={(e) => setFormData({ ...formData, frame_color: e.target.value })}
-                    placeholder="e.g., Black, Brown, Tortoise"
-                    className="bg-white"
-                  />
-                </div>
-              )}
-            </div>
+            <FrameAttributeFields formData={formData} setFormData={setFormData} enabled={isFieldEnabled} />
             {isFieldEnabled('gender') && (
               <div className="mt-5 bg-white rounded-lg p-5 border border-blue-200">
                 <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">

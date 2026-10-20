@@ -119,7 +119,7 @@ export class StoreService {
   /**
    * Update settings
    */
-  static async updateSettings(data: { is_active?: boolean; phone_visibility?: string }): Promise<{ success: boolean; data: { store: Store }; message: string }> {
+  static async updateSettings(data: { is_active?: boolean; phone_visibility?: string; seller_visibility?: 'visible' | 'anonymous' }): Promise<{ success: boolean; data: { store: Store }; message: string }> {
     const response = await apiClient.put('/seller/store/settings', data);
     return response.data;
   }

@@ -8,6 +8,7 @@ import { StoreService } from '@/services/store-service';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 type PhoneVisibility = 'public' | 'request' | 'hidden';
+type SellerVisibility = 'visible' | 'anonymous';
 
 const errorMessage = (error: unknown, fallback: string) => {
   if (!error || typeof error !== 'object') return fallback;
@@ -28,6 +29,8 @@ const VISIBILITY_OPTIONS: Array<{
 export default function StoreSettingsPanel() {
   const { t } = useLanguage();
   const [visibility, setVisibility] = useState<PhoneVisibility>('request');
+  const [sellerVisibility, setSellerVisibility] = useState<SellerVisibility>('visible');
+  const [sellerCode, setSellerCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,11 +39,16 @@ export default function StoreSettingsPanel() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const response = await StoreService.getPhoneVisibility();
-        const savedVisibility = response.data.phone_visibility;
+        const response = await StoreService.getSettings();
+        const savedVisibility = response.data.settings?.phone_visibility;
         if (savedVisibility === 'public' || savedVisibility === 'request' || savedVisibility === 'hidden') {
           setVisibility(savedVisibility);
         }
+        const savedSellerVisibility = response.data.settings?.seller_visibility;
+        if (savedSellerVisibility === 'visible' || savedSellerVisibility === 'anonymous') {
+          setSellerVisibility(savedSellerVisibility);
+        }
+        setSellerCode(response.data.settings?.public_seller_code ?? null);
       } catch (requestError: unknown) {
         setError(errorMessage(requestError, t('storeSettings.loadFailed')));
       } finally {
@@ -58,7 +66,7 @@ export default function StoreSettingsPanel() {
     setSuccess(null);
 
     try {
-      await StoreService.updatePhoneVisibility(visibility);
+      await StoreService.updateSettings({ phone_visibility: visibility, seller_visibility: sellerVisibility });
       setSuccess(t('storeSettings.saved'));
     } catch (requestError: unknown) {
       setError(errorMessage(requestError, t('storeSettings.saveFailed')));
@@ -92,7 +100,7 @@ export default function StoreSettingsPanel() {
         {loading ? (
           <div className="flex min-h-44 items-center justify-center text-sm text-slate-500">
             <span className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-[#0066CC] border-t-transparent" />
-            Loading store settings…
+            {t('storeSettings.loading')}
           </div>
         ) : (
           <>
@@ -118,6 +126,26 @@ export default function StoreSettingsPanel() {
                       <span>
                         <span className="block font-semibold text-slate-900">{t(`storeSettings.${option.value}`)}</span>
                         <span className="mt-1 block text-sm text-slate-600">{t(`storeSettings.${option.value}Description`)}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+            <fieldset className="mt-7 border-t border-slate-100 pt-6">
+              <legend className="text-sm font-bold text-slate-900">{t('storeSettings.sellerVisibility')}</legend>
+              <p className="mt-1 text-sm text-slate-500">{t('storeSettings.sellerVisibilityDescription')}</p>
+              <div className="mt-4 grid gap-3">
+                {(['visible', 'anonymous'] as SellerVisibility[]).map((option) => {
+                  const selected = sellerVisibility === option;
+                  const key = option === 'visible' ? 'Visible' : 'Anonymous';
+                  return (
+                    <label key={option} className={`flex cursor-pointer items-start gap-3 rounded-2xl border-2 p-4 transition ${selected ? 'border-[#0066CC] bg-blue-50/70' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
+                      <input type="radio" name="seller_visibility" value={option} checked={selected} onChange={() => setSellerVisibility(option)} className="mt-1 h-4 w-4 accent-[#0066CC]" />
+                      <span>
+                        <span className="block font-semibold text-slate-900">{t(`storeSettings.seller${key}`)}</span>
+                        <span className="mt-1 block text-sm text-slate-600">{t(`storeSettings.seller${key}Description`)}</span>
+                        {option === 'anonymous' && sellerCode ? <span className="mt-2 inline-flex rounded-lg bg-slate-950 px-2 py-1 font-mono text-xs font-bold text-white">{sellerCode}</span> : null}
                       </span>
                     </label>
                   );

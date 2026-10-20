@@ -6,7 +6,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
 import Sidebar from '@/components/layout/Sidebar';
-import { productService, type Category, type CreateProductData } from '@/services/product-service';
+import {
+  productService,
+  productToEditFormData,
+  type Category,
+  type CreateProductData,
+  type Product,
+} from '@/services/product-service';
 import { categoryFieldConfigService } from '@/services/category-field-config-service';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -14,8 +20,12 @@ import Alert from '@/components/ui/Alert';
 import ProductImageUpload from '@/components/products/ProductImageUpload';
 import SimplifiedProductOptions from '@/components/products/SimplifiedProductOptions';
 import ContactLensCategorySelect from '@/components/products/ContactLensCategorySelect';
+import ContactLensSpecificationEditor from '@/components/products/ContactLensSpecificationEditor';
+import ContactLensPackUnitsEditor from '@/components/products/ContactLensPackUnitsEditor';
 import { useSuggestedProductSku } from '@/lib/use-suggested-product-sku';
 import { useLanguage } from '@/contexts/LanguageContext';
+
+type CreationStep = 'details' | 'prescription' | 'packs';
 
 export default function ContactLensesProductPage() {
   const router = useRouter();
@@ -23,11 +33,13 @@ export default function ContactLensesProductPage() {
   const { t } = useLanguage();
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState<number | undefined>();
-  const [enabledFields, setEnabledFields] = useState<string[]>([]);
+  const [, setEnabledFields] = useState<string[]>([]);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [successToast, setSuccessToast] = useState('');
+  const [createdProduct, setCreatedProduct] = useState<Product | null>(null);
+  const [creationStep, setCreationStep] = useState<CreationStep>('details');
 
   const [formData, setFormData] = useState<CreateProductData>({
     name: '',
@@ -60,9 +72,45 @@ export default function ContactLensesProductPage() {
   }, [isAuthenticated, loading, router]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadCategories();
-    }
+    if (!isAuthenticated) return;
+
+    let cancelled = false;
+    const loadCategoriesAndFields = async () => {
+      try {
+        const data = await productService.getCategories();
+        if (cancelled) return;
+
+        setCategories(data);
+        const contactLensesCategory = data.find((category) => category.slug === 'contact-lenses');
+        if (!contactLensesCategory) {
+          setLoadingConfig(false);
+          return;
+        }
+
+        setCategoryId(contactLensesCategory.id);
+        setFormData((previous) => ({ ...previous, category_id: contactLensesCategory.id }));
+
+        try {
+          setLoadingConfig(true);
+          const config = await categoryFieldConfigService.getFieldsForCategory(contactLensesCategory.id);
+          if (!cancelled) setEnabledFields(config.enabled_fields);
+        } catch (error) {
+          console.error('Failed to load field config:', error);
+          if (!cancelled) setEnabledFields([]);
+        } finally {
+          if (!cancelled) setLoadingConfig(false);
+        }
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+        if (!cancelled) setLoadingConfig(false);
+      }
+    };
+
+    void loadCategoriesAndFields();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -71,36 +119,6 @@ export default function ContactLensesProductPage() {
     return () => clearTimeout(timer);
   }, [successToast]);
 
-  const loadCategories = async () => {
-    try {
-      const data = await productService.getCategories();
-      setCategories(data);
-      
-      const contactLensesCategory = data.find(cat => cat.slug === 'contact-lenses');
-      if (contactLensesCategory) {
-        setCategoryId(contactLensesCategory.id);
-        setFormData(prev => ({ ...prev, category_id: contactLensesCategory.id }));
-        await loadFieldConfig(contactLensesCategory.id);
-      }
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-      setLoadingConfig(false);
-    }
-  };
-
-  const loadFieldConfig = async (catId: number) => {
-    try {
-      setLoadingConfig(true);
-      const config = await categoryFieldConfigService.getFieldsForCategory(catId);
-      setEnabledFields(config.enabled_fields);
-    } catch (error) {
-      console.error('Failed to load field config:', error);
-      setEnabledFields([]);
-    } finally {
-      setLoadingConfig(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -108,16 +126,26 @@ export default function ContactLensesProductPage() {
     setSaving(true);
 
     try {
-      await productService.create(formData);
-      setSuccessToast(t('products.created'));
-      setTimeout(() => {
-        router.push('/products');
-      }, 700);
-    } catch (error: any) {
-      const errorMessage = 
-        error.response?.data?.errors?.name?.[0] ||
-        error.response?.data?.errors?.sku?.[0] ||
-        error.response?.data?.message ||
+      if (createdProduct) {
+        const updated = await productService.update(createdProduct.id, formData);
+        setCreatedProduct(updated);
+        setFormData(productToEditFormData(updated));
+        setSuccessToast(t('products.updated'));
+      } else {
+        const created = await productService.create(formData);
+        setCreatedProduct(created);
+        setFormData(productToEditFormData(created));
+        setCreationStep('prescription');
+        setSuccessToast(t('products.created'));
+      }
+    } catch (error: unknown) {
+      const apiError = error as {
+        response?: { data?: { errors?: { name?: string[]; sku?: string[] }; message?: string } };
+      };
+      const errorMessage =
+        apiError.response?.data?.errors?.name?.[0] ||
+        apiError.response?.data?.errors?.sku?.[0] ||
+        apiError.response?.data?.message ||
         t('products.createFailed');
       setError(errorMessage);
     } finally {
@@ -130,6 +158,12 @@ export default function ContactLensesProductPage() {
       ...formData,
       images,
     });
+  };
+
+  const patchFormData = (
+    data: CreateProductData | ((previous: CreateProductData) => CreateProductData)
+  ) => {
+    setFormData((previous) => (typeof data === 'function' ? data(previous) : data));
   };
 
   if (loading || loadingConfig) {
@@ -173,6 +207,34 @@ export default function ContactLensesProductPage() {
                   </div>
                 )}
 
+                {createdProduct && (
+                  <div className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <nav className="flex flex-wrap border-b border-gray-200" aria-label="Contact lens creation steps">
+                      {(
+                        [
+                          { id: 'details' as const, label: t('form.productDetails') },
+                          { id: 'prescription' as const, label: t('form.prescriptionTab') },
+                          { id: 'packs' as const, label: t('form.packPricingTab') },
+                        ] as const
+                      ).map((step) => (
+                        <button
+                          key={step.id}
+                          type="button"
+                          onClick={() => setCreationStep(step.id)}
+                          className={`border-b-2 px-5 py-3.5 text-sm font-semibold transition-colors ${
+                            creationStep === step.id
+                              ? 'border-teal-600 bg-teal-50/60 text-teal-800'
+                              : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
+                        >
+                          {step.label}
+                        </button>
+                      ))}
+                    </nav>
+                  </div>
+                )}
+
+                {creationStep === 'details' && (
                 <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.basicInformation')}</h2>
@@ -264,7 +326,12 @@ export default function ContactLensesProductPage() {
                         </label>
                         <select
                           value={formData.stock_status}
-                          onChange={(e) => setFormData({ ...formData, stock_status: e.target.value as any })}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              stock_status: e.target.value as CreateProductData['stock_status'],
+                            })
+                          }
                           className="w-full px-4 py-3 border-2 border-gray-300 rounded-md"
                           required
                         >
@@ -290,7 +357,7 @@ export default function ContactLensesProductPage() {
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('form.options')}</h2>
                     <SimplifiedProductOptions
                       formData={formData}
-                      setFormData={setFormData}
+                      setFormData={patchFormData}
                       productType="contact_lens"
                     />
                   </div>
@@ -321,7 +388,7 @@ export default function ContactLensesProductPage() {
 
                   <div className="flex gap-4 pt-4">
                     <Button type="submit" isLoading={saving} className="flex-1">
-                      {t('form.createProduct')}
+                      {createdProduct ? t('form.updateProduct') : t('form.createProduct')}
                     </Button>
                     <Button
                       type="button"
@@ -332,6 +399,50 @@ export default function ContactLensesProductPage() {
                     </Button>
                   </div>
                 </form>
+                )}
+
+                {createdProduct && creationStep === 'prescription' && (
+                  <div className="space-y-4">
+                    <ContactLensSpecificationEditor productId={createdProduct.id} />
+                    <div className="flex flex-wrap justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                      <Button type="button" variant="outline" onClick={() => setCreationStep('details')}>
+                        {t('common.previous')}
+                      </Button>
+                      <Button type="button" onClick={() => setCreationStep('packs')}>
+                        {t('common.next')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {createdProduct && creationStep === 'packs' && (
+                  <div className="space-y-4">
+                    <ContactLensPackUnitsEditor
+                      productId={createdProduct.id}
+                      productName={formData.name}
+                      basePrice={formData.price}
+                      value={formData.contact_lens_unit_config}
+                      onChange={(next) =>
+                        patchFormData((previous) => ({ ...previous, contact_lens_unit_config: next }))
+                      }
+                      onSave={async (config) => {
+                        const updated = await productService.update(createdProduct.id, {
+                          contact_lens_unit_config: config,
+                        });
+                        setCreatedProduct(updated);
+                        setFormData(productToEditFormData(updated));
+                      }}
+                    />
+                    <div className="flex flex-wrap justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                      <Button type="button" variant="outline" onClick={() => setCreationStep('prescription')}>
+                        {t('common.previous')}
+                      </Button>
+                      <Button type="button" onClick={() => router.push('/products')}>
+                        {t('Back to Products')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </main>

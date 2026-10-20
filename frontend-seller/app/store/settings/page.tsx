@@ -13,6 +13,17 @@ import BottomNav from '@/components/layout/BottomNav';
 import SectionBackLink from '@/components/ui/SectionBackLink';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+type PhoneVisibility = 'public' | 'request' | 'hidden';
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return fallback;
+  }
+
+  const response = (error as { response?: { data?: { message?: unknown } } }).response;
+  return typeof response?.data?.message === 'string' ? response.data.message : fallback;
+}
+
 export default function StoreSettingsPage() {
   const { isAuthenticated, loading } = useAuth();
   const { t } = useLanguage();
@@ -21,7 +32,9 @@ export default function StoreSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [phoneVisibility, setPhoneVisibility] = useState<'public' | 'request' | 'hidden'>('request');
+  const [phoneVisibility, setPhoneVisibility] = useState<PhoneVisibility>('request');
+  const [sellerVisibility, setSellerVisibility] = useState<'visible' | 'anonymous'>('visible');
+  const [sellerCode, setSellerCode] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -38,11 +51,16 @@ export default function StoreSettingsPage() {
   const loadSettings = async () => {
     try {
       setLoadingSettings(true);
-      const response = await StoreService.getPhoneVisibility();
-      const v = response.data.phone_visibility;
+      const response = await StoreService.getSettings();
+      const v = response.data.settings?.phone_visibility;
       if (v === 'public' || v === 'request' || v === 'hidden') {
         setPhoneVisibility(v);
       }
+      const storedSellerVisibility = response.data.settings?.seller_visibility;
+      if (storedSellerVisibility === 'visible' || storedSellerVisibility === 'anonymous') {
+        setSellerVisibility(storedSellerVisibility);
+      }
+      setSellerCode(response.data.settings?.public_seller_code ?? null);
     } catch (error) {
       console.error('Failed to load settings:', error);
     } finally {
@@ -57,10 +75,10 @@ export default function StoreSettingsPage() {
     setSuccess(null);
 
     try {
-      await StoreService.updatePhoneVisibility(phoneVisibility);
+      await StoreService.updateSettings({ phone_visibility: phoneVisibility, seller_visibility: sellerVisibility });
       setSuccess(t('store.updated'));
-    } catch (error: any) {
-      setError(error.response?.data?.message || t('store.updateFailed'));
+    } catch (error: unknown) {
+      setError(errorMessage(error, t('store.updateFailed')));
     } finally {
       setSaving(false);
     }
@@ -123,7 +141,7 @@ export default function StoreSettingsPage() {
                             type="radio"
                             value="public"
                             checked={phoneVisibility === 'public'}
-                            onChange={(e) => setPhoneVisibility(e.target.value as any)}
+                            onChange={(e) => setPhoneVisibility(e.target.value as PhoneVisibility)}
                             className="mt-1 mr-3"
                           />
                           <div>
@@ -141,7 +159,7 @@ export default function StoreSettingsPage() {
                             type="radio"
                             value="request"
                             checked={phoneVisibility === 'request'}
-                            onChange={(e) => setPhoneVisibility(e.target.value as any)}
+                            onChange={(e) => setPhoneVisibility(e.target.value as PhoneVisibility)}
                             className="mt-1 mr-3"
                           />
                           <div>
@@ -159,7 +177,7 @@ export default function StoreSettingsPage() {
                             type="radio"
                             value="hidden"
                             checked={phoneVisibility === 'hidden'}
-                            onChange={(e) => setPhoneVisibility(e.target.value as any)}
+                            onChange={(e) => setPhoneVisibility(e.target.value as PhoneVisibility)}
                             className="mt-1 mr-3"
                           />
                           <div>
@@ -167,6 +185,21 @@ export default function StoreSettingsPage() {
                             <div className="text-sm text-gray-600">{t('store.hiddenDescription')}</div>
                           </div>
                         </label>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-200 pt-6">
+                      <label className="mb-3 block text-sm font-medium text-gray-700">{t('storeSettings.sellerVisibility')}</label>
+                      <p className="mb-3 text-sm text-gray-600">{t('storeSettings.sellerVisibilityDescription')}</p>
+                      <div className="space-y-3">
+                        {(['visible', 'anonymous'] as const).map((mode) => {
+                          const selected = sellerVisibility === mode;
+                          const key = mode === 'visible' ? 'Visible' : 'Anonymous';
+                          return <label key={mode} className={`flex cursor-pointer items-start rounded-lg border-2 p-4 transition-all ${selected ? 'border-[#0066CC] bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                            <input type="radio" value={mode} checked={selected} onChange={() => setSellerVisibility(mode)} className="mt-1 mr-3" />
+                            <span><span className="block font-medium text-gray-900">{t(`storeSettings.seller${key}`)}</span><span className="mt-1 block text-sm text-gray-600">{t(`storeSettings.seller${key}Description`)}</span>{mode === 'anonymous' && sellerCode ? <span className="mt-2 inline-flex rounded bg-slate-950 px-2 py-1 font-mono text-xs font-bold text-white">{sellerCode}</span> : null}</span>
+                          </label>;
+                        })}
                       </div>
                     </div>
 
