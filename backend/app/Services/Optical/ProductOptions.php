@@ -53,7 +53,13 @@ class ProductOptions
                         $row['images'][] = $url;
                     }
                 }
-                unset($row['image_index'], $row['image_indices']);
+                if (array_key_exists('image_ids', $row)) {
+                    $row['images'] = array_map(function ($id) use ($images) {
+                        if (!isset($images[$id])) throw ValidationException::withMessages(['product.variants' => 'Choose photos belonging to this seller publication.']);
+                        return $images[$id];
+                    }, $row['image_ids'] ?? []);
+                }
+                unset($row['image_index'], $row['image_indices'], $row['image_ids']);
                 $old = $map[$key] ?? null;
                 if ($old && $old['kind'] !== $kind) {
                     throw ValidationException::withMessages(['product.'.$kind => 'Option identity cannot change category.']);
@@ -61,12 +67,12 @@ class ProductOptions
                 $model = $old ? $product->$relation()->lockForUpdate()->findOrFail($old['id']) : $product->$relation()->make();
                 if ($kind !== 'eye_hygiene_variants') {
                     $row['stock_quantity'] = (int) ($model->stock_quantity ?? 0) + $stock;
-                    $row['stock_status'] = $row['stock_quantity'] > 0 ? 'in_stock' : 'out_of_stock';
+                    $row['stock_status'] = $row['stock_status'] ?? ($row['stock_quantity'] > 0 ? 'in_stock' : 'out_of_stock');
                 }
                 if ($kind !== 'variants') {
                     $row['price'] = $row['price'] ?? $model->price ?? $product->price;
                 }
-                $row['sort_order'] = $position;
+                $row['sort_order'] = $row['sort_order'] ?? $position;
                 if ($kind === 'variants' && ! empty($row['is_default'])) {
                     $product->variants()->update(['is_default' => false]);
                 }
@@ -83,9 +89,13 @@ class ProductOptions
                     }
                     $sizeModel = $oldSize ? $product->frameSizes()->where('product_variant_id', $model->id)->lockForUpdate()->findOrFail($oldSize['id']) : $product->frameSizes()->make(['product_variant_id' => $model->id]);
                     $size['stock_quantity'] = (int) ($sizeModel->stock_quantity ?? 0) + (int) $size['stock_quantity'];
-                    $size['stock_status'] = $size['stock_quantity'] > 0 ? 'in_stock' : 'out_of_stock';
-                    foreach (['lens_width', 'bridge_width', 'temple_length'] as $dimension) {
-                        $size[$dimension] = $size[$dimension] ?? 0;
+                    $size['stock_status'] = $size['stock_status'] ?? ($size['stock_quantity'] > 0 ? 'in_stock' : 'out_of_stock');
+                    // Match the Seller Panel's compact size notation without losing free-text labels.
+                    $size['size_label'] = trim($size['size_label']);
+                    $compact = preg_replace('/\s+/', '', $size['size_label']);
+                    preg_match('/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/', $compact, $dimensions);
+                    foreach (['lens_width', 'bridge_width', 'temple_length'] as $index => $dimension) {
+                        $size[$dimension] = $size[$dimension] ?? (float) ($dimensions[$index + 1] ?? 0);
                     }
                     $sizeModel->fill($size);
                     $sizeModel->save();

@@ -72,7 +72,7 @@ class PublicationController extends Controller
 
     public function publish(Request $r)
     {
-        $d = $r->validate(['external_key' => 'required|uuid', 'operation_key' => 'required|uuid', 'allocated_quantity' => 'required|integer|min:0|max:1000000', 'currency' => 'required|in:EUR', 'product' => 'required|array', 'images' => 'required|array|min:1|max:10', 'images.*' => 'required|uuid', 'expected_version' => 'nullable|string|size:64']);
+        $d = $r->validate(['external_key' => 'required|uuid', 'operation_key' => 'required|uuid', 'allocated_quantity' => 'required|integer|min:0|max:1000000', 'currency' => 'required|in:EUR', 'product' => 'required|array', 'images' => 'required|array|min:1|max:100', 'images.*' => 'required|uuid', 'expected_version' => 'nullable|string|size:64']);
         $store = $r->attributes->get('optical_store');
         $grant = $r->attributes->get('optical_grant');
         $actor = $r->attributes->get('optical_user');
@@ -89,7 +89,11 @@ class PublicationController extends Controller
             $link = DB::table('optical_product_links')->where('store_id', $store->id)->where('client_id', $grant->client_id)->where('external_key', $d['external_key'])->first();
             $images = DB::table('optical_images')->whereIn('id', $d['images'])->where('store_id', $store->id)->where('client_id', $grant->client_id)->get();
             abort_unless($images->count() === count(array_unique($d['images'])), 422, 'Use images uploaded by this seller connection.');
-            $fields = \App\Services\Optical\ProductForm::validate($d['product'], $store->id);
+            $existingProduct = $link ? Product::where('store_id', $store->id)->findOrFail($link->product_id) : null;
+            $fields = \App\Services\Optical\ProductForm::validate($d['product'], $store->id, $existingProduct);
+            \App\Services\Optical\ContactLensPublication::validate($fields, (int) $d['allocated_quantity']);
+            $contactFields = array_intersect_key($fields, array_flip(\App\Services\Optical\ContactLensPublication::KEYS));
+            $fields = array_diff_key($fields, $contactFields);
             \App\Services\Optical\ProductOptions::allocation($fields, (int) $d['allocated_quantity']);
             $options = array_intersect_key($fields, array_flip(['variants', 'size_volume_variants', 'eye_hygiene_variants']));
             $optionMap = $link ? (json_decode($link->option_map ?? '[]', true) ?: []) : [];
@@ -101,7 +105,11 @@ class PublicationController extends Controller
                     return $row;
                 }, $fields['lens_colors']);
             }
-            $fields['images'] = collect($d['images'])->map(fn ($id) => url(Storage::disk('public')->url($images->firstWhere('id', $id)->storage_key)))->all();
+            $galleryIds = $fields['gallery_image_ids'] ?? $d['images'];
+            unset($fields['gallery_image_ids']);
+            abort_unless($galleryIds && ! array_diff($galleryIds, $d['images']), 422, 'Choose at least one owned main product photograph.');
+            $allPhotoUrls = collect($d['images'])->mapWithKeys(fn ($id) => [$id => url(Storage::disk('public')->url($images->firstWhere('id', $id)->storage_key))])->all();
+            $fields['images'] = collect($galleryIds)->map(fn ($id) => url(Storage::disk('public')->url($images->firstWhere('id', $id)->storage_key)))->all();
             if ($link) {
                 $p = Product::where('store_id', $store->id)->lockForUpdate()->findOrFail($link->product_id);
                 abort_unless(isset($d['expected_version']) && hash_equals(self::version($p), $d['expected_version']), 409, 'Vista product changed. Refresh and review before publishing an update.');
@@ -111,7 +119,7 @@ class PublicationController extends Controller
                 abort_if(! empty($d['expected_version']), 409, 'No existing publication for this product.');
                 $fields['stock_quantity'] = (int) $d['allocated_quantity'];
             }
-            $fields['stock_status'] = $fields['stock_quantity'] > 0 ? 'in_stock' : 'out_of_stock';
+            $fields['stock_status'] = $fields['stock_status'] ?? ($fields['stock_quantity'] > 0 ? 'in_stock' : 'out_of_stock');
             $method = $link ? 'PUT' : 'POST';
             $input = Request::create('/api/seller/products'.($link ? '/'.$p->id : ''), $method, $fields);
             $input->setUserResolver(fn () => $actor);
@@ -130,7 +138,9 @@ class PublicationController extends Controller
             // The schema validated category toggles. Preserve allowed fields even when
             // the legacy seller controller omits structured lens options from its filter.
             $p->fill(array_diff_key($fields, array_flip(['stock_quantity', 'stock_status', 'images'])))->save();
-            $optionMap = \App\Services\Optical\ProductOptions::persist($p, $options, $optionMap, $fields['images']);
+            $photoUrls = $allPhotoUrls;
+            $optionMap = \App\Services\Optical\ProductOptions::persist($p, $options, $optionMap, array_values($allPhotoUrls) + $photoUrls);
+            \App\Services\Optical\ContactLensPublication::persist($p, $contactFields, $optionMap, $photoUrls, $actor);
             if (! $link) {
                 DB::table('optical_product_links')->insert(['store_id' => $store->id, 'client_id' => $grant->client_id, 'external_key' => $d['external_key'], 'product_id' => $p->id, 'created_at' => now(), 'updated_at' => now()]);
             }
@@ -146,7 +156,7 @@ class PublicationController extends Controller
     public static function version(Product $p): string
     {
         // Public catalog views also touch updated_at; only managed data and stock conflict.
-        return hash('sha256', json_encode($p->only(['name', 'sku', 'description', 'short_description', 'category_id', 'sub_category_id', 'product_type', 'price', 'images', 'frame_shape', 'frame_material', 'frame_color', 'gender', 'lens_type', 'base_curve_options', 'diameter_options', 'powers_range', 'replacement_frequency', 'contact_lens_brand', 'contact_lens_color', 'contact_lens_material', 'contact_lens_type', 'has_uv_filter', 'can_sleep_with', 'water_content', 'is_medical_device', 'size_volume', 'pack_type', 'expiry_date', 'is_active', 'is_approved', 'is_muted', 'stock_quantity', 'stock_status', 'lens_colors', 'lens_index_options', 'treatment_options', 'compare_at_price', 'cost_price', 'is_featured']), JSON_THROW_ON_ERROR).json_encode([$p->variants()->get()->toArray(), $p->frameSizes()->get()->toArray(), $p->sizeVolumeVariants()->get()->toArray(), $p->eyeHygieneVariants()->get()->toArray()], JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode($p->only(['name', 'sku', 'description', 'short_description', 'category_id', 'sub_category_id', 'product_type', 'price', 'images', 'frame_shape', 'frame_material', 'frame_color', 'gender', 'lens_type', 'base_curve_options', 'diameter_options', 'powers_range', 'replacement_frequency', 'contact_lens_brand', 'contact_lens_color', 'contact_lens_material', 'contact_lens_type', 'has_uv_filter', 'can_sleep_with', 'water_content', 'is_medical_device', 'size_volume', 'pack_type', 'expiry_date', 'is_active', 'is_approved', 'is_muted', 'stock_quantity', 'stock_status', 'lens_colors', 'lens_index_options', 'treatment_options', 'compare_at_price', 'cost_price', 'is_featured', 'contact_lens_unit_config']), JSON_THROW_ON_ERROR).json_encode([$p->variants()->get()->toArray(), $p->frameSizes()->get()->toArray(), $p->sizeVolumeVariants()->get()->toArray(), $p->eyeHygieneVariants()->get()->toArray(), \App\Models\PrescriptionDropdownValue::where('product_id', $p->id)->where('store_id', $p->store_id)->orderBy('id')->get(['field_type', 'value', 'label', 'eye_type', 'is_active', 'sort_order'])->toArray()], JSON_THROW_ON_ERROR));
     }
 
     private function result(Product $p, string $key): array

@@ -24,7 +24,7 @@ class ProductForm
     {
         $f = self::field(...);
 
-        return [$f('name', 'Vista product name', 'text', ['required' => true, 'maxLength' => 255]), $f('sku', 'Vista SKU', 'text', ['maxLength' => 255]), $f('description', 'Description', 'textarea'), $f('short_description', 'Short description', 'textarea', ['maxLength' => 500]), $f('price', 'Price (EUR)', 'number', ['required' => true, 'min' => 0, 'step' => '0.01']), $f('compare_at_price', 'Compare-at price (EUR)', 'number', ['min' => 0, 'step' => '0.01']), $f('cost_price', 'Cost price (EUR)', 'number', ['min' => 0, 'step' => '0.01']), $f('is_active', 'Active listing', 'boolean'), $f('is_featured', 'Featured listing', 'boolean')];
+        return [$f('gallery_image_ids', 'Main product photographs', 'images', ['maxItems' => 10, 'hidden' => true]), SellerFormSchema::stockStatus(), $f('name', 'Vista product name', 'text', ['required' => true, 'maxLength' => 255]), $f('sku', 'Vista SKU', 'text', ['maxLength' => 255]), $f('description', 'Description', 'textarea'), $f('short_description', 'Short description', 'textarea', ['maxLength' => 500]), $f('price', 'Price (EUR)', 'number', ['required' => true, 'min' => 0, 'step' => '0.01']), $f('compare_at_price', 'Compare-at price (EUR)', 'number', ['min' => 0, 'step' => '0.01']), $f('cost_price', 'Cost price (EUR)', 'number', ['min' => 0, 'step' => '0.01']), $f('is_active', 'Active listing', 'boolean'), $f('is_featured', 'Featured listing', 'boolean')];
     }
 
     public static function fields(string $type, array $enabled = []): array
@@ -43,7 +43,7 @@ class ProductForm
         };
 
         // Explicit store configuration wins. Structured editors are not category toggles.
-        return array_values(array_filter($fields, fn ($field) => $field['type'] === 'rows' || ! array_key_exists($field['key'], $enabled) || $enabled[$field['key']]));
+        return array_values(array_filter(SellerFormSchema::extend($fields, $type), fn ($field) => $field['type'] === 'rows' || ! array_key_exists($field['key'], $enabled) || $enabled[$field['key']]));
     }
 
     public static function schema(Category $category, int $store): array
@@ -54,7 +54,7 @@ class ProductForm
         return ['product_type' => $type, 'fields' => self::fields($type ?? '', $config)];
     }
 
-    public static function validate(array $data, int $store): array
+    public static function validate(array $data, int $store, ?\App\Models\Product $existing = null): array
     {
         $category = Category::where('is_active', true)->whereNull('parent_id')->find($data['category_id'] ?? null);
         if (! $category || ! self::type($category->slug) || ($data['product_type'] ?? null) !== self::type($category->slug)) {
@@ -63,6 +63,9 @@ class ProductForm
         $schema = self::schema($category, $store);
         $rules = ['category_id' => 'required|integer', 'product_type' => 'required|string', 'sub_category_id' => 'nullable|integer'];
         self::rules([...self::common(), ...$schema['fields']], $rules);
+        foreach (['frame_shape' => 'shapeRules', 'frame_material' => 'materialRules', 'frame_color' => 'colorRules'] as $key => $method) {
+            if (array_key_exists($key, $rules)) $rules[$key] = \App\Support\FrameOptionCatalog::$method($existing?->$key);
+        }
         $unknown = array_diff(array_keys($data), array_keys($rules));
         if ($unknown) {
             throw ValidationException::withMessages(['product.'.reset($unknown) => 'This field is unavailable for the selected seller category.']);
@@ -70,6 +73,9 @@ class ProductForm
         $valid = Validator::make($data, $rules)->validate();
         if (! empty($valid['sub_category_id'])) {
             $leaf = Category::where('is_active', true)->find($valid['sub_category_id']);
+            if (($data['product_type'] ?? '') === 'contact_lens' && $leaf && Category::where('is_active', true)->where('parent_id', $leaf->id)->exists()) {
+                throw ValidationException::withMessages(['product.sub_category_id' => 'Choose a lens type within the selected contact lens subcategory.']);
+            }
             $seen = [];
             while ($leaf && $leaf->parent_id && ! in_array($leaf->id, $seen)) {
                 $seen[] = $leaf->id;
@@ -91,7 +97,7 @@ class ProductForm
             $key = $prefix.$f['key'];
             $rule = ($f['required'] ?? false) ? 'required' : 'nullable';
             $rule .= '|'.match ($f['type']) {
-                'rows','list','multiselect' => 'array','boolean' => 'boolean','number' => ($f['step'] ?? '') === '1' ? 'integer' : 'numeric','date' => 'date_format:Y-m-d',default => 'string'
+                'rows','prescription','list','multiselect','images','integer-list','variant-multiple' => 'array','boolean' => 'boolean','number' => ($f['step'] ?? '') === '1' ? 'integer' : 'numeric','date' => 'date_format:Y-m-d',default => 'string'
             };
             if (isset($f['maxLength'])) {
                 $rule .= '|max:'.$f['maxLength'];
@@ -108,15 +114,16 @@ class ProductForm
             if (isset($f['pattern'])) {
                 $rule .= '|regex:/^'.$f['pattern'].'$/D';
             }
-            if ($f['type'] === 'rows') {
+            if (in_array($f['type'], ['rows', 'prescription'])) {
                 $keys = array_column($f['fields'], 'key');
-                $rule .= '|max:50';
+                $rule .= '|max:'.($f['maxItems'] ?? 50);
                 $rules[$key.'.*'] = 'array:'.implode(',', [...$keys, 'option_key']);
                 $rules[$key.'.*.option_key'] = 'required|uuid|distinct';
                 self::rules($f['fields'], $rules, $key.'.*.');
             }
-            if (in_array($f['type'], ['list', 'multiselect'])) {
-                $rules[$key.'.*'] = 'string|max:100'.($f['type'] === 'multiselect' ? '|in:'.implode(',', $f['options']) : '');
+            if (in_array($f['type'], ['list', 'multiselect', 'images', 'variant-multiple', 'integer-list'])) {
+                $rule .= '|max:'.($f['maxItems'] ?? 100);
+                $rules[$key.'.*'] = ($f['type'] === 'integer-list' ? 'integer|min:1' : 'string|max:100').($f['type'] === 'multiselect' ? '|in:'.implode(',', $f['options']) : '');
             }
             $rules[$key] = $rule;
         }
