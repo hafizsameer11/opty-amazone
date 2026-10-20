@@ -10,6 +10,7 @@ import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
+import { PRODUCT_GRID_CLASS, PRODUCT_IMAGE_STAGE_CLASS } from '@/components/products/product-grid';
 
 type SearchStore = {
   id: number;
@@ -96,7 +97,7 @@ function SearchPageInner() {
       {products.length > 0 && (
         <section className="mb-10">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Products ({products.length})</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className={PRODUCT_GRID_CLASS}>
             {products.map((p) => {
               const img = getFullImageUrl(p.images?.[0] || '/file.svg');
               return (
@@ -105,15 +106,17 @@ function SearchPageInner() {
                   href={`/products/${p.id}`}
                   className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow"
                 >
-                  <div className="relative h-36 bg-gray-50 flex items-center justify-center">
-                    <Image
-                      src={img}
-                      alt={p.name}
-                      width={160}
-                      height={120}
-                      className="object-contain max-h-[80%]"
-                      unoptimized={isLocalhostImage(img)}
-                    />
+                  <div className={`${PRODUCT_IMAGE_STAGE_CLASS} h-36 border-b border-gray-100`}>
+                    <div className="absolute inset-0 flex items-center justify-center p-3">
+                      <Image
+                        src={img}
+                        alt={p.name}
+                        width={160}
+                        height={120}
+                        className="h-full w-full object-contain"
+                        unoptimized={isLocalhostImage(img)}
+                      />
+                    </div>
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-semibold text-gray-900 line-clamp-2">{p.name}</p>

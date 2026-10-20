@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { productService, type Product, type ProductListParams } from '@/services/product-service';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { PRODUCT_GRID_CLASS } from '@/components/products/product-grid';
 
 const PRODUCTS_PER_PAGE = 24;
 
@@ -371,14 +372,14 @@ export default function StoreProductBrowser({ storeId, renderProduct }: StorePro
       )}
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className={PRODUCT_GRID_CLASS}>
           {[...Array(8)].map((_, index) => (
             <div key={index} className="h-64 animate-pulse rounded-xl bg-gray-200" />
           ))}
         </div>
       ) : products.length > 0 ? (
         <>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className={PRODUCT_GRID_CLASS}>
             {products.map((product) => renderProduct(product))}
           </div>
           {loadingMore && (

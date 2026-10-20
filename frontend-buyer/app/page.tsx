@@ -13,6 +13,7 @@ import { HomepagePromotionalBanners } from '@/components/campaigns/PromotionalBa
 import { getFullImageUrl, isLocalhostImage } from "@/lib/image-utils";
 import { isEyeProductCategory } from "@/utils/product-utils";
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
+import { PRODUCT_GRID_CLASS, PRODUCT_IMAGE_STAGE_CLASS } from '@/components/products/product-grid';
 
 const HOME_PRODUCTS_PER_PAGE = 20;
 
@@ -70,14 +71,14 @@ function ProductCard({ product }: { product: Product }) {
       href={`/products/${product.id}`}
       className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 overflow-hidden group relative flex flex-col h-full"
     >
-      <div className="relative w-full h-32 sm:h-36 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-100">
-        <div className="absolute inset-0 flex items-center justify-center">
+      <div className={`${PRODUCT_IMAGE_STAGE_CLASS} h-32 sm:h-36 border-b border-gray-100`}>
+        <div className="absolute inset-0 flex items-center justify-center p-3">
           <Image
             src={displayImageUrl}
             alt={product.name}
             width={180}
             height={130}
-            className="object-contain max-h-[70%] transition-all duration-300 group-hover:scale-105"
+            className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
             unoptimized={isLocalhostImage(displayImageUrl)}
           />
         </div>
@@ -288,14 +289,14 @@ export default function HomePage() {
           </div>
           <div className="bg-white rounded-b-2xl shadow-sm px-2.5 sm:px-3.5 py-3.5 sm:py-5">
             {loading ? (
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+              <div className={PRODUCT_GRID_CLASS}>
                 {[...Array(HOME_PRODUCTS_PER_PAGE)].map((_, i) => (
                   <div key={i} className="h-64 bg-gray-200 animate-pulse rounded-xl"></div>
                 ))}
               </div>
             ) : products.length > 0 ? (
               <>
-                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+                <div className={PRODUCT_GRID_CLASS}>
                   {products.map((product) => (
                     <div key={product.id} className="h-full">
                       <ProductCard product={product} />
@@ -511,7 +512,12 @@ export default function HomePage() {
                         <div className="px-3 pb-3 pt-8 sm:px-5 sm:pb-4 sm:pt-11">
                           <p className="hidden text-[11px] font-semibold uppercase tracking-[0.14em] text-[#00A85A] sm:block">Featured seller</p>
                           <h3 className="mt-1 truncate text-sm font-bold text-gray-900 transition-colors group-hover:text-[#0066CC] sm:text-lg">
-                            {store.name}
+                            {store.is_anonymous ? (
+                              <span className="inline-flex items-center gap-1.5 font-mono text-[#0052A3]">
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c2.761 0 5-1.79 5-4s-2.239-4-5-4-5 1.79-5 4 2.239 4 5 4Zm0 0c-4.418 0-8 2.239-8 5v2h16v-2c0-2.761-3.582-5-8-5Z" /></svg>
+                                {store.seller_code || store.name}
+                              </span>
+                            ) : store.name}
                           </h3>
                           <p className="mt-1 min-h-10 line-clamp-2 text-xs leading-4 text-gray-600 sm:text-sm">
                             {store.description || 'Quality optical products and professional service.'}

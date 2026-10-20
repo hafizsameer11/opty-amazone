@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { adService, rememberAd, type SponsoredAd } from '@/services/ad-service';
 import { getFullImageUrl } from '@/lib/image-utils';
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
+import { PRODUCT_GRID_CLASS } from '@/components/products/product-grid';
 
 function SponsoredCard({ ad }: { ad: SponsoredAd }) {
   const card = useRef<HTMLAnchorElement>(null);
@@ -55,7 +56,7 @@ function SponsoredCard({ ad }: { ad: SponsoredAd }) {
       }}
       className="group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-blue-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-blue-600"
     >
-      <div className="relative h-32 w-full border-b border-blue-100 bg-gradient-to-br from-blue-50 to-slate-50 sm:h-36">
+      <div className="relative h-32 w-full overflow-hidden border-b border-blue-100 bg-white sm:h-36">
         <span className="absolute left-2 top-2 z-10 rounded-full bg-[#0052a3] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">Sponsored</span>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={getFullImageUrl(ad.product.images?.[0] || '/file.svg')} alt={ad.product.name} className="h-full w-full object-contain p-3 transition-transform duration-300 group-hover:scale-105" loading="lazy" />
@@ -104,7 +105,7 @@ export default function SponsoredProducts({ placement, categoryId, query, exclud
         <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold">Promoted</span>
       </div>
       <div className="rounded-b-2xl bg-white px-2.5 py-3.5 shadow-sm sm:px-3.5 sm:py-5">
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">{ads.map((ad) => <SponsoredCard key={ad.tracking_token} ad={ad} />)}</div>
+        <div className={PRODUCT_GRID_CLASS}>{ads.map((ad) => <SponsoredCard key={ad.tracking_token} ad={ad} />)}</div>
       </div>
     </section>
   );

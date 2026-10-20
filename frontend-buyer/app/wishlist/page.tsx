@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { wishlistService, WishlistItem } from '@/services/wishlist-service';
 import Button from '@/components/ui/Button';
 import { getFullImageUrl } from '@/lib/image-utils';
+import { PRODUCT_GRID_CLASS } from '@/components/products/product-grid';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -55,17 +56,21 @@ export default function WishlistPage() {
           {t('static.wishlist.empty')}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className={PRODUCT_GRID_CLASS}>
           {items.map((i) => {
             const price = i.product.pricing?.discounted_price ?? i.product.price;
             const original = i.product.pricing?.original_price;
             return (
               <article key={i.id} className="rounded-xl border bg-white overflow-hidden">
-                <img
-                  src={getFullImageUrl(i.product.images?.[0] || '/placeholder-product.png')}
-                  alt={i.product.name}
-                  className="w-full h-48 object-cover"
-                />
+                <div className="relative h-48 w-full overflow-hidden border-b border-gray-100 bg-white">
+                  <div className="absolute inset-0 flex items-center justify-center p-3">
+                    <img
+                      src={getFullImageUrl(i.product.images?.[0] || '/placeholder-product.png')}
+                      alt={i.product.name}
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
+                </div>
                 <div className="p-4">
                   <h2 className="font-semibold line-clamp-2">{i.product.name}</h2>
                   <p className="text-xs text-gray-500 mt-1">{i.product.store?.name}</p>

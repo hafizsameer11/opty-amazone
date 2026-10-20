@@ -17,6 +17,7 @@ import ProductCardCategoryLine from '@/components/products/ProductCardCategoryLi
 import { useLanguage } from '@/contexts/LanguageContext';
 import { categoryDisplayName } from '@/lib/category-i18n';
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
+import { PRODUCT_GRID_CLASS, PRODUCT_IMAGE_STAGE_CLASS } from '@/components/products/product-grid';
 
 function ProductCard({ product }: { product: Product }) {
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
@@ -64,14 +65,14 @@ function ProductCard({ product }: { product: Product }) {
       href={`/products/${product.id}`}
       className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 overflow-hidden group relative flex flex-col h-full"
     >
-      <div className="relative w-full h-48 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-100">
-        <div className="absolute inset-0 flex items-center justify-center">
+      <div className={`${PRODUCT_IMAGE_STAGE_CLASS} h-48 sm:h-56 border-b border-gray-100`}>
+        <div className="absolute inset-0 flex items-center justify-center p-3">
           <Image
             src={displayImageUrl}
             alt={product.name}
             width={200}
             height={200}
-            className="object-contain max-h-[80%] transition-all duration-300 group-hover:scale-105"
+            className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
             unoptimized={isLocalhostImage(displayImageUrl)}
           />
         </div>
@@ -303,7 +304,7 @@ export default function CategoryPage() {
               <div className="mb-4 text-sm text-gray-600">
                 Showing {products.length} of {total} products
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className={PRODUCT_GRID_CLASS}>
                 {products.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}

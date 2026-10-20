@@ -21,6 +21,7 @@ import ReportStoreButton from '@/components/stores/ReportStoreButton';
 import ReviewForm from '@/components/reviews/ReviewForm';
 import { couponService, type CouponCard } from '@/services/coupon-service';
 import PublicCouponList from '@/components/coupons/PublicCouponList';
+import { PRODUCT_IMAGE_STAGE_CLASS } from '@/components/products/product-grid';
 
 function normalizeExternalUrl(url: string): string {
   const t = url.trim();
@@ -97,15 +98,15 @@ function ProductCard({ product }: { product: Product }) {
       href={`/products/${product.id}`}
       className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 overflow-hidden group relative flex flex-col h-full"
     >
-      <div className="relative w-full h-40 sm:h-48 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-100">
-        <div className="absolute inset-0 flex items-center justify-center">
+      <div className={`${PRODUCT_IMAGE_STAGE_CLASS} h-40 sm:h-48 border-b border-gray-100`}>
+        <div className="absolute inset-0 flex items-center justify-center p-3">
           {hasDisplayImage ? (
             <Image
               src={displayImageUrl}
               alt={product.name}
               width={180}
               height={180}
-              className="object-contain max-h-[80%] transition-all duration-300 group-hover:scale-105"
+              className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
               unoptimized={isLocalhostImage(displayImageUrl)}
             />
           ) : (

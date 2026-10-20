@@ -63,7 +63,7 @@ function StoreCard({ store }: { store: PublicStore }) {
       {/* Store Info */}
       <div className="pt-12 pb-4 px-4 text-center">
         <h3 className="font-bold text-gray-900 text-lg mb-1 group-hover:text-[#0066CC] transition-colors">
-          {store.name}
+          {store.is_anonymous ? <span className="font-mono text-[#0052A3]">{store.seller_code || store.name}</span> : store.name}
         </h3>
         {store.description && (
           <p className="text-sm text-gray-600 line-clamp-2 mb-4">

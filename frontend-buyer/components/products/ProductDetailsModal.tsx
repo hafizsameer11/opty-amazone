@@ -212,12 +212,7 @@ export default function ProductDetailsModal({
               {product.store && (
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Sold by</p>
-                  <Link
-                    href={`/stores/${product.store.id}`}
-                    className="text-base font-semibold text-[#0066CC] hover:text-[#0052A3] transition-colors"
-                  >
-                    {product.store.name}
-                  </Link>
+                  {product.store.is_anonymous ? <Link href={`/stores/${product.store.id}`} className="inline-flex items-center gap-1.5 rounded-full border border-[#0066CC]/20 bg-[#0066CC]/5 px-2.5 py-1 font-mono text-sm font-semibold text-[#0052A3] transition-colors hover:bg-[#0066CC]/10"><svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c2.761 0 5-1.79 5-4s-2.239-4-5-4-5 1.79-5 4 2.239 4 5 4Zm0 0c-4.418 0-8 2.239-8 5v2h16v-2c0-2.761-3.582-5-8-5Z" /></svg>{product.store.seller_code || product.store.name}</Link> : <Link href={`/stores/${product.store.id}`} className="text-base font-semibold text-[#0066CC] hover:text-[#0052A3] transition-colors">{product.store.name}</Link>}
                 </div>
               )}
 

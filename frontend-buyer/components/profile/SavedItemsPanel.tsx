@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Button from '@/components/ui/Button';
 import { getFullImageUrl } from '@/lib/image-utils';
+import { PRODUCT_GRID_CLASS } from '@/components/products/product-grid';
 import { wishlistService, type WishlistItem } from '@/services/wishlist-service';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 
@@ -60,13 +61,17 @@ export default function SavedItemsPanel({ onCountChange }: { onCountChange?: (co
       {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
       {!loading && !error && items.length === 0 ? <div className="mt-6 rounded-xl border p-8 text-center text-sm text-gray-500">You have not saved any products yet.</div> : null}
       {!loading && items.length > 0 ? (
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className={`${PRODUCT_GRID_CLASS} mt-6`}>
           {items.map((item) => {
             const price = item.product?.pricing?.discounted_price ?? item.product?.price;
             const original = item.product?.pricing?.original_price;
             return (
               <article key={item.id} className="rounded-xl border bg-white overflow-hidden">
-                <img src={getFullImageUrl(item.product?.images?.[0] || '/placeholder-product.png')} alt={item.product?.name || 'Saved product'} className="w-full h-44 object-cover" />
+                <div className="relative h-44 w-full overflow-hidden border-b border-gray-100 bg-white">
+                  <div className="absolute inset-0 flex items-center justify-center p-3">
+                    <img src={getFullImageUrl(item.product?.images?.[0] || '/placeholder-product.png')} alt={item.product?.name || 'Saved product'} className="h-full w-full object-contain" />
+                  </div>
+                </div>
                 <div className="p-4">
                   <h3 className="font-semibold line-clamp-2">{item.product?.name}</h3>
                   <p className="text-xs text-gray-500 mt-1">{item.product?.store?.name}</p>

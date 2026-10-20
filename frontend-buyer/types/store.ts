@@ -12,6 +12,8 @@ export interface Store {
   banner_image_url?: string;
   theme_color: string;
   phone_visibility: 'public' | 'request' | 'hidden';
+  seller_visibility?: 'visible' | 'anonymous';
+  public_seller_code?: string | null;
   status: 'pending' | 'active' | 'suspended' | 'rejected';
   is_active: boolean;
   created_at: string;

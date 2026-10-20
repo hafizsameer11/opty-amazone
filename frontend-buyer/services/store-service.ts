@@ -11,7 +11,9 @@ export interface StoreSocialLinkPublic {
 export interface PublicStore {
   id: number;
   name: string;
-  slug: string;
+  slug: string | null;
+  seller_code?: string | null;
+  is_anonymous?: boolean;
   description?: string;
   phone?: string | null;
   profile_image?: string;

@@ -126,6 +126,8 @@ export interface Product {
     id: number;
     name: string;
     slug: string;
+    seller_code?: string | null;
+    is_anonymous?: boolean;
   };
   category?: {
     id: number;

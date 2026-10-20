@@ -61,7 +61,7 @@ export default function ProductListCard({ product }: ProductListCardProps) {
       className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 overflow-hidden group flex flex-row h-full"
     >
       {/* Image */}
-      <div className="relative w-48 sm:w-64 h-48 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 border-r border-gray-100 flex-shrink-0">
+      <div className="relative w-48 sm:w-64 h-48 sm:h-56 overflow-hidden bg-white border-r border-gray-100 flex-shrink-0">
         <div className="absolute right-2 top-2 z-10"><SaveProductButton productId={product.id} /></div>
         <div className="absolute inset-0 flex items-center justify-center p-4">
           <Image

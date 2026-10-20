@@ -14,42 +14,21 @@ import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { categoryDisplayName } from '@/lib/category-i18n';
-
-// Labels are translation keys: these arrays are module scope and cannot call `t`.
-const PRODUCT_TYPE_OPTIONS = [
-  { value: 'frame', labelKey: 'static.products.typeFrames', icon: '🕶️' },
-  { value: 'sunglasses', labelKey: 'static.products.typeSunglasses', icon: '😎' },
-  { value: 'contact_lens', labelKey: 'static.products.typeContactLenses', icon: '👁️' },
-  { value: 'eye_hygiene', labelKey: 'static.products.typeEyeHygiene', icon: '💧' },
-  { value: 'accessory', labelKey: 'static.products.typeAccessories', icon: '🎁' },
-];
-
-const GENDER_OPTIONS = [
-  { value: 'men', labelKey: 'static.products.genderMen' },
-  { value: 'women', labelKey: 'static.products.genderWomen' },
-  { value: 'unisex', labelKey: 'static.products.genderUnisex' },
-  { value: 'kids', labelKey: 'static.products.genderKids' },
-];
-
-const STOCK_OPTIONS = [
-  { value: 'in_stock', labelKey: 'static.products.stockIn' },
-  { value: 'out_of_stock', labelKey: 'static.products.stockOut' },
-  { value: 'backorder', labelKey: 'static.products.stockBackorder' },
-];
-
-const SORT_OPTIONS = [
-  { value: 'created_at_desc', labelKey: 'static.products.sortNewest' },
-  { value: 'created_at_asc', labelKey: 'static.products.sortOldest' },
-  { value: 'price_asc', labelKey: 'static.products.sortPriceAsc' },
-  { value: 'price_desc', labelKey: 'static.products.sortPriceDesc' },
-  { value: 'rating_desc', labelKey: 'static.products.sortRating' },
-  { value: 'view_count_desc', labelKey: 'static.products.sortViews' },
-];
+import ProductFiltersModal from '@/components/products/ProductFiltersModal';
+import {
+  EMPTY_PRODUCT_FILTER_DRAFT,
+  GENDER_OPTIONS,
+  PRODUCT_TYPE_OPTIONS,
+  SORT_OPTIONS,
+  STOCK_OPTIONS,
+  type ProductFilterDraft,
+} from '@/components/products/product-filter-options';
+import { PRODUCT_GRID_CLASS, PRODUCT_IMAGE_STAGE_CLASS } from '@/components/products/product-grid';
 
 const PRODUCTS_PER_PAGE = 20;
 
 function ProductCard({ product }: { product: Product }) {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   
@@ -95,14 +74,14 @@ function ProductCard({ product }: { product: Product }) {
       href={`/products/${product.id}`}
       className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 overflow-hidden group relative flex flex-col h-full"
     >
-      <div className="relative w-full h-48 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-100">
-        <div className="absolute inset-0 flex items-center justify-center">
+      <div className={`${PRODUCT_IMAGE_STAGE_CLASS} h-48 sm:h-56 border-b border-gray-100`}>
+        <div className="absolute inset-0 flex items-center justify-center p-3">
           <Image
             src={displayImageUrl}
             alt={product.name}
             width={200}
             height={200}
-            className="object-contain max-h-[80%] transition-all duration-300 group-hover:scale-105"
+            className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
             unoptimized={isLocalhostImage(displayImageUrl)}
           />
         </div>
@@ -209,7 +188,11 @@ export default function ProductsPage() {
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  const [categories, setCategories] = useState<Array<{ id: number; name: string; slug: string }>>([]);
+  // Filter modal: edits a draft copy so results only change when Apply is pressed.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterDraft, setFilterDraft] = useState<ProductFilterDraft>(EMPTY_PRODUCT_FILTER_DRAFT);
+
+  const [categories, setCategories] = useState<Array<{ id: number; name: string; name_it?: string | null; slug: string }>>([]);
   const [availableFrameShapes, setAvailableFrameShapes] = useState<string[]>([]);
   const [availableFrameMaterials, setAvailableFrameMaterials] = useState<string[]>([]);
 
@@ -313,39 +296,112 @@ export default function ProductsPage() {
     setMaxPrice('');
     setSortBy('created_at');
     setSortOrder('desc');
+    setFilterDraft({ ...EMPTY_PRODUCT_FILTER_DRAFT });
     setCurrentPage(1);
   };
 
-  const activeFilters = useMemo(
-    () =>
-      [
-        search ? `Search: ${search}` : null,
-        selectedCategory
-          ? t('static.products.chipCategory', { value: categories.find((c) => c.id.toString() === selectedCategory) ? categoryDisplayName(categories.find((c) => c.id.toString() === selectedCategory)!, language) : selectedCategory })
-          : null,
-        selectedType ? `Type: ${PRODUCT_TYPE_OPTIONS.find((o) => o.value === selectedType) ? t(PRODUCT_TYPE_OPTIONS.find((o) => o.value === selectedType)!.labelKey) : selectedType}` : null,
-        selectedGender ? `Gender: ${selectedGender}` : null,
-        selectedFrameShape ? `Shape: ${selectedFrameShape}` : null,
-        selectedFrameMaterial ? `Material: ${selectedFrameMaterial}` : null,
-        selectedStockStatus ? `Stock: ${selectedStockStatus.replace('_', ' ')}` : null,
-        minRating ? `Min rating: ${minRating}+` : null,
-        minPrice ? t('static.products.chipMinPrice', { value: minPrice }) : null,
-        maxPrice ? t('static.products.chipMaxPrice', { value: maxPrice }) : null,
-      ].filter(Boolean) as string[],
-    [
-      search,
-      selectedCategory,
-      categories,
-      selectedType,
-      selectedGender,
-      selectedFrameShape,
-      selectedFrameMaterial,
-      selectedStockStatus,
+  /** Seed the modal from the live filters so it always opens on current values. */
+  const openFilters = () => {
+    setFilterDraft({
+      category: selectedCategory,
+      type: selectedType,
+      gender: selectedGender,
+      frameShape: selectedFrameShape,
+      frameMaterial: selectedFrameMaterial,
+      stockStatus: selectedStockStatus,
       minRating,
       minPrice,
       maxPrice,
-    ]
-  );
+    });
+    setFiltersOpen(true);
+  };
+
+  const applyFilters = () => {
+    setSelectedCategory(filterDraft.category);
+    setSelectedType(filterDraft.type);
+    setSelectedGender(filterDraft.gender);
+    setSelectedFrameShape(filterDraft.frameShape);
+    setSelectedFrameMaterial(filterDraft.frameMaterial);
+    setSelectedStockStatus(filterDraft.stockStatus);
+    setMinRating(filterDraft.minRating);
+    setMinPrice(filterDraft.minPrice);
+    setMaxPrice(filterDraft.maxPrice);
+    setCurrentPage(1);
+    setFiltersOpen(false);
+  };
+
+  // Active filters as removable chips: each one can be dismissed on its own.
+  const activeFilterChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; clear: () => void }> = [];
+    const add = (key: string, label: string, clear: () => void) => chips.push({ key, label, clear });
+
+    if (search) {
+      add('search', t('static.products.chipSearch', { value: search }), () => { setSearch(''); setCurrentPage(1); });
+    }
+    if (selectedCategory) {
+      const category = categories.find((c) => c.id.toString() === selectedCategory);
+      add(
+        'category',
+        t('static.products.chipCategory', { value: category ? categoryDisplayName(category, language) : selectedCategory }),
+        () => { setSelectedCategory(''); setCurrentPage(1); }
+      );
+    }
+    if (selectedType) {
+      const option = PRODUCT_TYPE_OPTIONS.find((o) => o.value === selectedType);
+      add(
+        'type',
+        t('static.products.chipType', { value: option ? t(option.labelKey) : selectedType }),
+        () => { setSelectedType(''); setCurrentPage(1); }
+      );
+    }
+    if (selectedGender) {
+      const option = GENDER_OPTIONS.find((o) => o.value === selectedGender);
+      add(
+        'gender',
+        t('static.products.chipGender', { value: option ? t(option.labelKey) : selectedGender }),
+        () => { setSelectedGender(''); setCurrentPage(1); }
+      );
+    }
+    if (selectedFrameShape) {
+      add('shape', t('static.products.chipShape', { value: selectedFrameShape }), () => { setSelectedFrameShape(''); setCurrentPage(1); });
+    }
+    if (selectedFrameMaterial) {
+      add('material', t('static.products.chipMaterial', { value: selectedFrameMaterial }), () => { setSelectedFrameMaterial(''); setCurrentPage(1); });
+    }
+    if (selectedStockStatus) {
+      const option = STOCK_OPTIONS.find((o) => o.value === selectedStockStatus);
+      add(
+        'stock',
+        t('static.products.chipStock', { value: option ? t(option.labelKey) : selectedStockStatus }),
+        () => { setSelectedStockStatus(''); setCurrentPage(1); }
+      );
+    }
+    if (minRating) {
+      add('minRating', t('static.products.chipMinRating', { value: minRating }), () => { setMinRating(''); setCurrentPage(1); });
+    }
+    if (minPrice) {
+      add('minPrice', t('static.products.chipMinPrice', { value: minPrice }), () => { setMinPrice(''); setCurrentPage(1); });
+    }
+    if (maxPrice) {
+      add('maxPrice', t('static.products.chipMaxPrice', { value: maxPrice }), () => { setMaxPrice(''); setCurrentPage(1); });
+    }
+
+    return chips;
+  }, [
+    search,
+    selectedCategory,
+    categories,
+    selectedType,
+    selectedGender,
+    selectedFrameShape,
+    selectedFrameMaterial,
+    selectedStockStatus,
+    minRating,
+    minPrice,
+    maxPrice,
+    t,
+    language,
+  ]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 w-full">
@@ -355,263 +411,100 @@ export default function ProductsPage() {
           <p className="text-gray-600">{t('static.products.intro')}</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Filters Sidebar */}
-          <aside className="lg:col-span-1">
-            <PromotionalBanners placement="sidebar" />
-            <div className="bg-white/95 backdrop-blur rounded-2xl shadow-sm border border-gray-200 p-5 sticky top-4 transition-all hover:shadow-md">
-              <div className="mb-4 rounded-xl bg-gradient-to-r from-[#0066CC] to-[#00A0FF] p-4 text-white">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold inline-flex items-center gap-2">
-                    <span aria-hidden="true">✨</span>
-                    Filters
-                  </h2>
-                  <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold">
-                    {t('static.products.activeCount', { count: activeFilters.length })}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-blue-100">{t('static.products.refineHint')}</p>
+        <div className="mt-2">
+          {/* Search bar */}
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+            <form onSubmit={handleSearch} className="flex flex-1 items-stretch gap-2" role="search">
+              <div className="relative flex-1">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                  </svg>
+                </span>
+                <Input
+                  type="text"
+                  aria-label={t('static.products.searchProducts')}
+                  placeholder={t('static.products.searchProducts')}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-10"
+                />
               </div>
-
-              <div className="mb-4 flex flex-wrap gap-2">
-                {activeFilters.slice(0, 4).map((filter) => (
-                  <span
-                    key={filter}
-                    className="rounded-full bg-blue-50 text-[#0066CC] border border-blue-200 px-2.5 py-1 text-[11px] font-semibold animate-pulse"
-                  >
-                    {filter}
-                  </span>
-                ))}
-                {activeFilters.length > 4 && (
-                  <span className="rounded-full bg-gray-100 text-gray-700 px-2.5 py-1 text-[11px] font-semibold">
-                    +{activeFilters.length - 4} {t('static.products.more')}
+              <Button type="submit" variant="primary" size="md" className="shrink-0">
+                {t('static.products.searchSubmit')}
+              </Button>
+            </form>
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              className="shrink-0"
+              aria-haspopup="dialog"
+              aria-expanded={filtersOpen}
+              onClick={openFilters}
+            >
+              <span className="inline-flex items-center gap-2">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M7 12h10M10 18h4" />
+                </svg>
+                {t('static.products.filters')}
+                {activeFilterChips.length > 0 && (
+                  <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#0066CC] px-1.5 text-[11px] font-bold text-white">
+                    {activeFilterChips.length}
                   </span>
                 )}
-              </div>
+              </span>
+            </Button>
+          </div>
 
-              {/* Search */}
-              <form onSubmit={handleSearch} className="mb-6">
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔎</span>
-                  <Input
-                    type="text"
-                    placeholder={t('static.products.searchPlaceholder')}
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-10"
-                  />
-                </div>
-                <Button type="submit" variant="primary" size="sm" className="w-full mt-2">
-                  Search
-                </Button>
-              </form>
-
-              <div className="mb-6">
-                <p className="text-sm font-semibold text-gray-900 mb-2">{t('static.products.quickType')}</p>
-                <div className="flex flex-wrap gap-2">
-                  {PRODUCT_TYPE_OPTIONS.map((option) => {
-                    const active = selectedType === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => {
-                          setSelectedType(active ? '' : option.value);
-                          setCurrentPage(1);
-                        }}
-                        className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-all duration-200 ${
-                          active
-                            ? 'bg-[#0066CC] text-white border-[#0066CC] shadow-sm scale-105'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-[#0066CC] hover:text-[#0066CC] hover:-translate-y-0.5'
-                        }`}
-                      >
-                        <span className="mr-1" aria-hidden="true">{option.icon}</span>
-                        {t(option.labelKey)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <p className="text-sm font-semibold text-gray-900 mb-2">{t('static.products.quickGender')}</p>
-                <div className="flex flex-wrap gap-2">
-                  {GENDER_OPTIONS.map((option) => {
-                    const active = selectedGender === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => {
-                          setSelectedGender(active ? '' : option.value);
-                          setCurrentPage(1);
-                        }}
-                        className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-all duration-200 ${
-                          active
-                            ? 'bg-[#0066CC] text-white border-[#0066CC] shadow-sm scale-105'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-[#0066CC] hover:text-[#0066CC] hover:-translate-y-0.5'
-                        }`}
-                      >
-                        {t(option.labelKey)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.category')}</label>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => {
-                      setSelectedCategory(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
+          {/* Active filters, each removable on its own */}
+          {activeFilterChips.length > 0 ? (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              {activeFilterChips.map((chip) => (
+                <span
+                  key={chip.key}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-[#0066CC]"
+                >
+                  {chip.label}
+                  <button
+                    type="button"
+                    onClick={chip.clear}
+                    aria-label={t('static.products.removeFilter', { label: chip.label })}
+                    className="rounded-full p-0.5 text-[#0066CC]/70 transition-colors hover:bg-[#0066CC] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#0066CC]"
                   >
-                    <option value="">{t('static.products.allCategories')}</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id.toString()}>
-                        {categoryDisplayName(cat, language)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {availableFrameShapes.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.frameShape')}</label>
-                    <select
-                      value={selectedFrameShape}
-                      onChange={(e) => {
-                        setSelectedFrameShape(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
-                    >
-                      <option value="">{t('static.products.allShapes')}</option>
-                      {availableFrameShapes.map((shape) => (
-                        <option key={shape} value={shape}>
-                          {shape.charAt(0).toUpperCase() + shape.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {availableFrameMaterials.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.frameMaterial')}</label>
-                    <select
-                      value={selectedFrameMaterial}
-                      onChange={(e) => {
-                        setSelectedFrameMaterial(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
-                    >
-                      <option value="">{t('static.products.allMaterials')}</option>
-                      {availableFrameMaterials.map((material) => (
-                        <option key={material} value={material}>
-                          {material.charAt(0).toUpperCase() + material.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.stockStatus')}</label>
-                  <div className="flex flex-wrap gap-2">
-                    {STOCK_OPTIONS.map((option) => {
-                      const active = selectedStockStatus === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => {
-                            setSelectedStockStatus(active ? '' : option.value);
-                            setCurrentPage(1);
-                          }}
-                          className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-all duration-200 ${
-                            active
-                              ? 'bg-[#0066CC] text-white border-[#0066CC] shadow-sm scale-105'
-                              : 'bg-white text-gray-700 border-gray-300 hover:border-[#0066CC] hover:text-[#0066CC] hover:-translate-y-0.5'
-                          }`}
-                        >
-                          {t(option.labelKey)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.minimumRating')}</label>
-                  <select
-                    value={minRating}
-                    onChange={(e) => {
-                      setMinRating(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0066CC] focus:border-[#0066CC] transition-all"
-                  >
-                    <option value="">{t('static.products.anyRating')}</option>
-                    <option value="4.5">{t('static.products.stars45')}</option>
-                    <option value="4.0">{t('static.products.stars40')}</option>
-                    <option value="3.5">{t('static.products.stars35')}</option>
-                    <option value="3.0">{t('static.products.stars30')}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">{t('static.products.priceRange')}</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="number"
-                      placeholder={t('static.products.minPrice')}
-                      value={minPrice}
-                      onChange={(e) => {
-                        setMinPrice(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full"
-                    />
-                    <Input
-                      type="number"
-                      placeholder={t('static.products.maxPrice')}
-                      value={maxPrice}
-                      onChange={(e) => {
-                        setMaxPrice(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-              </div>
-
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              ))}
               <button
+                type="button"
                 onClick={clearFilters}
-                className="mt-6 w-full rounded-xl border border-[#0066CC] px-3 py-2.5 text-sm font-semibold text-[#0066CC] hover:bg-blue-50 transition-colors"
+                className="rounded-full px-3 py-1 text-xs font-semibold text-gray-600 transition-colors hover:text-[#0066CC] hover:underline"
               >
-                Clear All Filters
+                {t('static.products.clearAllFilters')}
               </button>
             </div>
-          </aside>
+          ) : null}
+
+          {/* Sidebar banners keep their width; the narrow sidebar is gone. */}
+          <div className="mb-6 max-w-md">
+            <PromotionalBanners placement="sidebar" />
+          </div>
+
 
           {/* Products Grid */}
-          <div className="lg:col-span-3">
+          <div>
             {/* Toolbar */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">
                   {t('static.products.showing', { shown: products.length, total })}
                 </span>
-                {activeFilters.length > 0 && (
+                {activeFilterChips.length > 0 && (
                   <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-[#0066CC]">
-                    {t('static.products.filtersActive', { count: activeFilters.length })}
+                    {t('static.products.filtersActive', { count: activeFilterChips.length })}
                   </span>
                 )}
               </div>
@@ -666,18 +559,18 @@ export default function ProductsPage() {
 
             {/* Products */}
             {loading ? (
-              <div className={viewMode === 'grid' 
-                ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+              <div className={viewMode === 'grid'
+                ? PRODUCT_GRID_CLASS
                 : 'space-y-4'
               }>
-                {[...Array(6)].map((_, i) => (
+                {[...Array(12)].map((_, i) => (
                   <div key={i} className={viewMode === 'grid' ? 'h-80 bg-gray-200 rounded-xl animate-pulse' : 'h-48 bg-gray-200 rounded-xl animate-pulse'}></div>
                 ))}
               </div>
             ) : products.length > 0 ? (
               <>
-                <div className={viewMode === 'grid' 
-                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+                <div className={viewMode === 'grid'
+                  ? PRODUCT_GRID_CLASS
                   : 'space-y-4'
                 }>
                   {products.map((product) => (
@@ -722,12 +615,24 @@ export default function ProductsPage() {
                 </svg>
                 <p className="text-gray-600 mb-4">{t('static.products.empty')}</p>
                 <Button onClick={clearFilters} variant="primary">
-                  Clear Filters
+                  {t('static.products.clearFilters')}
                 </Button>
               </div>
             )}
           </div>
         </div>
+
+      <ProductFiltersModal
+        isOpen={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        draft={filterDraft}
+        onDraftChange={(patch) => setFilterDraft((current) => ({ ...current, ...patch }))}
+        onClearDraft={() => setFilterDraft({ ...EMPTY_PRODUCT_FILTER_DRAFT })}
+        onApply={applyFilters}
+        categories={categories}
+        frameShapes={availableFrameShapes}
+        frameMaterials={availableFrameMaterials}
+      />
     </div>
   );
 }
