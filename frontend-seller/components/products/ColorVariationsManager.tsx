@@ -14,6 +14,7 @@ import { resolveMediaUrl } from '@/lib/media-url';
 import FrameSizesEditor from '@/components/products/FrameSizesEditor';
 import { emptyDraftSize, normalizeSizeRow, type DraftSizeRow } from '@/components/products/variantSizes';
 import { useLanguage } from '@/contexts/LanguageContext';
+import Modal from '@/components/ui/Modal';
 
 interface ColorVariationsManagerProps {
   productId: number;
@@ -27,7 +28,6 @@ interface ColorVariationsManagerProps {
 export default function ColorVariationsManager({ productId, categoryId, productType }: ColorVariationsManagerProps) {
   const { t } = useLanguage();
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [expandedVariantId, setExpandedVariantId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -281,6 +281,13 @@ export default function ColorVariationsManager({ productId, categoryId, productT
     }
   };
 
+  const closeForm = () => {
+    if (saving) return;
+    setShowForm(false);
+    setEditingVariant(null);
+    resetForm();
+  };
+
   if (!isEyeProduct) return null;
 
   if (loading) {
@@ -312,8 +319,14 @@ export default function ColorVariationsManager({ productId, categoryId, productT
       </div>
 
       {showForm && (
+        <Modal
+          isOpen={showForm}
+          onClose={closeForm}
+          title={`${editingVariant ? t('form.edit') : t('form.addColorVariation')}: ${formData.color_name || t('form.colorName')}`}
+          size="lg"
+        >
         <div
-          className="space-y-4 border-t border-gray-200 pt-6"
+          className="space-y-4"
           onKeyDown={(e) => {
             // Nested inside product <form> — block Enter from submitting the product
             if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
@@ -531,6 +544,16 @@ export default function ColorVariationsManager({ productId, categoryId, productT
             </div>
           )}
 
+          {editingVariant && (
+            <FrameSizesEditor
+              productId={productId}
+              productVariantId={editingVariant.id}
+              title={`${t('form.sizesStockForColor')}: ${editingVariant.color_name}`}
+              description={t('form.sizesStockDescription')}
+              onChanged={() => void loadVariants()}
+            />
+          )}
+
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2">
               <input
@@ -561,24 +584,19 @@ export default function ColorVariationsManager({ productId, categoryId, productT
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => {
-                setShowForm(false);
-                setEditingVariant(null);
-                resetForm();
-              }}
+              onClick={closeForm}
             >
               {t('form.cancel')}
             </Button>
           </div>
         </div>
+        </Modal>
       )}
 
       {variants.length > 0 && (
         <div className="border-t border-gray-200 pt-6 space-y-4">
            <h4 className="text-sm font-semibold text-gray-900">{t('form.existingVariations')} ({variants.length})</h4>
           {variants.map((variant) => {
-            const isExpanded = expandedVariantId === variant.id;
-
             return (
             <div key={variant.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-sm">
               <div className="flex items-center justify-between gap-3 p-4">
@@ -612,59 +630,21 @@ export default function ColorVariationsManager({ productId, categoryId, productT
                     </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setExpandedVariantId(isExpanded ? null : variant.id)}
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-gray-200 text-gray-600 hover:border-[#0066CC] hover:bg-blue-50 hover:text-[#0066CC]"
-                  aria-expanded={isExpanded}
-                >
-                  <svg className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
+                <Button type="button" variant="outline" size="sm" onClick={() => handleEdit(variant)}>
+                  {t('form.sizesStockForColor')}
+                </Button>
               </div>
 
-              {isExpanded && (
-                <div className="space-y-4 border-t border-gray-100 bg-gray-50 p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {!variant.is_default && (
-                      <Button variant="outline" size="sm" onClick={() => void handleSetDefault(variant.id)}>
-                        {t('form.setDefault')}
-                      </Button>
-                    )}
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(variant)}>
-                      {t('form.edit')}
-                    </Button>
-                    <Button variant="danger" size="sm" onClick={() => void handleDelete(variant.id)}>
-                      {t('form.delete')}
-                    </Button>
-                  </div>
-
-                  {variant.images && variant.images.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {variant.images.slice(0, 4).map((image, index) => (
-                    <div key={index} className="relative w-16 h-16 rounded border border-gray-200 overflow-hidden bg-gray-50">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={resolveMediaUrl(image)}
-                        alt={`${variant.color_name} ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-                  <FrameSizesEditor
-                    productId={productId}
-                    productVariantId={variant.id}
-                    compact
-                    title={`${t('form.sizesStockForColor')}: ${variant.color_name}`}
-                    description={t('form.sizesStockDescription')}
-                    onChanged={() => void loadVariants()}
-                  />
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 bg-gray-50 p-4">
+                {!variant.is_default && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => void handleSetDefault(variant.id)}>
+                    {t('form.setDefault')}
+                  </Button>
+                )}
+                <Button type="button" variant="danger" size="sm" onClick={() => void handleDelete(variant.id)}>
+                  {t('form.delete')}
+                </Button>
+              </div>
               </div>
             );
           })}

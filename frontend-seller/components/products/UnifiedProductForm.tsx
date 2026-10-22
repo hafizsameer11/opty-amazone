@@ -12,7 +12,7 @@ import ProductImageUpload from '@/components/products/ProductImageUpload';
 import CategoryProductForm from '@/components/products/CategoryProductForm';
 import DiscountCalculator from '@/components/products/DiscountCalculator';
 import ColorVariationsManager from '@/components/products/ColorVariationsManager';
-import DraftColorVariationsEditor from '@/components/products/DraftColorVariationsEditor';
+import DraftColorVariationsEditor from '@/components/products/DraftColorVariationsModalEditor';
 import { useSuggestedProductSku } from '@/lib/use-suggested-product-sku';
 import { useLanguage } from '@/contexts/LanguageContext';
 
