@@ -15,7 +15,7 @@ import { isEyeProductCategory } from "@/utils/product-utils";
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 import { PRODUCT_GRID_CLASS, PRODUCT_IMAGE_STAGE_CLASS } from '@/components/products/product-grid';
 
-const HOME_PRODUCTS_PER_PAGE = 20;
+const HOME_PRODUCTS_PER_PAGE = 30;
 
 type HomeCategory = {
   id: number;
