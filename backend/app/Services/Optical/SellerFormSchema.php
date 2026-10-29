@@ -43,6 +43,12 @@ final class SellerFormSchema
                 $field['fields'][] = $f('image_ids', 'Color photographs', 'images', ['maxItems' => 10]);
                 $field['fields'][] = self::stockStatus();
                 $field['fields'][] = $f('sort_order', 'Sort order', 'number', ['min' => 0, 'step' => '1']);
+            } elseif (in_array($field['key'], ['size_volume_variants', 'eye_hygiene_variants'], true)) {
+                foreach ($field['fields'] as &$child) {
+                    if ($child['key'] === 'image_index') $child['hidden'] = true;
+                }
+                unset($child);
+                $field['fields'][] = $f('image_ids', 'Option photograph', 'images', ['maxItems' => 1]);
             } elseif ($field['key'] === 'lens_colors') {
                 foreach ($field['fields'] as &$child) {
                     if ($child['key'] === 'color_code') {

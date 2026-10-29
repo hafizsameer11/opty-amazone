@@ -52,6 +52,31 @@ class OpticalIntegrationTest extends TestCase
         $this->assertDatabaseHas('personal_access_tokens', ['id' => $existing->accessToken->id]);
     }
 
+    public function test_authorization_language_toggle_preserves_flow_and_expiry(): void
+    {
+        $flow = ['client_id' => 'optical-shop', 'redirect_uri' => config('optical.redirect_uri'), 'state' => Str::random(48), 'code_challenge' => str_repeat('a', 43), 'code_challenge_method' => 'S256'];
+        $this->get('/optical/authorize?'.http_build_query([...$flow, 'locale' => 'it']))->assertOk()->assertSee('La tua attività,')->assertSee('Autorizza e continua')->assertSee('lang="it"', false);
+        $expires = session('optical_authorize.expires');
+        $this->travel(1)->minutes();
+        $this->get('/optical/authorize?'.http_build_query([...$flow, 'locale' => 'en']))->assertOk()->assertSee('Your business,');
+        $this->assertSame($expires, session('optical_authorize.expires'));
+        $this->assertSame($flow['state'], session('optical_authorize.state'));
+        $this->get('/optical/authorize?'.http_build_query([...$flow, 'locale' => 'fr']))->assertSessionHasErrors('locale');
+        $this->travelBack();
+    }
+
+    public function test_authorization_validation_and_seller_eligibility_follow_submitted_language(): void
+    {
+        $flow = ['client_id' => 'optical-shop', 'redirect_uri' => config('optical.redirect_uri'), 'state' => Str::random(48), 'code_challenge' => str_repeat('a', 43), 'code_challenge_method' => 'S256'];
+        $this->get('/optical/authorize?'.http_build_query([...$flow, 'locale' => 'it']))->assertOk();
+        $this->post('/optical/authorize', ['locale' => 'it'])->assertSessionHasErrors(['email' => 'Inserisci la tua email.']);
+        $this->post('/optical/authorize', ['email' => $this->seller->email, 'password' => 'wrong', 'consent' => 1, 'locale' => 'en'])->assertSessionHasErrors(['email' => 'The seller credentials are invalid or unavailable.']);
+        $this->seller->forceFill(['email_verified_at' => null])->save();
+        $this->post('/optical/authorize', ['email' => $this->seller->email, 'password' => 'TestingPassword123!', 'consent' => 1, 'locale' => 'it'])->assertForbidden()->assertSee('Verifica la tua email venditore Vista Express prima di collegarti.')->assertSee('lang="it"', false);
+        $this->assertDatabaseCount('optical_authorization_codes', 0);
+        $this->assertSame($flow['state'], session('optical_authorize.state'));
+    }
+
     public function test_production_loopback_requires_opt_in_exact_match_and_verified_seller(): void
     {
         $original = app()->environment();
@@ -197,6 +222,31 @@ class OpticalIntegrationTest extends TestCase
         $foreign = Category::create(['name' => 'Other', 'slug' => 'accessori', 'is_active' => true]);
         $this->postJson('/api/optical/publications', [...$payload, 'operation_key' => (string) Str::uuid(), 'expected_version' => $result['version'], 'product' => [...$product, 'sub_category_id' => $foreign->id]])->assertUnprocessable();
         $this->assertSame(2, $p->fresh()->stock_quantity);
+    }
+
+    public function test_hygiene_photo_id_selection_survives_updates_and_rejects_foreign_photo_keys(): void
+    {
+        $this->withToken($this->token);
+        $cat = Category::create(['name' => 'Hygiene', 'slug' => 'eye-hygiene', 'is_active' => true]);
+        $photo = (string) Str::uuid();
+        $this->post('/api/optical/images', ['file' => UploadedFile::fake()->image('option.png'), 'image_key' => $photo], ['Accept' => 'application/json'])->assertOk();
+        $size = ['option_key' => (string) Str::uuid(), 'size_volume' => '100ml', 'stock_quantity' => 2, 'image_ids' => [$photo], 'is_active' => true];
+        $use = ['option_key' => (string) Str::uuid(), 'name' => 'Dry eyes', 'image_ids' => [$photo], 'is_active' => true];
+        $product = ['category_id' => $cat->id, 'product_type' => 'eye_hygiene', 'name' => 'Drops', 'price' => 12, 'size_volume_variants' => [$size], 'eye_hygiene_variants' => [$use]];
+        $payload = ['external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 2, 'currency' => 'EUR', 'images' => [$photo], 'product' => $product];
+        $result = $this->postJson('/api/optical/publications', $payload)->assertOk()->json('data');
+        $p = Product::findOrFail($result['product_id']);
+        $url = $p->sizeVolumeVariants()->first()->image_url;
+        $this->assertNotEmpty($url);
+        $this->assertSame($url, $p->eyeHygieneVariants()->first()->image_url);
+        $size['stock_quantity'] = 0;
+        $updated = [...$payload, 'allocated_quantity' => 0, 'operation_key' => (string) Str::uuid(), 'expected_version' => $result['version'], 'product' => [...$product, 'size_volume_variants' => [$size]]];
+        $next = $this->postJson('/api/optical/publications', $updated)->assertOk()->json('data');
+        $this->assertSame(2, $p->sizeVolumeVariants()->first()->stock_quantity);
+        $this->assertSame($url, $p->sizeVolumeVariants()->first()->image_url);
+        $this->assertSame(1, $p->sizeVolumeVariants()->count());
+        $size['image_ids'] = [(string) Str::uuid()];
+        $this->postJson('/api/optical/publications', [...$updated, 'operation_key' => (string) Str::uuid(), 'expected_version' => $next['version'], 'product' => [...$product, 'size_volume_variants' => [$size]]])->assertUnprocessable();
     }
 
     public function test_contact_prescriptions_pack_photos_prices_and_additive_color_stock_survive_editing(): void

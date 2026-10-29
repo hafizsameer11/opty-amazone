@@ -54,10 +54,12 @@ class ProductOptions
                     }
                 }
                 if (array_key_exists('image_ids', $row)) {
-                    $row['images'] = array_map(function ($id) use ($images) {
+                    $selectedImages = array_map(function ($id) use ($images) {
                         if (!isset($images[$id])) throw ValidationException::withMessages(['product.variants' => 'Choose photos belonging to this seller publication.']);
                         return $images[$id];
                     }, $row['image_ids'] ?? []);
+                    if ($kind === 'variants') $row['images'] = $selectedImages;
+                    else $row['image_url'] = $selectedImages[0] ?? null;
                 }
                 unset($row['image_index'], $row['image_indices'], $row['image_ids']);
                 $old = $map[$key] ?? null;
