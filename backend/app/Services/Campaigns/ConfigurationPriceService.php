@@ -14,6 +14,17 @@ class ConfigurationPriceService
 
     public function cents(Product $product, array $selection = []): int
     {
+        // An eye-hygiene line represents exactly one sellable pack/option.
+        // Accepting both historic option ids let the later loop overwrite the
+        // first option's price, which made the cart, checkout and seller
+        // receipt disagree.  Reject the ambiguous selection at the one
+        // authoritative pricing boundary as well as at the request boundary.
+        if (! empty($selection['product_size_volume_id']) && ! empty($selection['eye_hygiene_variant_id'])) {
+            throw ValidationException::withMessages([
+                'eye_hygiene_variant_id' => 'Choose one eye-hygiene pack or option at a time.',
+            ]);
+        }
+
         $price = (float) $product->price;
         if (!empty($selection['variant_id'])) {
             $variant = $product->variants()->findOrFail($selection['variant_id']);

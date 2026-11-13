@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
         // Seed subscription plans
         $this->call([
             SubscriptionPlanSeeder::class,
+            Vista360PlanSeeder::class,
         ]);
 
         // Seed users (buyers and sellers)

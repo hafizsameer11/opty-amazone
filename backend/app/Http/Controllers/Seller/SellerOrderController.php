@@ -20,7 +20,19 @@ class SellerOrderController extends Controller
         abort_unless(auth()->user()->store, 404, 'Store not found.');
 
         return StoreOrder::where('store_id', auth()->user()->store->id)
-            ->with(['order:id,user_id,order_no', 'order.user:id,name,email,phone', 'items', 'escrow', 'payment']);
+            ->with([
+                'order:id,user_id,order_no',
+                'order.user:id,name,email,phone',
+                // New orders use the immutable product_variant snapshot. The
+                // relations keep historical orders readable while a seller
+                // upgrades, and never replace the buyer's saved selection.
+                'items.frameSize',
+                'items.productSizeVolume',
+                'items.eyeHygieneVariant',
+                'items.variant',
+                'escrow',
+                'payment',
+            ]);
     }
 
     public function index(Request $r)

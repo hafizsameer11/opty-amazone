@@ -21,7 +21,12 @@ final class SellerFormSchema
     {
         $f = self::field(...);
         foreach ($fields as &$field) {
-            if ($field['key'] === 'frame_shape') {
+            if (in_array($field['key'], ['lens_index_options', 'treatment_options'], true)) {
+                // Seller's CategoryProductForm accepts comma-separated values, not a
+                // fixed catalog. Keep custom lens indexes and treatment descriptions.
+                $field['type'] = 'list';
+                unset($field['options']);
+            } elseif ($field['key'] === 'frame_shape') {
                 $field = $f('frame_shape', 'Frame shape', 'select', ['options' => FrameOptionCatalog::SHAPES, 'allowLegacy' => true]);
             } elseif ($field['key'] === 'frame_material') {
                 $field = $f('frame_material', 'Frame material', 'select', ['options' => FrameOptionCatalog::MATERIALS, 'allowLegacy' => true]);
@@ -40,7 +45,7 @@ final class SellerFormSchema
                     }
                 }
                 unset($child);
-                $field['fields'][] = $f('image_ids', 'Color photographs', 'images', ['maxItems' => 10]);
+                $field['fields'][] = $f('image_ids', 'Color photographs', 'images', ['maxItems' => 6]);
                 $field['fields'][] = self::stockStatus();
                 $field['fields'][] = $f('sort_order', 'Sort order', 'number', ['min' => 0, 'step' => '1']);
             } elseif (in_array($field['key'], ['size_volume_variants', 'eye_hygiene_variants'], true)) {

@@ -107,7 +107,8 @@ class PublicationController extends Controller
             }
             $galleryIds = $fields['gallery_image_ids'] ?? $d['images'];
             unset($fields['gallery_image_ids']);
-            abort_unless($galleryIds && ! array_diff($galleryIds, $d['images']), 422, 'Choose at least one owned main product photograph.');
+            $hasColorPhotos = collect($options['variants'] ?? [])->contains(fn ($row) => ! empty($row['image_ids']) || ! empty($row['image_indices']));
+            abort_unless(($galleryIds || $hasColorPhotos) && ! array_diff($galleryIds, $d['images']), 422, 'Choose owned main or color product photographs.');
             $allPhotoUrls = collect($d['images'])->mapWithKeys(fn ($id) => [$id => url(Storage::disk('public')->url($images->firstWhere('id', $id)->storage_key))])->all();
             $fields['images'] = collect($galleryIds)->map(fn ($id) => url(Storage::disk('public')->url($images->firstWhere('id', $id)->storage_key)))->all();
             if ($link) {

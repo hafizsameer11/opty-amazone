@@ -67,8 +67,30 @@ class AuthorizationController extends Controller
     public function token(Request $r)
     {
         OpticalIdentity::configured();
-        $d = $r->validate(['client_id' => 'required|string', 'client_secret' => 'required|string', 'code' => 'required|string|size:64', 'redirect_uri' => 'required|string', 'code_verifier' => 'required|string|min:43|max:128|regex:/^[A-Za-z0-9._~-]+$/D']);
+        $d = $r->validate(['client_id' => 'required|string', 'client_secret' => 'required|string', 'code' => 'required|string|size:64', 'redirect_uri' => 'required|string', 'code_verifier' => 'required|string|min:43|max:128|regex:/^[A-Za-z0-9._~-]+$/D', 'service' => 'nullable|in:integration,vista360']);
         abort_unless(hash_equals(config('optical.client_id'), $d['client_id']) && hash_equals(config('optical.client_secret'), $d['client_secret']) && hash_equals(config('optical.redirect_uri'), $d['redirect_uri']), 401, 'Invalid client.');
+        $service = $d['service'] ?? 'integration';
+
+        // A normal account-to-account integration remains available to every
+        // eligible seller.  Only a CRM login explicitly marked `vista360` is
+        // checked against the paid entitlement.
+        if ($service === 'vista360') {
+            $preview = DB::table('optical_authorization_codes')->where('code_hash', hash('sha256', $d['code']))->first();
+            if ($preview) {
+                $u = User::find($preview->user_id);
+                if ($u) {
+                    $store = OpticalIdentity::store($u);
+                    $entitlement = app(\App\Services\Vista360\Vista360SubscriptionService::class)->entitlement($u, $store);
+                    if (! app(\App\Services\Vista360\Vista360SubscriptionService::class)->allows($entitlement, 'crm.access')) {
+                        return response()->json([
+                            'message' => 'An active Vista Express 360 subscription with CRM access is required to access the CRM.',
+                            'code' => 'vista360_subscription_required',
+                            'data' => ['entitlement' => $entitlement],
+                        ], 403)->header('Cache-Control', 'no-store');
+                    }
+                }
+            }
+        }
         $result = DB::transaction(function () use ($d) {
             $code = DB::table('optical_authorization_codes')->where('code_hash', hash('sha256', $d['code']))->lockForUpdate()->first();
             $challenge = rtrim(strtr(base64_encode(hash('sha256', $d['code_verifier'], true)), '+/', '-_'), '=');
@@ -79,9 +101,9 @@ class AuthorizationController extends Controller
             abort_unless(DB::table('optical_authorization_codes')->where('code_hash', $code->code_hash)->whereNull('used_at')->update(['used_at' => now()]) === 1, 400);
             $token = 'vos_'.Str::random(64);
             $expires = now()->addDays(config('optical.grant_days'));
-            DB::table('optical_grants')->insert(['token_hash' => hash('sha256', $token), 'user_id' => $u->id, 'store_id' => $s->id, 'client_id' => $d['client_id'], 'scopes' => json_encode(OpticalIdentity::SCOPES), 'expires_at' => $expires, 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('optical_grants')->insert(['token_hash' => hash('sha256', $token), 'user_id' => $u->id, 'store_id' => $s->id, 'client_id' => $d['client_id'], 'service' => $d['service'] ?? 'integration', 'scopes' => json_encode(OpticalIdentity::SCOPES), 'expires_at' => $expires, 'created_at' => now(), 'updated_at' => now()]);
 
-            return ['access_token' => $token, 'token_type' => 'Bearer', 'expires_at' => $expires->toIso8601String(), 'identity' => OpticalIdentity::payload($u, $s), 'scopes' => OpticalIdentity::SCOPES];
+            return ['access_token' => $token, 'token_type' => 'Bearer', 'expires_at' => $expires->toIso8601String(), 'identity' => OpticalIdentity::payload($u, $s), 'scopes' => OpticalIdentity::SCOPES, 'service' => $d['service'] ?? 'integration'];
         });
 
         return response()->json($result)->header('Cache-Control', 'no-store');
@@ -89,7 +111,21 @@ class AuthorizationController extends Controller
 
     public function identity(Request $r)
     {
-        return ['data' => OpticalIdentity::payload($r->attributes->get('optical_user'), $r->attributes->get('optical_store'))];
+        return ['data' => [
+            ...OpticalIdentity::payload($r->attributes->get('optical_user'), $r->attributes->get('optical_store')),
+            'service' => $r->attributes->get('optical_grant')->service ?? 'integration',
+        ]];
+    }
+
+    public function subscription(Request $r)
+    {
+        $grant = $r->attributes->get('optical_grant');
+        $user = $r->attributes->get('optical_user');
+        $store = $r->attributes->get('optical_store');
+        $entitlement = ($grant->service ?? 'integration') === 'vista360'
+            ? app(\App\Services\Vista360\Vista360SubscriptionService::class)->entitlement($user, $store)
+            : ['active' => true, 'status' => 'integration', 'features' => ['crm.access']];
+        return ['data' => $entitlement];
     }
 
     public function revoke(Request $r)

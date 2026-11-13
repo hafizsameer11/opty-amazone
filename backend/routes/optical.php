@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('token', [AuthorizationController::class, 'token'])->middleware('throttle:30,1');
 Route::get('identity', [AuthorizationController::class, 'identity'])->middleware(OpticalGrant::class.':identity');
+Route::get('subscription', [AuthorizationController::class, 'subscription'])->middleware(OpticalGrant::class.':identity');
 Route::post('revoke', [AuthorizationController::class, 'revoke'])->middleware(OpticalGrant::class.':identity');
 Route::get('catalog-metadata', [DataController::class, 'metadata'])->middleware(OpticalGrant::class.':catalog.read');
 Route::get('products', [DataController::class, 'products'])->middleware(OpticalGrant::class.':catalog.read');

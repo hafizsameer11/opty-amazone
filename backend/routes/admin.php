@@ -22,6 +22,20 @@ Route::middleware(['auth:sanctum', 'marketplace.role:admin'])->group(function ()
     Route::post('/live-summary/viewed', [\App\Http\Controllers\Admin\AdminLiveSummaryController::class, 'markViewed']);
     Route::put('/store-orders/{id}/status', [\App\Http\Controllers\Admin\AdminStoreOrderController::class, 'updateStatus']);
     Route::get('/dashboard', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index']);
+
+    // Vista Express 360 is a separate, configurable CRM subscription product.
+    // These routes do not change the legacy marketplace subscription feature.
+    Route::prefix('vista360')->group(function () {
+        Route::get('/plans', [\App\Http\Controllers\Admin\AdminVista360Controller::class, 'plans']);
+        Route::post('/plans', [\App\Http\Controllers\Admin\AdminVista360Controller::class, 'store']);
+        Route::put('/plans/{id}', [\App\Http\Controllers\Admin\AdminVista360Controller::class, 'update']);
+        Route::post('/plans/{id}/availability', [\App\Http\Controllers\Admin\AdminVista360Controller::class, 'toggle']);
+        Route::get('/subscriptions', [\App\Http\Controllers\Admin\AdminVista360Controller::class, 'subscriptions']);
+        Route::post('/subscriptions/manual-grant', [\App\Http\Controllers\Admin\AdminVista360Controller::class, 'manualGrant']);
+        Route::get('/subscriptions/{uuid}', [\App\Http\Controllers\Admin\AdminVista360Controller::class, 'subscription']);
+        Route::post('/subscriptions/{uuid}/action', [\App\Http\Controllers\Admin\AdminVista360Controller::class, 'action']);
+        Route::get('/payments', [\App\Http\Controllers\Admin\AdminVista360Controller::class, 'payments']);
+    });
     
     Route::prefix('users')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\AdminUserController::class, 'index']);

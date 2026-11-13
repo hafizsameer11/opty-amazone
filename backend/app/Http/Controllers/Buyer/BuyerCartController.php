@@ -25,7 +25,7 @@ class BuyerCartController extends Controller
     {
         $user = Auth::user();
         $cart = Cart::where('user_id', $user->id)
-            ->with(['items.product', 'items.store', 'items.variant', 'items.frameSize'])
+            ->with(['items.product', 'items.store', 'items.variant', 'items.frameSize', 'items.productSizeVolume', 'items.eyeHygieneVariant'])
             ->first();
 
         if (!$cart) {
@@ -38,7 +38,7 @@ class BuyerCartController extends Controller
             ->whereDoesntHave('product', fn ($products) => $products->visibleToBuyers())
             ->delete();
         $cart->unsetRelation('items');
-        $cart->load(['items.product', 'items.store', 'items.variant', 'items.frameSize']);
+        $cart->load(['items.product', 'items.store', 'items.variant', 'items.frameSize', 'items.productSizeVolume', 'items.eyeHygieneVariant']);
 
         app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
         $publicItems = $cart->items->map(fn (CartItem $item) => $this->publicCartItem($item))->values();
@@ -46,7 +46,7 @@ class BuyerCartController extends Controller
         // Group items by store. The persisted store id is retained for
         // checkout mechanics, while the buyer-facing label respects the
         // seller's anonymity preference.
-        $itemsByStore = $cart->items()->with('product', 'store', 'variant', 'frameSize')->get()->groupBy('store_id');
+        $itemsByStore = $cart->items()->with('product', 'store', 'variant', 'frameSize', 'productSizeVolume', 'eyeHygieneVariant')->get()->groupBy('store_id');
         $breakdown = [];
 
         foreach ($itemsByStore as $storeId => $items) {
@@ -127,6 +127,8 @@ class BuyerCartController extends Controller
 
         $variant = null;
         $frameSize = null;
+        $sizeVolume = null;
+        $namedVariant = null;
         $price = $product->price;
         $stockQuantity = $product->stock_quantity;
         $stockStatus = $product->stock_status;
@@ -210,6 +212,10 @@ class BuyerCartController extends Controller
             return ResponseHelper::error('Insufficient stock', null, 400);
         }
 
+        if ($request->product_size_volume_id && $request->eye_hygiene_variant_id) {
+            return ResponseHelper::error('Choose one eye-hygiene option at a time', null, 422);
+        }
+
         DB::beginTransaction();
         
         try {
@@ -239,7 +245,21 @@ class BuyerCartController extends Controller
                 if ($stockQuantity < $newQuantity) {
                     return ResponseHelper::error('Insufficient stock', null, 400);
                 }
-                $existingItem->update(['quantity' => $newQuantity]);
+                $existingItem->update([
+                    'quantity' => $newQuantity,
+                    // Keep a server-derived receipt of the option. This is
+                    // intentionally refreshed when the buyer adds the same
+                    // configuration again; no client-provided price, image
+                    // or label is trusted.
+                    'price' => $price,
+                    'product_variant' => $this->selectionSnapshot(
+                        $request->input('product_variant'),
+                        $variant,
+                        $frameSize,
+                        $sizeVolume,
+                        $namedVariant,
+                    ),
+                ]);
                 $item = $existingItem;
             } else {
                 // Create new item
@@ -258,6 +278,8 @@ class BuyerCartController extends Controller
                         $request->input('product_variant'),
                         $variant,
                         $frameSize,
+                        $sizeVolume,
+                        $namedVariant,
                     ),
                     'lens_configuration' => $request->lens_configuration,
                     'prescription_data' => $request->prescription_data,
@@ -299,7 +321,7 @@ class BuyerCartController extends Controller
             DB::commit();
 
             app(\App\Services\Ads\AdTrackingService::class)->trackCart($request, (int) $product->id);
-            return ResponseHelper::success($this->publicCartItem($item->load('product', 'store', 'variant', 'frameSize')), 'Item added to cart');
+            return ResponseHelper::success($this->publicCartItem($item->load('product', 'store', 'variant', 'frameSize', 'productSizeVolume', 'eyeHygieneVariant')), 'Item added to cart');
         } catch (\Exception $e) {
             DB::rollBack();
             return ResponseHelper::error($e->getMessage());
@@ -330,11 +352,17 @@ class BuyerCartController extends Controller
         app(\App\Services\Campaigns\DiscountPricingService::class)->repriceCart($cart);
         $item->refresh();
 
-        return ResponseHelper::success($this->publicCartItem($item->load('product', 'store', 'variant', 'frameSize')), 'Cart item updated');
+        return ResponseHelper::success($this->publicCartItem($item->load('product', 'store', 'variant', 'frameSize', 'productSizeVolume', 'eyeHygieneVariant')), 'Cart item updated');
     }
 
     /** Persist human-readable option details without trusting client values. */
-    private function selectionSnapshot(?array $snapshot, ?ProductVariant $variant, ?FrameSize $frameSize): ?array
+    private function selectionSnapshot(
+        ?array $snapshot,
+        ?ProductVariant $variant,
+        ?FrameSize $frameSize,
+        ?ProductSizeVolume $sizeVolume,
+        ?EyeHygieneVariant $namedVariant,
+    ): ?array
     {
         $snapshot ??= [];
 
@@ -350,6 +378,34 @@ class BuyerCartController extends Controller
                 'lens_width' => $frameSize->lens_width,
                 'bridge_width' => $frameSize->bridge_width,
                 'temple_length' => $frameSize->temple_length,
+                'price' => $frameSize->price,
+                'image' => $frameSize->image,
+            ];
+        }
+
+        if ($sizeVolume) {
+            $snapshot['eye_hygiene'] = [
+                'variant_type' => 'size_volume',
+                'product_size_volume_id' => $sizeVolume->id,
+                'label' => trim($sizeVolume->size_volume.(($sizeVolume->pack_type ?? '') !== '' ? ' · '.$sizeVolume->pack_type : '')),
+                'size_volume' => $sizeVolume->size_volume,
+                'pack_type' => $sizeVolume->pack_type,
+                'price' => $sizeVolume->price,
+                'compare_at_price' => $sizeVolume->compare_at_price,
+                'sku' => $sizeVolume->sku,
+                'image_url' => $sizeVolume->image_url,
+                'expiry_date' => $sizeVolume->expiry_date?->toIso8601String(),
+            ];
+        }
+
+        if ($namedVariant) {
+            $snapshot['eye_hygiene'] = [
+                'variant_type' => 'named',
+                'eye_hygiene_variant_id' => $namedVariant->id,
+                'label' => $namedVariant->name,
+                'description' => $namedVariant->description,
+                'price' => $namedVariant->price,
+                'image_url' => $namedVariant->image_url,
             ];
         }
 

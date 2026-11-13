@@ -21,6 +21,16 @@ class OpticalGrant
         $user = User::findOrFail($grant->user_id);
         $store = OpticalIdentity::store($user);
         abort_unless($store->id === (int) $grant->store_id, 403);
+        if (($grant->service ?? 'integration') === 'vista360') {
+            $entitlement = app(\App\Services\Vista360\Vista360SubscriptionService::class)->entitlement($user, $store);
+            if (! app(\App\Services\Vista360\Vista360SubscriptionService::class)->allows($entitlement, 'crm.access')) {
+                return response()->json([
+                    'message' => 'This Vista Express 360 subscription is inactive, expired, suspended or does not include CRM access.',
+                    'code' => 'vista360_subscription_required',
+                    'data' => ['entitlement' => $entitlement],
+                ], 403);
+            }
+        }
         $r->attributes->set('optical_grant', $grant);
         $r->attributes->set('optical_store', $store);
         $r->attributes->set('optical_user', $user);

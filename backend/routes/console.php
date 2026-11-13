@@ -30,6 +30,8 @@ Artisan::command('inspire', function () {
     ->name('release-expired-coupon-reservations')->everyFiveMinutes()->withoutOverlapping();
 \Illuminate\Support\Facades\Schedule::call(fn () => app(\App\Services\Coupon\CouponService::class)->activateDueCoupons())
     ->name('activate-scheduled-coupons')->everyMinute()->withoutOverlapping();
+\Illuminate\Support\Facades\Schedule::call(fn () => app(\App\Services\Vista360\Vista360SubscriptionService::class)->reconcileDue())
+    ->name('reconcile-vista360-subscriptions')->everyMinute()->withoutOverlapping();
 
 Artisan::command('referrals:qualify {--limit=100 : Maximum pending rewards to process}', function () {
     $count = app(\App\Services\Referrals\ReferralService::class)->qualifyDueRewards((int) $this->option('limit'));

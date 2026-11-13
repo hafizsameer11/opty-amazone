@@ -14,6 +14,8 @@ use App\Http\Controllers\Seller\SellerCouponController;
 use App\Http\Controllers\Seller\SellerAnnouncementController;
 use App\Http\Controllers\Seller\SellerBannerController;
 use App\Http\Controllers\Seller\SellerSubscriptionController;
+use App\Http\Controllers\Seller\SellerVista360Controller;
+use App\Http\Controllers\Seller\Vista360StripeWebhookController;
 use App\Http\Controllers\Seller\CategoryLensConfigController;
 use App\Http\Controllers\Seller\CategoryFieldConfigController;
 use App\Http\Controllers\Seller\PrescriptionDropdownController;
@@ -250,6 +252,19 @@ Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('subscrip
     Route::post('/subscribe', [SellerSubscriptionController::class, 'subscribe']);
     Route::post('/cancel', [SellerSubscriptionController::class, 'cancel']);
     Route::get('/features', [SellerSubscriptionController::class, 'getFeatures']);
+});
+
+// Vista Express 360 CRM subscriptions are intentionally isolated from the
+// marketplace's older /subscription feature above.  They only control access
+// to the separate physical-shop CRM after a seller completes the OAuth flow.
+Route::post('/vista360/stripe/webhook', Vista360StripeWebhookController::class)->middleware('throttle:120,1');
+Route::middleware(['auth:sanctum', 'marketplace.role:seller'])->prefix('vista360')->group(function () {
+    Route::get('/plans', [SellerVista360Controller::class, 'plans']);
+    Route::get('/subscription', [SellerVista360Controller::class, 'subscription']);
+    Route::post('/checkout', [SellerVista360Controller::class, 'checkout'])->middleware('throttle:10,1');
+    Route::post('/confirm', [SellerVista360Controller::class, 'confirm'])->middleware('throttle:20,1');
+    Route::post('/cancel-future', [SellerVista360Controller::class, 'cancelFuture']);
+    Route::get('/crm-link', [SellerVista360Controller::class, 'crmLink']);
 });
 
 // Category Lens Configuration routes

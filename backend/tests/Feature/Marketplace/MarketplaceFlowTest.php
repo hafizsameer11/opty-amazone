@@ -4,9 +4,12 @@ namespace Tests\Feature\Marketplace;
 
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\FrameSize;
 use App\Models\PointRule;
 use App\Models\PointTransaction;
 use App\Models\Product;
+use App\Models\ProductSizeVolume;
+use App\Models\ProductVariant;
 use App\Models\SellerWallet;
 use App\Models\SellerWalletEntry;
 use App\Models\Store;
@@ -135,6 +138,126 @@ class MarketplaceFlowTest extends TestCase
         $foreign = UserAddress::create(['user_id' => $this->seller->id, 'full_name' => 'Other', 'address_line_1' => 'Private']);
         $this->postJson('/api/buyer/checkout/place', ['delivery_address_id' => $foreign->id])->assertUnprocessable();
         $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_selected_eye_hygiene_pack_keeps_its_price_image_and_receipt_in_the_seller_order(): void
+    {
+        $product = Product::create([
+            'store_id' => $this->store->id,
+            'name' => 'Comfort eye drops',
+            'slug' => (string) Str::uuid(),
+            'sku' => 'DROPS-BASE',
+            'price' => '12.00',
+            'stock_quantity' => 9,
+            'stock_status' => 'in_stock',
+            'is_approved' => true,
+            'is_active' => true,
+            'product_type' => 'eye_hygiene',
+            'images' => ['products/base-drops.png'],
+        ]);
+        $pack = ProductSizeVolume::create([
+            'product_id' => $product->id,
+            'size_volume' => '120 ml',
+            'pack_type' => 'Twin pack',
+            'price' => '27.50',
+            'stock_quantity' => 4,
+            'stock_status' => 'in_stock',
+            'sku' => 'DROPS-TWIN-120',
+            'image_url' => 'products/drops-twin.png',
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($this->buyer);
+        $this->postJson('/api/buyer/cart/items', [
+            'product_id' => $product->id,
+            'product_size_volume_id' => $pack->id,
+            'quantity' => 1,
+        ])->assertOk()
+            ->assertJsonPath('data.price', '27.50')
+            ->assertJsonPath('data.product_variant.eye_hygiene.variant_type', 'size_volume')
+            ->assertJsonPath('data.product_variant.eye_hygiene.label', '120 ml · Twin pack')
+            ->assertJsonPath('data.product_variant.eye_hygiene.sku', 'DROPS-TWIN-120')
+            ->assertJsonPath('data.product_variant.eye_hygiene.image_url', 'products/drops-twin.png');
+
+        $storeOrder = $this->place(false);
+        $item = $storeOrder->items()->firstOrFail();
+        $this->assertSame($pack->id, $item->product_size_volume_id);
+        $this->assertNull($item->eye_hygiene_variant_id);
+        $this->assertSame('27.50', (string) $item->price);
+        $this->assertSame('120 ml · Twin pack', $item->product_variant['eye_hygiene']['label']);
+        $this->assertSame('DROPS-TWIN-120', $item->product_variant['eye_hygiene']['sku']);
+        $this->assertSame('products/drops-twin.png', $item->product_images[0]);
+
+        Sanctum::actingAs($this->seller);
+        $this->getJson('/api/seller/orders/'.$storeOrder->id)->assertOk()
+            ->assertJsonPath('data.items.0.product_size_volume_id', $pack->id)
+            ->assertJsonPath('data.items.0.price', '27.50')
+            ->assertJsonPath('data.items.0.product_variant.eye_hygiene.label', '120 ml · Twin pack')
+            ->assertJsonPath('data.items.0.product_variant.eye_hygiene.image_url', 'products/drops-twin.png')
+            ->assertJsonPath('data.items.0.product_images.0', 'products/drops-twin.png');
+    }
+
+    public function test_selected_frame_size_is_preserved_in_the_seller_order_receipt(): void
+    {
+        $product = Product::create([
+            'store_id' => $this->store->id,
+            'name' => 'Midnight frame',
+            'slug' => (string) Str::uuid(),
+            'sku' => 'FRAME-BASE',
+            'price' => '80.00',
+            'stock_quantity' => 5,
+            'stock_status' => 'in_stock',
+            'is_approved' => true,
+            'is_active' => true,
+            'product_type' => 'frame',
+            'images' => ['products/frame-base.png'],
+        ]);
+        $variant = ProductVariant::create([
+            'product_id' => $product->id,
+            'color_name' => 'Midnight blue',
+            'color_code' => '#102A43',
+            'price' => '82.00',
+            'stock_quantity' => 5,
+            'stock_status' => 'in_stock',
+            'is_default' => true,
+            'images' => ['products/frame-blue.png'],
+        ]);
+        $size = FrameSize::create([
+            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
+            'size_label' => '52-18-140',
+            'lens_width' => 52,
+            'bridge_width' => 18,
+            'temple_length' => 140,
+            'price' => '84.00',
+            'image' => 'products/frame-blue-52.png',
+            'stock_quantity' => 3,
+            'stock_status' => 'in_stock',
+        ]);
+
+        Sanctum::actingAs($this->buyer);
+        $this->postJson('/api/buyer/cart/items', [
+            'product_id' => $product->id,
+            'variant_id' => $variant->id,
+            'frame_size_id' => $size->id,
+            'quantity' => 1,
+        ])->assertOk()
+            ->assertJsonPath('data.price', '84.00')
+            ->assertJsonPath('data.product_variant.color_name', 'Midnight blue')
+            ->assertJsonPath('data.product_variant.frame_size.size_label', '52-18-140');
+
+        $storeOrder = $this->place(false);
+        $item = $storeOrder->items()->firstOrFail();
+        $this->assertSame($size->id, $item->frame_size_id);
+        $this->assertSame('52-18-140', $item->product_variant['frame_size']['size_label']);
+        $this->assertSame('products/frame-blue-52.png', $item->product_images[0]);
+
+        Sanctum::actingAs($this->seller);
+        $this->getJson('/api/seller/orders/'.$storeOrder->id)->assertOk()
+            ->assertJsonPath('data.items.0.frame_size_id', $size->id)
+            ->assertJsonPath('data.items.0.product_variant.frame_size.size_label', '52-18-140')
+            ->assertJsonPath('data.items.0.product_variant.frame_size.lens_width', '52.00')
+            ->assertJsonPath('data.items.0.product_images.0', 'products/frame-blue-52.png');
     }
 
     public function test_snapshot_survives_address_edit_and_delete_and_codes_are_hidden(): void

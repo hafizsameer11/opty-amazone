@@ -23,15 +23,31 @@ class OpticalIntegrationTest extends TestCase
 
     private string $token;
 
+    private ?string $originalStoragePath = null;
+
     protected function setUp(): void
     {
         parent::setUp();
+        // Storage::fake normally writes below the repository's storage
+        // directory. Use the OS test area instead so this end-to-end
+        // publication suite remains runnable in read-only/sandboxed source
+        // workspaces without weakening production image-storage behavior.
+        $this->originalStoragePath = app()->storagePath();
+        app()->useStoragePath(sys_get_temp_dir().DIRECTORY_SEPARATOR.'opty-marketplace-optical-test-storage');
         Storage::fake('public');
         config(['optical.enabled' => true, 'optical.client_secret' => str_repeat('s', 48), 'optical.redirect_uri' => 'http://127.0.0.1:5273/pulse-ui/auth/vista/callback', 'optical.require_verified_email' => true]);
         $this->seller = User::factory()->seller()->create(['password' => 'TestingPassword123!', 'email_verified_at' => now()]);
         $this->store = Store::create(['user_id' => $this->seller->id, 'name' => 'Optical seller', 'slug' => Str::uuid(), 'status' => 'active', 'is_active' => true]);
         $this->token = 'vos_'.Str::random(64);
         DB::table('optical_grants')->insert(['token_hash' => hash('sha256', $this->token), 'user_id' => $this->seller->id, 'store_id' => $this->store->id, 'client_id' => 'optical-shop', 'scopes' => json_encode(\App\Services\Optical\OpticalIdentity::SCOPES), 'expires_at' => now()->addDay(), 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->originalStoragePath !== null) {
+            app()->useStoragePath($this->originalStoragePath);
+        }
+        parent::tearDown();
     }
 
     public function test_authorization_pkce_single_use_and_existing_seller_sessions_are_preserved(): void
@@ -159,7 +175,7 @@ class OpticalIntegrationTest extends TestCase
         foreach (['eye-glasses' => 'frame', 'sun-glasses' => 'sunglasses', 'contact-lenses' => 'contact_lens', 'eye-hygiene' => 'eye_hygiene', 'accessori' => 'accessory'] as $slug => $type) {
             $category = Category::create(['name' => $type, 'slug' => $slug, 'is_active' => true]);
             $specific = match ($type) {
-                'frame','sunglasses' => ['lens_index_options' => ['1.6'], 'treatment_options' => ['blue_light']],'contact_lens' => ['has_uv_filter' => true, 'replacement_frequency' => 'daily', 'base_curve_options' => ['8.6']],'eye_hygiene' => ['size_volume' => '100ml'],default => ['gender' => 'unisex']
+                'frame','sunglasses' => ['lens_index_options' => ['1.6', '1.59'], 'treatment_options' => ['blue_light', 'Premium anti-glare']],'contact_lens' => ['has_uv_filter' => true, 'replacement_frequency' => 'daily', 'base_curve_options' => ['8.6']],'eye_hygiene' => ['size_volume' => '100ml'],default => ['gender' => 'unisex']
             };
             $product = ['category_id' => $category->id, 'product_type' => $type, 'name' => 'Category '.$type, 'sku' => 'TYPE-'.$type, 'price' => 20, ...$specific];
             $payload = ['external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 2, 'currency' => 'EUR', 'images' => [$image], 'product' => $product];
@@ -170,10 +186,33 @@ class OpticalIntegrationTest extends TestCase
             foreach ($specific as $key => $value) {
                 $this->assertEquals($value, $stored->$key);
             }
+            // Compare the actual public buyer projection, not only database columns.
+            $this->actingAs($this->seller);
+            $request = \Illuminate\Http\Request::create('/api/seller/products', 'POST', [
+                ...$product, 'sku' => 'DIRECT-'.$type, 'images' => $stored->images,
+                'stock_quantity' => 2, 'stock_status' => 'in_stock',
+            ]);
+            $request->setUserResolver(fn () => $this->seller);
+            $direct = app(\App\Http\Controllers\Seller\SellerProductController::class)->store($request);
+            $this->assertSame(200, $direct->getStatusCode());
+            $reader = app(\App\Http\Controllers\Api\PublicProductController::class);
+            $crmView = $reader->show($id)->getData(true)['data'];
+            $sellerView = $reader->show($direct->getData(true)['data']['id'])->getData(true)['data'];
+            foreach (['product_type', 'category_id', 'price', 'images', 'stock_quantity', 'stock_status', ...array_keys($specific)] as $field) {
+                $this->assertEquals($sellerView[$field] ?? null, $crmView[$field] ?? null, $type.' buyer field '.$field);
+            }
             $this->postJson('/api/optical/publications', [...$payload, 'external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'product' => [...$product, 'product_type' => 'wrong']])->assertUnprocessable();
         }
         $this->getJson('/api/optical/catalog-metadata')->assertOk()->assertJsonPath('data.schema_version', 3)->assertJsonCount(5, 'data.categories');
-        $this->assertDatabaseCount('products', 5);
+        $schema = \App\Services\Optical\SellerFormSchema::extend([['key' => 'variants', 'fields' => []]], 'frame');
+        $this->assertSame(6, collect($schema[0]['fields'])->firstWhere('key', 'image_ids')['maxItems']);
+        $this->assertDatabaseCount('products', 10);
+        \Laravel\Sanctum\Sanctum::actingAs(User::factory()->create(['role' => 'buyer']));
+        // Both creation paths must be purchasable through the real buyer cart API.
+        foreach (Product::all() as $item) {
+            $this->postJson('/api/buyer/cart/items', ['product_id' => $item->id, 'quantity' => 1])
+                ->assertOk()->assertJsonPath('data.price', '20.00');
+        }
     }
 
     public function test_nested_allocations_are_additive_and_idempotent(): void
@@ -186,6 +225,8 @@ class OpticalIntegrationTest extends TestCase
         $this->post('/api/optical/images', ['file' => UploadedFile::fake()->image('second.png'), 'image_key' => $secondImage], ['Accept' => 'application/json'])->assertOk();
         $variant = ['option_key' => (string) Str::uuid(), 'color_name' => 'Blue', 'color_code' => '#0000ff', 'stock_quantity' => 3, 'image_indices' => ['1', '2'], 'sizes' => [['option_key' => (string) Str::uuid(), 'size_label' => 'Medium', 'stock_quantity' => 3]]];
         $payload = ['external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 3, 'currency' => 'EUR', 'images' => [$image, $secondImage], 'product' => ['category_id' => $cat->id, 'product_type' => 'frame', 'name' => 'Sized frame', 'sku' => 'SIZED', 'price' => 25, 'variants' => [$variant]]];
+        // Seller permits photos only on color variations, with no main gallery.
+        $payload['product']['gallery_image_ids'] = [];
         $this->postJson('/api/optical/publications', [...$payload, 'allocated_quantity' => 4])->assertUnprocessable();
         $r = $this->postJson('/api/optical/publications', $payload)->assertOk()->json('data');
         $this->postJson('/api/optical/publications', $payload)->assertOk();
@@ -193,6 +234,7 @@ class OpticalIntegrationTest extends TestCase
         $this->assertSame(1, $product->variants()->count());
         $this->assertSame(1, $product->frameSizes()->count());
         $this->assertCount(2, $product->variants()->first()->images);
+        $this->assertEmpty($product->images);
         $next = [...$payload, 'operation_key' => (string) Str::uuid(), 'expected_version' => $r['version']];
         $this->postJson('/api/optical/publications', $next)->assertOk()->assertJsonPath('data.stock_quantity', 6);
         $this->assertSame(6, $product->variants()->first()->stock_quantity);
@@ -355,6 +397,19 @@ class OpticalIntegrationTest extends TestCase
         $this->assertNull($product->fresh()->short_description);
         $this->assertSame(2, $product->variants()->count());
         $this->assertSame(4, $product->fresh()->stock_quantity);
+        \Laravel\Sanctum\Sanctum::actingAs(User::factory()->create(['role' => 'buyer']));
+        $colors = $product->variants()->orderBy('id')->get();
+        foreach ($colors as $color) {
+            $size = $product->frameSizes()->where('product_variant_id', $color->id)->firstOrFail();
+            $this->postJson('/api/buyer/cart/items', ['product_id' => $product->id, 'variant_id' => $color->id,
+                'frame_size_id' => $size->id, 'quantity' => 1])->assertOk()
+                ->assertJsonPath('data.product_variant.color_name', $color->color_name)
+                ->assertJsonPath('data.frame_size.size_label', '52-18-140')
+                ->assertJsonPath('data.price', '99.00');
+        }
+        $wrongSize = $product->frameSizes()->where('product_variant_id', $colors[1]->id)->firstOrFail();
+        $this->postJson('/api/buyer/cart/items', ['product_id' => $product->id, 'variant_id' => $colors[0]->id,
+            'frame_size_id' => $wrongSize->id, 'quantity' => 1])->assertUnprocessable();
     }
 
 }

@@ -100,6 +100,23 @@ class OrderItem extends Model
         return $this->belongsTo(ProductVariant::class);
     }
 
+    /** The live option relationships are useful for internal screens; the
+     * immutable product_variant snapshot remains the order receipt. */
+    public function frameSize(): BelongsTo
+    {
+        return $this->belongsTo(FrameSize::class);
+    }
+
+    public function productSizeVolume(): BelongsTo
+    {
+        return $this->belongsTo(ProductSizeVolume::class);
+    }
+
+    public function eyeHygieneVariant(): BelongsTo
+    {
+        return $this->belongsTo(EyeHygieneVariant::class);
+    }
+
     public function productReview(): HasOne
     {
         return $this->hasOne(ProductReview::class);
