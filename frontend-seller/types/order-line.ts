@@ -26,6 +26,19 @@ export interface OrderLineSelections {
       image_url?: string | null;
       product_size_volume_id?: number;
       eye_hygiene_variant_id?: number;
+      price?: number | string | null;
+      size_volume?: string | null;
+      pack_type?: string | null;
+      sku?: string | null;
+    };
+    frame_size?: {
+      id?: number;
+      size_label?: string | null;
+      lens_width?: number | string | null;
+      bridge_width?: number | string | null;
+      temple_length?: number | string | null;
+      price?: number | string | null;
+      image?: string | null;
     };
     [key: string]: unknown;
   } | null;

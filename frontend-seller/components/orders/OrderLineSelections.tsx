@@ -96,7 +96,15 @@ export default function OrderLineSelections({
   if (eyeOpt?.label) {
     rows.push(
       <SelectionRow key="eye-hygiene" label={t('orderDetails.eyeHygieneOption')}>
+        {eyeOpt.image_url && (
+          <img
+            src={eyeOpt.image_url}
+            alt=""
+            className="h-7 w-7 rounded border border-gray-200 object-cover"
+          />
+        )}
         <span>{eyeOpt.label}</span>
+        {eyeOpt.price != null && <span className="text-gray-500">€{Number(eyeOpt.price).toFixed(2)}</span>}
       </SelectionRow>
     );
   }
@@ -118,9 +126,17 @@ export default function OrderLineSelections({
   }
 
   if (line.frame_size_id) {
+    const frameSize = pv?.frame_size;
+    const dimensions =
+      frameSize &&
+      [frameSize.lens_width, frameSize.bridge_width, frameSize.temple_length].every(
+        (value) => value !== null && value !== undefined && value !== ''
+      )
+        ? `${frameSize.lens_width}-${frameSize.bridge_width}-${frameSize.temple_length}`
+        : null;
     rows.push(
       <SelectionRow key="frame-size" label={t('orderDetails.frameSize')}>
-        <span>#{line.frame_size_id}</span>
+        <span>{frameSize?.size_label?.trim() || dimensions || `Selected size #${line.frame_size_id}`}</span>
       </SelectionRow>
     );
   }

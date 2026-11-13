@@ -75,6 +75,15 @@ export default function Sidebar() {
       ),
     },
     {
+      name: 'Vista Express 360',
+      href: '/vista-express-360',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l2.2 4.8L19 10l-3.5 3.4.9 4.9-4.4-2.5-4.4 2.5.9-4.9L5 10l4.8-2.2L12 3z" />
+        </svg>
+      ),
+    },
+    {
       name: t('nav.store'),
       href: '/store',
       icon: (

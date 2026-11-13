@@ -14,6 +14,7 @@ import { inventoryService, type LowStockResponse } from '@/services/inventory-se
 import { isStoreSuspendedError } from '@/lib/api-client';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useLanguage } from '@/contexts/LanguageContext';
+import Vista360Promo from '@/components/vista360/Vista360Promo';
 
 interface DashboardData {
   total_products: number;
@@ -153,6 +154,7 @@ useEffect(() => {
             </div>
           )}
           {/* Welcome Section */}
+          <Vista360Promo />
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               {t('dashboard.welcome', { name: user?.name?.split(' ')[0] || t('nav.seller') })}
