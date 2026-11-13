@@ -19,6 +19,21 @@ return [
         explode(',', env('VISTA360_CHECKOUT_RETURN_ORIGINS', 'https://seller.vistaexpress.it,http://localhost:3121,http://127.0.0.1:3121'))
     ))),
 
+    /*
+     * Temporary no-charge acceptance testing. This is intentionally disabled
+     * by default and never supports a wildcard: a production server must list
+     * every test seller ID explicitly. It is not a replacement for Stripe.
+     */
+    'test_checkout_enabled' => env('VISTA360_TEST_CHECKOUT_ENABLED', false),
+    'test_checkout_allowed_seller_ids' => array_values(array_filter(array_map(
+        static function (string $value): ?int {
+            $value = trim($value);
+
+            return ctype_digit($value) && (int) $value > 0 ? (int) $value : null;
+        },
+        explode(',', (string) env('VISTA360_TEST_CHECKOUT_ALLOWED_SELLER_IDS', ''))
+    ))),
+
     // The optional signed event lets the CRM invalidate its short-lived local
     // entitlement cache immediately when an admin changes a subscription.
     'crm_webhook_url' => env('VISTA360_CRM_WEBHOOK_URL'),

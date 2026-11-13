@@ -126,6 +126,53 @@ class Vista360SubscriptionTest extends TestCase
         ]);
     }
 
+    public function test_explicitly_allowlisted_seller_can_activate_an_auditable_no_charge_test_term_without_stripe(): void
+    {
+        config([
+            'vista360.test_checkout_enabled' => true,
+            'vista360.test_checkout_allowed_seller_ids' => [$this->seller->id],
+        ]);
+
+        $service = app(Vista360SubscriptionService::class);
+        $key = 'test_checkout_'.Str::random(40);
+        $result = $service->createCheckout(
+            $this->seller,
+            $this->store,
+            $this->plan->id,
+            1,
+            'https://seller.vistaexpress.it/vista-express-360?checkout=success',
+            'https://seller.vistaexpress.it/vista-express-360?checkout=cancelled',
+            $key,
+        );
+
+        $this->assertTrue($result['test_mode']);
+        $this->assertNull($result['checkout']);
+        $this->assertSame(Vista360Subscription::ACTIVE, $result['subscription']->status);
+        $this->assertSame('test', $result['payment']->provider);
+        $this->assertSame('paid', $result['payment']->status);
+        $this->assertSame(3900, $result['payment']->amount_cents);
+        $this->assertTrue($service->entitlement($this->seller, $this->store)['active']);
+        $this->assertDatabaseHas('vista360_subscription_events', [
+            'vista360_subscription_id' => $result['subscription']->id,
+            'event' => 'test_checkout.activated',
+        ]);
+
+        // Retrying the same browser request is idempotent and cannot create a
+        // second no-charge entitlement.
+        $retry = $service->createCheckout(
+            $this->seller,
+            $this->store,
+            $this->plan->id,
+            1,
+            'https://seller.vistaexpress.it/vista-express-360?checkout=success',
+            'https://seller.vistaexpress.it/vista-express-360?checkout=cancelled',
+            $key,
+        );
+        $this->assertSame($result['subscription']->id, $retry['subscription']->id);
+        $this->assertDatabaseCount('vista360_subscriptions', 1);
+        $this->assertDatabaseCount('vista360_subscription_payments', 1);
+    }
+
     private function subscription(string $status, $startsAt, $expiresAt): Vista360Subscription
     {
         return Vista360Subscription::create([

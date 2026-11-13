@@ -55,8 +55,9 @@ class SellerVista360Controller extends Controller
 
         return ResponseHelper::success([
             'checkout' => $result['checkout'],
+            'test_mode' => $result['test_mode'],
             'subscription' => $subscriptions->subscriptionPayload($result['subscription']),
-        ], 'Checkout created.', 201);
+        ], $result['test_mode'] ? 'Test subscription activated. No payment was collected.' : 'Checkout created.', 201);
     }
 
     public function confirm(Request $request, Vista360SubscriptionService $subscriptions): JsonResponse
