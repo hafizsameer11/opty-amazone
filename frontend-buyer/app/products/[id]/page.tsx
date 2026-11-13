@@ -70,6 +70,18 @@ export default function ProductDetailPage() {
     []
   );
 
+  // Eye-hygiene packs are independently priced and can carry their own
+  // photograph.  Reuse the PDP gallery state used by contact-lens packs so
+  // the price and image the buyer sees always match the option added to cart.
+  const handleEyeHygieneDisplayChange = useCallback(
+    (change: { price: number; imageUrls: string[] | null }) => {
+      setClDisplayPrice(change.price);
+      setClMainImages(change.imageUrls);
+      setClHideThumbnailGallery(false);
+    },
+    []
+  );
+
   useEffect(() => {
     if (params.id) {
       loadProduct();
@@ -266,7 +278,7 @@ export default function ProductDetailPage() {
       : product.images || [];
   const sizeImage = selectedFrameSize?.image ? [selectedFrameSize.image] : null;
   const images =
-    product.product_type === "contact_lens" && clMainImages?.length
+    (product.product_type === "contact_lens" || product.product_type === "eye_hygiene") && clMainImages?.length
       ? clMainImages
       : sizeImage?.length
       ? sizeImage
@@ -283,6 +295,8 @@ export default function ProductDetailPage() {
             clUnitConfig?.packs?.[0]?.price ??
             product.price
         )
+      : product.product_type === "eye_hygiene" && clDisplayPrice != null
+      ? Number(clDisplayPrice)
       : selectedFrameSize?.price != null
       ? Number(selectedFrameSize.price)
       : showSizePicker && availableFrameSizes.length > 0
@@ -742,6 +756,7 @@ export default function ProductDetailPage() {
                     }
                   }}
                   addingToCart={addingToCart}
+                  onVariantDisplayChange={handleEyeHygieneDisplayChange}
                 />
               ) : requiresLensCustomizationModal(product) ? (
                 <div className="space-y-3">
