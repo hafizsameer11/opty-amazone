@@ -64,6 +64,7 @@ const navigation: NavItem[] = [
   { nameKey: 'analytics', href: '/analytics', icon: <AnalyticsIcon />, section: 'communication' },
   { nameKey: 'activityLogs', href: '/activity-logs', icon: <ActivityIcon />, section: 'communication' },
   { nameKey: "Marketplace Finance", href: "/finance", icon: <span className="text-xl">€</span>, section: 'finance' },
+  { nameKey: 'vista360Subscriptions', href: '/vista-express-360', icon: <Vista360Icon />, section: 'finance' },
   { nameKey: "Referral Program", href: "/referrals", icon: <span className="text-xl">↗</span>, section: 'finance' },
   // Hidden from the sidebar for now. Restore by deleting these two comment lines.
   // { nameKey: 'points', href: '/points', icon: <PointsIcon />, section: 'finance' },
@@ -171,6 +172,15 @@ function ActivityIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function Vista360Icon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l7 4v5c0 4.5-2.9 7.9-7 9-4.1-1.1-7-4.5-7-9V7l7-4z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.5 12h7M12 8.5V15.5" />
     </svg>
   );
 }
