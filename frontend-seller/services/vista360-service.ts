@@ -17,10 +17,12 @@ export type Vista360Entitlement = { active: boolean; status: string; expires_at?
 export const vista360Service = {
   async plans(): Promise<Vista360Plan[]> { return (await apiClient.get('/seller/vista360/plans')).data.data; },
   async subscription(): Promise<{ subscription: Vista360Subscription | null; future_subscriptions: Vista360Subscription[]; entitlement: Vista360Entitlement }> { return (await apiClient.get('/seller/vista360/subscription')).data.data; },
-  async checkout(data: { plan_id: number; duration_months: 1 | 6 | 12; success_url: string; cancel_url: string; idempotency_key?: string }) {
-    return (await apiClient.post('/seller/vista360/checkout', data)).data.data as { checkout: { id: string; url: string }; subscription: Vista360Subscription };
+  async activate(data: { plan_id: number; duration_months: 1 | 6 | 12; idempotency_key?: string }) {
+    return (await apiClient.post('/seller/vista360/activate', data)).data.data as {
+      activation_mode: 'complimentary';
+      subscription: Vista360Subscription;
+    };
   },
-  async confirm(stripe_session_id: string) { return (await apiClient.post('/seller/vista360/confirm', { stripe_session_id })).data.data as { subscription: Vista360Subscription; entitlement: Vista360Entitlement }; },
   async cancelFuture(reason?: string) { return (await apiClient.post('/seller/vista360/cancel-future', { reason })).data.data; },
   async crmLink() { return (await apiClient.get('/seller/vista360/crm-link')).data.data as { url: string; entitlement: Vista360Entitlement }; },
 };
