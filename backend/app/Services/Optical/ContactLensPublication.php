@@ -4,6 +4,7 @@ namespace App\Services\Optical;
 
 use App\Http\Controllers\Seller\SellerProductPrescriptionDropdownController;
 use App\Models\Product;
+use App\Models\Category;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,12 +16,16 @@ final class ContactLensPublication
 
     public static function validate(array $fields, int $quantity): void
     {
+        $colored = self::isColoredLens($fields);
         $variants = collect($fields['variants'] ?? [])->keyBy('option_key');
         $packs = collect($fields['contact_lens_packs'] ?? []);
         if ($packs->pluck('quantity')->unique()->count() !== $packs->count()) {
             self::invalid('Pack sizes must be unique.');
         }
         foreach ($packs as $pack) {
+            if (! $colored && ! empty($pack['variant_keys'])) {
+                self::invalid('Standard contact lenses do not use color variations. Choose the coloured-lenses category to configure colors.');
+            }
             foreach ($pack['variant_keys'] ?? [] as $key) {
                 if (! $variants->has($key)) {
                     self::invalid('Choose a color belonging to this product.');
@@ -29,6 +34,9 @@ final class ContactLensPublication
         }
         $seen = [];
         $stock = $fields['contact_lens_colour_stock'] ?? [];
+        if (! $colored && $stock) {
+            self::invalid('Standard contact lenses use a quantity per pack, not pack/color stock.');
+        }
         foreach ($stock as $row) {
             $pack = $packs->firstWhere('quantity', $row['pack_quantity']);
             $identity = $row['pack_quantity'].':'.$row['variant_key'];
@@ -49,6 +57,16 @@ final class ContactLensPublication
                 if ($total !== (int) ($variant['stock_quantity'] ?? 0)) {
                     self::invalid('Pack/color allocations must also match each color allocation.');
                 }
+            }
+        }
+        if (! $colored && $packs->contains(fn ($pack) => array_key_exists('stock_quantity', $pack))) {
+            foreach ($packs as $pack) {
+                if (! isset($pack['stock_quantity']) || (int) $pack['stock_quantity'] < 0) {
+                    self::invalid('Enter a valid stock quantity for every pack.');
+                }
+            }
+            if ((int) $packs->sum(fn ($pack) => (int) ($pack['stock_quantity'] ?? 0)) !== $quantity) {
+                self::invalid('Pack stock quantities must equal the total allocation.');
             }
         }
     }
@@ -81,6 +99,7 @@ final class ContactLensPublication
         if (! array_key_exists('contact_lens_packs', $fields)) {
             return;
         }
+        $colored = self::isColoredLens($fields);
         $old = $product->contact_lens_unit_config ?? [];
         $packs = [];
         foreach ($fields['contact_lens_packs'] ?? [] as $pack) {
@@ -96,9 +115,12 @@ final class ContactLensPublication
                 $variants[] = $map[$key]['id'];
             }
             $packs[] = ['quantity' => (int) $pack['quantity'], 'price' => $pack['price'] ?? null,
+                'stock_quantity' => array_key_exists('stock_quantity', $pack) ? (int) $pack['stock_quantity'] : null,
                 'images' => $photos, 'available_variant_ids' => $variants];
         }
-        $stock = collect($old['colour_stock'] ?? [])->keyBy(fn ($r) => $r['pack_quantity'].':'.$r['variant_id'])->all();
+        $stock = $colored
+            ? collect($old['colour_stock'] ?? [])->keyBy(fn ($r) => $r['pack_quantity'].':'.$r['variant_id'])->all()
+            : [];
         foreach ($fields['contact_lens_colour_stock'] ?? [] as $row) {
             $variantId = $map[$row['variant_key']]['id'];
             $key = $row['pack_quantity'].':'.$variantId;
@@ -120,5 +142,21 @@ final class ContactLensPublication
     private static function invalid(string $message): never
     {
         throw ValidationException::withMessages(['product.contact_lens_packs' => $message]);
+    }
+
+    private static function isColoredLens(array $fields): bool
+    {
+        $category = Category::find($fields['sub_category_id'] ?? null);
+        $seen = [];
+        while ($category && ! isset($seen[$category->id])) {
+            $seen[$category->id] = true;
+            $source = strtolower(($category->slug ?? '').' '.($category->name ?? ''));
+            if (preg_match('/\\bcolou?red\\b/', str_replace(['-', '_'], ' ', $source))) {
+                return true;
+            }
+            $category = $category->parent;
+        }
+
+        return false;
     }
 }

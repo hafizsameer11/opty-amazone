@@ -197,6 +197,57 @@ class MarketplaceFlowTest extends TestCase
             ->assertJsonPath('data.items.0.product_images.0', 'products/drops-twin.png');
     }
 
+    public function test_selected_contact_lens_pack_keeps_its_price_image_stock_and_seller_receipt(): void
+    {
+        $product = Product::create([
+            'store_id' => $this->store->id,
+            'name' => 'Monthly clear lenses',
+            'slug' => (string) Str::uuid(),
+            'sku' => 'MONTHLY-CLEAR',
+            'price' => '21.50',
+            'stock_quantity' => 6,
+            'stock_status' => 'in_stock',
+            'is_approved' => true,
+            'is_active' => true,
+            'product_type' => 'contact_lens',
+            'images' => ['products/monthly-base.png'],
+            'contact_lens_unit_config' => [
+                'packs' => [
+                    ['quantity' => 30, 'price' => 21.50, 'stock_quantity' => 2, 'images' => ['products/monthly-30.png'], 'available_variant_ids' => []],
+                    ['quantity' => 90, 'price' => 54.00, 'stock_quantity' => 4, 'images' => ['products/monthly-90.png'], 'available_variant_ids' => []],
+                ],
+                'qty_options' => [1, 2],
+                'colour_stock' => [],
+            ],
+        ]);
+
+        Sanctum::actingAs($this->buyer);
+        $this->postJson('/api/buyer/cart/items', [
+            'product_id' => $product->id,
+            'contact_lens_pack_quantity' => 90,
+            'quantity' => 1,
+        ])->assertOk()
+            ->assertJsonPath('data.price', '54.00')
+            ->assertJsonPath('data.product_variant.contact_lens_pack.quantity', 90)
+            ->assertJsonPath('data.product_variant.contact_lens_pack.image_url', 'products/monthly-90.png');
+
+        $storeOrder = $this->place(false);
+        $item = $storeOrder->items()->firstOrFail();
+        $product->refresh();
+        $this->assertSame(90, $item->contact_lens_pack_quantity);
+        $this->assertSame(90, $item->product_variant['contact_lens_pack']['quantity']);
+        $this->assertSame('54.00', (string) $item->price);
+        $this->assertSame('products/monthly-90.png', $item->product_images[0]);
+        $this->assertSame(5, $product->stock_quantity);
+        $this->assertSame(3, $product->contact_lens_unit_config['packs'][1]['stock_quantity']);
+
+        Sanctum::actingAs($this->seller);
+        $this->getJson('/api/seller/orders/'.$storeOrder->id)->assertOk()
+            ->assertJsonPath('data.items.0.contact_lens_pack_quantity', 90)
+            ->assertJsonPath('data.items.0.product_variant.contact_lens_pack.image_url', 'products/monthly-90.png')
+            ->assertJsonPath('data.items.0.product_images.0', 'products/monthly-90.png');
+    }
+
     public function test_selected_frame_size_is_preserved_in_the_seller_order_receipt(): void
     {
         $product = Product::create([

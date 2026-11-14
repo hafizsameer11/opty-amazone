@@ -25,6 +25,7 @@ type ContactLensUnitConfigParsed = {
   packs: Array<{
     quantity: number;
     price: number | null;
+    stock_quantity: number | null;
     images: string[];
     available_variant_ids: number[];
   }>;
@@ -49,6 +50,10 @@ export function parseContactLensUnitConfig(product: Product): ContactLensUnitCon
         .map((p) => ({
           quantity: Number(p.quantity),
           price: p.price != null && p.price !== '' ? Number(p.price) : null,
+          stock_quantity:
+            p.stock_quantity != null && p.stock_quantity !== ''
+              ? Math.max(0, Math.floor(Number(p.stock_quantity)))
+              : null,
           images: Array.isArray(p.images) ? p.images.map(String).filter(Boolean) : [],
           available_variant_ids: Array.isArray(p.available_variant_ids)
             ? p.available_variant_ids.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
@@ -217,15 +222,16 @@ export default function ContactLensConfiguration({
       /\bcolou?rs?\b/.test(value.replace(/-/g, ' ')) ||
       value.includes('coloured') ||
       value.includes('colored');
+    // This is deliberately category-based. A standard lens can have legacy
+    // variant data or a descriptive colour string without becoming a
+    // coloured-lens product in the buyer configuration UI.
     return (
       isColourCategory(slug) ||
       isColourCategory(name) ||
       isColourCategory(subSlug) ||
-      isColourCategory(subName) ||
-      Boolean(product.contact_lens_color) ||
-      (hasConfiguredPacks && colourVariants.length > 0)
+      isColourCategory(subName)
     );
-  }, [product.category, product.sub_category, product.contact_lens_color, hasConfiguredPacks, colourVariants.length]);
+  }, [product.category, product.sub_category]);
 
   /** Use variants as pack alternatives only when no seller packs AND not colour-lens mode. */
   const useVariantsAsPacks = !hasConfiguredPacks && !isColouredLens && Boolean(product.variants?.length);

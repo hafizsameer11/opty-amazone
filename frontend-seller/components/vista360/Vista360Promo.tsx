@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { vista360Service } from '@/services/vista360-service';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function Vista360Promo() {
+  const { t } = useLanguage();
   const [active, setActive] = useState(false);
   const [opening, setOpening] = useState(false);
 
@@ -37,17 +39,17 @@ export default function Vista360Promo() {
       <div className="pointer-events-none absolute bottom-[-88px] left-[35%] h-48 w-48 rounded-full bg-cyan-300/20 blur-2xl" />
       <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
         <div className="max-w-3xl">
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-cyan-100">Connected business workspace</p>
-          <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Bring your shop and online business together with Vista Express 360.</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-50 sm:text-base">Manage shop inventory, products, customers, sales, orders and optical operations in one secure CRM — while keeping your Vista Express marketplace data connected.</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-cyan-100">{t('vista360.promoEyebrow')}</p>
+          <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{t('vista360.promoTitle')}</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-50 sm:text-base">{t('vista360.promoDescription')}</p>
           <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-blue-50">
-            {['Inventory', 'Customer care', 'Sales', 'Orders', 'Business insights'].map((item) => <span key={item} className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5">{item}</span>)}
+            {['inventory', 'customerCare', 'sales', 'orders', 'insights'].map((item) => <span key={item} className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5">{t(`vista360.benefit.${item}`)}</span>)}
           </div>
         </div>
         {active ? (
-          <button type="button" disabled={opening} onClick={() => void openCrm()} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0052A3] shadow-lg transition hover:-translate-y-0.5 hover:bg-cyan-50 disabled:cursor-wait disabled:opacity-70">{opening ? 'Opening CRM…' : 'Open Vista Express 360 CRM'} <span className="ml-2">→</span></button>
+          <button type="button" disabled={opening} onClick={() => void openCrm()} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0052A3] shadow-lg transition hover:-translate-y-0.5 hover:bg-cyan-50 disabled:cursor-wait disabled:opacity-70">{opening ? t('vista360.openingCrm') : t('vista360.openCrm')} <span className="ml-2">→</span></button>
         ) : (
-          <Link href="/vista-express-360" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0052A3] shadow-lg transition hover:-translate-y-0.5 hover:bg-cyan-50">Explore Vista Express 360 <span className="ml-2">→</span></Link>
+          <Link href="/vista-express-360" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0052A3] shadow-lg transition hover:-translate-y-0.5 hover:bg-cyan-50">{t('vista360.explore')} <span className="ml-2">→</span></Link>
         )}
       </div>
     </section>

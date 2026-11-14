@@ -26,6 +26,12 @@ class InventoryService
         $product = Product::where('id', $productId)->lockForUpdate()->firstOrFail();
         $label = $product->name;
 
+        if ($item->contact_lens_pack_quantity && ! $item->variant_id) {
+            if ($this->changeStandardContactLensPackStock($product, (int) $item->contact_lens_pack_quantity, -$qty, $label)) {
+                return;
+            }
+        }
+
         if ($item->product_size_volume_id) {
             $row = ProductSizeVolume::where('product_id', $productId)
                 ->where('id', $item->product_size_volume_id)
@@ -99,6 +105,12 @@ class InventoryService
         $productId = (int) $item->product_id;
         $product = Product::where('id', $productId)->lockForUpdate()->firstOrFail();
 
+        if ($item->contact_lens_pack_quantity && ! $item->variant_id) {
+            if ($this->changeStandardContactLensPackStock($product, (int) $item->contact_lens_pack_quantity, $qty, $product->name, false)) {
+                return;
+            }
+        }
+
         if ($item->product_size_volume_id) {
             $row = ProductSizeVolume::where('product_id', $productId)
                 ->where('id', $item->product_size_volume_id)
@@ -158,6 +170,48 @@ class InventoryService
                 'Insufficient stock for "' . $productName . '". Another customer may have purchased the last units — please refresh your cart and try again.'
             );
         }
+    }
+
+    /**
+     * Standard contact lenses have sellable stock per pack. The parent
+     * product remains the aggregate for reporting; coloured lenses continue
+     * through the existing selected ProductVariant path above.
+     */
+    private function changeStandardContactLensPackStock(
+        Product $product,
+        int $packQuantity,
+        int $delta,
+        string $label,
+        bool $assertAvailability = true,
+    ): bool {
+        $config = $product->contact_lens_unit_config;
+        if (! is_array($config) || ! is_array($config['packs'] ?? null)) {
+            return false;
+        }
+
+        foreach ($config['packs'] as $index => $pack) {
+            if (! is_array($pack) || (int) ($pack['quantity'] ?? 0) !== $packQuantity || ! array_key_exists('stock_quantity', $pack) || $pack['stock_quantity'] === null) {
+                continue;
+            }
+
+            $current = max(0, (int) $pack['stock_quantity']);
+            if ($assertAvailability) {
+                $this->assertAvailable($current, abs($delta), $label);
+            }
+            $config['packs'][$index]['stock_quantity'] = max(0, $current + $delta);
+            $product->contact_lens_unit_config = $config;
+            $product->stock_quantity = max(0, (int) $product->stock_quantity + $delta);
+            if ($product->stock_quantity <= 0) {
+                $product->stock_status = 'out_of_stock';
+            } elseif ($product->stock_status === 'out_of_stock') {
+                $product->stock_status = 'in_stock';
+            }
+            $product->save();
+
+            return true;
+        }
+
+        return false;
     }
 
     private function applyOutOfStockIfEmpty(Product|ProductVariant|ProductSizeVolume|FrameSize $model): void

@@ -94,6 +94,10 @@ final class SellerFormSchema
         $fields[] = $f('contact_lens_packs', 'Packs and pricing', 'rows', ['fields' => [
             $f('quantity', 'Lenses per box', 'number', ['required' => true, 'min' => 1, 'step' => '1']),
             $f('price', 'Pack price (EUR)', 'number', ['min' => 0, 'step' => '0.01']),
+            // For standard (non-coloured) lenses, this is the sellable stock
+            // for the pack. The CRM derives the product total from these
+            // values. Coloured lenses use their pack × colour rows instead.
+            $f('stock_quantity', 'Pack stock quantity', 'number', ['min' => 0, 'step' => '1']),
             $f('image_ids', 'Pack photographs', 'images', ['maxItems' => 10]),
             $f('variant_keys', 'Available colors (empty means all)', 'variant-multiple'),
         ]]);

@@ -290,8 +290,8 @@ export default function ProductDetailPage() {
   const displayPrice = campaignPrice?.discounted_price ?? (
     product.product_type === "contact_lens" && hasClConfiguredPacks
       ? Number(
-          activePackRow?.price ??
-            clDisplayPrice ??
+          clDisplayPrice ??
+            activePackRow?.price ??
             clUnitConfig?.packs?.[0]?.price ??
             product.price
         )

@@ -157,7 +157,11 @@ class OrderService
         $variant = $cartItem->variant;
         $images = $variant && $variant->images ? $variant->images : $product->images;
         $productVariant = $cartItem->product_variant;
-        if (is_array($productVariant) && ! empty($productVariant['eye_hygiene']['image_url'])) {
+        if (is_array($productVariant) && ! empty($productVariant['contact_lens_pack']['image_url'])) {
+            // A pack image is an actual buyer selection, not a decorative
+            // gallery item. Preserve it first in the immutable seller order.
+            $images = array_values(array_unique(array_merge([$productVariant['contact_lens_pack']['image_url']], is_array($images) ? $images : (array) ($images ?? []))));
+        } elseif (is_array($productVariant) && ! empty($productVariant['eye_hygiene']['image_url'])) {
             // The selected pack/option image is an order choice, not merely
             // a catalogue decoration. Put it first in the immutable order
             // image list so the seller receives the exact pack selected.

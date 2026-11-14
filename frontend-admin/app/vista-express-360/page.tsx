@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import GlassCard from '@/components/ui/GlassCard';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
+import Vista360TranslationScope from '@/components/vista360/Vista360TranslationScope';
 import { useToast } from '@/components/ui/Toast';
 import { getAxiosErrorMessage } from '@/lib/api-client';
 import {
@@ -158,7 +159,7 @@ export default function VistaExpress360AdminPage() {
 
   const visiblePlanCount = useMemo(() => plans.filter((plan) => plan.is_active).length, [plans]);
 
-  return <AdminLayout><div className="space-y-6">
+  return <AdminLayout><Vista360TranslationScope><div className="space-y-6">
     <header className="rounded-2xl bg-gradient-to-r from-[#041f4b] via-[#0066CC] to-[#008c73] p-6 text-white shadow-lg sm:p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-100">Vista Express 360</p><h1 className="mt-2 text-3xl font-extrabold">CRM subscription management</h1><p className="mt-2 max-w-3xl text-sm text-blue-50">Manage seller access without changing the marketplace’s existing subscription product. Plan changes only affect new purchases; every paid subscription retains its own saved price and feature snapshot.</p></div><Button className="bg-white !text-[#0066CC] hover:!bg-blue-50" onClick={() => setPlanModal({ draft: emptyPlan() })}>Create plan</Button></div>
     </header>
@@ -179,7 +180,7 @@ export default function VistaExpress360AdminPage() {
     {grantOpen && <ManualGrantModal plans={plans.filter((plan) => plan.is_active)} busy={busy} onClose={() => setGrantOpen(false)} onSubmit={async (data) => { setBusy(true); try { await vista360AdminService.manualGrant(data); showToast('success', 'Subscription granted.'); setGrantOpen(false); await refreshSubscriptions(1); } catch (cause) { showToast('error', getAxiosErrorMessage(cause)); } finally { setBusy(false); } }} />}
     {actionTarget && <SubscriptionActionModal subscription={actionTarget} busy={busy} onClose={() => setActionTarget(null)} onSubmit={runAction} />}
     {historyTarget && <SubscriptionHistoryModal subscription={historyTarget} detail={history} loading={historyLoading} onClose={() => { setHistoryTarget(null); setHistory(null); }} />}
-  </div></AdminLayout>;
+  </div></Vista360TranslationScope></AdminLayout>;
 }
 
 function Metric({ label, value, hint }: { label: string; value: number; hint: string }) { return <GlassCard className="!p-5"><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-3xl font-extrabold text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-400">{hint}</p></GlassCard>; }

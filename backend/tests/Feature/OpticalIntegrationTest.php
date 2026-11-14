@@ -295,8 +295,10 @@ class OpticalIntegrationTest extends TestCase
     {
         $this->withToken($this->token);
         $cat = Category::create(['name' => 'Contact lenses', 'slug' => 'contact-lenses', 'is_active' => true]);
-        $sub = Category::create(['name' => 'Spherical', 'slug' => 'spherical', 'parent_id' => $cat->id, 'is_active' => true]);
-        $leaf = Category::create(['name' => 'Daily', 'slug' => 'daily', 'parent_id' => $sub->id, 'is_active' => true]);
+        // Colour allocations are only valid under the actual coloured-lenses
+        // branch. A normal daily/monthly lens uses pack stock instead.
+        $sub = Category::create(['name' => 'Coloured lenses', 'slug' => 'coloured-lenses', 'parent_id' => $cat->id, 'is_active' => true]);
+        $leaf = Category::create(['name' => 'Daily coloured', 'slug' => 'daily-coloured', 'parent_id' => $sub->id, 'is_active' => true]);
         $photos = [];
         foreach (['main', 'blue', 'pack'] as $name) {
             $photos[] = $key = (string) Str::uuid();
@@ -357,6 +359,55 @@ class OpticalIntegrationTest extends TestCase
         DB::table('prescription_dropdown_values')->where('product_id', $product->id)->update(['label' => 'Seller changed']);
         $this->postJson('/api/optical/publications', [...$next, 'operation_key' => (string) Str::uuid(), 'expected_version' => $updated['version']])->assertConflict();
         $this->assertSame(6, $product->fresh()->stock_quantity);
+    }
+
+    public function test_standard_contact_lens_packs_publish_without_colours_and_keep_per_pack_stock(): void
+    {
+        $this->withToken($this->token);
+        $cat = Category::create(['name' => 'Contact lenses', 'slug' => 'contact-lenses', 'is_active' => true]);
+        $family = Category::create(['name' => 'Spherical', 'slug' => 'spherical', 'parent_id' => $cat->id, 'is_active' => true]);
+        $leaf = Category::create(['name' => 'Monthly', 'slug' => 'monthly', 'parent_id' => $family->id, 'is_active' => true]);
+        $photos = [];
+        foreach (['monthly-main', 'monthly-30', 'monthly-90'] as $name) {
+            $photos[] = $key = (string) Str::uuid();
+            $this->post('/api/optical/images', ['file' => UploadedFile::fake()->image($name.'.png'), 'image_key' => $key], ['Accept' => 'application/json'])->assertOk();
+        }
+        $fields = [
+            'category_id' => $cat->id, 'sub_category_id' => $leaf->id, 'product_type' => 'contact_lens',
+            'gallery_image_ids' => [$photos[0]], 'name' => 'Monthly clear lenses', 'sku' => 'MONTHLY-CLEAR',
+            'price' => 21.5, 'replacement_frequency' => 'monthly',
+            'prescription_values' => [
+                ['option_key' => (string) Str::uuid(), 'field_type' => 'pwr', 'value' => '-1.50', 'eye_type' => 'both'],
+                ['option_key' => (string) Str::uuid(), 'field_type' => 'base_curve', 'value' => '8.60', 'eye_type' => 'both'],
+                ['option_key' => (string) Str::uuid(), 'field_type' => 'diameter', 'value' => '14.20', 'eye_type' => 'both'],
+            ],
+            'contact_lens_packs' => [
+                ['option_key' => (string) Str::uuid(), 'quantity' => 30, 'price' => 21.5, 'stock_quantity' => 10, 'image_ids' => [$photos[1]]],
+                ['option_key' => (string) Str::uuid(), 'quantity' => 90, 'price' => 54, 'stock_quantity' => 5, 'image_ids' => [$photos[2]]],
+            ],
+            'contact_lens_qty_options' => [1, 2, 3],
+        ];
+        $payload = [
+            'external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(),
+            'allocated_quantity' => 15, 'currency' => 'EUR', 'images' => $photos, 'product' => $fields,
+        ];
+        $result = $this->postJson('/api/optical/publications', $payload)->assertOk()->json('data');
+        $product = Product::findOrFail($result['product_id']);
+        $config = $product->contact_lens_unit_config;
+        $this->assertSame(15, $product->stock_quantity);
+        $this->assertSame(10, $config['packs'][0]['stock_quantity']);
+        $this->assertSame(5, $config['packs'][1]['stock_quantity']);
+        $this->assertSame([], $config['colour_stock']);
+        $this->assertCount(0, $product->variants);
+
+        $invalid = $fields;
+        $invalid['contact_lens_colour_stock'] = [[
+            'option_key' => (string) Str::uuid(), 'pack_quantity' => 30,
+            'variant_key' => (string) Str::uuid(), 'stock_quantity' => 1,
+        ]];
+        $this->postJson('/api/optical/publications', [
+            ...$payload, 'operation_key' => (string) Str::uuid(), 'product' => $invalid,
+        ])->assertUnprocessable();
     }
 
     public function test_frame_dropdowns_match_seller_and_color_photos_remain_distinct(): void
