@@ -41,30 +41,20 @@ class SellerVista360Controller extends Controller
         return ResponseHelper::success($subscriptions->current($seller, $store), 'Vista Express 360 subscription retrieved.');
     }
 
-    public function checkout(Request $request, Vista360SubscriptionService $subscriptions): JsonResponse
+    public function activate(Request $request, Vista360SubscriptionService $subscriptions): JsonResponse
     {
         $data = $request->validate([
             'plan_id' => ['required', 'integer', 'exists:vista360_plans,id'],
             'duration_months' => ['required', 'integer', 'in:1,6,12'],
-            'success_url' => ['required', 'url', 'max:2048'],
-            'cancel_url' => ['required', 'url', 'max:2048'],
             'idempotency_key' => ['nullable', 'string', 'min:16', 'max:120', 'regex:/^[A-Za-z0-9_-]+$/'],
         ]);
         [$seller, $store] = $this->context($request);
-        $result = $subscriptions->createCheckout($seller, $store, $data['plan_id'], $data['duration_months'], $data['success_url'], $data['cancel_url'], $data['idempotency_key'] ?? null);
+        $result = $subscriptions->activateComplimentarySubscription($seller, $store, $data['plan_id'], $data['duration_months'], $data['idempotency_key'] ?? null);
 
         return ResponseHelper::success([
-            'checkout' => $result['checkout'],
-            'test_mode' => $result['test_mode'],
+            'activation_mode' => $result['activation_mode'],
             'subscription' => $subscriptions->subscriptionPayload($result['subscription']),
-        ], $result['test_mode'] ? 'Test subscription activated. No payment was collected.' : 'Checkout created.', 201);
-    }
-
-    public function confirm(Request $request, Vista360SubscriptionService $subscriptions): JsonResponse
-    {
-        $data = $request->validate(['stripe_session_id' => ['required', 'string', 'max:255']]);
-        [$seller, $store] = $this->context($request);
-        return ResponseHelper::success($subscriptions->confirmCheckout($seller, $store, $data['stripe_session_id']), 'Payment verified.');
+        ], 'Subscription activated. No payment was collected.', 201);
     }
 
     public function cancelFuture(Request $request, Vista360SubscriptionService $subscriptions): JsonResponse
@@ -75,7 +65,7 @@ class SellerVista360Controller extends Controller
         return ResponseHelper::success([
             'cancelled_future_subscriptions' => $count,
             'current' => $subscriptions->current($seller, $store),
-        ], 'Future renewal terms cancelled. Your current paid term remains available until its expiry.');
+        ], 'Future renewal terms cancelled. Your current term remains available until its expiry.');
     }
 
     public function crmLink(Request $request, Vista360SubscriptionService $subscriptions): JsonResponse

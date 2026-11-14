@@ -126,46 +126,42 @@ class Vista360SubscriptionTest extends TestCase
         ]);
     }
 
-    public function test_explicitly_allowlisted_seller_can_activate_an_auditable_no_charge_test_term_without_stripe(): void
+    public function test_every_seller_can_activate_an_auditable_complimentary_term_without_a_payment_gateway(): void
     {
         config([
-            'vista360.test_checkout_enabled' => true,
-            'vista360.test_checkout_allowed_seller_ids' => [$this->seller->id],
+            'vista360.self_service_enabled' => true,
         ]);
 
         $service = app(Vista360SubscriptionService::class);
-        $key = 'test_checkout_'.Str::random(40);
-        $result = $service->createCheckout(
+        $key = 'complimentary_activation_'.Str::random(32);
+        $result = $service->activateComplimentarySubscription(
             $this->seller,
             $this->store,
             $this->plan->id,
             1,
-            'https://seller.vistaexpress.it/vista-express-360?checkout=success',
-            'https://seller.vistaexpress.it/vista-express-360?checkout=cancelled',
             $key,
         );
 
-        $this->assertTrue($result['test_mode']);
-        $this->assertNull($result['checkout']);
+        $this->assertSame('complimentary', $result['activation_mode']);
         $this->assertSame(Vista360Subscription::ACTIVE, $result['subscription']->status);
-        $this->assertSame('test', $result['payment']->provider);
-        $this->assertSame('paid', $result['payment']->status);
-        $this->assertSame(3900, $result['payment']->amount_cents);
+        $this->assertSame('self_service', $result['subscription']->source);
+        $this->assertSame('complimentary', $result['payment']->provider);
+        $this->assertSame('waived', $result['payment']->status);
+        $this->assertSame(0, $result['payment']->amount_cents);
+        $this->assertNull($result['payment']->paid_at);
         $this->assertTrue($service->entitlement($this->seller, $this->store)['active']);
         $this->assertDatabaseHas('vista360_subscription_events', [
             'vista360_subscription_id' => $result['subscription']->id,
-            'event' => 'test_checkout.activated',
+            'event' => 'subscription.complimentary_activated',
         ]);
 
         // Retrying the same browser request is idempotent and cannot create a
-        // second no-charge entitlement.
-        $retry = $service->createCheckout(
+        // second complimentary entitlement.
+        $retry = $service->activateComplimentarySubscription(
             $this->seller,
             $this->store,
             $this->plan->id,
             1,
-            'https://seller.vistaexpress.it/vista-express-360?checkout=success',
-            'https://seller.vistaexpress.it/vista-express-360?checkout=cancelled',
             $key,
         );
         $this->assertSame($result['subscription']->id, $retry['subscription']->id);

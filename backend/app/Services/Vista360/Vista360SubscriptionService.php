@@ -9,8 +9,6 @@ use App\Models\Vista360PlanPrice;
 use App\Models\Vista360Subscription;
 use App\Models\Vista360SubscriptionEvent;
 use App\Models\Vista360SubscriptionPayment;
-use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Support\Arr;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -18,7 +16,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Owns the paid Vista Express 360 entitlement lifecycle.
+ * Owns the Vista Express 360 entitlement lifecycle.
  *
  * The marketplace's legacy Subscription/SubscriptionPlan records intentionally
  * remain untouched: they do not grant CRM access and cannot bypass this
@@ -131,176 +129,15 @@ class Vista360SubscriptionService
         return false;
     }
 
-    /** @return array{checkout: array<string,mixed>|null, subscription: Vista360Subscription, payment: Vista360SubscriptionPayment, test_mode: bool} */
-    public function createCheckout(User $seller, Store $store, int $planId, int $durationMonths, string $successUrl, string $cancelUrl, ?string $idempotencyKey = null): array
+    /** @return array{subscription: Vista360Subscription, payment: Vista360SubscriptionPayment, activation_mode: 'complimentary'} */
+    public function activateComplimentarySubscription(User $seller, Store $store, int $planId, int $durationMonths, ?string $idempotencyKey = null): array
     {
-        abort_unless(config('vista360.enabled'), 503, 'Vista Express 360 subscriptions are unavailable.');
-        $this->assertReturnUrl($successUrl);
-        $this->assertReturnUrl($cancelUrl);
-
+        abort_unless(config('vista360.enabled') && config('vista360.self_service_enabled', true), 503, 'Vista Express 360 subscriptions are currently unavailable.');
         if (! in_array($durationMonths, self::DURATIONS, true)) {
             throw ValidationException::withMessages(['duration_months' => 'Choose a 1, 6 or 12 month billing duration.']);
         }
         $idempotencyKey ??= (string) Str::uuid();
 
-        // Direct activation is deliberately constrained to an explicit seller
-        // allow-list. It makes controlled production acceptance testing
-        // possible before Stripe is configured without silently granting CRM
-        // access to every Marketplace seller.
-        if ($this->canUseTestCheckout($seller)) {
-            return $this->createTestCheckout($seller, $store, $planId, $durationMonths, $idempotencyKey);
-        }
-
-        try {
-            [$subscription, $payment, $created] = DB::transaction(function () use ($seller, $store, $planId, $durationMonths, $idempotencyKey) {
-                Store::whereKey($store->id)->lockForUpdate()->firstOrFail();
-                $existing = Vista360SubscriptionPayment::where('idempotency_key', $idempotencyKey)->lockForUpdate()->first();
-                if ($existing) {
-                    return [$existing->subscription()->firstOrFail(), $existing, false];
-                }
-
-                $plan = Vista360Plan::query()->with('features')->where('is_active', true)->findOrFail($planId);
-                $price = $this->activePrice($plan, $durationMonths);
-                $startsAt = $this->nextStartAt($seller, $store);
-                $subscription = Vista360Subscription::create([
-                    'uuid' => (string) Str::uuid(),
-                    'seller_id' => $seller->id,
-                    'store_id' => $store->id,
-                    'vista360_plan_id' => $plan->id,
-                    'status' => Vista360Subscription::PENDING,
-                    'source' => 'stripe',
-                    'plan_snapshot' => $this->planSnapshot($plan),
-                    'features_snapshot' => $this->featuresSnapshot($plan),
-                    'price_snapshot' => $this->priceSnapshot($price),
-                    'starts_at' => $startsAt,
-                    'expires_at' => $startsAt->copy()->addMonthsNoOverflow($durationMonths),
-                    'entitlement_version' => 1,
-                ]);
-                $payment = Vista360SubscriptionPayment::create([
-                    'uuid' => (string) Str::uuid(),
-                    'vista360_subscription_id' => $subscription->id,
-                    'seller_id' => $seller->id,
-                    'store_id' => $store->id,
-                    'vista360_plan_price_id' => $price->id,
-                    'provider' => 'stripe',
-                    'status' => Vista360Subscription::PENDING,
-                    'amount_cents' => $price->amount_cents,
-                    'currency' => strtolower($price->currency),
-                    'idempotency_key' => $idempotencyKey,
-                ]);
-                $this->event($subscription, 'checkout.created', $seller->id, [
-                    'payment_id' => $payment->uuid,
-                    'duration_months' => $durationMonths,
-                ]);
-
-                return [$subscription, $payment, true];
-            }, 3);
-        } catch (QueryException $exception) {
-            // The unique database key closes the small race between two
-            // identical browser retries. Re-read the safely owned request
-            // rather than opening a second charge.
-            $payment = Vista360SubscriptionPayment::where('idempotency_key', $idempotencyKey)->first();
-            if (! $payment) {
-                throw $exception;
-            }
-            $subscription = $payment->subscription()->firstOrFail();
-            $created = false;
-        }
-
-        if (! $created) {
-            abort_unless(
-                $payment->seller_id === $seller->id
-                && $payment->store_id === $store->id
-                && $subscription->vista360_plan_id === $planId
-                && (int) data_get($subscription->price_snapshot, 'duration_months') === $durationMonths,
-                409,
-                'This checkout key belongs to a different subscription request.'
-            );
-            $existingUrl = data_get($payment->provider_payload, 'url');
-            if ($payment->status === Vista360Subscription::PENDING && $payment->provider_session_id && is_string($existingUrl)) {
-                return [
-                    'checkout' => ['id' => $payment->provider_session_id, 'url' => $existingUrl],
-                    'subscription' => $subscription->fresh(),
-                    'payment' => $payment->fresh(),
-                    'test_mode' => false,
-                ];
-            }
-            abort(409, $payment->status === 'paid'
-                ? 'This checkout has already completed. Refresh your subscription.'
-                : 'This checkout is still being prepared or has failed. Start a new checkout request.');
-        }
-
-        // Validate provider configuration only after an earlier valid checkout
-        // has had a chance to be safely reused.
-        $stripe = $this->stripe();
-
-        try {
-            $checkout = $stripe->withHeaders(['Idempotency-Key' => $payment->idempotency_key])->post('https://api.stripe.com/v1/checkout/sessions', [
-                'mode' => 'payment',
-                'payment_method_types' => ['card'],
-                'customer_email' => $seller->email,
-                'success_url' => $successUrl,
-                'cancel_url' => $cancelUrl,
-                'metadata' => [
-                    'type' => 'vista360_subscription',
-                    'subscription_uuid' => $subscription->uuid,
-                    'payment_uuid' => $payment->uuid,
-                    'seller_id' => (string) $seller->id,
-                    'store_id' => (string) $store->id,
-                ],
-                // PaymentIntent events do not necessarily include Checkout
-                // metadata. Mirror the immutable ownership metadata so a
-                // payment-failure webhook can be matched safely as well.
-                'payment_intent_data' => ['metadata' => [
-                    'type' => 'vista360_subscription',
-                    'subscription_uuid' => $subscription->uuid,
-                    'payment_uuid' => $payment->uuid,
-                    'seller_id' => (string) $seller->id,
-                    'store_id' => (string) $store->id,
-                ]],
-                'line_items' => [[
-                    'price_data' => [
-                        'currency' => strtolower($payment->currency),
-                        'unit_amount' => $payment->amount_cents,
-                        'product_data' => [
-                            'name' => sprintf('Vista Express 360 — %s (%s months)', $subscription->plan_snapshot['name'], $subscription->price_snapshot['duration_months']),
-                            'description' => 'Pre-paid CRM access term for the selected Vista Express seller account.',
-                        ],
-                    ],
-                    'quantity' => 1,
-                ]],
-            ]);
-        } catch (\Throwable $e) {
-            $this->markPaymentFailed($payment, 'checkout_creation_failed', 'Stripe Checkout could not be created.');
-            throw $e;
-        }
-
-        if (! $checkout->successful() || ! is_string($checkout->json('id')) || ! is_string($checkout->json('url'))) {
-            $this->markPaymentFailed($payment, 'checkout_creation_failed', 'Stripe Checkout could not be created.');
-            abort(502, 'Payment provider could not create checkout.');
-        }
-
-        $payment->update([
-            'provider_session_id' => $checkout->json('id'),
-            'provider_payload' => Arr::only($checkout->json(), ['id', 'url', 'payment_status', 'status']),
-        ]);
-
-        return [
-            'checkout' => Arr::only($checkout->json(), ['id', 'url']),
-            'subscription' => $subscription->fresh(),
-            'payment' => $payment->fresh(),
-            'test_mode' => false,
-        ];
-    }
-
-    /**
-     * Creates an auditable, no-charge test term for a specifically allowlisted
-     * seller. This method must only be reachable through canUseTestCheckout().
-     *
-     * @return array{checkout: null, subscription: Vista360Subscription, payment: Vista360SubscriptionPayment, test_mode: true}
-     */
-    private function createTestCheckout(User $seller, Store $store, int $planId, int $durationMonths, string $idempotencyKey): array
-    {
         try {
             [$subscription, $payment, $created] = DB::transaction(function () use ($seller, $store, $planId, $durationMonths, $idempotencyKey) {
                 Store::whereKey($store->id)->lockForUpdate()->firstOrFail();
@@ -320,7 +157,7 @@ class Vista360SubscriptionService
                     'store_id' => $store->id,
                     'vista360_plan_id' => $plan->id,
                     'status' => $status,
-                    'source' => 'test',
+                    'source' => 'self_service',
                     'plan_snapshot' => $this->planSnapshot($plan),
                     'features_snapshot' => $this->featuresSnapshot($plan),
                     'price_snapshot' => $this->priceSnapshot($price),
@@ -335,23 +172,25 @@ class Vista360SubscriptionService
                     'seller_id' => $seller->id,
                     'store_id' => $store->id,
                     'vista360_plan_price_id' => $price->id,
-                    'provider' => 'test',
-                    'status' => 'paid',
-                    // Preserve the selected plan's actual price for audit
-                    // clarity, even though no money is collected in test mode.
-                    'amount_cents' => $price->amount_cents,
+                    'provider' => 'complimentary',
+                    'status' => 'waived',
+                    // The payment row records what was actually collected.
+                    // The immutable price snapshot keeps the plan's reference
+                    // price separately for future paid-billing migration.
+                    'amount_cents' => 0,
                     'currency' => strtolower($price->currency),
                     'idempotency_key' => $idempotencyKey,
-                    'paid_at' => now(),
                     'provider_payload' => [
-                        'mode' => 'test_checkout',
-                        'activated_without_gateway' => true,
+                        'mode' => 'complimentary_self_service',
+                        'reference_price_cents' => $price->amount_cents,
+                        'amount_collected_cents' => 0,
                     ],
                 ]);
-                $this->event($subscription, 'test_checkout.activated', $seller->id, [
+                $this->event($subscription, 'subscription.complimentary_activated', $seller->id, [
                     'payment_id' => $payment->uuid,
                     'duration_months' => $durationMonths,
-                    'no_charge' => true,
+                    'reference_price_cents' => $price->amount_cents,
+                    'amount_collected_cents' => 0,
                 ]);
 
                 return [$subscription, $payment, true];
@@ -366,14 +205,14 @@ class Vista360SubscriptionService
         }
 
         abort_unless(
-            $payment->provider === 'test'
-            && $payment->status === 'paid'
+            $payment->provider === 'complimentary'
+            && $payment->status === 'waived'
             && $payment->seller_id === $seller->id
             && $payment->store_id === $store->id
             && $subscription->vista360_plan_id === $planId
             && (int) data_get($subscription->price_snapshot, 'duration_months') === $durationMonths,
             409,
-            'This test checkout key belongs to a different subscription request.'
+            'This activation key belongs to a different subscription request.'
         );
 
         if ($created && $subscription->status === Vista360Subscription::ACTIVE) {
@@ -381,65 +220,10 @@ class Vista360SubscriptionService
         }
 
         return [
-            'checkout' => null,
             'subscription' => $subscription->fresh(),
             'payment' => $payment->fresh(),
-            'test_mode' => true,
+            'activation_mode' => 'complimentary',
         ];
-    }
-
-    /** @return array<string,mixed> */
-    public function confirmCheckout(User $seller, Store $store, string $sessionId): array
-    {
-        $response = $this->stripe()->get('https://api.stripe.com/v1/checkout/sessions/'.rawurlencode($sessionId));
-        abort_unless($response->successful(), 502, 'Unable to verify payment with Stripe.');
-
-        $payment = Vista360SubscriptionPayment::query()
-            ->where('provider', 'stripe')
-            ->where('provider_session_id', $sessionId)
-            ->where('seller_id', $seller->id)
-            ->where('store_id', $store->id)
-            ->firstOrFail();
-
-        $subscription = $this->activatePaidPayment($payment, $response->json());
-
-        return ['subscription' => $this->subscriptionPayload($subscription), 'entitlement' => $this->entitlement($seller, $store)];
-    }
-
-    /** @return array<string,mixed> */
-    public function handleStripeEvent(array $event): array
-    {
-        $type = (string) ($event['type'] ?? '');
-        $object = $event['data']['object'] ?? [];
-        if (! is_array($object)) {
-            return ['handled' => false];
-        }
-        $externalId = is_string($event['id'] ?? null) ? $event['id'] : null;
-        $payment = null;
-        if (is_string($object['id'] ?? null)) {
-            $payment = Vista360SubscriptionPayment::where('provider_session_id', $object['id'])->first();
-        }
-        if (! $payment && is_string(data_get($object, 'metadata.payment_uuid'))) {
-            $payment = Vista360SubscriptionPayment::where('uuid', data_get($object, 'metadata.payment_uuid'))->first();
-        }
-        if (! $payment) {
-            return ['handled' => false];
-        }
-
-        if ($externalId && Vista360SubscriptionEvent::where('external_event_id', $externalId)->exists()) {
-            return ['handled' => true, 'duplicate' => true];
-        }
-
-        if ($type === 'checkout.session.completed') {
-            $subscription = $this->activatePaidPayment($payment, $object, $externalId);
-            return ['handled' => true, 'subscription' => $subscription->uuid];
-        }
-        if (in_array($type, ['checkout.session.expired', 'payment_intent.payment_failed'], true)) {
-            $this->markPaymentFailed($payment, $type, (string) ($object['last_payment_error']['message'] ?? 'Payment was not completed.'), $externalId);
-            return ['handled' => true];
-        }
-
-        return ['handled' => false];
     }
 
     public function grantManual(User $seller, Store $store, Vista360Plan $plan, int $durationMonths, ?User $actor = null, ?string $reason = null): Vista360Subscription
@@ -653,17 +437,6 @@ class Vista360SubscriptionService
         return $latest?->expires_at?->copy() ?? now();
     }
 
-    private function canUseTestCheckout(User $seller): bool
-    {
-        if (! config('vista360.test_checkout_enabled', false)) {
-            return false;
-        }
-
-        // Configuration is parsed into positive integers. An empty list, an
-        // invalid value and a wildcard therefore all fail closed.
-        return in_array($seller->id, (array) config('vista360.test_checkout_allowed_seller_ids', []), true);
-    }
-
     private function activePrice(Vista360Plan $plan, int $durationMonths, bool $requireActive = true): Vista360PlanPrice
     {
         $price = $plan->prices()
@@ -755,89 +528,6 @@ class Vista360SubscriptionService
         ];
     }
 
-    private function stripe(): PendingRequest
-    {
-        abort_unless(config('services.stripe.secret'), 503, 'Stripe is not configured for Vista Express 360 payments.');
-        return Http::withToken(config('services.stripe.secret'))->asForm()->timeout(20);
-    }
-
-    private function assertReturnUrl(string $url): void
-    {
-        $parts = parse_url($url);
-        $origin = ($parts['scheme'] ?? '').'://'.($parts['host'] ?? '');
-        if (! empty($parts['port'])) {
-            $origin .= ':'.$parts['port'];
-        }
-        abort_unless(in_array($origin, config('vista360.checkout_return_origins', []), true), 422, 'Unsupported checkout return origin.');
-    }
-
-    private function activatePaidPayment(Vista360SubscriptionPayment $payment, array $session, ?string $externalEventId = null): Vista360Subscription
-    {
-        $subscription = DB::transaction(function () use ($payment, $session, $externalEventId) {
-            $payment = Vista360SubscriptionPayment::lockForUpdate()->findOrFail($payment->id);
-            $subscription = Vista360Subscription::lockForUpdate()->findOrFail($payment->vista360_subscription_id);
-            $metadata = is_array($session['metadata'] ?? null) ? $session['metadata'] : [];
-            $valid = ($session['payment_status'] ?? '') === 'paid'
-                && ($session['status'] ?? '') === 'complete'
-                && ($session['mode'] ?? '') === 'payment'
-                && strtolower((string) ($session['currency'] ?? '')) === strtolower($payment->currency)
-                && (int) ($session['amount_total'] ?? -1) === (int) $payment->amount_cents
-                && ($metadata['type'] ?? '') === 'vista360_subscription'
-                && ($metadata['subscription_uuid'] ?? '') === $subscription->uuid
-                && ($metadata['payment_uuid'] ?? '') === $payment->uuid
-                && (string) ($metadata['seller_id'] ?? '') === (string) $payment->seller_id
-                && (string) ($metadata['store_id'] ?? '') === (string) $payment->store_id;
-            if (! $valid) {
-                throw ValidationException::withMessages(['stripe_session_id' => 'A completed payment for this Vista Express 360 subscription is required.']);
-            }
-            if ($payment->status === 'paid') {
-                return $subscription;
-            }
-            $status = $subscription->starts_at?->isFuture() ? Vista360Subscription::SCHEDULED : Vista360Subscription::ACTIVE;
-            $payment->update([
-                'status' => 'paid',
-                'provider_session_id' => $session['id'] ?? $payment->provider_session_id,
-                'provider_payment_id' => $session['payment_intent'] ?? $payment->provider_payment_id,
-                'provider_payload' => Arr::only($session, ['id', 'payment_intent', 'payment_status', 'status', 'amount_total', 'currency', 'metadata']),
-                'paid_at' => now(),
-                'failure_code' => null,
-                'failure_message' => null,
-            ]);
-            $subscription->update([
-                'status' => $status,
-                'activated_at' => $status === Vista360Subscription::ACTIVE ? now() : null,
-                'status_reason' => null,
-                'entitlement_version' => $subscription->entitlement_version + 1,
-            ]);
-            $this->event($subscription, 'payment.paid', null, ['payment_id' => $payment->uuid], $externalEventId);
-            return $subscription->fresh();
-        }, 3);
-        if ($subscription->status === Vista360Subscription::ACTIVE) {
-            $this->notifyCrm($subscription);
-        }
-        return $subscription;
-    }
-
-    private function markPaymentFailed(Vista360SubscriptionPayment $payment, string $code, string $message, ?string $externalEventId = null): void
-    {
-        $subscription = DB::transaction(function () use ($payment, $code, $message, $externalEventId) {
-            $payment = Vista360SubscriptionPayment::lockForUpdate()->find($payment->id);
-            if (! $payment || $payment->status === 'paid') {
-                return null;
-            }
-            $subscription = Vista360Subscription::lockForUpdate()->findOrFail($payment->vista360_subscription_id);
-            $payment->update(['status' => 'failed', 'failure_code' => $code, 'failure_message' => $message]);
-            if ($subscription->status === Vista360Subscription::PENDING) {
-                $subscription->update(['status' => Vista360Subscription::PAYMENT_FAILED, 'status_reason' => $message]);
-            }
-            $this->event($subscription, 'payment.failed', null, ['code' => $code, 'message' => $message], $externalEventId);
-            return $subscription->fresh();
-        }, 3);
-        if ($subscription) {
-            $this->notifyCrm($subscription);
-        }
-    }
-
     private function event(Vista360Subscription $subscription, string $event, ?int $actorId, array $data, ?string $externalEventId = null): void
     {
         $attributes = [
@@ -851,9 +541,8 @@ class Vista360SubscriptionService
             'occurred_at' => now(),
         ];
 
-        // Stripe retries a webhook until it receives a successful response.
-        // The provider event ID is our idempotency key; locally generated
-        // events intentionally receive a fresh UUID every time.
+        // A future provider integration may use an external event ID as its
+        // durable idempotency key. Local events receive a fresh UUID.
         if ($externalEventId) {
             Vista360SubscriptionEvent::firstOrCreate(
                 ['external_event_id' => $externalEventId],
