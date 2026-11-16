@@ -19,4 +19,10 @@ return [
     // entitlement cache immediately when an admin changes a subscription.
     'crm_webhook_url' => env('VISTA360_CRM_WEBHOOK_URL'),
     'crm_webhook_secret' => env('VISTA360_CRM_WEBHOOK_SECRET'),
+
+    // Private server-to-server bridge used by the Vista Express 360 CRM Admin
+    // page. It is deliberately separate from the CRM entitlement webhook
+    // secret and never accepts browser credentials.
+    'admin_bridge_enabled' => env('VISTA360_ADMIN_BRIDGE_ENABLED', false),
+    'admin_bridge_secret' => env('VISTA360_ADMIN_BRIDGE_SECRET'),
 ];

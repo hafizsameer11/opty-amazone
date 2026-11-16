@@ -12,7 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['marketplace.role' => \App\Http\Middleware\MarketplaceRole::class]);
+        $middleware->alias([
+            'marketplace.role' => \App\Http\Middleware\MarketplaceRole::class,
+            'vista360.admin-bridge' => \App\Http\Middleware\Vista360AdminBridge::class,
+        ]);
         $middleware->api(append: [\App\Http\Middleware\AdminApiRole::class]);
         // Sanctum: allow stateful frontend requests if we ever use cookie-based auth
         $middleware->api(prepend: [
