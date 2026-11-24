@@ -14,7 +14,36 @@ final class ContactLensPublication
 {
     public const KEYS = ['prescription_values', 'contact_lens_packs', 'contact_lens_qty_options', 'contact_lens_colour_stock'];
 
-    public static function validate(array $fields, int $quantity): void
+    /**
+     * In a coloured-lens form, pack × colour rows are the source of truth for
+     * each colour's stock. The client no longer has to type that same total in
+     * a second colour row.
+     */
+    public static function withCalculatedColorStock(array $fields): array
+    {
+        if (! self::isColoredLens($fields) || ! array_key_exists('contact_lens_colour_stock', $fields)) {
+            return $fields;
+        }
+
+        $totals = [];
+        foreach ($fields['contact_lens_colour_stock'] ?? [] as $row) {
+            $key = (string) ($row['variant_key'] ?? '');
+            if ($key !== '') {
+                $totals[$key] = ($totals[$key] ?? 0) + (int) ($row['stock_quantity'] ?? 0);
+            }
+        }
+        foreach ($fields['variants'] ?? [] as $index => $variant) {
+            $key = (string) ($variant['option_key'] ?? '');
+            if (array_key_exists($key, $totals)) {
+                $fields['variants'][$index]['stock_quantity'] = $totals[$key];
+                $fields['variants'][$index]['stock_status'] = $totals[$key] > 0 ? 'in_stock' : 'out_of_stock';
+            }
+        }
+
+        return $fields;
+    }
+
+    public static function validate(array $fields): void
     {
         $colored = self::isColoredLens($fields);
         $variants = collect($fields['variants'] ?? [])->keyBy('option_key');
@@ -48,25 +77,14 @@ final class ContactLensPublication
             }
             $seen[$identity] = true;
         }
-        if ($stock) {
-            if (array_sum(array_column($stock, 'stock_quantity')) !== $quantity) {
-                self::invalid('Pack/color allocations must equal the chosen allocation.');
-            }
-            foreach ($variants as $key => $variant) {
-                $total = collect($stock)->where('variant_key', $key)->sum('stock_quantity');
-                if ($total !== (int) ($variant['stock_quantity'] ?? 0)) {
-                    self::invalid('Pack/color allocations must also match each color allocation.');
-                }
-            }
-        }
+        // `allocated_quantity` is a transport/allocation value. It must not
+        // become a second manually maintained total: each pack/colour row is
+        // independently validated and its total is calculated before save.
         if (! $colored && $packs->contains(fn ($pack) => array_key_exists('stock_quantity', $pack))) {
             foreach ($packs as $pack) {
                 if (! isset($pack['stock_quantity']) || (int) $pack['stock_quantity'] < 0) {
                     self::invalid('Enter a valid stock quantity for every pack.');
                 }
-            }
-            if ((int) $packs->sum(fn ($pack) => (int) ($pack['stock_quantity'] ?? 0)) !== $quantity) {
-                self::invalid('Pack stock quantities must equal the total allocation.');
             }
         }
     }
@@ -99,8 +117,14 @@ final class ContactLensPublication
         if (! array_key_exists('contact_lens_packs', $fields)) {
             return;
         }
-        $colored = self::isColoredLens($fields);
-        $old = $product->contact_lens_unit_config ?? [];
+        // `$fields` here intentionally contains only the contact-lens
+        // sub-form. Resolve colour-lens status from the persisted product so
+        // an update retains (and adds to) existing pack/colour stock.
+        $colored = self::isColoredProduct($product);
+        // Product options are persisted immediately before this method. Read
+        // the stored configuration again so an additive CRM publication never
+        // drops the colour/pack stock recorded by the previous publication.
+        $old = $product->fresh()->contact_lens_unit_config ?? [];
         $packs = [];
         foreach ($fields['contact_lens_packs'] ?? [] as $pack) {
             $photos = [];
@@ -137,6 +161,17 @@ final class ContactLensPublication
             'qty_options' => array_values(array_unique(array_map('intval', $fields['contact_lens_qty_options'] ?? []))),
             'colour_stock' => array_values($stock)];
         $product->save();
+
+        // Packs (or pack × colour rows) are the only stock inputs for a
+        // contact-lens product. Keep the listing total derived from them so
+        // it cannot disagree with a historical publication allocation value.
+        $total = $colored
+            ? array_sum(array_map(fn ($row) => (int) ($row['stock_quantity'] ?? 0), $stock))
+            : array_sum(array_map(fn ($pack) => (int) ($pack['stock_quantity'] ?? 0), $packs));
+        $product->forceFill([
+            'stock_quantity' => $total,
+            'stock_status' => $total > 0 ? 'in_stock' : 'out_of_stock',
+        ])->save();
     }
 
     private static function invalid(string $message): never
@@ -158,5 +193,10 @@ final class ContactLensPublication
         }
 
         return false;
+    }
+
+    private static function isColoredProduct(Product $product): bool
+    {
+        return self::isColoredLens(['sub_category_id' => $product->sub_category_id]);
     }
 }

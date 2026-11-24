@@ -36,7 +36,7 @@ class ProductForm
         $photo = $f('image_index', 'Product photo number', 'number', ['min' => 1, 'max' => 10, 'step' => '1']);
         $sizes = $f('sizes', 'Sizes', 'rows', ['fields' => [$f('size_label', 'Size (e.g. Medium or 52-18-140)', 'text', ['required' => true, 'maxLength' => 100]), $f('lens_width', 'Lens width (mm)', 'number', ['min' => 0]), $f('bridge_width', 'Bridge width (mm)', 'number', ['min' => 0]), $f('temple_length', 'Temple length (mm)', 'number', ['min' => 0]), $stock]]);
         $fields = match ($type) {
-            'frame','sunglasses' => [$f('frame_shape', 'Frame shape', 'text', ['maxLength' => 255]), $f('frame_material', 'Frame material', 'text', ['maxLength' => 255]), $f('frame_color', 'Default frame color', 'text', ['maxLength' => 255]), $gender, $f('lens_type', 'Lens type / note', 'textarea'), $f('lens_index_options', 'Lens index / thickness', 'multiselect', ['options' => ['1.5', '1.56', '1.6', '1.67', '1.74']]), $f('treatment_options', 'Lens treatments', 'multiselect', ['options' => ['anti_reflective', 'blue_light', 'uv_protection', 'photochromic', 'polarized', 'scratch_resistant', 'hydrophobic']]), $f('lens_colors', 'Lens colors', 'rows', ['fields' => [$f('name', 'Color name', 'text', ['required' => true, 'maxLength' => 100]), $f('color_code', 'Color code', 'text', ['maxLength' => 20]), $f('description', 'Color description', 'text', ['maxLength' => 255])]]), $f('variants', 'Color variations', 'rows', ['fields' => [$f('color_name', 'Color name', 'text', ['required' => true, 'maxLength' => 255]), $f('color_code', 'Hex color (#RRGGBB)', 'text', ['pattern' => '#[0-9A-Fa-f]{6}', 'maxLength' => 7]), $price, $stock, $f('image_indices', 'Product photo numbers', 'multiselect', ['options' => array_map('strval', range(1, 10))]), $f('is_default', 'Default color', 'boolean'), $sizes]])],
+            'frame','sunglasses' => [$f('model_code', 'Model code', 'text', ['required' => true, 'maxLength' => 100]), $f('frame_shape', 'Frame shape', 'text', ['maxLength' => 255]), $f('frame_material', 'Frame material', 'text', ['maxLength' => 255]), $f('frame_color', 'Default frame color', 'text', ['maxLength' => 255]), $gender, $f('lens_type', 'Lens type / note', 'textarea'), $f('lens_index_options', 'Lens index / thickness', 'multiselect', ['options' => ['1.5', '1.56', '1.6', '1.67', '1.74']]), $f('treatment_options', 'Lens treatments', 'multiselect', ['options' => ['anti_reflective', 'blue_light', 'uv_protection', 'photochromic', 'polarized', 'scratch_resistant', 'hydrophobic']]), $f('lens_colors', 'Lens colors', 'rows', ['fields' => [$f('name', 'Color name', 'text', ['required' => true, 'maxLength' => 100]), $f('color_code', 'Color code', 'text', ['maxLength' => 20]), $f('description', 'Color description', 'text', ['maxLength' => 255])]]), $f('variants', 'Color variations', 'rows', ['fields' => [$f('color_name', 'Color name', 'text', ['required' => true, 'maxLength' => 255]), $f('color_code', 'Hex color (#RRGGBB)', 'text', ['pattern' => '#[0-9A-Fa-f]{6}', 'maxLength' => 7]), $f('barcode', 'Barcode', 'text', ['required' => true, 'maxLength' => 255]), $f('purchase_code', 'Purchase code', 'text', ['required' => true, 'maxLength' => 255]), $stock, $f('image_indices', 'Product photo numbers', 'multiselect', ['options' => array_map('strval', range(1, 10))]), $f('is_default', 'Default color', 'boolean'), $sizes]])],
             'contact_lens' => [$f('contact_lens_brand', 'Contact lens brand', 'text', ['maxLength' => 100]), $f('contact_lens_type', 'Contact lens type', 'text', ['maxLength' => 50]), $f('contact_lens_color', 'Contact lens color', 'text', ['maxLength' => 100]), $f('contact_lens_material', 'Contact lens material', 'text', ['maxLength' => 100]), $f('replacement_frequency', 'Replacement frequency', 'select', ['options' => ['daily', 'weekly', 'monthly', 'yearly']]), $f('water_content', 'Water content', 'text', ['maxLength' => 50]), $f('base_curve_options', 'Base curves (comma separated)', 'list'), $f('diameter_options', 'Diameters (comma separated)', 'list'), $f('powers_range', 'Powers range', 'text'), $f('has_uv_filter', 'UV filter', 'boolean'), $f('can_sleep_with', 'Extended wear / sleep with lenses', 'boolean'), $f('is_medical_device', 'Medical device / prescription', 'boolean')],
             'eye_hygiene' => [$f('size_volume', 'Listing size / volume', 'text', ['maxLength' => 50]), $f('pack_type', 'Listing pack type', 'text', ['maxLength' => 50]), $f('expiry_date', 'Expiry date', 'date'), $f('size_volume_variants', 'Size / volume options', 'rows', ['fields' => [$f('size_volume', 'Size / volume', 'text', ['required' => true, 'maxLength' => 50]), $f('pack_type', 'Pack type', 'text', ['maxLength' => 50]), $price, $f('compare_at_price', 'Compare-at price', 'number', ['min' => 0, 'step' => '0.01']), $f('cost_price', 'Cost price', 'number', ['min' => 0, 'step' => '0.01']), $stock, $f('sku', 'Option SKU', 'text', ['maxLength' => 255]), $f('expiry_date', 'Expiry date', 'date'), $photo, $f('is_active', 'Active option', 'boolean')]]), $f('eye_hygiene_variants', 'Product variants / uses', 'rows', ['fields' => [$f('name', 'Variant name', 'text', ['required' => true, 'maxLength' => 255]), $f('description', 'Description', 'textarea'), $price, $photo, $f('is_active', 'Active variant', 'boolean')]])],
             'accessory' => [$gender],default => []
@@ -88,6 +88,11 @@ class ProductForm
             }
         }
 
+        if (in_array($valid['product_type'] ?? '', ['frame', 'sunglasses'], true) && trim((string) ($valid['model_code'] ?? '')) === '') {
+            $source = (string) ($valid['sku'] ?? $valid['name'] ?? 'UNASSIGNED');
+            $valid['model_code'] = substr('MODEL-'.trim(strtoupper((string) preg_replace('/[^A-Za-z0-9]+/', '-', $source)), '-'), 0, 100);
+        }
+
         return $valid;
     }
 
@@ -95,7 +100,11 @@ class ProductForm
     {
         foreach ($fields as $f) {
             $key = $prefix.$f['key'];
-            $rule = ($f['required'] ?? false) ? 'required' : 'nullable';
+            // Current forms ask for these identifiers. Legacy CRM/Seller
+            // payloads are accepted and receive deterministic generated
+            // values so a deployed older client cannot be broken mid-rollout.
+            $requiresLegacyFallback = in_array($f['key'], ['model_code', 'barcode', 'purchase_code'], true);
+            $rule = (($f['required'] ?? false) && ! $requiresLegacyFallback) ? 'required' : 'nullable';
             $rule .= '|'.match ($f['type']) {
                 'rows','prescription','list','multiselect','images','integer-list','variant-multiple' => 'array','boolean' => 'boolean','number' => ($f['step'] ?? '') === '1' ? 'integer' : 'numeric','date' => 'date_format:Y-m-d',default => 'string'
             };
@@ -117,7 +126,15 @@ class ProductForm
             if (in_array($f['type'], ['rows', 'prescription'])) {
                 $keys = array_column($f['fields'], 'key');
                 $rule .= '|max:'.($f['maxItems'] ?? 50);
-                $rules[$key.'.*'] = 'array:'.implode(',', [...$keys, 'option_key']);
+                $allowedKeys = [...$keys, 'option_key'];
+                // Pre-v4 CRM clients included a price in each colour row.
+                // Accept it only during the rollout; ProductOptions discards it
+                // so colours still inherit the product's common price.
+                if ($key === 'variants') {
+                    $allowedKeys[] = 'price';
+                    $rules[$key.'.*.price'] = 'nullable|numeric|min:0';
+                }
+                $rules[$key.'.*'] = 'array:'.implode(',', $allowedKeys);
                 $rules[$key.'.*.option_key'] = 'required|uuid|distinct';
                 self::rules($f['fields'], $rules, $key.'.*.');
             }

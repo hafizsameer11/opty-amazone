@@ -138,7 +138,9 @@ class BuyerCartController extends Controller
             $variant = ProductVariant::where('product_id', $product->id)
                 ->findOrFail($request->variant_id);
             
-            $price = $variant->price ?? $product->price;
+                // A selected colour changes imagery and stock only. The
+                // product has one common selling price across its colours.
+                $price = $product->price;
             $stockQuantity = $variant->stock_quantity;
             $stockStatus = $variant->stock_status;
 
@@ -386,7 +388,11 @@ class BuyerCartController extends Controller
         if ($variant) {
             $snapshot['color_name'] = $variant->color_name;
             $snapshot['color_code'] = $variant->color_code;
+            $snapshot['barcode'] = $variant->barcode;
+            $snapshot['purchase_code'] = $variant->purchase_code;
         }
+
+        $snapshot['model_code'] = $product->model_code;
 
         if ($frameSize) {
             $snapshot['frame_size'] = [

@@ -65,7 +65,8 @@ class SellerProductController extends Controller
             "{$prefix}.*.color_code" => ['nullable', 'string', 'max:7', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             "{$prefix}.*.images" => 'nullable|array',
             "{$prefix}.*.images.*" => 'string|max:2048',
-            "{$prefix}.*.price" => 'nullable|numeric|min:0',
+            "{$prefix}.*.barcode" => "nullable|string|max:255|distinct|unique:product_variants,barcode",
+            "{$prefix}.*.purchase_code" => "nullable|string|max:255|distinct|unique:product_variants,purchase_code",
             "{$prefix}.*.stock_quantity" => "required_with:{$prefix}|integer|min:0",
             "{$prefix}.*.stock_status" => "required_with:{$prefix}|in:in_stock,out_of_stock,backorder",
             "{$prefix}.*.is_default" => 'nullable|boolean',
@@ -206,6 +207,10 @@ class SellerProductController extends Controller
         }
 
         foreach ($variants as $position => $attributes) {
+            $attributes['barcode'] = trim((string) ($attributes['barcode'] ?? ''))
+                ?: $this->generatedVariantCode($product, 'BC', $position, 'barcode');
+            $attributes['purchase_code'] = trim((string) ($attributes['purchase_code'] ?? ''))
+                ?: $this->generatedVariantCode($product, 'PC', $position, 'purchase_code');
             $images = array_values(array_filter(array_map(
                 fn ($url) => \App\Support\MediaUrl::absolute((string) $url) ?? (string) $url,
                 is_array($attributes['images'] ?? null) ? $attributes['images'] : []
@@ -226,6 +231,9 @@ class SellerProductController extends Controller
                 $attributes['stock_status'] = $total > 0 ? 'in_stock' : 'out_of_stock';
             }
 
+            // Colour variants always inherit the product's single selling price.
+            $attributes['price'] = null;
+
             $variant = $product->variants()->create($attributes);
 
             foreach ($sizes as $size) {
@@ -242,6 +250,27 @@ class SellerProductController extends Controller
                 ]);
             }
         }
+
+        $product->syncStockFromVariants();
+    }
+
+    private function generatedModelCode(string $sku): string
+    {
+        $safeSku = strtoupper((string) preg_replace('/[^A-Za-z0-9]+/', '-', $sku));
+
+        return substr('MODEL-'.trim($safeSku, '-'), 0, 100) ?: 'MODEL-UNASSIGNED';
+    }
+
+    private function generatedVariantCode(Product $product, string $prefix, int $position, string $column): string
+    {
+        $base = sprintf('%s-%d-%d', $prefix, $product->id, $position + 1);
+        $candidate = $base;
+        $suffix = 2;
+        while (ProductVariant::query()->where($column, $candidate)->exists()) {
+            $candidate = $base.'-'.$suffix++;
+        }
+
+        return $candidate;
     }
 
     private function productDetailRelations(): array
@@ -388,6 +417,7 @@ class SellerProductController extends Controller
             'category_id' => 'nullable|exists:categories,id',
             'sub_category_id' => 'nullable|exists:categories,id',
             'sku' => 'nullable|string|max:255|unique:products,sku',
+            'model_code' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string|max:500',
             'product_type' => 'required|in:frame,sunglasses,contact_lens,eye_hygiene,accessory',
@@ -396,7 +426,7 @@ class SellerProductController extends Controller
             'sale_start_date' => 'nullable|date',
             'sale_end_date' => 'nullable|date|after_or_equal:sale_start_date',
             'cost_price' => 'nullable|numeric|min:0',
-            'stock_quantity' => 'required|integer|min:0',
+            'stock_quantity' => 'nullable|integer|min:0',
             'stock_status' => 'required|in:in_stock,out_of_stock,backorder',
             'images' => 'nullable|array',
             'images.*' => 'string|url',
@@ -506,8 +536,19 @@ class SellerProductController extends Controller
 
         try {
             $validated['store_id'] = $store->id;
+            if (in_array($validated['product_type'], ['frame', 'sunglasses'], true) && $colorVariantPayload !== []) {
+                $validated['stock_quantity'] = collect($colorVariantPayload)->sum(fn ($variant) => ! empty($variant['sizes'])
+                    ? collect($variant['sizes'])->sum(fn ($size) => (int) ($size['stock_quantity'] ?? 0))
+                    : (int) ($variant['stock_quantity'] ?? 0));
+                $validated['stock_status'] = $validated['stock_quantity'] > 0 ? 'in_stock' : 'out_of_stock';
+            } else {
+                $validated['stock_quantity'] = (int) ($validated['stock_quantity'] ?? 0);
+            }
             $sku = trim((string) ($validated['sku'] ?? ''));
             $validated['sku'] = $sku !== '' ? $sku : $this->generateUniqueSku($store->id);
+            if (in_array($validated['product_type'], ['frame', 'sunglasses'], true) && trim((string) ($validated['model_code'] ?? '')) === '') {
+                $validated['model_code'] = $this->generatedModelCode($validated['sku']);
+            }
             $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(6);
 
             // Ensure slug is unique
@@ -559,6 +600,7 @@ class SellerProductController extends Controller
             'category_id' => 'nullable|exists:categories,id',
             'sub_category_id' => 'nullable|exists:categories,id',
             'sku' => 'sometimes|string|max:255|unique:products,sku,' . $id,
+            'model_code' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string|max:500',
             'product_type' => 'sometimes|in:frame,sunglasses,contact_lens,eye_hygiene,accessory',
@@ -638,6 +680,11 @@ class SellerProductController extends Controller
                 while (Product::where('slug', $validated['slug'])->where('id', '!=', $id)->exists()) {
                     $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(6);
                 }
+            }
+
+            $effectiveType = $validated['product_type'] ?? $product->product_type;
+            if (in_array($effectiveType, ['frame', 'sunglasses'], true) && trim((string) ($validated['model_code'] ?? $product->model_code)) === '') {
+                $validated['model_code'] = $this->generatedModelCode((string) ($validated['sku'] ?? $product->sku));
             }
 
             $product->update($validated);
@@ -816,7 +863,8 @@ class SellerProductController extends Controller
             'color_code' => ['nullable', 'string', 'max:7', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'images' => 'nullable|array',
             'images.*' => 'string|max:2048',
-            'price' => 'nullable|numeric|min:0',
+            'barcode' => 'nullable|string|max:255|unique:product_variants,barcode',
+            'purchase_code' => 'nullable|string|max:255|unique:product_variants,purchase_code',
             'stock_quantity' => 'required|integer|min:0',
             'stock_status' => 'required|in:in_stock,out_of_stock,backorder',
             'is_default' => 'nullable|boolean',
@@ -843,6 +891,13 @@ class SellerProductController extends Controller
         try {
             DB::beginTransaction();
 
+            $lastPosition = $product->variants()->max('sort_order');
+            $nextPosition = $lastPosition === null ? 0 : ((int) $lastPosition + 1);
+            $validated['barcode'] = trim((string) ($validated['barcode'] ?? ''))
+                ?: $this->generatedVariantCode($product, 'BC', $nextPosition, 'barcode');
+            $validated['purchase_code'] = trim((string) ($validated['purchase_code'] ?? ''))
+                ?: $this->generatedVariantCode($product, 'PC', $nextPosition, 'purchase_code');
+
             // If this is set as default, unset other defaults
             if ($validated['is_default'] ?? false) {
                 $product->variants()->update(['is_default' => false]);
@@ -854,6 +909,7 @@ class SellerProductController extends Controller
                 $validated['stock_status'] = $total > 0 ? 'in_stock' : 'out_of_stock';
             }
 
+            $validated['price'] = null;
             $variant = $product->variants()->create($validated);
 
             if (is_array($sizesPayload)) {
@@ -872,6 +928,7 @@ class SellerProductController extends Controller
                 }
             }
 
+            $product->syncStockFromVariants();
             DB::commit();
 
             return ResponseHelper::success(
@@ -905,7 +962,8 @@ class SellerProductController extends Controller
             'color_code' => ['nullable', 'string', 'max:7', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'images' => 'nullable|array',
             'images.*' => 'string|max:2048',
-            'price' => 'nullable|numeric|min:0',
+            'barcode' => 'nullable|string|max:255|unique:product_variants,barcode,' . $variantId,
+            'purchase_code' => 'nullable|string|max:255|unique:product_variants,purchase_code,' . $variantId,
             'stock_quantity' => 'sometimes|integer|min:0',
             'stock_status' => 'sometimes|in:in_stock,out_of_stock,backorder',
             'is_default' => 'nullable|boolean',
@@ -922,12 +980,22 @@ class SellerProductController extends Controller
         try {
             DB::beginTransaction();
 
+            foreach (['barcode', 'purchase_code'] as $column) {
+                if (array_key_exists($column, $validated) && trim((string) $validated[$column]) === '') {
+                    unset($validated[$column]);
+                }
+            }
+
             // If this is set as default, unset other defaults
             if (isset($validated['is_default']) && $validated['is_default']) {
                 $variant->product->variants()->where('id', '!=', $variantId)->update(['is_default' => false]);
             }
 
+            // Existing rows may have a legacy variant price. Clear it while
+            // preserving the product-level price used by buyers and orders.
+            $variant->forceFill(['price' => null])->save();
             $variant->update($validated);
+            $variant->product->syncStockFromVariants();
 
             DB::commit();
 
@@ -956,6 +1024,7 @@ class SellerProductController extends Controller
 
         try {
             $variant->delete();
+            $variant->product->syncStockFromVariants();
 
             return ResponseHelper::success(null, 'Variant deleted successfully');
         } catch (\Exception $e) {

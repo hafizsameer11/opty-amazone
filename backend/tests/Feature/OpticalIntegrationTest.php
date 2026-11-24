@@ -203,7 +203,7 @@ class OpticalIntegrationTest extends TestCase
             }
             $this->postJson('/api/optical/publications', [...$payload, 'external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'product' => [...$product, 'product_type' => 'wrong']])->assertUnprocessable();
         }
-        $this->getJson('/api/optical/catalog-metadata')->assertOk()->assertJsonPath('data.schema_version', 3)->assertJsonCount(5, 'data.categories');
+        $this->getJson('/api/optical/catalog-metadata')->assertOk()->assertJsonPath('data.schema_version', 4)->assertJsonCount(5, 'data.categories');
         $schema = \App\Services\Optical\SellerFormSchema::extend([['key' => 'variants', 'fields' => []]], 'frame');
         $this->assertSame(6, collect($schema[0]['fields'])->firstWhere('key', 'image_ids')['maxItems']);
         $this->assertDatabaseCount('products', 10);
@@ -227,7 +227,6 @@ class OpticalIntegrationTest extends TestCase
         $payload = ['external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 3, 'currency' => 'EUR', 'images' => [$image, $secondImage], 'product' => ['category_id' => $cat->id, 'product_type' => 'frame', 'name' => 'Sized frame', 'sku' => 'SIZED', 'price' => 25, 'variants' => [$variant]]];
         // Seller permits photos only on color variations, with no main gallery.
         $payload['product']['gallery_image_ids'] = [];
-        $this->postJson('/api/optical/publications', [...$payload, 'allocated_quantity' => 4])->assertUnprocessable();
         $r = $this->postJson('/api/optical/publications', $payload)->assertOk()->json('data');
         $this->postJson('/api/optical/publications', $payload)->assertOk();
         $product = Product::findOrFail($r['product_id']);
@@ -318,12 +317,11 @@ class OpticalIntegrationTest extends TestCase
             'contact_lens_qty_options' => [1, 2, 6],
             'contact_lens_colour_stock' => [['option_key' => (string) Str::uuid(), 'pack_quantity' => '30', 'variant_key' => $colorKey, 'stock_quantity' => 3]],
         ];
-        $payload = ['external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 3,
+        // The top-level allocation is deliberately not another stock total.
+        // Pack/colour rows calculate the persisted colour and product stock.
+        $payload = ['external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 999,
             'currency' => 'EUR', 'images' => $photos, 'product' => $fields];
         $this->postJson('/api/optical/publications', [...$payload, 'product' => [...$fields, 'sub_category_id' => $sub->id]])->assertUnprocessable();
-        $invalid = $fields;
-        $invalid['contact_lens_colour_stock'][0]['stock_quantity'] = 2;
-        $this->postJson('/api/optical/publications', [...$payload, 'product' => $invalid])->assertUnprocessable();
         $invalid = $fields;
         $invalid['variants'][0]['image_ids'] = [(string) Str::uuid()];
         $this->postJson('/api/optical/publications', [...$payload, 'product' => $invalid])->assertUnprocessable();
@@ -344,6 +342,7 @@ class OpticalIntegrationTest extends TestCase
         $this->assertSame([$variant->id], $config['packs'][0]['available_variant_ids']);
         $this->assertSame([1, 2, 6], $config['qty_options']);
         $this->assertSame(3, $config['colour_stock'][0]['stock_quantity']);
+        $this->assertSame(3, $product->stock_quantity);
         $fields['name'] = 'Updated daily lenses';
         $fields['contact_lens_packs'][0]['price'] = 28;
         $fields['prescription_values'][0]['label'] = 'Updated power';
@@ -389,7 +388,7 @@ class OpticalIntegrationTest extends TestCase
         ];
         $payload = [
             'external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(),
-            'allocated_quantity' => 15, 'currency' => 'EUR', 'images' => $photos, 'product' => $fields,
+            'allocated_quantity' => 999, 'currency' => 'EUR', 'images' => $photos, 'product' => $fields,
         ];
         $result = $this->postJson('/api/optical/publications', $payload)->assertOk()->json('data');
         $product = Product::findOrFail($result['product_id']);
@@ -419,11 +418,11 @@ class OpticalIntegrationTest extends TestCase
             $photos[] = $key = (string) Str::uuid();
             $this->post('/api/optical/images', ['file' => UploadedFile::fake()->image($name.'.png'), 'image_key' => $key], ['Accept' => 'application/json'])->assertOk();
         }
-        $fields = ['category_id' => $cat->id, 'product_type' => 'sunglasses', 'name' => 'Two colors', 'sku' => 'SUN-TWO', 'price' => 99,
+        $fields = ['category_id' => $cat->id, 'product_type' => 'sunglasses', 'name' => 'Two colors', 'sku' => 'SUN-TWO', 'model_code' => 'LB028', 'price' => 99,
             'gallery_image_ids' => [$photos[0]], 'short_description' => 'Clear this on edit', 'frame_shape' => 'Aviator', 'frame_material' => 'Titanium', 'frame_color' => 'Blue', 'lens_index_options' => ['1.67'],
             'treatment_options' => ['polarized'], 'variants' => []];
         foreach (['Red', 'Blue'] as $i => $color) {
-            $fields['variants'][] = ['option_key' => (string) Str::uuid(), 'color_name' => $color, 'image_ids' => [$photos[$i]], 'stock_quantity' => 1,
+            $fields['variants'][] = ['option_key' => (string) Str::uuid(), 'color_name' => $color, 'price' => 199 + $i, 'barcode' => 'BC-SUN-'.$i, 'purchase_code' => 'PC-SUN-'.$i, 'image_ids' => [$photos[$i]], 'stock_quantity' => 1,
                 'sizes' => [['option_key' => (string) Str::uuid(), 'size_label' => '52-18-140', 'stock_quantity' => 1]]];
         }
         $payload = ['external_key' => (string) Str::uuid(), 'operation_key' => (string) Str::uuid(), 'allocated_quantity' => 2,
@@ -434,7 +433,11 @@ class OpticalIntegrationTest extends TestCase
         foreach ($product->variants()->orderBy('id')->get() as $i => $variant) {
             $this->assertCount(1, $variant->images);
             $this->assertStringContainsString($photos[$i], $variant->images[0]);
+            $this->assertNull($variant->price);
+            $this->assertSame('BC-SUN-'.$i, $variant->barcode);
+            $this->assertSame('PC-SUN-'.$i, $variant->purchase_code);
         }
+        $this->assertSame('LB028', $product->model_code);
         $this->assertCount(1, $product->images);
         $this->assertStringContainsString($photos[0], $product->images[0]);
         $this->assertSame(2, $product->frameSizes()->count());

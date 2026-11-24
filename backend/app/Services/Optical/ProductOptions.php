@@ -3,23 +3,27 @@
 namespace App\Services\Optical;
 
 use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Validation\ValidationException;
 
 class ProductOptions
 {
-    public static function allocation(array $fields, int $quantity): void
+    /**
+     * Returns the stock entered on option rows.  The CRM must never ask an
+     * operator to re-enter a second "total allocation" for a colour/size
+     * product: this calculated value is the allocation.
+     */
+    public static function allocation(array $fields): ?int
     {
         $rows = $fields['variants'] ?? $fields['size_volume_variants'] ?? [];
         if (! $rows) {
-            return;
+            return null;
         }
         $total = 0;
         foreach ($rows as $row) {
             $total += ! empty($row['sizes']) ? array_sum(array_column($row['sizes'], 'stock_quantity')) : (int) ($row['stock_quantity'] ?? 0);
         }
-        if ($total !== $quantity) {
-            throw ValidationException::withMessages(['product.variants' => 'The option allocations must equal the chosen total allocation. Size allocations replace their color allocation.']);
-        }
+        return $total;
     }
 
     public static function persist(Product $product, array $fields, array $map, array $images): array
@@ -71,7 +75,25 @@ class ProductOptions
                     $row['stock_quantity'] = (int) ($model->stock_quantity ?? 0) + $stock;
                     $row['stock_status'] = $row['stock_status'] ?? ($row['stock_quantity'] > 0 ? 'in_stock' : 'out_of_stock');
                 }
-                if ($kind !== 'variants') {
+                if ($kind === 'variants') {
+                    // A colour selects imagery and stock, never a second price.
+                    $row['price'] = null;
+                    foreach (['barcode' => 'Barcode', 'purchase_code' => 'Purchase code'] as $column => $label) {
+                        $value = trim((string) ($row[$column] ?? ''));
+                        if ($value === '') {
+                            $prefix = $column === 'barcode' ? 'BC' : 'PC';
+                            $value = sprintf('%s-%d-%s', $prefix, $product->id, strtoupper(substr(str_replace('-', '', $key), 0, 10)));
+                        }
+                        $duplicate = ProductVariant::query()->where($column, $value);
+                        if ($model->exists) {
+                            $duplicate->whereKeyNot($model->getKey());
+                        }
+                        if ($duplicate->exists()) {
+                            throw ValidationException::withMessages(["product.variants.$position.$column" => "$label is already used by another colour variation."]);
+                        }
+                        $row[$column] = $value;
+                    }
+                } else {
                     $row['price'] = $row['price'] ?? $model->price ?? $product->price;
                 }
                 $row['sort_order'] = $row['sort_order'] ?? $position;
@@ -108,6 +130,8 @@ class ProductOptions
         if (array_diff(array_keys($map), $visited)) {
             throw ValidationException::withMessages(['product.variants' => 'Existing Vista options cannot be removed from an allocation update. Manage retirement in the Vista Seller Panel.']);
         }
+
+        $product->syncStockFromVariants();
 
         return $map;
     }

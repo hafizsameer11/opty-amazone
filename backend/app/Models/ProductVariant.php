@@ -17,6 +17,8 @@ class ProductVariant extends Model
         'color_code',
         'images',
         'price',
+        'barcode',
+        'purchase_code',
         'stock_quantity',
         'stock_status',
         'is_default',
@@ -75,11 +77,19 @@ class ProductVariant extends Model
     }
 
     /**
-     * Get the effective price (variant price or product price).
+     * A colour is a visual/stock variation, never a separate price tier.
+     * Pack-based contact-lens options are not colour variants and retain
+     * their existing price behavior for backwards compatibility.
      */
     public function getEffectivePriceAttribute()
     {
-        return $this->price ?? $this->product->price;
+        $product = $this->product;
+
+        if (in_array($product?->product_type, ['frame', 'sunglasses'], true)) {
+            return $product->price;
+        }
+
+        return $this->price ?? $product?->price;
     }
 }
 

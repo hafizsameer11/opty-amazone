@@ -28,16 +28,16 @@ class DataController extends Controller
 
     public function metadata(Request $r)
     {
-        return ['data' => ['currency' => config('optical.currency'), 'schema_version' => 3, 'common_fields' => \App\Services\Optical\ProductForm::common(), 'product_types' => ['frame', 'sunglasses', 'contact_lens', 'eye_hygiene', 'accessory'], 'categories' => Category::where('is_active', true)->orderBy('name')->get(['id', 'name', 'slug', 'parent_id'])->map(fn ($c) => [...$c->only(['id', 'name', 'slug', 'parent_id']), ...($c->parent_id === null ? \App\Services\Optical\ProductForm::schema($c, $r->attributes->get('optical_store')->id) : [])]),
-            'field_mapping' => ['name' => 'name', 'sku' => 'seller_sku', 'description' => 'description', 'color' => 'frame_color', 'price' => 'price (EUR decimal)', 'allocated_quantity' => 'initial stock_quantity'],
+        return ['data' => ['currency' => config('optical.currency'), 'schema_version' => 4, 'common_fields' => \App\Services\Optical\ProductForm::common(), 'product_types' => ['frame', 'sunglasses', 'contact_lens', 'eye_hygiene', 'accessory'], 'categories' => Category::where('is_active', true)->orderBy('name')->get(['id', 'name', 'slug', 'parent_id'])->map(fn ($c) => [...$c->only(['id', 'name', 'slug', 'parent_id']), ...($c->parent_id === null ? \App\Services\Optical\ProductForm::schema($c, $r->attributes->get('optical_store')->id) : [])]),
+            'field_mapping' => ['name' => 'name', 'sku' => 'seller_sku', 'model_code' => 'common eyewear model code', 'description' => 'description', 'color' => 'frame_color', 'price' => 'price (EUR decimal)', 'allocated_quantity' => 'automatic sum of option stock'],
             'publication_policy' => 'Each Optical product has one linked Vista listing. Distribute the chosen allocation across color/size options when used. Existing Vista listings are never matched by name or SKU. Subsequent stock allocations add a quantity; they never replace Vista stock.']];
     }
 
     public static function product(Product $p): array
     {
-        return [...$p->only(['id', 'name', 'sku', 'product_type', 'category_id', 'description', 'price', 'stock_quantity', 'stock_status', 'images', 'is_active', 'is_approved', 'is_muted', 'frame_shape', 'frame_material', 'frame_color', 'gender', 'updated_at', 'deleted_at']),
+        return [...$p->only(['id', 'name', 'sku', 'model_code', 'product_type', 'category_id', 'description', 'price', 'stock_quantity', 'stock_status', 'images', 'is_active', 'is_approved', 'is_muted', 'frame_shape', 'frame_material', 'frame_color', 'gender', 'updated_at', 'deleted_at']),
             'currency' => config('optical.currency'), 'visible' => ! $p->trashed() && Product::visibleToBuyers()->whereKey($p->id)->exists(),
-            'variants' => $p->variants()->get(['id', 'color_name', 'color_code', 'price', 'stock_quantity', 'stock_status'])->map->toArray(),
+            'variants' => $p->variants()->get(['id', 'color_name', 'color_code', 'barcode', 'purchase_code', 'stock_quantity', 'stock_status'])->map->toArray(),
             'sizes' => $p->frameSizes()->get(['id', 'product_variant_id', 'stock_quantity', 'stock_status'])->map->toArray()];
     }
 

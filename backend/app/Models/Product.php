@@ -20,6 +20,7 @@ class Product extends Model
         'name',
         'slug',
         'sku',
+        'model_code',
         'description',
         'short_description',
         'product_type',
@@ -178,6 +179,24 @@ class Product extends Model
     {
         // Sizes are always tied to a color variation
         return $this->hasMany(FrameSize::class)->whereNotNull('product_variant_id');
+    }
+
+    /**
+     * For a product with colour variations, the product total is derived from
+     * the variation totals. This makes the catalogue total a reliable summary
+     * rather than a second number that a seller has to allocate manually.
+     */
+    public function syncStockFromVariants(): void
+    {
+        if (! in_array($this->product_type, ['frame', 'sunglasses'], true) || ! $this->variants()->exists()) {
+            return;
+        }
+
+        $total = (int) $this->variants()->sum('stock_quantity');
+        $this->forceFill([
+            'stock_quantity' => $total,
+            'stock_status' => $total > 0 ? 'in_stock' : 'out_of_stock',
+        ])->saveQuietly();
     }
 
     /**

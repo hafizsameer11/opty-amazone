@@ -91,10 +91,15 @@ class PublicationController extends Controller
             abort_unless($images->count() === count(array_unique($d['images'])), 422, 'Use images uploaded by this seller connection.');
             $existingProduct = $link ? Product::where('store_id', $store->id)->findOrFail($link->product_id) : null;
             $fields = \App\Services\Optical\ProductForm::validate($d['product'], $store->id, $existingProduct);
-            \App\Services\Optical\ContactLensPublication::validate($fields, (int) $d['allocated_quantity']);
+            $fields = \App\Services\Optical\ContactLensPublication::withCalculatedColorStock($fields);
+            \App\Services\Optical\ContactLensPublication::validate($fields);
             $contactFields = array_intersect_key($fields, array_flip(\App\Services\Optical\ContactLensPublication::KEYS));
             $fields = array_diff_key($fields, $contactFields);
-            \App\Services\Optical\ProductOptions::allocation($fields, (int) $d['allocated_quantity']);
+            // The CRM calculates this from the option rows before publishing.
+            // Keep the submitted allocation here because Vista publications
+            // are additive and contact-lens packs use it as the increment.
+            // `allocation()` deliberately no longer rejects a second total.
+            \App\Services\Optical\ProductOptions::allocation($fields);
             $options = array_intersect_key($fields, array_flip(['variants', 'size_volume_variants', 'eye_hygiene_variants']));
             $optionMap = $link ? (json_decode($link->option_map ?? '[]', true) ?: []) : [];
             unset($fields['variants'], $fields['size_volume_variants'], $fields['eye_hygiene_variants']);
@@ -157,7 +162,7 @@ class PublicationController extends Controller
     public static function version(Product $p): string
     {
         // Public catalog views also touch updated_at; only managed data and stock conflict.
-        return hash('sha256', json_encode($p->only(['name', 'sku', 'description', 'short_description', 'category_id', 'sub_category_id', 'product_type', 'price', 'images', 'frame_shape', 'frame_material', 'frame_color', 'gender', 'lens_type', 'base_curve_options', 'diameter_options', 'powers_range', 'replacement_frequency', 'contact_lens_brand', 'contact_lens_color', 'contact_lens_material', 'contact_lens_type', 'has_uv_filter', 'can_sleep_with', 'water_content', 'is_medical_device', 'size_volume', 'pack_type', 'expiry_date', 'is_active', 'is_approved', 'is_muted', 'stock_quantity', 'stock_status', 'lens_colors', 'lens_index_options', 'treatment_options', 'compare_at_price', 'cost_price', 'is_featured', 'contact_lens_unit_config']), JSON_THROW_ON_ERROR).json_encode([$p->variants()->get()->toArray(), $p->frameSizes()->get()->toArray(), $p->sizeVolumeVariants()->get()->toArray(), $p->eyeHygieneVariants()->get()->toArray(), \App\Models\PrescriptionDropdownValue::where('product_id', $p->id)->where('store_id', $p->store_id)->orderBy('id')->get(['field_type', 'value', 'label', 'eye_type', 'is_active', 'sort_order'])->toArray()], JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode($p->only(['name', 'sku', 'model_code', 'description', 'short_description', 'category_id', 'sub_category_id', 'product_type', 'price', 'images', 'frame_shape', 'frame_material', 'frame_color', 'gender', 'lens_type', 'base_curve_options', 'diameter_options', 'powers_range', 'replacement_frequency', 'contact_lens_brand', 'contact_lens_color', 'contact_lens_material', 'contact_lens_type', 'has_uv_filter', 'can_sleep_with', 'water_content', 'is_medical_device', 'size_volume', 'pack_type', 'expiry_date', 'is_active', 'is_approved', 'is_muted', 'stock_quantity', 'stock_status', 'lens_colors', 'lens_index_options', 'treatment_options', 'compare_at_price', 'cost_price', 'is_featured', 'contact_lens_unit_config']), JSON_THROW_ON_ERROR).json_encode([$p->variants()->get()->toArray(), $p->frameSizes()->get()->toArray(), $p->sizeVolumeVariants()->get()->toArray(), $p->eyeHygieneVariants()->get()->toArray(), \App\Models\PrescriptionDropdownValue::where('product_id', $p->id)->where('store_id', $p->store_id)->orderBy('id')->get(['field_type', 'value', 'label', 'eye_type', 'is_active', 'sort_order'])->toArray()], JSON_THROW_ON_ERROR));
     }
 
     private function result(Product $p, string $key): array
