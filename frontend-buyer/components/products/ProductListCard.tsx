@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/services/product-service';
-import { isEyeProductCategory } from '@/utils/product-utils';
 import { getFullImageUrl, isLocalhostImage } from '@/lib/image-utils';
 import DiscountCampaignIndicator from '@/components/campaigns/DiscountCampaignIndicator';
 import SaveProductButton from '@/components/products/SaveProductButton';
@@ -16,22 +15,14 @@ interface ProductListCardProps {
 
 export default function ProductListCard({ product }: ProductListCardProps) {
   const { t } = useLanguage();
-  const [hoveredVariantId, setHoveredVariantId] = useState<number | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   
-  // Check if product has variants and is an eye product category or frame/sunglasses type
-  const isEyeProduct = isEyeProductCategory(product);
   const hasVariants = product.variants && product.variants.length > 0;
-  const showColorSwatches = isEyeProduct && hasVariants;
-  
-  // Get default variant or first variant
-  const defaultVariant = hasVariants && product.variants
-    ? product.variants.find(v => v.is_default) || product.variants[0]
-    : null;
+  const showColorSwatches = hasVariants;
   
   // Determine which image to show
   const getDisplayImage = () => {
-    const activeVariantId = selectedVariantId || hoveredVariantId;
+    const activeVariantId = selectedVariantId;
     
     if (showColorSwatches && activeVariantId) {
       const variant = product.variants?.find(v => v.id === activeVariantId);
@@ -39,21 +30,13 @@ export default function ProductListCard({ product }: ProductListCardProps) {
         return variant.images[0];
       }
     }
-    if (defaultVariant && defaultVariant.images && defaultVariant.images.length > 0) {
-      return defaultVariant.images[0];
-    }
     const images = product.images || [];
     return images[0] || '/file.svg';
   };
 
   const displayImage = getDisplayImage();
-  const activeVariantId = selectedVariantId || hoveredVariantId;
-  const displayPrice = activeVariantId && hasVariants && product.variants
-    ? product.variants.find(v => v.id === activeVariantId)?.price ?? product.price
-    : (defaultVariant?.price ?? product.price);
-  const displayPricing = activeVariantId && hasVariants && product.variants
-    ? product.variants.find(v => v.id === activeVariantId)?.pricing ?? product.pricing
-    : defaultVariant?.pricing ?? product.pricing;
+  const displayPrice = product.price;
+  const displayPricing = product.pricing;
 
   return (
     <Link
@@ -121,18 +104,13 @@ export default function ProductListCard({ product }: ProductListCardProps) {
               <div className="flex items-center gap-2 flex-wrap">
                 {product.variants.map((variant) => {
                   const isSelected = selectedVariantId === variant.id;
-                  const isHovered = hoveredVariantId === variant.id;
                   return (
                     <button
                       key={variant.id}
                       type="button"
-                      onMouseEnter={() => setHoveredVariantId(variant.id)}
-                      onMouseLeave={() => setHoveredVariantId(null)}
                       className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
                         isSelected
                           ? 'border-[#0066CC] ring-2 ring-[#0066CC]/30 scale-125 shadow-md'
-                          : isHovered
-                          ? 'border-[#0066CC] ring-1 ring-[#0066CC]/20 scale-110'
                           : 'border-gray-300 hover:border-gray-400 hover:scale-110'
                       }`}
                       style={{
@@ -142,7 +120,7 @@ export default function ProductListCard({ product }: ProductListCardProps) {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        setSelectedVariantId(variant.id);
+                        setSelectedVariantId((current) => current === variant.id ? null : variant.id);
                       }}
                     />
                   );

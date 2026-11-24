@@ -51,10 +51,6 @@ export default function ProductDetailsModal({
       setSelectedFrameSizeId(null);
       const data = await productService.getDetails(productId);
       setProduct(data);
-      if (data.variants && data.variants.length > 0) {
-        const defaultVariant = data.variants.find(v => v.is_default) || data.variants[0];
-        setSelectedVariantId(defaultVariant.id);
-      }
     } catch (error) {
       console.error('Failed to load product:', error);
       setError('Failed to load product details');
@@ -72,14 +68,14 @@ export default function ProductDetailsModal({
   const isGlassesProduct =
     product?.product_type === 'frame' || product?.product_type === 'sunglasses';
   const hasVariants = product?.variants && product.variants.length > 0;
-  const showColorSwatches = isGlassesProduct && hasVariants;
+  const showColorSwatches = hasVariants;
   
-  // Get selected variant or default variant
+  // General product images are shown until the buyer actively chooses a colour.
   const selectedVariant = selectedVariantId && hasVariants && product?.variants
     ? product.variants.find(v => v.id === selectedVariantId)
-    : (hasVariants && product?.variants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
+    : null;
 
-  const activeVariantId = selectedVariantId ?? selectedVariant?.id ?? null;
+  const activeVariantId = selectedVariantId ?? null;
 
   const availableFrameSizes = (() => {
     const all = product?.frame_sizes ?? [];
@@ -110,10 +106,9 @@ export default function ProductDetailsModal({
     `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)} mm`;
   
   // Determine which images to show
-  const variantImages =
-    selectedVariant && selectedVariant.images && selectedVariant.images.length > 0
-      ? selectedVariant.images
-      : (product?.images || []);
+  const variantImages = selectedVariant
+    ? selectedVariant.images || []
+    : product?.images || [];
   const images =
     selectedFrameSizeRow?.image?.trim()
       ? [selectedFrameSizeRow.image]
@@ -124,15 +119,16 @@ export default function ProductDetailsModal({
   const displayPrice =
     selectedFrameSizeRow?.price != null
       ? Number(selectedFrameSizeRow.price)
-      : selectedVariant?.price ?? product?.price ?? 0;
+      : product?.price ?? 0;
   const displayStockStatus =
     selectedFrameSizeRow?.stock_status ?? selectedVariant?.stock_status ?? product?.stock_status;
   const displayStockQuantity =
     selectedFrameSizeRow?.stock_quantity ?? selectedVariant?.stock_quantity ?? product?.stock_quantity;
   const needsSizeSelection = showSizePicker && !selectedFrameSizeRow;
+  const needsColorSelection = showColorSwatches && !selectedVariant;
 
   const handleVariantSelect = (variantId: number) => {
-    setSelectedVariantId(variantId);
+    setSelectedVariantId((current) => current === variantId ? null : variantId);
     setSelectedFrameSizeId(null);
     setSelectedFrameSize(null);
     setSelectedImageIndex(0);
@@ -426,9 +422,11 @@ export default function ProductDetailsModal({
                   <Button
                     variant="outline"
                     className="w-full"
-                    disabled={needsSizeSelection || displayStockStatus !== 'in_stock'}
+                    disabled={needsColorSelection || needsSizeSelection || displayStockStatus !== 'in_stock'}
                   >
-                    {needsSizeSelection
+                    {needsColorSelection
+                      ? 'Select a colour'
+                      : needsSizeSelection
                       ? 'Select a size'
                       : displayStockStatus !== 'in_stock'
                       ? 'Out of Stock'

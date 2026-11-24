@@ -6,8 +6,12 @@ export interface ProductVariant {
   color_name: string;
   color_code?: string;
   images: string[];
+  // Retained for legacy contact-lens pack records. Eyewear colour selection
+  // always uses the parent product price.
   price?: number;
   pricing?: import('./campaign-service').CampaignPrice;
+  barcode?: string | null;
+  purchase_code?: string | null;
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
   is_default: boolean;
@@ -83,6 +87,7 @@ export interface Product {
   name: string;
   slug: string;
   sku: string;
+  model_code?: string | null;
   description: string;
   short_description: string;
   product_type: 'frame' | 'sunglasses' | 'contact_lens' | 'eye_hygiene' | 'accessory';

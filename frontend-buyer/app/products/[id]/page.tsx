@@ -104,10 +104,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (!product) return;
 
-    const defaultVariant =
-      product.variants?.find((v) => v.is_default) || product.variants?.[0];
-
-    if (product.variants && product.variants.length > 0 && defaultVariant) {
+    if (product.variants && product.variants.length > 0) {
       const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
       const variantParam = urlParams?.get('variant');
       const sizeParam = urlParams?.get('size');
@@ -127,9 +124,9 @@ export default function ProductDetailPage() {
           setSelectedFrameSizeId(null);
         }
       } else {
-        setSelectedVariantId(defaultVariant.id);
-        // A default colour is a real selection. Its matching frame sizes must
-        // be available immediately, without asking the buyer to change colour.
+        // Opening a product deliberately shows its general gallery. A colour
+        // is selected only when the buyer chooses it (or follows a colour URL).
+        setSelectedVariantId(null);
         setSelectedFrameSizeId(null);
       }
     } else {
@@ -207,14 +204,15 @@ export default function ProductDetailPage() {
   const isRetailGlasses = isEyeglassesOrSunglassesProduct(product);
   const isGlassesProduct = product.product_type === 'frame' || product.product_type === 'sunglasses';
   const hasVariants = product.variants && product.variants.length > 0;
-  const showColorSwatches = isGlassesProduct && hasVariants;
+  const showColorSwatches = hasVariants;
   
-  // Get selected variant or default variant
+  // A colour is optional until the buyer explicitly selects one. This lets the
+  // general product gallery remain visible on first load.
   const selectedVariant = selectedVariantId && hasVariants && product.variants
     ? product.variants.find(v => v.id === selectedVariantId)
-    : (hasVariants && product.variants ? (product.variants.find(v => v.is_default) || product.variants[0]) : null);
+    : null;
 
-  const activeVariantId = selectedVariantId ?? selectedVariant?.id ?? null;
+  const activeVariantId = selectedVariantId ?? null;
 
   const availableFrameSizes = (() => {
     const all = product.frame_sizes ?? [];
@@ -262,6 +260,7 @@ export default function ProductDetailPage() {
   const formatFrameSizeDimensions = (size: FrameSize) =>
     `${Number(size.lens_width)}-${Number(size.bridge_width)}-${Number(size.temple_length)} mm`;
 
+  const needsColorSelection = showColorSwatches && !selectedVariant;
   const needsSizeSelection = showSizePicker && !selectedFrameSize;
   
   // Determine which images to show
@@ -272,10 +271,11 @@ export default function ProductDetailPage() {
     hasClConfiguredPacks && clSelectedPackQty != null
       ? clUnitConfig?.packs.find((p) => p.quantity === clSelectedPackQty)
       : clUnitConfig?.packs?.[0];
-  const variantImages =
-    selectedVariant && selectedVariant.images && selectedVariant.images.length > 0
-      ? selectedVariant.images
-      : product.images || [];
+  // Do not leak a different colour's photographs into a selected colour. When
+  // no colour is selected, restore the general product gallery.
+  const variantImages = selectedVariant
+    ? selectedVariant.images || []
+    : product.images || [];
   const sizeImage = selectedFrameSize?.image ? [selectedFrameSize.image] : null;
   const images =
     (product.product_type === "contact_lens" || product.product_type === "eye_hygiene") && clMainImages?.length
@@ -301,11 +301,9 @@ export default function ProductDetailPage() {
       ? Number(selectedFrameSize.price)
       : showSizePicker && availableFrameSizes.length > 0
       ? Number(
-          availableFrameSizes.find((s) => s.price != null)?.price ??
-            selectedVariant?.price ??
-            product.price
+          availableFrameSizes.find((s) => s.price != null)?.price ?? product.price
         )
-      : selectedVariant?.price ?? product.price);
+      : product.price);
   const displayStockStatus = needsSizeSelection
     ? 'in_stock'
     : selectedFrameSize?.stock_status ?? selectedVariant?.stock_status ?? product.stock_status;
@@ -314,6 +312,10 @@ export default function ProductDetailPage() {
     : selectedFrameSize?.stock_quantity ?? selectedVariant?.stock_quantity ?? product.stock_quantity;
 
   const handleAddToCart = async () => {
+    if (needsColorSelection) {
+      showToast('error', 'Please select a colour');
+      return;
+    }
     if (needsSizeSelection) {
       showToast('error', 'Please select a frame size');
       return;
@@ -349,7 +351,7 @@ export default function ProductDetailPage() {
   };
 
   const handleVariantSelect = (variantId: number) => {
-    setSelectedVariantId(variantId);
+    setSelectedVariantId((current) => current === variantId ? null : variantId);
     setSelectedFrameSizeId(null);
     setSelectedImageIndex(0);
   };
@@ -425,6 +427,9 @@ export default function ProductDetailPage() {
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 break-words">
                   {product.name}
                 </h1>
+                {product.model_code && (
+                  <p className="mb-2 text-sm font-medium text-gray-500">Model code: {product.model_code}</p>
+                )}
                 <div className="flex flex-wrap items-center gap-3"><SaveProductButton productId={product.id} /><Link href={`/profile?tab=referrals&product=${product.id}`} className="text-sm font-semibold text-teal-700 hover:underline">Refer &amp; Earn</Link></div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                   <div className="flex items-center">
@@ -762,11 +767,13 @@ export default function ProductDetailPage() {
                 <div className="space-y-3">
                   <Button
                     onClick={() => setShowCheckoutModal(true)}
-                    disabled={needsSizeSelection || displayStockStatus !== "in_stock"}
+                    disabled={needsColorSelection || needsSizeSelection || displayStockStatus !== "in_stock"}
                     className="w-full"
                     size="lg"
                   >
-                    {needsSizeSelection
+                    {needsColorSelection
+                      ? 'Select a colour'
+                      : needsSizeSelection
                       ? 'Select a size'
                       : displayStockStatus !== "in_stock"
                       ? 'Out of Stock'
@@ -777,9 +784,11 @@ export default function ProductDetailPage() {
                     variant="outline"
                     className="w-full"
                     size="lg"
-                    disabled={needsSizeSelection || displayStockStatus !== "in_stock"}
+                    disabled={needsColorSelection || needsSizeSelection || displayStockStatus !== "in_stock"}
                   >
-                    {needsSizeSelection
+                    {needsColorSelection
+                      ? 'Select a colour'
+                      : needsSizeSelection
                       ? 'Select a size'
                       : displayStockStatus !== "in_stock"
                       ? 'Out of Stock'
@@ -790,7 +799,7 @@ export default function ProductDetailPage() {
                 <div className="space-y-3">
                   <Button
                     onClick={handleAddToCart}
-                    disabled={needsSizeSelection || displayStockStatus !== "in_stock" || addingToCart}
+                    disabled={needsColorSelection || needsSizeSelection || displayStockStatus !== "in_stock" || addingToCart}
                     className="w-full"
                     size="lg"
                   >
@@ -799,6 +808,8 @@ export default function ProductDetailPage() {
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                         Adding to Cart...
                       </span>
+                    ) : needsColorSelection ? (
+                      'Select a colour'
                     ) : needsSizeSelection ? (
                       'Select a size'
                     ) : displayStockStatus !== "in_stock" ? (
@@ -809,6 +820,10 @@ export default function ProductDetailPage() {
                   </Button>
                   <Button
                     onClick={async () => {
+                      if (needsColorSelection) {
+                        showToast('error', 'Please select a colour');
+                        return;
+                      }
                       if (needsSizeSelection) {
                         showToast('error', 'Please select a frame size');
                         return;
@@ -840,9 +855,11 @@ export default function ProductDetailPage() {
                     variant="outline"
                     className="w-full"
                     size="lg"
-                    disabled={needsSizeSelection || displayStockStatus !== "in_stock" || addingToCart}
+                    disabled={needsColorSelection || needsSizeSelection || displayStockStatus !== "in_stock" || addingToCart}
                   >
-                    {needsSizeSelection ? (
+                    {needsColorSelection ? (
+                      'Select a colour'
+                    ) : needsSizeSelection ? (
                       'Select a size'
                     ) : displayStockStatus !== "in_stock" ? (
                       'Out of Stock'
@@ -860,7 +877,7 @@ export default function ProductDetailPage() {
                 <div className="space-y-3">
                   <Button
                     onClick={handleAddToCart}
-                    disabled={displayStockStatus !== "in_stock" || addingToCart}
+                    disabled={needsColorSelection || displayStockStatus !== "in_stock" || addingToCart}
                     className="w-full"
                     size="lg"
                   >
@@ -869,6 +886,8 @@ export default function ProductDetailPage() {
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                         Adding to Cart...
                       </span>
+                    ) : needsColorSelection ? (
+                      'Select a colour'
                     ) : displayStockStatus !== "in_stock" ? (
                       'Out of Stock'
                     ) : (
@@ -904,9 +923,11 @@ export default function ProductDetailPage() {
                     variant="outline"
                     className="w-full"
                     size="lg"
-                    disabled={displayStockStatus !== "in_stock" || addingToCart}
+                    disabled={needsColorSelection || displayStockStatus !== "in_stock" || addingToCart}
                   >
-                    {displayStockStatus !== "in_stock" ? (
+                    {needsColorSelection ? (
+                      'Select a colour'
+                    ) : displayStockStatus !== "in_stock" ? (
                       'Out of Stock'
                     ) : addingToCart ? (
                       <span className="flex items-center gap-2">
@@ -1006,6 +1027,12 @@ export default function ProductDetailPage() {
                       {product.sku}
                     </dd>
                   </div>
+                  {product.model_code && (
+                    <div>
+                      <dt className="text-sm font-semibold text-gray-500 uppercase">Model code</dt>
+                      <dd className="mt-1 text-sm text-gray-900">{product.model_code}</dd>
+                    </div>
+                  )}
                   
                   {/* Contact Lens Specific Fields */}
                   {product.product_type === 'contact_lens' && (

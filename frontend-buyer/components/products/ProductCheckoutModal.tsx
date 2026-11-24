@@ -119,13 +119,19 @@ export default function ProductCheckoutModal({
   }, [product.frame_sizes, product.variants, activeVariantId]);
 
   // Get product images
-  const productImages = selectedVariant?.images && selectedVariant.images.length > 0
-    ? selectedVariant.images
+  // A selected colour owns its gallery. Do not mix another colour's (or the
+  // product's general) photos into the selection when it has no photos yet.
+  const productImages = selectedVariant
+    ? (selectedVariant.images || [])
     : (product.images || []);
   const mainImage = productImages[0] || '/file.svg';
 
-  // Base price
-  const basePrice = Number(selectedVariant?.price || product.price || 0);
+  // Colour is a visual variation for eyewear, not a separately priced SKU.
+  // Legacy contact-lens pack records can still retain their own price.
+  const usesCommonColourPrice = product.product_type === 'frame' || product.product_type === 'sunglasses';
+  const basePrice = Number(
+    usesCommonColourPrice ? product.price : (selectedVariant?.price ?? product.price ?? 0),
+  );
 
   // Load lens data
   useEffect(() => {
