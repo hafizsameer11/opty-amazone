@@ -21,7 +21,8 @@ function emptyVariant(sortOrder: number): CreateVariantData {
     color_name: '',
     color_code: '#000000',
     images: [],
-    price: undefined,
+    barcode: '',
+    purchase_code: '',
     stock_quantity: 0,
     stock_status: 'in_stock',
     is_default: sortOrder === 0,
@@ -170,12 +171,18 @@ export default function DraftColorVariationsModalEditor({
                 </div>
               </div>
               <Input
-                label={t('form.price')}
-                type="number"
-                min="0"
-                step="0.01"
-                value={selectedVariant.price ?? ''}
-                onChange={(event) => updateVariant(selectedIndex, { price: event.target.value === '' ? undefined : Math.max(0, Number(event.target.value)) })}
+                label="Barcode"
+                value={selectedVariant.barcode ?? ''}
+                onChange={(event) => updateVariant(selectedIndex, { barcode: event.target.value })}
+                required
+                placeholder="Unique code for this colour"
+              />
+              <Input
+                label="Purchase code"
+                value={selectedVariant.purchase_code ?? ''}
+                onChange={(event) => updateVariant(selectedIndex, { purchase_code: event.target.value })}
+                required
+                placeholder="Unique purchasing code for this colour"
               />
               <div>
                 <Input
@@ -194,8 +201,9 @@ export default function DraftColorVariationsModalEditor({
                 <label className="mb-2 block text-sm font-medium text-slate-700">{t('form.stockStatus')}</label>
                 <select
                   value={selectedVariant.stock_status}
+                  disabled={(selectedVariant.sizes?.length ?? 0) > 0}
                   onChange={(event) => updateVariant(selectedIndex, { stock_status: event.target.value as CreateVariantData['stock_status'] })}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-800 outline-none ring-blue-200 focus:ring-4"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-800 outline-none ring-blue-200 focus:ring-4 disabled:bg-slate-100"
                 >
                   <option value="in_stock">{t('form.inStock')}</option>
                   <option value="out_of_stock">{t('form.outOfStock')}</option>

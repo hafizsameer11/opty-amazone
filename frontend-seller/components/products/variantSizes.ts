@@ -13,6 +13,9 @@ import type { CreateVariantData } from '@/services/product-service';
 export type DraftSizeRow = {
   key: string;
   size_text: string;
+  lens_width?: number;
+  bridge_width?: number;
+  temple_length?: number;
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
 };
@@ -24,6 +27,9 @@ export function emptyDraftSize(): DraftSizeRow {
   return {
     key: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     size_text: '',
+    lens_width: 0,
+    bridge_width: 0,
+    temple_length: 0,
     stock_quantity: 0,
     stock_status: 'in_stock',
   };
@@ -82,6 +88,9 @@ export function draftSizesToApi(sizes: DraftSizeRow[]): ParsedVariantSize[] {
 
     parsed.push({
       ...normalized,
+      lens_width: row.lens_width ?? normalized.lens_width,
+      bridge_width: row.bridge_width ?? normalized.bridge_width,
+      temple_length: row.temple_length ?? normalized.temple_length,
       stock_quantity: Math.max(0, Number(row.stock_quantity) || 0),
       stock_status: row.stock_status,
     });
@@ -97,6 +106,9 @@ export function apiSizesToDraft(sizes?: ParsedVariantSize[] | null): DraftSizeRo
   return sizes.map((size, index) => ({
     key: `existing-${index}-${size.size_label}`,
     size_text: size.size_label,
+    lens_width: size.lens_width,
+    bridge_width: size.bridge_width,
+    temple_length: size.temple_length,
     stock_quantity: Math.max(0, Number(size.stock_quantity) || 0),
     stock_status: size.stock_status ?? 'in_stock',
   }));

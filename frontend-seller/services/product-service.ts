@@ -8,6 +8,7 @@ export interface Product {
   name: string;
   slug: string;
   sku: string;
+  model_code?: string;
   description?: string;
   short_description?: string;
   product_type: 'frame' | 'sunglasses' | 'contact_lens' | 'eye_hygiene' | 'accessory';
@@ -144,6 +145,8 @@ export interface CreateProductData {
   category_id?: number;
   sub_category_id?: number;
   sku: string;
+  /** One shared code for every colour of an eyewear model. */
+  model_code?: string;
   description?: string;
   short_description?: string;
   product_type: 'frame' | 'sunglasses' | 'contact_lens' | 'eye_hygiene' | 'accessory';
@@ -205,6 +208,8 @@ export interface ProductVariant {
   color_name: string;
   color_code?: string;
   images: string[];
+  barcode?: string | null;
+  purchase_code?: string | null;
   price?: number;
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
@@ -216,7 +221,8 @@ export interface CreateVariantData {
   color_name: string;
   color_code?: string;
   images?: string[];
-  price?: number;
+  barcode?: string;
+  purchase_code?: string;
   stock_quantity: number;
   stock_status: 'in_stock' | 'out_of_stock' | 'backorder';
   is_default?: boolean;
@@ -360,6 +366,7 @@ export function productToEditFormData(data: Product): CreateProductData {
     category_id: data.category_id || undefined,
     sub_category_id: data.sub_category_id || undefined,
     sku: data.sku,
+    model_code: data.model_code || '',
     description: data.description || '',
     short_description: data.short_description || '',
     product_type: data.product_type,

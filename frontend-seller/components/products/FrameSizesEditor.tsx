@@ -265,6 +265,29 @@ export default function FrameSizesEditor({
               </select>
             </div>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <Input
+              label="Lens width (mm)"
+              type="number"
+              min={0}
+              value={String(form.lens_width ?? 0)}
+              onChange={(e) => setForm({ ...form, lens_width: Math.max(0, Number(e.target.value) || 0) })}
+            />
+            <Input
+              label="Bridge width (mm)"
+              type="number"
+              min={0}
+              value={String(form.bridge_width ?? 0)}
+              onChange={(e) => setForm({ ...form, bridge_width: Math.max(0, Number(e.target.value) || 0) })}
+            />
+            <Input
+              label="Temple length (mm)"
+              type="number"
+              min={0}
+              value={String(form.temple_length ?? 0)}
+              onChange={(e) => setForm({ ...form, temple_length: Math.max(0, Number(e.target.value) || 0) })}
+            />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <Input
               label="Price override (optional)"

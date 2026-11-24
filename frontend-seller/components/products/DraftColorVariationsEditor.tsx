@@ -20,7 +20,8 @@ function emptyVariant(sortOrder: number): CreateVariantData {
     color_name: '',
     color_code: '#000000',
     images: [],
-    price: undefined,
+    barcode: '',
+    purchase_code: '',
     stock_quantity: 0,
     stock_status: 'in_stock',
     is_default: sortOrder === 0,
@@ -154,12 +155,14 @@ export default function DraftColorVariationsEditor({
                       </div>
                     </div>
                     <Input
-                      label={t('form.price')}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={variant.price ?? ''}
-                      onChange={(event) => updateVariant(index, { price: event.target.value === '' ? undefined : Math.max(0, Number(event.target.value)) })}
+                      label="Barcode"
+                      value={variant.barcode ?? ''}
+                      onChange={(event) => updateVariant(index, { barcode: event.target.value })}
+                    />
+                    <Input
+                      label="Purchase code"
+                      value={variant.purchase_code ?? ''}
+                      onChange={(event) => updateVariant(index, { purchase_code: event.target.value })}
                     />
                     <Input
                       label={t('form.stock')}

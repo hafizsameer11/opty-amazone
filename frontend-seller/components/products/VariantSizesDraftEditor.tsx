@@ -80,6 +80,9 @@ export default function VariantSizesDraftEditor({
             <thead>
               <tr className="border-b text-left text-slate-500">
                 <th className="py-2 pr-2 font-medium">{t('form.sizeAnyText')}</th>
+                <th className="py-2 pr-2 font-medium">Lens width (mm)</th>
+                <th className="py-2 pr-2 font-medium">Bridge width (mm)</th>
+                <th className="py-2 pr-2 font-medium">Temple length (mm)</th>
                 <th className="py-2 pr-2 font-medium">{t('form.stock')}</th>
                 <th className="py-2 pr-2 font-medium">{t('common.status')}</th>
                 <th className="py-2 font-medium">{t('form.action')}</th>
@@ -97,6 +100,18 @@ export default function VariantSizesDraftEditor({
                       className="w-full rounded-md border border-slate-300 px-2 py-1.5"
                     />
                   </td>
+                  {(['lens_width', 'bridge_width', 'temple_length'] as const).map((key) => (
+                    <td key={key} className="py-2 pr-2">
+                      <input
+                        type="number"
+                        min={0}
+                        value={row[key] ?? 0}
+                        onChange={(event) => updateRow(index, { [key]: Math.max(0, Number(event.target.value) || 0) })}
+                        aria-label={key.replace('_', ' ')}
+                        className="w-24 rounded-md border border-slate-300 px-2 py-1.5"
+                      />
+                    </td>
+                  ))}
                   <td className="py-2 pr-2">
                     <input
                       type="number"

@@ -40,7 +40,8 @@ export default function ColorVariationsManager({ productId, categoryId, productT
     color_name: '',
     color_code: '#000000',
     images: [],
-    price: undefined,
+    barcode: '',
+    purchase_code: '',
     stock_quantity: 0,
     stock_status: 'in_stock',
     is_default: false,
@@ -82,7 +83,6 @@ export default function ColorVariationsManager({ productId, categoryId, productT
         data.map((v) => ({
           ...v,
           images: (v.images || []).map((u) => resolveMediaUrl(u)),
-          price: v.price != null ? Number(v.price) : undefined,
         }))
       );
     } catch {
@@ -146,7 +146,8 @@ export default function ColorVariationsManager({ productId, categoryId, productT
       color_name: '',
       color_code: '#000000',
       images: [],
-      price: undefined,
+      barcode: '',
+      purchase_code: '',
       stock_quantity: 0,
       stock_status: 'in_stock',
       is_default: false,
@@ -162,6 +163,12 @@ export default function ColorVariationsManager({ productId, categoryId, productT
     const colorName = formData.color_name.trim();
     if (!colorName) {
       setAlert({ type: 'error', message: t('form.enterColorName') });
+      setSaving(false);
+      return;
+    }
+
+    if (!formData.barcode?.trim() || !formData.purchase_code?.trim()) {
+      setAlert({ type: 'error', message: 'Enter a unique barcode and purchase code for this colour.' });
       setSaving(false);
       return;
     }
@@ -196,6 +203,9 @@ export default function ColorVariationsManager({ productId, categoryId, productT
         }
         parsedSizes.push({
           ...parsed,
+          lens_width: row.lens_width ?? parsed.lens_width,
+          bridge_width: row.bridge_width ?? parsed.bridge_width,
+          temple_length: row.temple_length ?? parsed.temple_length,
           stock_quantity: Math.max(0, Number(row.stock_quantity) || 0),
           stock_status: row.stock_status,
         });
@@ -214,7 +224,8 @@ export default function ColorVariationsManager({ productId, categoryId, productT
       color_name: colorName,
       color_code: colorCode || undefined,
       images: (formData.images || []).map((u) => resolveMediaUrl(u)),
-      price: formData.price,
+      barcode: formData.barcode?.trim() || undefined,
+      purchase_code: formData.purchase_code?.trim() || undefined,
       stock_quantity: editingVariant ? formData.stock_quantity : autoStock,
       stock_status: editingVariant ? formData.stock_status : autoStatus,
       is_default: formData.is_default,
@@ -250,7 +261,8 @@ export default function ColorVariationsManager({ productId, categoryId, productT
       color_name: variant.color_name,
       color_code: variant.color_code || '#000000',
       images: (variant.images || []).map((u) => resolveMediaUrl(u)),
-      price: variant.price != null ? Number(variant.price) : undefined,
+      barcode: variant.barcode || '',
+      purchase_code: variant.purchase_code || '',
       stock_quantity: Number(variant.stock_quantity) || 0,
       stock_status: variant.stock_status,
       is_default: variant.is_default,
@@ -361,6 +373,23 @@ export default function ColorVariationsManager({ productId, categoryId, productT
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Barcode"
+              value={formData.barcode || ''}
+              onChange={(e) => setFormData((prev) => ({ ...prev, barcode: e.target.value }))}
+              placeholder="Unique barcode for this colour"
+              required
+            />
+            <Input
+              label="Purchase code"
+              value={formData.purchase_code || ''}
+              onChange={(e) => setFormData((prev) => ({ ...prev, purchase_code: e.target.value }))}
+              placeholder="Unique purchase code for this colour"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Input
                 label={t('form.stockAuto')}
@@ -468,6 +497,9 @@ export default function ColorVariationsManager({ productId, categoryId, productT
                   <thead>
                     <tr className="text-left text-gray-500 border-b">
                           <th className="py-2 pr-2 font-medium">{t('form.sizeAnyText')}</th>
+                          <th className="py-2 pr-2 font-medium">Lens width</th>
+                          <th className="py-2 pr-2 font-medium">Bridge width</th>
+                          <th className="py-2 pr-2 font-medium">Temple length</th>
                           <th className="py-2 pr-2 font-medium">{t('form.stock')}</th>
                           <th className="py-2 pr-2 font-medium">{t('common.status')}</th>
                           <th className="py-2 font-medium">{t('form.action')}</th>
@@ -488,6 +520,21 @@ export default function ColorVariationsManager({ productId, categoryId, productT
                             className="w-full px-2 py-1.5 border border-gray-300 rounded-md"
                           />
                         </td>
+                        {(['lens_width', 'bridge_width', 'temple_length'] as const).map((key) => (
+                          <td key={key} className="py-2 pr-2">
+                            <input
+                              type="number"
+                              min={0}
+                              value={row[key] ?? 0}
+                              onChange={(e) => {
+                                const next = [...draftSizes];
+                                next[index] = { ...row, [key]: Math.max(0, Number(e.target.value) || 0) };
+                                setDraftSizes(next);
+                              }}
+                              className="w-24 px-2 py-1.5 border border-gray-300 rounded-md"
+                            />
+                          </td>
+                        ))}
                         <td className="py-2 pr-2">
                           <input
                             type="number"

@@ -335,6 +335,21 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
                 </p>
               )}
             </div>
+
+            {(formData.product_type === 'frame' || formData.product_type === 'sunglasses') && (
+              <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-xl p-6 border border-sky-100">
+                <Input
+                  label="Model code"
+                  value={formData.model_code || ''}
+                  onChange={(e) => setFormData({ ...formData, model_code: e.target.value })}
+                  required
+                  maxLength={100}
+                  className="bg-white"
+                  placeholder="e.g. LB028"
+                />
+                <p className="mt-2 text-xs text-sky-700">One shared code for every colour of this eyewear model.</p>
+              </div>
+            )}
             
             <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-100">
               <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -392,7 +407,17 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
       {isNew && (
         <DraftColorVariationsEditor
           value={formData.variants || []}
-          onChange={(variants) => setFormData((previous) => ({ ...previous, variants }))}
+          onChange={(variants) => setFormData((previous) => {
+            const hasColourStock = ['frame', 'sunglasses'].includes(previous.product_type) && variants.length > 0;
+            const total = variants.reduce((sum, variant) => sum + ((variant.sizes?.length ?? 0) > 0
+              ? (variant.sizes ?? []).reduce((sizeTotal, size) => sizeTotal + Math.max(0, Number(size.stock_quantity) || 0), 0)
+              : Math.max(0, Number(variant.stock_quantity) || 0)), 0);
+            return {
+              ...previous,
+              variants,
+              ...(hasColourStock ? { stock_quantity: total, stock_status: total > 0 ? 'in_stock' as const : 'out_of_stock' as const } : {}),
+            };
+          })}
           productType={formData.product_type}
         />
       )}
@@ -473,15 +498,17 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pt-8 border-t-2 border-gray-200">
             <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-xl p-5 border border-teal-200">
               <Input
-                label={t('form.stock')}
+                label={isNew && ['frame', 'sunglasses'].includes(formData.product_type) && (formData.variants?.length ?? 0) > 0 ? 'Total stock (automatic)' : t('form.stock')}
                 type="number"
                 min="0"
                 value={formData.stock_quantity}
                 onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
+                readOnly={isNew && ['frame', 'sunglasses'].includes(formData.product_type) && (formData.variants?.length ?? 0) > 0}
                 required
                 className="bg-white font-semibold"
                 placeholder="0"
               />
+              {isNew && ['frame', 'sunglasses'].includes(formData.product_type) && (formData.variants?.length ?? 0) > 0 && <p className="mt-2 text-xs text-teal-700">Calculated from the stock entered for each colour and frame size.</p>}
             </div>
             <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl p-5 border border-rose-200">
               <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -491,7 +518,8 @@ export default function UnifiedProductForm({ productId, onSuccess, eyewearOnly }
               <select
                 value={formData.stock_status}
                 onChange={(e) => setFormData({ ...formData, stock_status: e.target.value as any })}
-                className="w-full px-4 py-3.5 bg-white border-2 border-rose-200 rounded-xl focus:ring-4 focus:ring-rose-200 focus:border-rose-500 transition-all font-medium text-gray-700 shadow-sm hover:border-rose-300"
+                disabled={isNew && ['frame', 'sunglasses'].includes(formData.product_type) && (formData.variants?.length ?? 0) > 0}
+                className="w-full px-4 py-3.5 bg-white border-2 border-rose-200 rounded-xl focus:ring-4 focus:ring-rose-200 focus:border-rose-500 transition-all font-medium text-gray-700 shadow-sm hover:border-rose-300 disabled:cursor-not-allowed disabled:bg-gray-100"
                 required
               >
                 <option value="in_stock">{t('form.inStock')}</option>
